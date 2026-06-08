@@ -1,0 +1,20 @@
+{
+  "cbm-reindex-on-sync": {
+    "PreInvocation": null,
+    "PostInvocation": null,
+    "Stop": null,
+    "PreToolUse": null,
+    "PostToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.agents/hooks/cbm-reindex-on-sync.sh",
+            "timeout": 0
+          }
+        ]
+      }
+    ]
+  }
+}

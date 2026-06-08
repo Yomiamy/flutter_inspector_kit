@@ -1,3 +1,12 @@
+# Git worktrees
+.worktrees/
+
+# Claude Code workflow state (local only, not shared across developers)
+.claude/workflow-state/
+
+# Antigravity CLI state
+.antigravitycli/
+
 # Miscellaneous
 *.class
 *.lock
@@ -103,6 +112,9 @@ unlinked_spec.ds
 **/linux/flutter/generated_plugin_registrant.cc
 **/linux/flutter/generated_plugin_registrant.h
 **/linux/flutter/generated_plugins.cmake
+
+# flutter_gen generated files
+lib/gen/
 
 # Coverage
 coverage/

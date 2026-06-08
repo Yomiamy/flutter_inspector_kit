@@ -1,0 +1,7 @@
+interface:
+  display_name: "Branch Ticket Issue Doc"
+  short_description: "在選定 workspace 建立問題文件"
+  default_prompt: "Use $branch-ticket-issue-doc to create docs/issues/<ticket-id>.md in the development workspace selected by ticket-id-dev-prep from the advisor parsed brief and ticket context."
+
+policy:
+  allow_implicit_invocation: true
