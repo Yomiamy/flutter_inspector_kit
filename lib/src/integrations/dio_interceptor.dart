@@ -1,0 +1,74 @@
+import 'package:dio/dio.dart';
+
+import '../core/flutter_inspector_impl.dart';
+import '../models/network_entry.dart';
+
+/// A Dio interceptor that automatically records requests and responses to the
+/// [FlutterInspector].
+class FlutterInspectorDioInterceptor extends Interceptor {
+  /// Creates the interceptor, feeding entries to the provided [_inspector].
+  FlutterInspectorDioInterceptor(this._inspector);
+
+  final FlutterInspector _inspector;
+  final Map<RequestOptions, DateTime> _startTimes = {};
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    _startTimes[options] = DateTime.now();
+    final entry = NetworkEntry(
+      method: options.method,
+      url: options.uri.toString(),
+      requestHeaders: options.headers,
+      requestBody: options.data?.toString(),
+    );
+    _inspector.logNetwork(entry);
+    handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    final startTime = _startTimes.remove(response.requestOptions);
+    final duration =
+        startTime != null ? DateTime.now().difference(startTime) : null;
+
+    final entry = NetworkEntry(
+      method: response.requestOptions.method,
+      url: response.requestOptions.uri.toString(),
+      statusCode: response.statusCode,
+      duration: duration,
+      requestHeaders: response.requestOptions.headers,
+      requestBody: response.requestOptions.data?.toString(),
+      responseHeaders:
+          response.headers.map.map((k, v) => MapEntry(k, v.join(','))),
+      responseBody: response.data?.toString(),
+      isComplete: true,
+      timestamp: startTime,
+    );
+    _inspector.logNetwork(entry);
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final startTime = _startTimes.remove(err.requestOptions);
+    final duration =
+        startTime != null ? DateTime.now().difference(startTime) : null;
+
+    final entry = NetworkEntry(
+      method: err.requestOptions.method,
+      url: err.requestOptions.uri.toString(),
+      statusCode: err.response?.statusCode,
+      duration: duration,
+      requestHeaders: err.requestOptions.headers,
+      requestBody: err.requestOptions.data?.toString(),
+      responseHeaders: err.response?.headers.map
+          .map((k, v) => MapEntry(k, v.join(','))),
+      responseBody: err.response?.data?.toString(),
+      error: err.toString(),
+      isComplete: true,
+      timestamp: startTime,
+    );
+    _inspector.logNetwork(entry);
+    handler.next(err);
+  }
+}
