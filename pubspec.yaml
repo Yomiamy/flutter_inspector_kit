@@ -1,0 +1,25 @@
+name: flutter_inspector
+description: "A multi-inspector tool integration for Flutter, bundling debugging and inspection utilities behind a single unified API."
+version: 0.0.1
+homepage: https://github.com/Yomiamy/flutter_inspector
+repository: https://github.com/Yomiamy/flutter_inspector
+issue_tracker: https://github.com/Yomiamy/flutter_inspector/issues
+
+environment:
+  sdk: ^3.10.1
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:

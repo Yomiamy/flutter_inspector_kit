@@ -1,0 +1,7 @@
+# Development-only files excluded from the published package.
+# These are not part of the package's public API or documentation.
+docs/
+.agents/
+.claude/
+.gemini/
+.fvm/
