@@ -10,11 +10,9 @@ class FlutterInspectorDioInterceptor extends Interceptor {
   FlutterInspectorDioInterceptor(this._inspector);
 
   final FlutterInspector _inspector;
-  final Map<RequestOptions, DateTime> _startTimes = {};
-
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    _startTimes[options] = DateTime.now();
+    options.extra['_inspector_start_time'] = DateTime.now();
     final entry = NetworkEntry(
       method: options.method,
       url: options.uri.toString(),
@@ -27,7 +25,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    final startTime = _startTimes.remove(response.requestOptions);
+    final startTime =
+        response.requestOptions.extra['_inspector_start_time'] as DateTime?;
     final duration =
         startTime != null ? DateTime.now().difference(startTime) : null;
 
@@ -50,7 +49,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    final startTime = _startTimes.remove(err.requestOptions);
+    final startTime =
+        err.requestOptions.extra['_inspector_start_time'] as DateTime?;
     final duration =
         startTime != null ? DateTime.now().difference(startTime) : null;
 

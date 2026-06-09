@@ -80,13 +80,15 @@ class FlutterInspector {
     bool visible = true,
   }) {
     if (_overlayEntry != null) return;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
     _overlayEntry = OverlayEntry(
       builder: (context) => InspectorFab(
         onTap: () => openDashboard(context),
         visible: visible,
       ),
     );
-    Overlay.of(context).insert(_overlayEntry!);
+    overlay.insert(_overlayEntry!);
   }
 
   /// Removes the FAB overlay.
