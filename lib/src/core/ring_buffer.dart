@@ -16,6 +16,7 @@ class RingBuffer<T> {
 
   // Oldest item at the head, newest at the tail.
   final ListQueue<T> _items = ListQueue<T>();
+  List<T>? _cachedItems;
 
   /// Appends [item], evicting the oldest item if at capacity.
   void add(T item) {
@@ -23,13 +24,20 @@ class RingBuffer<T> {
       _items.removeFirst();
     }
     _items.addLast(item);
+    _cachedItems = null;
   }
 
   /// A newest-first, unmodifiable snapshot of the buffered items.
-  List<T> get items => List<T>.unmodifiable(_items.toList().reversed);
+  List<T> get items {
+    _cachedItems ??= List<T>.unmodifiable(_items.toList().reversed);
+    return _cachedItems!;
+  }
 
   /// Removes all items.
-  void clear() => _items.clear();
+  void clear() {
+    _items.clear();
+    _cachedItems = null;
+  }
 
   /// The current number of buffered items.
   int get length => _items.length;

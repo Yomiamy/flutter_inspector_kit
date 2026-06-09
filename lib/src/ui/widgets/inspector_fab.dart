@@ -30,8 +30,11 @@ class _InspectorFabState extends State<InspectorFab> {
       top: position.dy,
       child: GestureDetector(
         onPanUpdate: (details) {
+          final size = MediaQuery.of(context).size;
           setState(() {
-            position += details.delta;
+            final newX = (position.dx + details.delta.dx).clamp(0.0, size.width - 48.0);
+            final newY = (position.dy + details.delta.dy).clamp(0.0, size.height - 48.0);
+            position = Offset(newX, newY);
           });
         },
         child: FloatingActionButton(
