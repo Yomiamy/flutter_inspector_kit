@@ -1,0 +1,7 @@
+interface:
+  display_name: "Issue Spec Prep"
+  short_description: "由 issue doc 建立實作 spec"
+  default_prompt: "Use $issue-spec-prep to create docs/issues/specs/<ticket-id>.md from the existing issue document in the development workspace selected by ticket-id-dev-prep before implementation."
+
+policy:
+  allow_implicit_invocation: true

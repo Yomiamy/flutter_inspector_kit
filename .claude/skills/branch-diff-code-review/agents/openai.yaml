@@ -1,0 +1,7 @@
+interface:
+  display_name: "Branch Diff Code Review"
+  short_description: "review branch 分支後的完整改動並遵守 repo styleguide"
+  default_prompt: "Use $branch-diff-code-review to review all changes on the current branch since it diverged from its base branch, determine the fork point without defaulting to origin/main, and present findings in zh-tw following the repository .gemini/styleguide.md code review persona."
+
+policy:
+  allow_implicit_invocation: true
