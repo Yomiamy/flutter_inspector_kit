@@ -1,6 +1,7 @@
 ## 0.0.1
 
-* Initial project skeleton.
-* Established the publishable package layout (`lib/`, `test/`, `example/`).
-* Added the `FlutterInspector` public entry point as a placeholder surface.
-* Configured `flutter_lints` analysis and package publishing metadata.
+* Initial release of Flutter Inspector framework.
+* Includes Console, Network, Navigator, and Database inspectors.
+* In-app overlay FAB and full-screen Dashboard.
+* Includes `Dio` interceptor for network traffic.
+* Includes `MagicalTap` widget for gesture-based invocation.

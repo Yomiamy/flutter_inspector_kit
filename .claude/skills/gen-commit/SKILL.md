@@ -50,8 +50,6 @@ git commit -m "$(cat <<'EOF'
 <type>(<optional scope>): <short imperative summary>
 
 <optional body explaining why, not what>
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -60,7 +58,6 @@ EOF
 - Type: `feat` / `fix` / `refactor` / `test` / `chore` / `build` / `ci` / `docs`
 - Subject line ≤ 72 chars, imperative mood ("add", "fix", "remove" — not "added", "fixes")
 - Body: explain *why* or *what changed*, not line-by-line summary
-- Always append the `Co-Authored-By` trailer
 
 ### 5. Confirm
 

@@ -1,11 +1,7 @@
-/// A multi-inspector tool integration for Flutter.
-///
-/// This library is the public entry point for the package. Import it to access
-/// the inspector API surface:
-///
-/// ```dart
-/// import 'package:flutter_inspector/flutter_inspector.dart';
-/// ```
-library;
 
-export 'src/flutter_inspector_base.dart';
+export 'src/core/flutter_inspector_impl.dart';
+export 'src/integrations/dio_interceptor.dart';
+export 'src/models/database_operation.dart';
+export 'src/models/log_level.dart';
+export 'src/models/network_entry.dart';
+export 'src/ui/widgets/magical_tap.dart';

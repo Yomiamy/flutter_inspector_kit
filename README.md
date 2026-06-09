@@ -1,39 +1,69 @@
-# flutter_inspector
+# Flutter Inspector
 
-A multi-inspector tool integration for Flutter.
+A multi-inspector tool integration for Flutter. It provides an in-app overlay to inspect logs, network requests, navigator events, and database operations.
 
-> **Status:** early skeleton. The public API is a placeholder while the inspector
-> integrations are being built out. Expect breaking changes before `1.0.0`.
+## Features
+- **Console Inspector**: View application logs with different severity levels.
+- **Network Inspector**: Intercept and view HTTP requests and responses (via Dio).
+- **Navigator Inspector**: Track route pushes, pops, and replacements.
+- **Database Inspector**: Track database operations (e.g. SQLite queries).
 
 ## Installation
 
-Add the package to your `pubspec.yaml`:
+Add `flutter_inspector` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
   flutter_inspector: ^0.0.1
 ```
 
-Then fetch it:
-
-```sh
-flutter pub get
-```
-
 ## Usage
+
+Create a single instance of `FlutterInspector` and integrate it into your app:
 
 ```dart
 import 'package:flutter_inspector/flutter_inspector.dart';
 
+final inspector = FlutterInspector();
+
 void main() {
-  const inspector = FlutterInspector();
-  debugPrint('flutter_inspector ${FlutterInspector.version}');
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      navigatorObservers: [inspector.navigatorObserver], // 1. Add navigator observer
+      builder: (context, child) {
+        // 2. Wrap your app with the MagicalTap widget to easily open the dashboard
+        return FlutterInspectorMagicalTap(
+          onTap: () => inspector.openDashboard(context),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: MyHomePage(),
+    );
+  }
 }
 ```
 
-A runnable example lives in [`example/`](example/).
+To enable the floating action button overlay (FAB), attach the inspector after the app has loaded:
 
-## License
+```dart
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      inspector.attach(context: context);
+    });
+  }
+```
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file
-for details.
+### Dio Interceptor
+To track network requests with `dio`, add the interceptor to your `Dio` instance:
+
+```dart
+final dio = Dio();
+dio.interceptors.add(FlutterInspectorDioInterceptor(inspector));
+```

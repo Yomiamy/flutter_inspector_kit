@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('FlutterInspector', () {
     test('can be instantiated', () {
-      const inspector = FlutterInspector();
+      final inspector = FlutterInspector();
       expect(inspector, isA<FlutterInspector>());
     });
 

@@ -15,6 +15,7 @@ tools: [Read, Write, Bash, Glob, Grep]
 - 撰寫計畫：產出 `docs/plans/YYYY-MM-DD-<feature>.md`，任務粒度為 2–5 分鐘
 
 ## 工作原則
+- 語言：spec（`docs/features/`）與 plan（`docs/plans/`）文件一律以繁體中文撰寫；程式碼、識別字、指令、技術術語保留原文
 - YAGNI：只規劃被要求的功能
 - TDD-first：每個任務從測試開始
 - 任務夠小：每步驟一個動作，包含完整程式碼與指令
