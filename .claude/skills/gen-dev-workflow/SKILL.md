@@ -15,6 +15,14 @@ description: |
 
 > **多 workflow 並行：** 同一 repo 可同時跑多個獨立 workflow（多個終端 / 多個 session）。隔離 key 是 **git branch**——每個 workflow 跑在自己的 branch 上，寫自己 branch 對應的 state 檔，彼此天然零衝突，不需要任何鎖或中央索引。唯一需要額外處理的窗口是「兩個流程都還在 STAGE 0a/0b（尚無 branch）」，靠 **workflow-id** 持久化區分（見「狀態追蹤」章節）。
 
+> **Claude Workflow 編排（可選加速層）。** 本流程內**特定的並行、唯讀或路徑不重疊、且該段落內部不需要問使用者**的環節，可改用 Claude `Workflow` 工具（JS 腳本 fan-out 多 subagent）執行，取代逐個 `Task(...)` 串接。適用點只有三處：**STAGE 0a 雙線 context 收集**、**STAGE 2 同批獨立任務**、**STAGE 3 多 angle 對抗式審查**（各章節有專節說明）。
+>
+> **硬性邊界（違反即破壞流程，絕不可越界）：**
+> - **絕不**把整條 orchestrator 包成單一 Workflow 腳本——Workflow 背景執行、跑完才回，中途無法暫停問人，會直接摧毀本流程 7 個人在迴圈中的暫停確認點。
+> - Workflow 只用於**單一段落內部**的 fan-out，**暫停點永遠由主指揮（主對話）掌控**，落在任何 Workflow 呼叫的外面。一個 Workflow 呼叫 = 一段不可中斷的並行，跑完回到主對話才暫停。
+> - **前置條件：** 使用者需明確 opt-in 多 agent 編排（說「ultracode」、「用 workflow」、「多 agent」或類似）。未 opt-in 時，這三處一律退回原本的 `Task(...)` / 序列作法，功能完全相同，只是不 fan-out。
+> - state 檔、model 策略、委派規則**完全不變**——Workflow 只換「並行執行的載體」，不換流程語意。
+
 ## 編排流程
 
 ```text
@@ -24,7 +32,7 @@ description: |
     ┌─────────────────────────────────────────────────┐
     │  STAGE 0a：功能規格            [Model: Opus]     │
     │  → 呼叫 planner agent                           │
-    │  → 🟢 並行 2 條：                                │
+    │  → 🟢 並行 2 條（已 opt-in → 可用 Workflow）：   │
     │     A. 專案 context 收集（讀檔 / git log）       │
     │     B. 相似功能代碼調查（既有實作參考）          │
     │     → planner 收斂兩者後撰寫規格                 │
@@ -57,6 +65,7 @@ description: |
     │  → 呼叫 implementer agent                       │
     │  → 解析計畫，判斷並行模式：                       │
     │     • ≥2 個獨立任務、寫入路徑不重疊 → 🟢 並行    │
+    │       （已 opt-in → 同批可用 Workflow fan-out）  │
     │     • 否則 → 🔴 序列逐任務                        │
     │  → 逐任務選 model：機械性→快/便宜｜整合→標準     │
     │     ｜設計判斷/跨層→最強（見 Model 策略章節）    │
@@ -71,6 +80,8 @@ description: |
     ┌─────────────────────────────────────────────────┐
     │  STAGE 3：審查                [Model: Opus]      │
     │  → 呼叫 reviewer agent（不委派 agy，親自判斷）  │
+    │  → 已 opt-in → 多 angle 對抗式審查（Workflow    │
+    │    平行 verifier 找 bug，reviewer 收斂判斷）     │
     │  ⏸ 暫停：展示審查報告，問「確認繼續嗎？」         │
     │  ┌─ 使用者確認（通過）                      ─┐   │
     │  └─ 不通過 / 使用者要求修正                   │   │
@@ -393,7 +404,7 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 以下情況即使 agy 可用也**不委派**（短文直生反而更省一次 context 來回）：
 - commit message 生成（Sonnet/實作 model 依 diff 直生）
 - 單一檔案 < 50 行的小修正
-- STAGE 3 審查報告（reviewer 親自判斷，不可委派）
+- STAGE 3 審查報告（reviewer 親自判斷，不可委派 agy。註：可選的「多 angle 對抗式審查」用 Claude Workflow 的 verifier 平行找 bug 作為輸入，reviewer 仍親自收斂判斷並產出報告，兩者不衝突——見「用 Claude Workflow 執行並行」章節）
 
 ---
 
@@ -444,6 +455,61 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 ```
 
 **與 STAGE 3 退回的關係：** STAGE 2 內部失敗在 STAGE 2 內 retry；STAGE 3 審查不通過才退回 STAGE 2 整體重做。兩者是不同層級的迴圈，不可混用。
+
+---
+
+## 用 Claude Workflow 執行並行（可選加速層）
+
+**僅在使用者已 opt-in 多 agent 編排時啟用**（見開頭「Claude Workflow 編排」總則）。未 opt-in → 三處全部退回原本的 `Task(...)` / 序列作法。
+
+共通鐵則（與「並行三規則」一致，違反即退回序列）：
+- 一個 `Workflow` 呼叫 = **一段不可中斷的 fan-out**，跑完才回到主對話。**暫停點永遠在 Workflow 呼叫之外**，由主指揮掌控。
+- Workflow 回傳結構化結果後，主指揮負責**聚合、套用 model 策略、寫 state 檔、在既有暫停點展示**。Workflow 內部不碰 state 檔、不問使用者。
+- 用 `pipeline()` 為預設；只有「下一步需要前一步全部結果」時才用 `parallel()` barrier。
+- 共享檔（`pubspec.yaml`、DI 註冊、generated files）只能有唯一 owner；多任務搶同一檔 → 不可並行，退回序列。
+
+### 適用點 1：STAGE 0a 雙線 context 收集
+
+兩條唯讀調查（A. 專案 context 讀檔/git log｜B. 相似功能代碼調查），無依賴、不寫檔 → 天然安全的 `parallel()` barrier，收斂後才交給 planner 撰寫規格。
+
+```js
+// meta 省略；agentType 用 Explore（唯讀搜尋）
+const [projCtx, similarCode] = await parallel([
+  () => agent('收集專案 context：讀 README / pubspec / 近期 git log，回報架構與慣例', {agentType: 'Explore', schema: CTX_SCHEMA}),
+  () => agent('調查與「<需求>」相似的既有實作，回報可參考的檔案與模式', {agentType: 'Explore', schema: CTX_SCHEMA}),
+])
+// 回到主對話：planner 收斂 projCtx + similarCode → 撰寫 docs/features/...md → 暫停確認（不在 Workflow 內）
+```
+
+### 適用點 2：STAGE 2 同批獨立任務
+
+planner 已在計畫中標好各任務的**寫入檔案 scope** 與**複雜度等級**。同一批內「寫入路徑不重疊」的任務 → `pipeline()` 並行，**每個任務沿用原本的逐任務 model 分級**（`opts.model` 帶入計畫標註的等級）。
+
+```js
+// batch = 當前批次中路徑不重疊的任務；model 來自計畫的複雜度標註
+const results = await pipeline(
+  batch,
+  task => agent(task.prompt, {label: task.id, model: task.model, isolation: 'worktree', schema: TASK_SCHEMA}),
+  (impl, task) => agent(`驗收任務 ${task.id}：跑測試、檢查 diff`, {label: `verify:${task.id}`, schema: VERIFY_SCHEMA}),
+)
+// 回到主對話：聚合 results → 寫 state（completed_tasks）→ 在「每批完成」暫停點展示 → 問使用者確認下一批
+```
+
+> 邊界：**批與批之間的暫停由主指揮控制**，不可把多批塞進同一個 Workflow 連續跑完（那會跳過暫停點）。並行任務改檔時用 `isolation: 'worktree'` 避免互踩工作區。
+
+### 適用點 3：STAGE 3 多 angle 對抗式審查
+
+**reviewer 仍是主導者、最終判斷者**（不違反「審查報告 reviewer 親自判斷」）。Workflow 的 verifier 只是平行找 bug 的助手：每個 verifier 帶**不同 lens**（correctness / security / 回歸風險 / 測試覆蓋），對抗式地嘗試挑出問題，reviewer 收斂所有 verdict 後親自寫審查報告。
+
+```js
+const LENSES = ['correctness', 'security', '回歸風險', '測試覆蓋']
+const findings = (await parallel(LENSES.map(lens => () =>
+  agent(`以 ${lens} 視角審查 <branch> 的 diff，盡力挑出真實問題`, {label: `review:${lens}`, schema: FINDING_SCHEMA})
+))).filter(Boolean).flatMap(r => r.findings)
+// 回到主對話：reviewer 親自收斂 findings、去重、判定真偽 → 撰寫審查報告 → 暫停展示（不委派 agy）
+```
+
+> 不變式：審查報告由 reviewer（Opus）親自產出，**不委派 agy**。多 angle 只是提高召回率的輸入，不取代 reviewer 的最終判斷。退回 STAGE 2 的條件與層級不變。
 
 ---
 
