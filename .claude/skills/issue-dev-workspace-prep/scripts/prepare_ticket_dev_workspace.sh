@@ -188,7 +188,7 @@ if [[ -z "${PREFIX}" || -z "${SLUG}" ]]; then
   exit 1
 fi
 
-if [[ -n "${TICKET_ID}" ]] && ! [[ "${TICKET_ID}" =~ ^[A-Z][A-Z0-9]+-[0-9]+$ ]]; then
+if [[ -n "${TICKET_ID}" ]] && ! [[ "${TICKET_ID}" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]; then
   echo "Invalid ticket id: ${TICKET_ID}" >&2
   exit 1
 fi
