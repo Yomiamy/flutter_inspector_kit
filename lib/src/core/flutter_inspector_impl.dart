@@ -6,6 +6,7 @@ import '../models/log_entry.dart';
 import '../models/log_level.dart';
 import '../models/navigator_entry.dart';
 import '../models/network_entry.dart';
+import '../notifications/network_notifier.dart';
 import '../observers/navigator_observer.dart';
 import '../ui/dashboard/dashboard_modal.dart';
 import '../ui/widgets/inspector_fab.dart';
@@ -24,9 +25,18 @@ class FlutterInspector {
     this.customTab,
     this.customTabTitle = 'Custom',
     this.magicalTapCount = 5,
+    this.showNetworkNotification = false,
     int bufferSize = 500,
+    NetworkNotifier? notifier,
   }) : _registry = InspectorRegistry(bufferSize: bufferSize) {
     _navigatorObserver = FlutterInspectorNavigatorObserver(_registry.navigator);
+    if (showNetworkNotification) {
+      _notifier = notifier ?? NetworkNotifier();
+      _notifier!.init();
+      _registry.network.onAdd = (entry, total) {
+        _notifier!.showOrUpdate(entry, total);
+      };
+    }
   }
 
   /// Optional widget for a 5th tab in the dashboard.
@@ -37,6 +47,13 @@ class FlutterInspector {
 
   /// How many consecutive taps trigger the dashboard via MagicalTap.
   final int magicalTapCount;
+
+  /// Whether to surface a live system notification summarising network calls.
+  /// Defaults to `false` so apps opt in explicitly (and avoid permission
+  /// prompts they didn't ask for).
+  final bool showNetworkNotification;
+
+  NetworkNotifier? _notifier;
 
   final InspectorRegistry _registry;
   late final FlutterInspectorNavigatorObserver _navigatorObserver;

@@ -42,5 +42,21 @@ void main() {
       inspector.clear();
       expect(inspector.entries, isEmpty);
     });
+
+    test('onAdd fires with entry and running total', () {
+      final calls = <(String, int)>[];
+      inspector.onAdd = (entry, total) => calls.add((entry.url, total));
+
+      inspector.add(NetworkEntry(method: 'GET', url: '/1'));
+      inspector.add(NetworkEntry(method: 'GET', url: '/2'));
+
+      expect(calls, [('/1', 1), ('/2', 2)]);
+    });
+
+    test('no callback wired by default', () {
+      // add() must not throw when onAdd is null.
+      expect(() => inspector.add(NetworkEntry(method: 'GET', url: '/x')),
+          returnsNormally);
+    });
   });
 }
