@@ -105,6 +105,8 @@ A continuously-updated system notification can summarise the latest call and the
 final inspector = FlutterInspector(showNetworkNotification: true);
 ```
 
+Once enabled, the inspector requests notification permission for you when it initialises — the host app does not need to add any permission-handling code.
+
 Platform setup:
 
 - **Android (required)**: `flutter_local_notifications` relies on Java 8+ APIs, so your app's Gradle module must enable [core library desugaring](https://developer.android.com/studio/write/java8-support#library-desugaring) — this is needed whether or not notifications are enabled, otherwise the app will not build. In `android/app/build.gradle.kts`:
@@ -126,7 +128,7 @@ Platform setup:
   }
   ```
 
-  Also ensure a notification icon exists at `@mipmap/ic_launcher` (default Flutter apps already have it). On Android 13+ the `POST_NOTIFICATIONS` runtime permission is requested on first use.
+  Also ensure a notification icon exists at `@mipmap/ic_launcher` (default Flutter apps already have it). On Android 13+ the `POST_NOTIFICATIONS` runtime permission is requested automatically when the inspector initialises.
 - **iOS / macOS**: the user is prompted for notification permission when the inspector initialises.
 
 If permission is denied or the platform isn't supported, the notifier degrades silently to a no-op — it never crashes your app.

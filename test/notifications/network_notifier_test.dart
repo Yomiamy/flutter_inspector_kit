@@ -25,5 +25,12 @@ void main() {
       final notifier = NetworkNotifier();
       await expectLater(notifier.cancel(), completes);
     });
+
+    // Note: init() drives the real flutter_local_notifications plugin, which
+    // needs a platform binding and cannot be initialised in a plain unit test
+    // (it throws LateInitializationError). Its permission-request behaviour is
+    // verified manually via the example app, not here, to avoid mocking the
+    // entire plugin chain — kept out in line with this package's mock-free
+    // test style.
   });
 }

@@ -30,8 +30,14 @@ class NetworkNotifier {
   /// Whether the notifier successfully initialised and can post notifications.
   bool get isAvailable => _available;
 
-  /// Initialises the plugin and requests permission. Safe to call once; repeat
-  /// calls are no-ops. On any failure the notifier stays a no-op.
+  /// Initialises the plugin and requests notification permission so the host
+  /// app does not have to. Safe to call once; repeat calls are no-ops. On any
+  /// failure the notifier stays a no-op.
+  ///
+  /// Permission is requested at init time. A denied permission is the user's
+  /// choice, not a failure: the notifier stays available (show() simply has no
+  /// visible effect) so a later grant in system settings takes effect without
+  /// re-initialising.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -46,9 +52,36 @@ class NetworkNotifier {
         onDidReceiveNotificationResponse: (_) => onTap?.call(),
       );
       _available = true;
+      // Permission is requested after the notifier is marked available, in its
+      // own guard: a denied or failed request is the user's/platform's concern,
+      // not a reason to disable the notifier entirely.
+      await _requestPermission();
     } catch (e) {
       _available = false;
       debugPrint('[FlutterInspector] notification init failed: $e');
+    }
+  }
+
+  /// Requests notification permission on each platform that needs it. Wrapped in
+  /// its own guard so a missing platform implementation (e.g. in tests) or a
+  /// denied request never disables the notifier — it only affects whether the
+  /// notification is actually shown.
+  Future<void> _requestPermission() async {
+    try {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              MacOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+    } catch (e) {
+      debugPrint('[FlutterInspector] notification permission request failed: $e');
     }
   }
 
