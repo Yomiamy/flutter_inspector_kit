@@ -79,10 +79,9 @@ git merge <feature-branch>
 
 # Verify tests on merged result
 <test command>
-
-# If tests pass
-git branch -d <feature-branch>
 ```
+
+**Keep the feature branch** — do NOT run `git branch -d`. The branch stays for traceability; the user deletes it manually if they want.
 
 Then: Cleanup worktree (Step 5)
 
@@ -153,10 +152,10 @@ git worktree remove <worktree-path>
 
 | Option | Merge | Push | Keep Worktree | Cleanup Branch |
 |--------|-------|------|---------------|----------------|
-| 1. Merge locally | ✓ | - | - | ✓ |
+| 1. Merge locally | ✓ | - | - | - (keep branch) |
 | 2. Create PR | - | ✓ | ✓ | - |
 | 3. Keep as-is | - | - | ✓ | - |
-| 4. Discard | - | - | - | ✓ (force) |
+| 4. Discard | - | - | - | ✓ (force, explicit confirm only) |
 
 ## Common Mistakes
 
@@ -182,6 +181,7 @@ git worktree remove <worktree-path>
 - Proceed with failing tests
 - Merge without verifying tests on result
 - Delete work without confirmation
+- Delete the feature branch at the end of the workflow (only Option 4, with typed confirmation, may delete it)
 - Force-push without explicit request
 
 **Always:**

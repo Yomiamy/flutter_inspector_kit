@@ -99,6 +99,7 @@ description: |
                            ▼
                       PR 建立完成 ✦
                       流程結束，Claude 停止。
+                      （本地 branch 一律保留，不自動刪除）
 
     ──────────────────────────────────────────────────
     [Model: ...] = 該 stage 委派時選用的基準 model。
@@ -325,6 +326,8 @@ branch 建立後改帶 branch slug，不再需要 workflow-id：
 - PR 狀態為 `MERGED` → 自動刪除該 branch 的 state 檔
 - 使用者說「放棄這個功能」→ 自動刪除該 branch 的 state 檔
 - 其他情況一律保留，直到明確完成
+
+> 上述刪除只針對 **state 檔（JSON）**，**git branch 本身一律保留**——流程任何階段（含 PR MERGED 後）都不自動執行 `git branch -d/-D`，branch 由使用者自行決定何時刪除。
 
 > 刪除只動「本 session 對應的那一個」state 檔，絕不清整個 `.claude/workflow-state/` 目錄——別的 session 的進度不可被波及。
 
