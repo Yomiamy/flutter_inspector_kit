@@ -1,4 +1,5 @@
 import 'package:flutter_inspector/src/models/network_entry.dart';
+import 'package:flutter_inspector/src/notifications/alert_throttler.dart';
 import 'package:flutter_inspector/src/notifications/network_notifier.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +34,43 @@ void main() {
     // verified manually via the example app, not here, to avoid mocking the
     // entire plugin chain — kept out in line with this package's mock-free
     // test style.
+  });
+
+  group('showOrUpdate throttler wiring (T3)', () {
+    // These tests verify that AlertThrottler is properly wired into
+    // showOrUpdate by observing shouldAlert() state through a test-injected
+    // throttler. The notifier stays unavailable (no init) so the _plugin.show
+    // path is never hit — we only care that the throttler guard is placed
+    // AFTER the _available guard, meaning unavailability must NOT consume the
+    // throttle window.
+
+    test('unavailable: showOrUpdate does not consume a throttle slot', () async {
+      // A fresh throttler: first shouldAlert() call must still return true
+      // after showOrUpdate is called on an unavailable notifier.
+      DateTime fakeNow = DateTime(2026, 1, 1);
+      final throttler = AlertThrottler(now: () => fakeNow);
+      final notifier = NetworkNotifier(throttler: throttler);
+      // _available is false — no init()
+      await notifier.showOrUpdate(
+        NetworkEntry(method: 'GET', url: '/test', statusCode: 200),
+        1,
+      );
+      // Throttler state must be untouched: first shouldAlert() still true.
+      expect(throttler.shouldAlert(), isTrue,
+          reason: 'unavailable guard must fire before throttler.shouldAlert()');
+    });
+
+    // The following tests exercise the throttler logic paths that are visible
+    // from the outside: a fake throttler with a controlled clock is injected.
+    // Because _available remains false, _plugin.show is never called, so we
+    // cannot observe whether buildDetails used alert:true or alert:false
+    // directly here. The correctness of the alert/silent mapping is already
+    // covered by the buildDetails group above. What we verify here is only
+    // that the guard ordering is correct (unavailable ⇒ no throttle slot
+    // consumed).
+    //
+    // Full integration of throttler→details is deliberately left to T4
+    // real-device verification per the plan's mock-free convention.
   });
 
   group('buildDetails', () {
