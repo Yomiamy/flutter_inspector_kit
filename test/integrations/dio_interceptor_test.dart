@@ -54,6 +54,7 @@ void main() {
       interceptor.onError(err, errorHandler);
       // handler.next(err) completes the handler's future with the error;
       // observe it so it doesn't escape the test zone as unhandled.
+      // ignore: invalid_use_of_protected_member
       await errorHandler.future.then((_) {}, onError: (_) {});
 
       expect(inspector.registry.network.entries.length, 1);

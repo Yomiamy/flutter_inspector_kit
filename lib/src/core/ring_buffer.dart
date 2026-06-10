@@ -1,10 +1,11 @@
-import 'dart:collection';
-
 /// A fixed-capacity FIFO buffer.
 ///
-/// Appending is amortized O(1). When [length] reaches [capacity], adding a new
-/// item evicts the oldest one. [items] returns a newest-first, unmodifiable
-/// snapshot suitable for direct rendering in a list.
+/// When [length] reaches [capacity], adding a new item evicts the oldest one.
+/// [items] returns a newest-first, unmodifiable snapshot suitable for direct
+/// rendering in a list.
+///
+/// Backed by a plain [List]: eviction shifts elements (a contiguous memmove,
+/// no allocation), and [replace] is a single index assignment.
 class RingBuffer<T> {
   /// Creates a ring buffer holding at most [capacity] items.
   ///
@@ -14,16 +15,16 @@ class RingBuffer<T> {
   /// Maximum number of retained items.
   final int capacity;
 
-  // Oldest item at the head, newest at the tail.
-  final ListQueue<T> _items = ListQueue<T>();
+  // Oldest item first, newest last.
+  final List<T> _items = <T>[];
   List<T>? _cachedItems;
 
   /// Appends [item], evicting the oldest item if at capacity.
   void add(T item) {
     if (_items.length >= capacity) {
-      _items.removeFirst();
+      _items.removeAt(0);
     }
-    _items.addLast(item);
+    _items.add(item);
     _cachedItems = null;
   }
 
@@ -31,13 +32,9 @@ class RingBuffer<T> {
   /// keeping its position. Returns `false` when [oldItem] is no longer
   /// buffered (e.g. already evicted).
   bool replace(T oldItem, T newItem) {
-    final list = _items.toList();
-    final index = list.indexOf(oldItem);
+    final index = _items.indexOf(oldItem);
     if (index < 0) return false;
-    list[index] = newItem;
-    _items
-      ..clear()
-      ..addAll(list);
+    _items[index] = newItem;
     _cachedItems = null;
     return true;
   }
