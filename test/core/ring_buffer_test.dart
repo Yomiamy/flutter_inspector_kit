@@ -57,5 +57,30 @@ void main() {
       expect(buffer.items, [2]);
       expect(buffer.length, 1);
     });
+
+    test('replace swaps an item in place, preserving order', () {
+      final buffer = RingBuffer<int>(3)
+        ..add(1)
+        ..add(2)
+        ..add(3);
+      expect(buffer.replace(2, 20), isTrue);
+      expect(buffer.items, [3, 20, 1]);
+      expect(buffer.length, 3);
+    });
+
+    test('replace returns false when item is absent', () {
+      final buffer = RingBuffer<int>(3)
+        ..add(1)
+        ..add(2);
+      expect(buffer.replace(9, 90), isFalse);
+      expect(buffer.items, [2, 1]);
+    });
+
+    test('replace invalidates the items snapshot cache', () {
+      final buffer = RingBuffer<int>(3)..add(1);
+      expect(buffer.items, [1]); // populate cache
+      buffer.replace(1, 10);
+      expect(buffer.items, [10]);
+    });
   });
 }

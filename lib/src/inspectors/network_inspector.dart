@@ -20,11 +20,17 @@ class NetworkInspector {
   /// Returns an unmodifiable list of the buffered network entries, newest first.
   List<NetworkEntry> get entries => _buffer.items;
 
-  /// Adds a [NetworkEntry] to the buffer.
+  /// Adds a [NetworkEntry] to the buffer and returns the stored entry
+  /// (which may differ from [entry] when a body was truncated).
+  ///
+  /// When [replaces] is given, the stored occurrence of that entry is
+  /// swapped in place instead of appending — this is how a pending request
+  /// entry becomes its completed counterpart without leaving a duplicate.
+  /// If [replaces] was already evicted from the buffer, [entry] is appended.
   ///
   /// The request and response bodies will be automatically truncated
   /// if they exceed [kNetworkBodyMaxLength].
-  void add(NetworkEntry entry) {
+  NetworkEntry add(NetworkEntry entry, {NetworkEntry? replaces}) {
     final requestBody = NetworkEntry.truncateBody(entry.requestBody);
     final responseBody = NetworkEntry.truncateBody(entry.responseBody);
 
@@ -35,8 +41,11 @@ class NetworkInspector {
         responseBody: responseBody,
       );
     }
-    _buffer.add(entry);
+    if (replaces == null || !_buffer.replace(replaces, entry)) {
+      _buffer.add(entry);
+    }
     onAdd?.call(entry, _buffer.length);
+    return entry;
   }
 
   /// Clears the buffer.

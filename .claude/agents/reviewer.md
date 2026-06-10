@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Use for deep code review and pre-completion verification. Handles branch diff analysis and enforces verification discipline. Best for catching bugs, regressions, and enforcing quality gates before PR.
-model: claude-opus-4-5
+model: fable
 tools: [Bash, Read, Glob, Grep]
 ---
 

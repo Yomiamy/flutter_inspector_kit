@@ -58,5 +58,52 @@ void main() {
       expect(() => inspector.add(NetworkEntry(method: 'GET', url: '/x')),
           returnsNormally);
     });
+
+    test('add with replaces swaps the pending entry in place', () {
+      final other = inspector.add(NetworkEntry(method: 'GET', url: '/other'));
+      final pending = inspector.add(NetworkEntry(method: 'GET', url: '/1'));
+      final completed = NetworkEntry(
+          method: 'GET', url: '/1', statusCode: 200, isComplete: true);
+
+      inspector.add(completed, replaces: pending);
+
+      expect(inspector.entries, [completed, other]);
+    });
+
+    test('add with replaces falls back to append when entry was evicted', () {
+      final pending = inspector.add(NetworkEntry(method: 'GET', url: '/1'));
+      // Capacity is 3 — push the pending entry out of the buffer.
+      for (var i = 0; i < 3; i++) {
+        inspector.add(NetworkEntry(method: 'GET', url: '/fill$i'));
+      }
+      final completed = NetworkEntry(
+          method: 'GET', url: '/1', statusCode: 200, isComplete: true);
+
+      inspector.add(completed, replaces: pending);
+
+      expect(inspector.entries.first, completed);
+      expect(inspector.entries.length, 3);
+    });
+
+    test('add returns the stored (possibly truncated) entry', () {
+      final longBody = 'a' * (kNetworkBodyMaxLength + 100);
+      final stored = inspector.add(
+          NetworkEntry(method: 'POST', url: '/1', requestBody: longBody));
+
+      expect(stored.requestBody, endsWith(kTruncatedMarker));
+      expect(inspector.entries.first, stored);
+    });
+
+    test('onAdd fires on replace with unchanged total', () {
+      final calls = <(String, int)>[];
+      inspector.onAdd = (entry, total) => calls.add((entry.url, total));
+
+      final pending = inspector.add(NetworkEntry(method: 'GET', url: '/1'));
+      inspector.add(
+          NetworkEntry(method: 'GET', url: '/1', isComplete: true),
+          replaces: pending);
+
+      expect(calls, [('/1', 1), ('/1', 1)]);
+    });
   });
 }

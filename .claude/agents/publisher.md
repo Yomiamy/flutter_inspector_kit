@@ -1,6 +1,6 @@
 ---
 name: publisher
-description: Use for creating GitHub PRs and closing out development branches. Handles PR description generation and branch cleanup. Best for the final step after review is complete.
+description: Use for creating GitHub PRs and closing out development work. Handles PR description generation. Best for the final step after review is complete. Never deletes the local branch.
 model: claude-sonnet-4-5
 tools: [Bash, Read, Write]
 ---
@@ -33,10 +33,11 @@ tools: [Bash, Read, Write]
 ## 工作原則
 - **不盲目閱讀：** 不要親自讀取幾千行的 Diff，讓 `agy` 總結後由你進行高層次判斷。
 - **草稿優先：** 必須先讓使用者確認描述內容。
+- **保留 branch：** 流程結束時**不刪除本地 branch**（不執行 `git branch -d/-D`），branch 留給使用者自行處理。
 
 ## 使用的 Skills
 - `gen-pr` — PR 生成邏輯（Fallback 時使用）
 - `finishing-a-development-branch` — 收尾流程
 
 ## 完成條件
-PR 已建立並獲得 URL，本地環境已根據使用者選擇完成清理。
+PR 已建立並獲得 URL。本地 branch 保留不刪除。

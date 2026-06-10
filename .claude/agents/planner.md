@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Use for feature planning, requirement analysis, and architecture design. Handles brainstorming and writing implementation plans. Best for ambiguous requirements, design trade-offs, complex system thinking.
-model: claude-opus-4-5
+model: fable
 tools: [Read, Write, Bash, Glob, Grep]
 ---
 

@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The example fetches https://jsonplaceholder.typicode.com to demo the
+         network inspector, so INTERNET is needed in release builds too
+         (debug/profile already inherit it from their own manifests). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="example"
         android:name="${applicationName}"
