@@ -27,6 +27,21 @@ class RingBuffer<T> {
     _cachedItems = null;
   }
 
+  /// Replaces the first occurrence of [oldItem] (by `==`) with [newItem],
+  /// keeping its position. Returns `false` when [oldItem] is no longer
+  /// buffered (e.g. already evicted).
+  bool replace(T oldItem, T newItem) {
+    final list = _items.toList();
+    final index = list.indexOf(oldItem);
+    if (index < 0) return false;
+    list[index] = newItem;
+    _items
+      ..clear()
+      ..addAll(list);
+    _cachedItems = null;
+    return true;
+  }
+
   /// A newest-first, unmodifiable snapshot of the buffered items.
   List<T> get items {
     _cachedItems ??= List<T>.unmodifiable(_items.toList().reversed);

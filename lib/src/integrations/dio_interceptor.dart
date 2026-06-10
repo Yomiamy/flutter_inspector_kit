@@ -19,7 +19,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       requestHeaders: options.headers,
       requestBody: options.data?.toString(),
     );
-    _inspector.logNetwork(entry);
+    options.extra['_inspector_pending_entry'] = _inspector.logNetwork(entry);
     handler.next(options);
   }
 
@@ -29,6 +29,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
         response.requestOptions.extra['_inspector_start_time'] as DateTime?;
     final duration =
         startTime != null ? DateTime.now().difference(startTime) : null;
+    final pending = response.requestOptions.extra['_inspector_pending_entry']
+        as NetworkEntry?;
 
     final entry = NetworkEntry(
       method: response.requestOptions.method,
@@ -43,7 +45,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       isComplete: true,
       timestamp: startTime,
     );
-    _inspector.logNetwork(entry);
+    _inspector.logNetwork(entry, replaces: pending);
     handler.next(response);
   }
 
@@ -53,6 +55,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
         err.requestOptions.extra['_inspector_start_time'] as DateTime?;
     final duration =
         startTime != null ? DateTime.now().difference(startTime) : null;
+    final pending =
+        err.requestOptions.extra['_inspector_pending_entry'] as NetworkEntry?;
 
     final entry = NetworkEntry(
       method: err.requestOptions.method,
@@ -68,7 +72,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       isComplete: true,
       timestamp: startTime,
     );
-    _inspector.logNetwork(entry);
+    _inspector.logNetwork(entry, replaces: pending);
     handler.next(err);
   }
 }

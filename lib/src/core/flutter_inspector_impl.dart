@@ -136,9 +136,13 @@ class FlutterInspector {
     ));
   }
 
-  /// Records a network request or response.
-  void logNetwork(NetworkEntry entry) {
-    _registry.network.add(entry);
+  /// Records a network request or response, returning the stored entry.
+  ///
+  /// Pass the entry returned for the pending request as [replaces] when
+  /// logging its completed counterpart, so the pending entry is updated in
+  /// place instead of producing a duplicate list item.
+  NetworkEntry logNetwork(NetworkEntry entry, {NetworkEntry? replaces}) {
+    return _registry.network.add(entry, replaces: replaces);
   }
 
   /// Records a database operation.

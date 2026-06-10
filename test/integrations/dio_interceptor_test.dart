@@ -26,7 +26,7 @@ void main() {
       expect(entry.isComplete, false);
     });
 
-    test('onResponse completes network entry', () async {
+    test('onResponse replaces the pending entry in place', () async {
       final options =
           RequestOptions(path: 'http://example.com/api', method: 'GET');
       final handler = RequestInterceptorHandler();
@@ -36,13 +36,13 @@ void main() {
       final response = Response(requestOptions: options, statusCode: 200);
       interceptor.onResponse(response, responseHandler);
 
-      expect(inspector.registry.network.entries.length, 2);
+      expect(inspector.registry.network.entries.length, 1);
       final entry = inspector.registry.network.entries.first;
       expect(entry.statusCode, 200);
       expect(entry.isComplete, true);
     });
 
-    test('onError completes network entry with error', () async {
+    test('onError replaces the pending entry with the error entry', () async {
       final options =
           RequestOptions(path: 'http://example.com/api', method: 'GET');
       final handler = RequestInterceptorHandler();
@@ -52,11 +52,35 @@ void main() {
       final err =
           DioException(requestOptions: options, error: 'Connection failed');
       interceptor.onError(err, errorHandler);
+      // handler.next(err) completes the handler's future with the error;
+      // observe it so it doesn't escape the test zone as unhandled.
+      await errorHandler.future.then((_) {}, onError: (_) {});
 
-      expect(inspector.registry.network.entries.length, 2);
+      expect(inspector.registry.network.entries.length, 1);
       final entry = inspector.registry.network.entries.first;
       expect(entry.error, isNotNull);
       expect(entry.isComplete, true);
+    });
+
+    test('concurrent requests each complete their own entry', () async {
+      final optionsA =
+          RequestOptions(path: 'http://example.com/a', method: 'GET');
+      final optionsB =
+          RequestOptions(path: 'http://example.com/b', method: 'GET');
+      interceptor.onRequest(optionsA, RequestInterceptorHandler());
+      interceptor.onRequest(optionsB, RequestInterceptorHandler());
+
+      interceptor.onResponse(
+          Response(requestOptions: optionsB, statusCode: 200),
+          ResponseInterceptorHandler());
+
+      final entries = inspector.registry.network.entries;
+      expect(entries.length, 2);
+      final entryB = entries.firstWhere((e) => e.url.endsWith('/b'));
+      final entryA = entries.firstWhere((e) => e.url.endsWith('/a'));
+      expect(entryB.isComplete, true);
+      expect(entryB.statusCode, 200);
+      expect(entryA.isComplete, false);
     });
   });
 }
