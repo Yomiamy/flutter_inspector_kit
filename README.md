@@ -107,6 +107,11 @@ final inspector = FlutterInspector(showNetworkNotification: true);
 
 Once enabled, the inspector requests notification permission for you when it initialises — the host app does not need to add any permission-handling code.
 
+**Notification behaviour**:
+- **Android**: appears as a silent heads-up banner (no sound or vibration) when a new API call arrives. The banner animates in and dismisses automatically. Subsequent calls within a 5-second window silently update the notification content without re-alerting. After 5 seconds, the next call triggers another heads-up alert.
+- **iOS / macOS**: displays a silent foreground banner when enabled.
+- The notification uses a dedicated high-priority Android channel (`flutter_inspector_network_v2`) — if you upgrade from an earlier version, the old notification channel is automatically deleted and will not appear in system settings.
+
 To make **tapping the notification open the dashboard on the Network tab**, pass a `navigatorKey` that is also wired into your `MaterialApp`:
 
 ```dart
