@@ -1,0 +1,111 @@
+import 'dart:convert';
+
+import '../models/network_entry.dart';
+
+/// Pure formatting helpers for the Network inspector. No Flutter dependencies,
+/// so everything here is unit-testable in isolation.
+
+/// Formats a byte count into a human-readable string, e.g. `0 B`, `1.2 KB`,
+/// `3.4 MB`.
+String formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  var size = bytes / 1024;
+  var unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  return '${size.toStringAsFixed(1)} ${units[unitIndex]}';
+}
+
+/// Pretty-prints [body] with two-space indentation when it is valid JSON.
+/// Returns [body] unchanged when it is null/empty or not parseable as JSON.
+String prettyJson(String? body) {
+  if (body == null || body.isEmpty) return body ?? '';
+  try {
+    final decoded = json.decode(body);
+    return const JsonEncoder.withIndent('  ').convert(decoded);
+  } on FormatException {
+    return body;
+  }
+}
+
+/// Builds an executable `curl` command reproducing [entry]'s request.
+String buildCurl(NetworkEntry entry) {
+  final buffer = StringBuffer('curl');
+  buffer.write(" -X ${entry.method.toUpperCase()}");
+
+  final headers = entry.requestHeaders;
+  if (headers != null) {
+    for (final h in headers.entries) {
+      final value = h.value?.toString().replaceAll("'", r"'\''") ?? '';
+      buffer.write(" -H '${h.key}: $value'");
+    }
+  }
+
+  final body = entry.requestBody;
+  if (body != null && body.isNotEmpty) {
+    final escaped = body.replaceAll("'", r"'\''");
+    buffer.write(" --data '$escaped'");
+  }
+
+  buffer.write(" '${entry.url}'");
+  return buffer.toString();
+}
+
+/// Builds a full plain-text export of [entry] covering general info, request,
+/// response, and error sections.
+String buildPlainText(NetworkEntry entry) {
+  final b = StringBuffer()
+    ..writeln('=== General ===')
+    ..writeln('Method: ${entry.method}')
+    ..writeln('URL: ${entry.url}')
+    ..writeln('Status: ${entry.statusCode ?? 'Pending'}')
+    ..writeln('Duration: ${entry.duration?.inMilliseconds ?? '-'} ms')
+    ..writeln('Request size: ${formatBytes(entry.requestSizeBytes)}')
+    ..writeln('Response size: ${formatBytes(entry.responseSizeBytes)}')
+    ..writeln('Timestamp: ${entry.timestamp.toIso8601String()}');
+
+  final query = entry.queryParameters;
+  if (query.isNotEmpty) {
+    b.writeln('\n=== Query Parameters ===');
+    query.forEach((k, v) => b.writeln('$k: $v'));
+  }
+
+  b.writeln('\n=== Request Headers ===');
+  _writeHeaders(b, entry.requestHeaders);
+  if (entry.requestBody != null && entry.requestBody!.isNotEmpty) {
+    b
+      ..writeln('\n=== Request Body ===')
+      ..writeln(entry.isRequestJson
+          ? prettyJson(entry.requestBody)
+          : entry.requestBody);
+  }
+
+  b.writeln('\n=== Response Headers ===');
+  _writeHeaders(b, entry.responseHeaders);
+  if (entry.responseBody != null && entry.responseBody!.isNotEmpty) {
+    b
+      ..writeln('\n=== Response Body ===')
+      ..writeln(entry.isResponseJson
+          ? prettyJson(entry.responseBody)
+          : entry.responseBody);
+  }
+
+  if (entry.error != null) {
+    b
+      ..writeln('\n=== Error ===')
+      ..writeln(entry.error);
+  }
+
+  return b.toString().trimRight();
+}
+
+void _writeHeaders(StringBuffer b, Map<String, dynamic>? headers) {
+  if (headers == null || headers.isEmpty) {
+    b.writeln('(none)');
+    return;
+  }
+  headers.forEach((k, v) => b.writeln('$k: $v'));
+}

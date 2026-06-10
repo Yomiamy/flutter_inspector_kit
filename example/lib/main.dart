@@ -2,7 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector/flutter_inspector.dart';
 
-final inspector = FlutterInspector();
+// Enable the live system notification summarising network calls (opt-in).
+// On Android this requires a notification icon + (Android 13+) the
+// POST_NOTIFICATIONS permission; on iOS/macOS the user is prompted on init.
+final inspector = FlutterInspector(showNetworkNotification: true);
 
 void main() {
   runApp(const MyApp());

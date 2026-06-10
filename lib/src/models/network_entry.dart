@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 /// Maximum number of bytes (characters) retained for a request/response body
@@ -128,6 +130,55 @@ class NetworkEntry {
         error,
         isComplete,
       );
+
+  /// Number of UTF-8 bytes in the (possibly truncated) request body.
+  int get requestSizeBytes =>
+      requestBody == null ? 0 : utf8.encode(requestBody!).length;
+
+  /// Number of UTF-8 bytes in the (possibly truncated) response body.
+  int get responseSizeBytes =>
+      responseBody == null ? 0 : utf8.encode(responseBody!).length;
+
+  /// Query parameters parsed from [url]. Empty when the URL has none.
+  Map<String, String> get queryParameters {
+    final parsed = Uri.tryParse(url);
+    return parsed?.queryParameters ?? const <String, String>{};
+  }
+
+  /// The request `content-type` header value, if present (case-insensitive).
+  String? get requestContentType => _headerValue(requestHeaders, 'content-type');
+
+  /// The response `content-type` header value, if present (case-insensitive).
+  String? get responseContentType =>
+      _headerValue(responseHeaders, 'content-type');
+
+  /// Whether the request body looks like JSON.
+  bool get isRequestJson => _looksLikeJson(requestBody, requestContentType);
+
+  /// Whether the response body looks like JSON.
+  bool get isResponseJson => _looksLikeJson(responseBody, responseContentType);
+
+  /// Whether either body was truncated to fit [kNetworkBodyMaxLength].
+  bool get isTruncated =>
+      (requestBody?.endsWith(kTruncatedMarker) ?? false) ||
+      (responseBody?.endsWith(kTruncatedMarker) ?? false);
+
+  static String? _headerValue(Map<String, dynamic>? headers, String name) {
+    if (headers == null) return null;
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == name) return entry.value?.toString();
+    }
+    return null;
+  }
+
+  static bool _looksLikeJson(String? body, String? contentType) {
+    if (body == null || body.isEmpty) return false;
+    if (contentType != null && contentType.toLowerCase().contains('json')) {
+      return true;
+    }
+    final trimmed = body.trimLeft();
+    return trimmed.startsWith('{') || trimmed.startsWith('[');
+  }
 
   @override
   String toString() =>

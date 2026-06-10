@@ -4,6 +4,9 @@
 # Claude Code workflow state (local only, not shared across developers)
 .claude/workflow-state/
 
+# Editor (local only)
+.vscode/
+
 # Antigravity CLI state
 .antigravitycli/
 

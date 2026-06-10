@@ -11,17 +11,29 @@ import 'tabs/network_tab.dart';
 class DashboardModal extends StatelessWidget {
   const DashboardModal({
     required this.inspector,
+    this.initialIndex = 0,
     super.key,
   });
 
   final FlutterInspector inspector;
 
+  /// The tab selected when the dashboard opens. Console (0), Network (1),
+  /// Navigator (2), Database (3).
+  final int initialIndex;
+
   /// Displays the dashboard modal.
-  static void show(BuildContext context, FlutterInspector inspector) {
+  static void show(
+    BuildContext context,
+    FlutterInspector inspector, {
+    int initialIndex = 0,
+  }) {
     showGeneralDialog(
       context: context,
       pageBuilder: (context, animation, secondaryAnimation) {
-        return DashboardModal(inspector: inspector);
+        return DashboardModal(
+          inspector: inspector,
+          initialIndex: initialIndex,
+        );
       },
     );
   }
@@ -33,6 +45,7 @@ class DashboardModal extends StatelessWidget {
 
     return DefaultTabController(
       length: tabCount,
+      initialIndex: initialIndex.clamp(0, tabCount - 1),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Flutter Inspector'),

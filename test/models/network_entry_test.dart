@@ -73,5 +73,87 @@ void main() {
         );
       });
     });
+
+    group('derived getters', () {
+      test('size getters count UTF-8 bytes, 0 for null', () {
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://x',
+          requestBody: 'abc',
+          responseBody: '日本', // 2 chars, 6 UTF-8 bytes
+          timestamp: fixedTime,
+        );
+        expect(entry.requestSizeBytes, 3);
+        expect(entry.responseSizeBytes, 6);
+
+        final empty =
+            NetworkEntry(method: 'GET', url: 'https://x', timestamp: fixedTime);
+        expect(empty.requestSizeBytes, 0);
+        expect(empty.responseSizeBytes, 0);
+      });
+
+      test('queryParameters parsed from url', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/path?page=2&q=hello',
+          timestamp: fixedTime,
+        );
+        expect(entry.queryParameters, {'page': '2', 'q': 'hello'});
+
+        final none = NetworkEntry(
+            method: 'GET', url: 'https://api.test/path', timestamp: fixedTime);
+        expect(none.queryParameters, isEmpty);
+      });
+
+      test('contentType read case-insensitively from headers', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          requestHeaders: {'Content-Type': 'application/json'},
+          responseHeaders: {'content-type': 'text/html'},
+          timestamp: fixedTime,
+        );
+        expect(entry.requestContentType, 'application/json');
+        expect(entry.responseContentType, 'text/html');
+      });
+
+      test('isRequestJson / isResponseJson detection', () {
+        final json = NetworkEntry(
+          method: 'POST',
+          url: 'https://x',
+          requestBody: '{"a":1}',
+          responseBody: '[1,2,3]',
+          timestamp: fixedTime,
+        );
+        expect(json.isRequestJson, isTrue);
+        expect(json.isResponseJson, isTrue);
+
+        final plain = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          responseBody: 'hello world',
+          timestamp: fixedTime,
+        );
+        expect(plain.isResponseJson, isFalse);
+      });
+
+      test('isTruncated true when a body carries the marker', () {
+        final truncated = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          responseBody: 'data$kTruncatedMarker',
+          timestamp: fixedTime,
+        );
+        expect(truncated.isTruncated, isTrue);
+
+        final normal = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          responseBody: 'data',
+          timestamp: fixedTime,
+        );
+        expect(normal.isTruncated, isFalse);
+      });
+    });
   });
 }
