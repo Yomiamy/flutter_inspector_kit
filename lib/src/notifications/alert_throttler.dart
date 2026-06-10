@@ -1,23 +1,22 @@
-/// Throttles alert notifications to at most once every 5 seconds.
+/// Throttles alert notifications to at most once every 2 seconds.
 ///
 /// The throttler maintains a single mutable state ([_lastAlertAt]) to track
 /// when the last successful alert occurred. [shouldAlert()] checks whether
-/// the current time is outside the 5-second window and, if so, updates
+/// the current time is outside the 2-second window and, if so, updates
 /// [_lastAlertAt] and returns true; otherwise returns false. This design
 /// ensures judgment and state update are atomic — callers cannot receive
 /// true without the state being committed.
 class AlertThrottler {
-  /// Creates a throttler with a 5-second window.
+  /// Creates a throttler with a 2-second window.
   ///
   /// [now] supplies the current time; by default it is [DateTime.now].
   /// In tests, pass a custom clock function to control time progression
   /// without flaky sleeps.
-  AlertThrottler({
-    DateTime Function()? now,
-  }) : _now = now ?? (() => DateTime.now());
+  AlertThrottler({DateTime Function()? now})
+    : _now = now ?? (() => DateTime.now());
 
   /// The fixed throttle window duration.
-  static const Duration window = Duration(seconds: 5);
+  static const Duration window = Duration(seconds: 2);
 
   /// Clock function for testing; by default [DateTime.now].
   final DateTime Function() _now;
@@ -34,7 +33,7 @@ class AlertThrottler {
   /// Returns false if an alert was shown recently (within [window]).
   bool shouldAlert() {
     final now = _now();
-    if (_lastAlertAt == null || now.difference(_lastAlertAt!).compareTo(window) >= 0) {
+    if (_lastAlertAt == null || now.difference(_lastAlertAt!) >= window) {
       _lastAlertAt = now;
       return true;
     }

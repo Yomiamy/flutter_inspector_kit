@@ -13,7 +13,7 @@ class NetworkNotifier {
   ///
   /// [plugin] can be supplied in tests to avoid the platform plugin chain.
   /// [throttler] can be supplied in tests to control timing; defaults to a
-  /// production [AlertThrottler] with the standard 5-second window.
+  /// production [AlertThrottler] with the standard 2-second window.
   NetworkNotifier({
     FlutterLocalNotificationsPlugin? plugin,
     AlertThrottler? throttler,
@@ -167,7 +167,7 @@ class NetworkNotifier {
   ///
   /// The notification content (title and body) is always updated. Whether the
   /// system re-alerts the user (heads-up banner / sound) is controlled by
-  /// [AlertThrottler]: at most once per 5-second window. Throttling is checked
+  /// [AlertThrottler]: at most once per 2-second window. Throttling is checked
   /// only when the notifier is available — the [_available] guard fires first
   /// so a denied-permission or uninitialised state never consumes a throttle
   /// slot.

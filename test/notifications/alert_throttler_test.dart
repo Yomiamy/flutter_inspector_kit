@@ -14,7 +14,7 @@ void main() {
       expect(throttler.shouldAlert(), isFalse);
     });
 
-    test('shouldAlert() returns false within window (4.999 seconds)', () {
+    test('shouldAlert() returns false within window (1.999 seconds)', () {
       final now = DateTime(2024, 1, 1, 12, 0, 0);
       var currentTime = now;
       final throttler = AlertThrottler(
@@ -22,11 +22,11 @@ void main() {
       );
 
       expect(throttler.shouldAlert(), isTrue);
-      currentTime = currentTime.add(const Duration(milliseconds: 4999));
+      currentTime = currentTime.add(const Duration(milliseconds: 1999));
       expect(throttler.shouldAlert(), isFalse);
     });
 
-    test('shouldAlert() returns true after window (5+ seconds)', () {
+    test('shouldAlert() returns true after window (2+ seconds)', () {
       final now = DateTime(2024, 1, 1, 12, 0, 0);
       var currentTime = now;
       final throttler = AlertThrottler(
@@ -34,11 +34,11 @@ void main() {
       );
 
       expect(throttler.shouldAlert(), isTrue);
-      currentTime = currentTime.add(const Duration(milliseconds: 5000));
+      currentTime = currentTime.add(const Duration(milliseconds: 2000));
       expect(throttler.shouldAlert(), isTrue);
     });
 
-    test('shouldAlert() returns true exactly at 5-second boundary', () {
+    test('shouldAlert() returns true exactly at 2-second boundary', () {
       final now = DateTime(2024, 1, 1, 12, 0, 0);
       var currentTime = now;
       final throttler = AlertThrottler(
@@ -46,7 +46,7 @@ void main() {
       );
 
       expect(throttler.shouldAlert(), isTrue);
-      currentTime = currentTime.add(const Duration(seconds: 5));
+      currentTime = currentTime.add(const Duration(seconds: 2));
       expect(throttler.shouldAlert(), isTrue);
     });
 
@@ -74,11 +74,11 @@ void main() {
       expect(throttler.shouldAlert(), isTrue);
 
       // Still in window
-      currentTime = currentTime.add(const Duration(seconds: 2));
+      currentTime = currentTime.add(const Duration(seconds: 1));
       expect(throttler.shouldAlert(), isFalse);
 
       // After window expires
-      currentTime = currentTime.add(const Duration(seconds: 3, milliseconds: 500));
+      currentTime = currentTime.add(const Duration(seconds: 1, milliseconds: 500));
       expect(throttler.shouldAlert(), isTrue);
 
       // Window resets, so immediate next call should fail
@@ -95,15 +95,15 @@ void main() {
       // First alert at T=0
       expect(throttler.shouldAlert(), isTrue);
 
-      // Second alert at T=5
-      currentTime = currentTime.add(const Duration(seconds: 5));
+      // Second alert at T=2
+      currentTime = currentTime.add(const Duration(seconds: 2));
       expect(throttler.shouldAlert(), isTrue);
 
-      // Third alert at T=10
-      currentTime = currentTime.add(const Duration(seconds: 5));
+      // Third alert at T=4
+      currentTime = currentTime.add(const Duration(seconds: 2));
       expect(throttler.shouldAlert(), isTrue);
 
-      // All should be true with 5-second gaps
+      // All should be true with 2-second gaps
     });
   });
 }
