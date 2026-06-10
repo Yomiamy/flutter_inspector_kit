@@ -4,28 +4,33 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ## 📦 Features
 
-- 🪵 **Console Inspector**: Capture app logs across five severity levels (verbose, debug, info, warning, error), with optional structured data and stack traces.
-- 📡 **Network Inspector**: Intercept HTTP traffic via a Dio interceptor, then inspect structured request/response details (query params, headers, JSON-pretty bodies, sizes, status color coding), search/filter the call list, share calls as cURL/text, and surface a live system notification.
-- 🧭 **Navigator Inspector**: Track route pushes, pops, and replacements automatically.
-- 🗄️ **Database Inspector**: Record database operations (insert / update / delete / query) with affected-row counts and payloads.
-- 👆 **Magical tap & floating button**: Open the full-screen dashboard with a hidden multi-tap gesture or a draggable in-app FAB.
+- 🪵 **Console**: capture logs across five severity levels, with optional structured data and stack traces
+- 📡 **Network**: intercept HTTP traffic via Dio, inspect structured request/response details, search/filter, share as cURL
+- 🧭 **Navigator**: track route pushes, pops, and replacements automatically
+- 🗄️ **Database**: record insert / update / delete / query operations with affected-row counts and payloads
+- 👆 **Magical tap & floating button**: open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB
+- 🔔 **Live notification (opt-in)**: a system notification that summarises the latest API call and the running total
 
-## 🪚 Installation
+## 📱 Screenshots
 
-Add `flutter_inspector` to your `pubspec.yaml`:
+|Home|Console|Network|
+|---|---|---|
+|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/home.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/console.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/network.png?raw=true"/>|
+
+|Network Detail|Navigator|Database|
+|---|---|---|
+|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/network_detail.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/navigator.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/database.png?raw=true"/>|
+
+## 🪚 Usage
+
+### Add to pubspec.yaml
 
 ```yaml
 dependencies:
   flutter_inspector: ^0.0.1
 ```
 
-Then run:
-
-```sh
-flutter pub get
-```
-
-## 🚀 Usage
+Then run `flutter pub get`.
 
 ### Initialize
 
@@ -60,7 +65,9 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-### Floating button (FAB)
+That's it? Yes, that's it.
+
+### Floating button
 
 Prefer a visible trigger? Attach the inspector once the first frame is built to show a draggable floating button that opens the dashboard.
 
@@ -76,7 +83,9 @@ void initState() {
 
 Remove it again with `inspector.detach()`.
 
-### 📡 Network — with Dio
+### Log network requests
+
+#### With Dio
 
 Add the interceptor to your `Dio` instance and every request/response is captured automatically.
 
@@ -85,19 +94,29 @@ final dio = Dio();
 dio.interceptors.add(FlutterInspectorDioInterceptor(inspector));
 ```
 
-Using a different HTTP client? Build a `NetworkEntry` yourself and pass it in:
+#### With other HTTP clients
+
+Build a `NetworkEntry` yourself and pass it in:
 
 ```dart
 inspector.logNetwork(entry);
 ```
 
-#### Inside the Network tab
+To show an in-flight request that later resolves, log the pending entry first, then log the completed one with `replaces` so it updates in place instead of duplicating:
 
-- **Search & filter**: a search box filters the call list by URL, method, or status code (case-insensitive). Method and status (`2xx`/`3xx`/`4xx`/`5xx`/`Failed`) chips narrow it further.
-- **Call details**: tap any call to open a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers (key-value tables), and JSON-pretty bodies. Truncated bodies are clearly marked.
-- **Sharing**: from the detail view, copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (via `share_plus`).
+```dart
+final pending = inspector.logNetwork(NetworkEntry(method: 'GET', url: url));
+// ...after the response arrives:
+inspector.logNetwork(completedEntry, replaces: pending);
+```
 
-#### Live notification (opt-in)
+### Inside the Network tab
+
+- **Search & filter**: filter the call list by URL, method, or status code (case-insensitive); method and status (`2xx`/`3xx`/`4xx`/`5xx`/`Failed`) chips narrow it further.
+- **Call details**: tap any call for a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON-pretty bodies. Truncated bodies are clearly marked.
+- **Sharing**: copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (via `share_plus`).
+
+### Live notification (opt-in)
 
 A continuously-updated system notification can summarise the latest call and the running total. It is **disabled by default** — enable it explicitly:
 
@@ -108,6 +127,7 @@ final inspector = FlutterInspector(showNetworkNotification: true);
 Once enabled, the inspector requests notification permission for you when it initialises — the host app does not need to add any permission-handling code.
 
 **Notification behaviour**:
+
 - **Android**: appears as a silent heads-up banner (no sound or vibration) when a new API call arrives. The banner animates in and dismisses automatically. Subsequent calls within a 2-second window silently update the notification content without re-alerting. After 2 seconds, the next call triggers another heads-up alert.
 - **iOS / macOS**: displays a silent foreground banner when enabled.
 - The notification uses a dedicated high-priority Android channel (`flutter_inspector_network_v2`) — if you upgrade from an earlier version, the old notification channel is automatically deleted and will not appear in system settings.
@@ -127,33 +147,37 @@ MaterialApp(navigatorKey: navigatorKey, /* ... */);
 
 Without a `navigatorKey` the notification still shows; tapping it is simply a no-op since there is no navigation context to route from.
 
-Platform setup:
+<details>
+<summary>Android setup (required)</summary>
 
-- **Android (required)**: `flutter_local_notifications` relies on Java 8+ APIs, so your app's Gradle module must enable [core library desugaring](https://developer.android.com/studio/write/java8-support#library-desugaring) — this is needed whether or not notifications are enabled, otherwise the app will not build. In `android/app/build.gradle.kts`:
+`flutter_local_notifications` relies on Java 8+ APIs, so your app's Gradle module must enable [core library desugaring](https://developer.android.com/studio/write/java8-support#library-desugaring) — this is needed whether or not notifications are enabled, otherwise the app will not build. In `android/app/build.gradle.kts`:
 
-  ```kotlin
-  android {
-      defaultConfig {
-          multiDexEnabled = true
-      }
-      compileOptions {
-          isCoreLibraryDesugaringEnabled = true
-          sourceCompatibility = JavaVersion.VERSION_17
-          targetCompatibility = JavaVersion.VERSION_17
-      }
-  }
+```kotlin
+android {
+    defaultConfig {
+        multiDexEnabled = true
+    }
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
 
-  dependencies {
-      coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-  }
-  ```
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+```
 
-  Also ensure a notification icon exists at `@mipmap/ic_launcher` (default Flutter apps already have it). On Android 13+ the `POST_NOTIFICATIONS` runtime permission is requested automatically when the inspector initialises.
-- **iOS / macOS**: the user is prompted for notification permission when the inspector initialises.
+Also ensure a notification icon exists at `@mipmap/ic_launcher` (default Flutter apps already have it). On Android 13+ the `POST_NOTIFICATIONS` runtime permission is requested automatically when the inspector initialises.
+
+</details>
+
+On iOS / macOS, the user is prompted for notification permission when the inspector initialises.
 
 If permission is denied or the platform isn't supported, the notifier degrades silently to a no-op — it never crashes your app.
 
-### 🪵 Logging
+### Log messages
 
 ```dart
 inspector.log('User signed in', level: LogLevel.info);
@@ -168,7 +192,11 @@ inspector.log(
 
 Available levels: `verbose`, `debug`, `info`, `warning`, `error`.
 
-### 🗄️ Database
+### Track navigation
+
+Nothing to do here — routes are tracked automatically once you register `inspector.navigatorObserver` in `navigatorObservers` (see [Initialize](#initialize)). Pushes, pops, and replacements all show up in the Navigator tab.
+
+### Track database operations
 
 Record database operations so you can review them in the dashboard.
 
@@ -183,7 +211,7 @@ inspector.database(
 
 Available operations: `insert`, `update`, `delete`, `query`.
 
-## 📱 Example
+## 🕹️ Example
 
 A complete, runnable integration lives in the [`example/`](example/) directory:
 
