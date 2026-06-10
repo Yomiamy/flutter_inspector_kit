@@ -21,7 +21,10 @@ class NetworkNotifier {
   final FlutterLocalNotificationsPlugin _plugin;
 
   static const int _notificationId = 0x6E657477; // 'netw'
-  static const String _channelId = 'flutter_inspector_network';
+
+  // T3 will switch showOrUpdate to use the new channel. For now buildDetails
+  // already uses the v2 ID so the channel is ready for T3 to wire up.
+  static const String _channelId = 'flutter_inspector_network_v2';
   static const String _channelName = 'Network Inspector';
 
   bool _initialized = false;
@@ -85,29 +88,58 @@ class NetworkNotifier {
     }
   }
 
+  /// Builds a [NotificationDetails] for the given alert state.
+  ///
+  /// When [alert] is `true` (heads-up state):
+  /// - Android: HIGH importance/priority, `onlyAlertOnce: false`, `silent: false`
+  ///   → causes the system to display a heads-up banner.
+  /// - Darwin: `presentBanner: true` → shows a foreground banner.
+  ///
+  /// When [alert] is `false` (silent/throttled state):
+  /// - Android: `onlyAlertOnce: true`, `silent: true` (double-guard) → updates
+  ///   the ongoing notification content without triggering a new alert.
+  /// - Darwin: `presentBanner: false` → content update only, no banner.
+  ///
+  /// Both states keep the channel at HIGH importance (channel level must not
+  /// change between calls) and `ongoing: true` / `playSound: false`.
+  @visibleForTesting
+  static NotificationDetails buildDetails({required bool alert}) {
+    final androidDetails = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: 'Live HTTP activity captured by Flutter Inspector',
+      importance: Importance.high,
+      priority: Priority.high,
+      ongoing: true,
+      onlyAlertOnce: !alert,
+      silent: !alert,
+      playSound: false,
+      showWhen: false,
+    );
+    final darwinDetails = DarwinNotificationDetails(
+      presentBanner: alert,
+      presentList: true,
+      presentSound: false,
+    );
+    return NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+  }
+
   /// Posts or updates the single network notification with [entry] and the
   /// running [totalCount]. No-op when the notifier is unavailable.
+  ///
+  /// Note: T3 will wire up AlertThrottler here so that the details state
+  /// switches dynamically. Until then we always use the alert (heads-up) state.
   Future<void> showOrUpdate(NetworkEntry entry, int totalCount) async {
     if (!_available) return;
     try {
       final status = entry.isComplete
           ? '${entry.statusCode ?? entry.error ?? '-'}'
           : 'Pending';
-      const androidDetails = AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: 'Live HTTP activity captured by Flutter Inspector',
-        importance: Importance.low,
-        priority: Priority.low,
-        ongoing: true,
-        onlyAlertOnce: true,
-        showWhen: false,
-      );
-      const details = NotificationDetails(
-        android: androidDetails,
-        iOS: DarwinNotificationDetails(presentSound: false),
-        macOS: DarwinNotificationDetails(presentSound: false),
-      );
+      final details = buildDetails(alert: true);
       await _plugin.show(
         id: _notificationId,
         title: 'Network · $totalCount calls',
