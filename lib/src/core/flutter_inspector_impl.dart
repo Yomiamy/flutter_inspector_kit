@@ -26,12 +26,13 @@ class FlutterInspector {
     this.customTabTitle = 'Custom',
     this.magicalTapCount = 5,
     this.showNetworkNotification = false,
+    this.navigatorKey,
     int bufferSize = 500,
     NetworkNotifier? notifier,
   }) : _registry = InspectorRegistry(bufferSize: bufferSize) {
     _navigatorObserver = FlutterInspectorNavigatorObserver(_registry.navigator);
     if (showNetworkNotification) {
-      _notifier = notifier ?? NetworkNotifier();
+      _notifier = notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
       _notifier!.init();
       _registry.network.onAdd = (entry, total) {
         _notifier!.showOrUpdate(entry, total);
@@ -52,6 +53,12 @@ class FlutterInspector {
   /// Defaults to `false` so apps opt in explicitly (and avoid permission
   /// prompts they didn't ask for).
   final bool showNetworkNotification;
+
+  /// Optional navigator key used to open the dashboard from a notification tap
+  /// (US-3). When supplied alongside [showNetworkNotification], tapping the
+  /// network notification opens the dashboard on the Network tab. Without it,
+  /// the tap is a no-op since there is no [BuildContext] to route from.
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   NetworkNotifier? _notifier;
 
@@ -150,7 +157,18 @@ class FlutterInspector {
   }
 
   /// Opens the full-screen dashboard modal.
-  void openDashboard(BuildContext context) {
-    DashboardModal.show(context, this);
+  ///
+  /// [initialIndex] selects the starting tab: Console (0), Network (1),
+  /// Navigator (2), Database (3).
+  void openDashboard(BuildContext context, {int initialIndex = 0}) {
+    DashboardModal.show(context, this, initialIndex: initialIndex);
+  }
+
+  /// Opens the dashboard on the Network tab in response to a notification tap.
+  /// Requires [navigatorKey] to have a mounted context; otherwise a no-op.
+  void _openNetworkFromNotification() {
+    final context = navigatorKey?.currentContext;
+    if (context == null) return;
+    openDashboard(context, initialIndex: 1);
   }
 }

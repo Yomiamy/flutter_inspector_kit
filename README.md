@@ -107,6 +107,21 @@ final inspector = FlutterInspector(showNetworkNotification: true);
 
 Once enabled, the inspector requests notification permission for you when it initialises — the host app does not need to add any permission-handling code.
 
+To make **tapping the notification open the dashboard on the Network tab**, pass a `navigatorKey` that is also wired into your `MaterialApp`:
+
+```dart
+final navigatorKey = GlobalKey<NavigatorState>();
+
+final inspector = FlutterInspector(
+  showNetworkNotification: true,
+  navigatorKey: navigatorKey,
+);
+
+MaterialApp(navigatorKey: navigatorKey, /* ... */);
+```
+
+Without a `navigatorKey` the notification still shows; tapping it is simply a no-op since there is no navigation context to route from.
+
 Platform setup:
 
 - **Android (required)**: `flutter_local_notifications` relies on Java 8+ APIs, so your app's Gradle module must enable [core library desugaring](https://developer.android.com/studio/write/java8-support#library-desugaring) — this is needed whether or not notifications are enabled, otherwise the app will not build. In `android/app/build.gradle.kts`:
