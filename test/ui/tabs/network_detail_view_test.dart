@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inspector/src/models/network_entry.dart';
-import 'package:flutter_inspector/src/ui/dashboard/tabs/network/network_detail_view.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

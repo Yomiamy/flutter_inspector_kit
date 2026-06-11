@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_inspector/src/core/flutter_inspector_impl.dart';
-import 'package:flutter_inspector/src/integrations/dio_interceptor.dart';
+import 'package:flutter_inspector_kit/src/core/flutter_inspector_impl.dart';
+import 'package:flutter_inspector_kit/src/integrations/dio_interceptor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

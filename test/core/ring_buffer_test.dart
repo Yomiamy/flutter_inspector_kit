@@ -1,4 +1,4 @@
-import 'package:flutter_inspector/src/core/ring_buffer.dart';
+import 'package:flutter_inspector_kit/src/core/ring_buffer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

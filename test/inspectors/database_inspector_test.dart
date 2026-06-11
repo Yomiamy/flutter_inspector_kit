@@ -1,6 +1,6 @@
-import 'package:flutter_inspector/src/inspectors/database_inspector.dart';
-import 'package:flutter_inspector/src/models/database_entry.dart';
-import 'package:flutter_inspector/src/models/database_operation.dart';
+import 'package:flutter_inspector_kit/src/inspectors/database_inspector.dart';
+import 'package:flutter_inspector_kit/src/models/database_entry.dart';
+import 'package:flutter_inspector_kit/src/models/database_operation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

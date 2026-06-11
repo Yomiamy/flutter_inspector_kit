@@ -15,11 +15,11 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 |Home|Console|Network|
 |---|---|---|
-|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/home.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/console.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/network.png?raw=true"/>|
+|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/home.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/console.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/network.png?raw=true"/>|
 
 |Network Detail|Navigator|Database|
 |---|---|---|
-|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/network_detail.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/navigator.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector/blob/main/doc/screenshots/database.png?raw=true"/>|
+|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/network_detail.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/navigator.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/database.png?raw=true"/>|
 
 ## 🪚 Usage
 
@@ -27,7 +27,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector: ^0.0.1
+  flutter_inspector_kit: ^0.1.0
 ```
 
 Then run `flutter pub get`.
@@ -38,7 +38,7 @@ Create a single shared `FlutterInspector` instance and wire it into your app. Re
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_inspector/flutter_inspector.dart';
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 
 final inspector = FlutterInspector();
 

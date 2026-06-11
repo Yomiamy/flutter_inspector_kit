@@ -1,6 +1,6 @@
-import 'package:flutter_inspector/src/models/network_entry.dart';
-import 'package:flutter_inspector/src/notifications/alert_throttler.dart';
-import 'package:flutter_inspector/src/notifications/network_notifier.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/notifications/alert_throttler.dart';
+import 'package:flutter_inspector_kit/src/notifications/network_notifier.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 

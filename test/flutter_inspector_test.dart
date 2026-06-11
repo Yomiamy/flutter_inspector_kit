@@ -1,4 +1,4 @@
-import 'package:flutter_inspector/flutter_inspector.dart';
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
