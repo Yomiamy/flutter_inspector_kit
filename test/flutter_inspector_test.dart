@@ -9,7 +9,7 @@ void main() {
     });
 
     test('exposes the package version', () {
-      expect(FlutterInspector.version, '0.0.1');
+      expect(FlutterInspector.version, '0.1.0');
     });
   });
 }
