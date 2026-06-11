@@ -1,22 +1,31 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_inspector/flutter_inspector.dart';
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 
 // Enable the live system notification summarising network calls (opt-in).
 // On Android this requires a notification icon + (Android 13+) the
 // POST_NOTIFICATIONS permission; on iOS/macOS the user is prompted on init.
-final inspector = FlutterInspector(showNetworkNotification: true);
+late final FlutterInspector inspector;
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  MyApp({super.key}) {
+    inspector = FlutterInspector(
+      showNetworkNotification: true,
+      navigatorKey: navigatorKey,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Flutter Inspector Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -94,9 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
+            const Text('You have pushed the button this many times:'),
             Text(
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
@@ -111,9 +118,11 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                      builder: (_) => Scaffold(
-                          appBar: AppBar(title: const Text('Second Page')),
-                          body: const Center(child: Text('Second Page')))),
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text('Second Page')),
+                      body: const Center(child: Text('Second Page')),
+                    ),
+                  ),
                 );
               },
               child: const Text('Push New Route'),
