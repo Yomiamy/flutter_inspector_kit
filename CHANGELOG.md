@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.0
 
 ### Added
 * Database table browser with two-level navigation (table list page and row grid view).
