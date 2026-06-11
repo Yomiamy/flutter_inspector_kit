@@ -134,7 +134,7 @@ class _TableRowsViewState extends State<TableRowsView> {
                   ],
                 ),
                 const Divider(),
-                Expanded(
+                Flexible(
                   child: SingleChildScrollView(
                     child: SelectableText(
                       fullValue,
