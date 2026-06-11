@@ -44,21 +44,27 @@ void main() {
     // AFTER the _available guard, meaning unavailability must NOT consume the
     // throttle window.
 
-    test('unavailable: showOrUpdate does not consume a throttle slot', () async {
-      // A fresh throttler: first shouldAlert() call must still return true
-      // after showOrUpdate is called on an unavailable notifier.
-      DateTime fakeNow = DateTime(2026, 1, 1);
-      final throttler = AlertThrottler(now: () => fakeNow);
-      final notifier = NetworkNotifier(throttler: throttler);
-      // _available is false — no init()
-      await notifier.showOrUpdate(
-        NetworkEntry(method: 'GET', url: '/test', statusCode: 200),
-        1,
-      );
-      // Throttler state must be untouched: first shouldAlert() still true.
-      expect(throttler.shouldAlert(), isTrue,
-          reason: 'unavailable guard must fire before throttler.shouldAlert()');
-    });
+    test(
+      'unavailable: showOrUpdate does not consume a throttle slot',
+      () async {
+        // A fresh throttler: first shouldAlert() call must still return true
+        // after showOrUpdate is called on an unavailable notifier.
+        DateTime fakeNow = DateTime(2026, 1, 1);
+        final throttler = AlertThrottler(now: () => fakeNow);
+        final notifier = NetworkNotifier(throttler: throttler);
+        // _available is false — no init()
+        await notifier.showOrUpdate(
+          NetworkEntry(method: 'GET', url: '/test', statusCode: 200),
+          1,
+        );
+        // Throttler state must be untouched: first shouldAlert() still true.
+        expect(
+          throttler.shouldAlert(),
+          isTrue,
+          reason: 'unavailable guard must fire before throttler.shouldAlert()',
+        );
+      },
+    );
 
     // The following tests exercise the throttler logic paths that are visible
     // from the outside: a fake throttler with a controlled clock is injected.
@@ -106,7 +112,10 @@ void main() {
       });
 
       test('android channelId is flutter_inspector_network_v2', () {
-        expect(details.android!.channelId, equals('flutter_inspector_network_v2'));
+        expect(
+          details.android!.channelId,
+          equals('flutter_inspector_network_v2'),
+        );
       });
 
       test('iOS presentBanner is true (foreground banner)', () {
@@ -154,16 +163,22 @@ void main() {
       });
 
       test('android channelId is flutter_inspector_network_v2', () {
-        expect(details.android!.channelId, equals('flutter_inspector_network_v2'));
+        expect(
+          details.android!.channelId,
+          equals('flutter_inspector_network_v2'),
+        );
       });
 
       test('iOS presentBanner is false (no banner when throttled)', () {
         expect(details.iOS!.presentBanner, isFalse);
       });
 
-      test('iOS presentList is true (still appears in notification centre)', () {
-        expect(details.iOS!.presentList, isTrue);
-      });
+      test(
+        'iOS presentList is true (still appears in notification centre)',
+        () {
+          expect(details.iOS!.presentList, isTrue);
+        },
+      );
 
       test('iOS presentSound is false', () {
         expect(details.iOS!.presentSound, isFalse);

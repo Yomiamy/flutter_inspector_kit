@@ -14,8 +14,10 @@ void main() {
     });
 
     test('onRequest logs network entry', () async {
-      final options =
-          RequestOptions(path: 'http://example.com/api', method: 'GET');
+      final options = RequestOptions(
+        path: 'http://example.com/api',
+        method: 'GET',
+      );
       final handler = RequestInterceptorHandler();
       interceptor.onRequest(options, handler);
 
@@ -27,8 +29,10 @@ void main() {
     });
 
     test('onResponse replaces the pending entry in place', () async {
-      final options =
-          RequestOptions(path: 'http://example.com/api', method: 'GET');
+      final options = RequestOptions(
+        path: 'http://example.com/api',
+        method: 'GET',
+      );
       final handler = RequestInterceptorHandler();
       interceptor.onRequest(options, handler);
 
@@ -43,14 +47,18 @@ void main() {
     });
 
     test('onError replaces the pending entry with the error entry', () async {
-      final options =
-          RequestOptions(path: 'http://example.com/api', method: 'GET');
+      final options = RequestOptions(
+        path: 'http://example.com/api',
+        method: 'GET',
+      );
       final handler = RequestInterceptorHandler();
       interceptor.onRequest(options, handler);
 
       final errorHandler = ErrorInterceptorHandler();
-      final err =
-          DioException(requestOptions: options, error: 'Connection failed');
+      final err = DioException(
+        requestOptions: options,
+        error: 'Connection failed',
+      );
       interceptor.onError(err, errorHandler);
       // handler.next(err) completes the handler's future with the error;
       // observe it so it doesn't escape the test zone as unhandled.
@@ -64,16 +72,21 @@ void main() {
     });
 
     test('concurrent requests each complete their own entry', () async {
-      final optionsA =
-          RequestOptions(path: 'http://example.com/a', method: 'GET');
-      final optionsB =
-          RequestOptions(path: 'http://example.com/b', method: 'GET');
+      final optionsA = RequestOptions(
+        path: 'http://example.com/a',
+        method: 'GET',
+      );
+      final optionsB = RequestOptions(
+        path: 'http://example.com/b',
+        method: 'GET',
+      );
       interceptor.onRequest(optionsA, RequestInterceptorHandler());
       interceptor.onRequest(optionsB, RequestInterceptorHandler());
 
       interceptor.onResponse(
-          Response(requestOptions: optionsB, statusCode: 200),
-          ResponseInterceptorHandler());
+        Response(requestOptions: optionsB, statusCode: 200),
+        ResponseInterceptorHandler(),
+      );
 
       final entries = inspector.registry.network.entries;
       expect(entries.length, 2);

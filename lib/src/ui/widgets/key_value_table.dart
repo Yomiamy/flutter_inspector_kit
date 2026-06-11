@@ -31,10 +31,9 @@ class KeyValueTable extends StatelessWidget {
       );
     }
 
-    final keyStyle = Theme.of(context)
-        .textTheme
-        .bodySmall
-        ?.copyWith(fontWeight: FontWeight.w600);
+    final keyStyle = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,9 +52,7 @@ class KeyValueTable extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: SelectableText('${e.value}'),
-                ),
+                Expanded(child: SelectableText('${e.value}')),
               ],
             ),
           ),

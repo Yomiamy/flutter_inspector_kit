@@ -17,9 +17,7 @@ void main() {
     test('shouldAlert() returns false within window (1.999 seconds)', () {
       final now = DateTime(2024, 1, 1, 12, 0, 0);
       var currentTime = now;
-      final throttler = AlertThrottler(
-        now: () => currentTime,
-      );
+      final throttler = AlertThrottler(now: () => currentTime);
 
       expect(throttler.shouldAlert(), isTrue);
       currentTime = currentTime.add(const Duration(milliseconds: 1999));
@@ -29,9 +27,7 @@ void main() {
     test('shouldAlert() returns true after window (2+ seconds)', () {
       final now = DateTime(2024, 1, 1, 12, 0, 0);
       var currentTime = now;
-      final throttler = AlertThrottler(
-        now: () => currentTime,
-      );
+      final throttler = AlertThrottler(now: () => currentTime);
 
       expect(throttler.shouldAlert(), isTrue);
       currentTime = currentTime.add(const Duration(milliseconds: 2000));
@@ -41,9 +37,7 @@ void main() {
     test('shouldAlert() returns true exactly at 2-second boundary', () {
       final now = DateTime(2024, 1, 1, 12, 0, 0);
       var currentTime = now;
-      final throttler = AlertThrottler(
-        now: () => currentTime,
-      );
+      final throttler = AlertThrottler(now: () => currentTime);
 
       expect(throttler.shouldAlert(), isTrue);
       currentTime = currentTime.add(const Duration(seconds: 2));
@@ -52,9 +46,7 @@ void main() {
 
     test('burst of 20 calls in rapid succession yields only first true', () {
       final throttler = AlertThrottler();
-      final results = [
-        for (int i = 0; i < 20; i++) throttler.shouldAlert(),
-      ];
+      final results = [for (int i = 0; i < 20; i++) throttler.shouldAlert()];
 
       // First should be true, rest false
       expect(results[0], isTrue);
@@ -66,9 +58,7 @@ void main() {
     test('window resets after successful alert', () {
       final now = DateTime(2024, 1, 1, 12, 0, 0);
       var currentTime = now;
-      final throttler = AlertThrottler(
-        now: () => currentTime,
-      );
+      final throttler = AlertThrottler(now: () => currentTime);
 
       // First alert
       expect(throttler.shouldAlert(), isTrue);
@@ -78,7 +68,9 @@ void main() {
       expect(throttler.shouldAlert(), isFalse);
 
       // After window expires
-      currentTime = currentTime.add(const Duration(seconds: 1, milliseconds: 500));
+      currentTime = currentTime.add(
+        const Duration(seconds: 1, milliseconds: 500),
+      );
       expect(throttler.shouldAlert(), isTrue);
 
       // Window resets, so immediate next call should fail
@@ -88,9 +80,7 @@ void main() {
     test('consecutive alerts across windows respect timing', () {
       final now = DateTime(2024, 1, 1, 12, 0, 0);
       var currentTime = now;
-      final throttler = AlertThrottler(
-        now: () => currentTime,
-      );
+      final throttler = AlertThrottler(now: () => currentTime);
 
       // First alert at T=0
       expect(throttler.shouldAlert(), isTrue);

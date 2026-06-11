@@ -6,8 +6,11 @@ void main() {
     final fixedTime = DateTime(2026, 6, 9, 12, 0, 0);
 
     test('constructs incomplete by default', () {
-      final entry =
-          NetworkEntry(method: 'GET', url: 'https://x', timestamp: fixedTime);
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://x',
+        timestamp: fixedTime,
+      );
       expect(entry.method, 'GET');
       expect(entry.url, 'https://x');
       expect(entry.isComplete, isFalse);
@@ -15,8 +18,11 @@ void main() {
     });
 
     test('copyWith completes the entry', () {
-      final pending =
-          NetworkEntry(method: 'GET', url: 'https://x', timestamp: fixedTime);
+      final pending = NetworkEntry(
+        method: 'GET',
+        url: 'https://x',
+        timestamp: fixedTime,
+      );
       final done = pending.copyWith(
         statusCode: 200,
         duration: const Duration(milliseconds: 120),
@@ -86,8 +92,11 @@ void main() {
         expect(entry.requestSizeBytes, 3);
         expect(entry.responseSizeBytes, 6);
 
-        final empty =
-            NetworkEntry(method: 'GET', url: 'https://x', timestamp: fixedTime);
+        final empty = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
         expect(empty.requestSizeBytes, 0);
         expect(empty.responseSizeBytes, 0);
       });
@@ -101,7 +110,10 @@ void main() {
         expect(entry.queryParameters, {'page': '2', 'q': 'hello'});
 
         final none = NetworkEntry(
-            method: 'GET', url: 'https://api.test/path', timestamp: fixedTime);
+          method: 'GET',
+          url: 'https://api.test/path',
+          timestamp: fixedTime,
+        );
         expect(none.queryParameters, isEmpty);
       });
 

@@ -6,7 +6,7 @@ import '../models/log_level.dart';
 class LogInspector {
   /// Creates a log inspector retaining at most [bufferSize] entries.
   LogInspector({int bufferSize = 500})
-      : _buffer = RingBuffer<LogEntry>(bufferSize);
+    : _buffer = RingBuffer<LogEntry>(bufferSize);
 
   final RingBuffer<LogEntry> _buffer;
 

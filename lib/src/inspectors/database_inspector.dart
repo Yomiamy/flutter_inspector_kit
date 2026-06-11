@@ -6,7 +6,7 @@ import '../models/database_operation.dart';
 class DatabaseInspector {
   /// Creates a database inspector with the given [bufferCapacity].
   DatabaseInspector({int bufferCapacity = 500})
-      : _buffer = RingBuffer<DatabaseEntry>(bufferCapacity);
+    : _buffer = RingBuffer<DatabaseEntry>(bufferCapacity);
 
   final RingBuffer<DatabaseEntry> _buffer;
 

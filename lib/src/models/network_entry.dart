@@ -120,16 +120,16 @@ class NetworkEntry {
 
   @override
   int get hashCode => Object.hash(
-        timestamp,
-        method,
-        url,
-        statusCode,
-        duration,
-        requestBody,
-        responseBody,
-        error,
-        isComplete,
-      );
+    timestamp,
+    method,
+    url,
+    statusCode,
+    duration,
+    requestBody,
+    responseBody,
+    error,
+    isComplete,
+  );
 
   /// Number of UTF-8 bytes in the (possibly truncated) request body.
   int get requestSizeBytes =>
@@ -146,7 +146,8 @@ class NetworkEntry {
   }
 
   /// The request `content-type` header value, if present (case-insensitive).
-  String? get requestContentType => _headerValue(requestHeaders, 'content-type');
+  String? get requestContentType =>
+      _headerValue(requestHeaders, 'content-type');
 
   /// The response `content-type` header value, if present (case-insensitive).
   String? get responseContentType =>

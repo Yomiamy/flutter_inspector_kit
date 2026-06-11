@@ -59,8 +59,11 @@ void main() {
     });
 
     test('toString contains level and message', () {
-      final entry =
-          LogEntry(message: 'boom', level: LogLevel.error, timestamp: fixedTime);
+      final entry = LogEntry(
+        message: 'boom',
+        level: LogLevel.error,
+        timestamp: fixedTime,
+      );
       expect(entry.toString(), contains('error'));
       expect(entry.toString(), contains('boom'));
     });

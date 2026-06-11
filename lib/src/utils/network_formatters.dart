@@ -78,9 +78,9 @@ String buildPlainText(NetworkEntry entry) {
   if (entry.requestBody != null && entry.requestBody!.isNotEmpty) {
     b
       ..writeln('\n=== Request Body ===')
-      ..writeln(entry.isRequestJson
-          ? prettyJson(entry.requestBody)
-          : entry.requestBody);
+      ..writeln(
+        entry.isRequestJson ? prettyJson(entry.requestBody) : entry.requestBody,
+      );
   }
 
   b.writeln('\n=== Response Headers ===');
@@ -88,9 +88,11 @@ String buildPlainText(NetworkEntry entry) {
   if (entry.responseBody != null && entry.responseBody!.isNotEmpty) {
     b
       ..writeln('\n=== Response Body ===')
-      ..writeln(entry.isResponseJson
-          ? prettyJson(entry.responseBody)
-          : entry.responseBody);
+      ..writeln(
+        entry.isResponseJson
+            ? prettyJson(entry.responseBody)
+            : entry.responseBody,
+      );
   }
 
   if (entry.error != null) {

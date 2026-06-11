@@ -6,13 +6,22 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('DatabaseTab', () {
-    testWidgets('displays database entries and supports clearing', (tester) async {
+    testWidgets('displays database entries and supports clearing', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
-      inspector.database(DatabaseOperation.insert, 'users', affectedRows: 2, data: {'query': 'INSERT INTO users'});
+      inspector.database(
+        DatabaseOperation.insert,
+        'users',
+        affectedRows: 2,
+        data: {'query': 'INSERT INTO users'},
+      );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: DatabaseTab(inspector: inspector)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: DatabaseTab(inspector: inspector)),
+        ),
+      );
 
       expect(find.text('INSERT on users'), findsOneWidget);
       expect(find.textContaining('Rows affected: 2'), findsOneWidget);

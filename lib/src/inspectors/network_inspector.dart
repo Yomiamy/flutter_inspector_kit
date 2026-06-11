@@ -9,7 +9,7 @@ typedef NetworkAddListener = void Function(NetworkEntry entry, int totalCount);
 class NetworkInspector {
   /// Creates a network inspector with the given [bufferCapacity].
   NetworkInspector({int bufferCapacity = 500})
-      : _buffer = RingBuffer<NetworkEntry>(bufferCapacity);
+    : _buffer = RingBuffer<NetworkEntry>(bufferCapacity);
 
   final RingBuffer<NetworkEntry> _buffer;
 

@@ -30,10 +30,7 @@ class DashboardModal extends StatelessWidget {
     showGeneralDialog(
       context: context,
       pageBuilder: (context, animation, secondaryAnimation) {
-        return DashboardModal(
-          inspector: inspector,
-          initialIndex: initialIndex,
-        );
+        return DashboardModal(inspector: inspector, initialIndex: initialIndex);
       },
     );
   }

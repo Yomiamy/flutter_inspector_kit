@@ -23,17 +23,20 @@ void main() {
     test('truncates bodies larger than kNetworkBodyMaxLength', () {
       final longBody = 'a' * (kNetworkBodyMaxLength + 100);
       final entry = NetworkEntry(
-          method: 'GET',
-          url: '/1',
-          requestBody: longBody,
-          responseBody: longBody);
+        method: 'GET',
+        url: '/1',
+        requestBody: longBody,
+        responseBody: longBody,
+      );
 
       inspector.add(entry);
 
       final addedEntry = inspector.entries.first;
       expect(addedEntry.requestBody, endsWith(kTruncatedMarker));
-      expect(addedEntry.requestBody!.length,
-          kNetworkBodyMaxLength + kTruncatedMarker.length);
+      expect(
+        addedEntry.requestBody!.length,
+        kNetworkBodyMaxLength + kTruncatedMarker.length,
+      );
       expect(addedEntry.responseBody, endsWith(kTruncatedMarker));
     });
 
@@ -55,15 +58,21 @@ void main() {
 
     test('no callback wired by default', () {
       // add() must not throw when onAdd is null.
-      expect(() => inspector.add(NetworkEntry(method: 'GET', url: '/x')),
-          returnsNormally);
+      expect(
+        () => inspector.add(NetworkEntry(method: 'GET', url: '/x')),
+        returnsNormally,
+      );
     });
 
     test('add with replaces swaps the pending entry in place', () {
       final other = inspector.add(NetworkEntry(method: 'GET', url: '/other'));
       final pending = inspector.add(NetworkEntry(method: 'GET', url: '/1'));
       final completed = NetworkEntry(
-          method: 'GET', url: '/1', statusCode: 200, isComplete: true);
+        method: 'GET',
+        url: '/1',
+        statusCode: 200,
+        isComplete: true,
+      );
 
       inspector.add(completed, replaces: pending);
 
@@ -77,7 +86,11 @@ void main() {
         inspector.add(NetworkEntry(method: 'GET', url: '/fill$i'));
       }
       final completed = NetworkEntry(
-          method: 'GET', url: '/1', statusCode: 200, isComplete: true);
+        method: 'GET',
+        url: '/1',
+        statusCode: 200,
+        isComplete: true,
+      );
 
       inspector.add(completed, replaces: pending);
 
@@ -88,7 +101,8 @@ void main() {
     test('add returns the stored (possibly truncated) entry', () {
       final longBody = 'a' * (kNetworkBodyMaxLength + 100);
       final stored = inspector.add(
-          NetworkEntry(method: 'POST', url: '/1', requestBody: longBody));
+        NetworkEntry(method: 'POST', url: '/1', requestBody: longBody),
+      );
 
       expect(stored.requestBody, endsWith(kTruncatedMarker));
       expect(inspector.entries.first, stored);
@@ -100,8 +114,9 @@ void main() {
 
       final pending = inspector.add(NetworkEntry(method: 'GET', url: '/1'));
       inspector.add(
-          NetworkEntry(method: 'GET', url: '/1', isComplete: true),
-          replaces: pending);
+        NetworkEntry(method: 'GET', url: '/1', isComplete: true),
+        replaces: pending,
+      );
 
       expect(calls, [('/1', 1), ('/1', 1)]);
     });

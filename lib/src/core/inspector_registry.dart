@@ -7,10 +7,10 @@ import '../inspectors/network_inspector.dart';
 class InspectorRegistry {
   /// Creates a registry with inspectors initialized to the given [bufferSize].
   InspectorRegistry({int bufferSize = 500})
-      : log = LogInspector(bufferSize: bufferSize),
-        network = NetworkInspector(bufferCapacity: bufferSize),
-        navigator = NavigatorInspector(bufferCapacity: bufferSize),
-        database = DatabaseInspector(bufferCapacity: bufferSize);
+    : log = LogInspector(bufferSize: bufferSize),
+      network = NetworkInspector(bufferCapacity: bufferSize),
+      navigator = NavigatorInspector(bufferCapacity: bufferSize),
+      database = DatabaseInspector(bufferCapacity: bufferSize);
 
   /// Inspector for console logs.
   final LogInspector log;

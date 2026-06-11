@@ -53,6 +53,5 @@ class NavigatorEntry {
   int get hashCode => Object.hash(timestamp, action, routeName, arguments);
 
   @override
-  String toString() =>
-      'NavigatorEntry(${action.name}, $routeName, $timestamp)';
+  String toString() => 'NavigatorEntry(${action.name}, $routeName, $timestamp)';
 }

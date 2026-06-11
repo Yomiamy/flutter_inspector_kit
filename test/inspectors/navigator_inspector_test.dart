@@ -12,10 +12,14 @@ void main() {
     });
 
     test('adds navigator entries and returns newest first', () {
-      final entry1 =
-          NavigatorEntry(action: NavigatorAction.push, routeName: '/home');
-      final entry2 =
-          NavigatorEntry(action: NavigatorAction.pop, routeName: '/home');
+      final entry1 = NavigatorEntry(
+        action: NavigatorAction.push,
+        routeName: '/home',
+      );
+      final entry2 = NavigatorEntry(
+        action: NavigatorAction.pop,
+        routeName: '/home',
+      );
 
       inspector.add(entry1);
       inspector.add(entry2);

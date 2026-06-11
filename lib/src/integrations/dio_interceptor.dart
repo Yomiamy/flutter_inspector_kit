@@ -27,10 +27,12 @@ class FlutterInspectorDioInterceptor extends Interceptor {
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     final startTime =
         response.requestOptions.extra['_inspector_start_time'] as DateTime?;
-    final duration =
-        startTime != null ? DateTime.now().difference(startTime) : null;
-    final pending = response.requestOptions.extra['_inspector_pending_entry']
-        as NetworkEntry?;
+    final duration = startTime != null
+        ? DateTime.now().difference(startTime)
+        : null;
+    final pending =
+        response.requestOptions.extra['_inspector_pending_entry']
+            as NetworkEntry?;
 
     final entry = NetworkEntry(
       method: response.requestOptions.method,
@@ -39,8 +41,9 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       duration: duration,
       requestHeaders: response.requestOptions.headers,
       requestBody: response.requestOptions.data?.toString(),
-      responseHeaders:
-          response.headers.map.map((k, v) => MapEntry(k, v.join(','))),
+      responseHeaders: response.headers.map.map(
+        (k, v) => MapEntry(k, v.join(',')),
+      ),
       responseBody: response.data?.toString(),
       isComplete: true,
       timestamp: startTime,
@@ -53,8 +56,9 @@ class FlutterInspectorDioInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     final startTime =
         err.requestOptions.extra['_inspector_start_time'] as DateTime?;
-    final duration =
-        startTime != null ? DateTime.now().difference(startTime) : null;
+    final duration = startTime != null
+        ? DateTime.now().difference(startTime)
+        : null;
     final pending =
         err.requestOptions.extra['_inspector_pending_entry'] as NetworkEntry?;
 
@@ -65,8 +69,9 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       duration: duration,
       requestHeaders: err.requestOptions.headers,
       requestBody: err.requestOptions.data?.toString(),
-      responseHeaders: err.response?.headers.map
-          .map((k, v) => MapEntry(k, v.join(','))),
+      responseHeaders: err.response?.headers.map.map(
+        (k, v) => MapEntry(k, v.join(',')),
+      ),
       responseBody: err.response?.data?.toString(),
       error: err.toString(),
       isComplete: true,

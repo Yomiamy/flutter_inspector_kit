@@ -32,7 +32,8 @@ class FlutterInspector {
   }) : _registry = InspectorRegistry(bufferSize: bufferSize) {
     _navigatorObserver = FlutterInspectorNavigatorObserver(_registry.navigator);
     if (showNetworkNotification) {
-      _notifier = notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
+      _notifier =
+          notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
       _notifier!.init();
       _registry.network.onAdd = (entry, total) {
         _notifier!.showOrUpdate(entry, total);
@@ -99,18 +100,13 @@ class FlutterInspector {
   OverlayEntry? _overlayEntry;
 
   /// Mounts the FAB overlay onto the screen.
-  void attach({
-    required BuildContext context,
-    bool visible = true,
-  }) {
+  void attach({required BuildContext context, bool visible = true}) {
     if (_overlayEntry != null) return;
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
     _overlayEntry = OverlayEntry(
-      builder: (context) => InspectorFab(
-        onTap: () => openDashboard(context),
-        visible: visible,
-      ),
+      builder: (context) =>
+          InspectorFab(onTap: () => openDashboard(context), visible: visible),
     );
     overlay.insert(_overlayEntry!);
   }
@@ -128,12 +124,14 @@ class FlutterInspector {
     String? stackTrace,
     Map<String, dynamic>? data,
   }) {
-    _registry.log.add(LogEntry(
-      message: message,
-      level: level,
-      stackTrace: stackTrace,
-      data: data,
-    ));
+    _registry.log.add(
+      LogEntry(
+        message: message,
+        level: level,
+        stackTrace: stackTrace,
+        data: data,
+      ),
+    );
   }
 
   /// Records a network request or response, returning the stored entry.
@@ -152,12 +150,14 @@ class FlutterInspector {
     Map<String, dynamic>? data,
     int? affectedRows,
   }) {
-    _registry.database.add(DatabaseEntry(
-      operation: operation,
-      tableName: tableName,
-      data: data,
-      affectedRows: affectedRows,
-    ));
+    _registry.database.add(
+      DatabaseEntry(
+        operation: operation,
+        tableName: tableName,
+        data: data,
+        affectedRows: affectedRows,
+      ),
+    );
   }
 
   /// Opens the full-screen dashboard modal.

@@ -7,17 +7,23 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('NavigatorTab', () {
-    testWidgets('displays navigator entries and supports clearing', (tester) async {
+    testWidgets('displays navigator entries and supports clearing', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
-      inspector.registry.navigator.add(NavigatorEntry(
-        action: NavigatorAction.push,
-        routeName: '/home',
-        arguments: 'test_arg',
-      ));
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/home',
+          arguments: 'test_arg',
+        ),
+      );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: NavigatorTab(inspector: inspector)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
 
       expect(find.text('PUSH /home'), findsOneWidget);
       expect(find.textContaining('test_arg'), findsOneWidget);

@@ -11,9 +11,11 @@ void main() {
       inspector.log('Test message 1', level: LogLevel.info);
       inspector.log('Test message 2', level: LogLevel.error);
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: ConsoleTab(inspector: inspector)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
 
       expect(find.text('Test message 1'), findsOneWidget);
       expect(find.text('Test message 2'), findsOneWidget);
