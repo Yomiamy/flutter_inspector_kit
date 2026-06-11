@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 
+import '../models/database_browser_source.dart';
 import '../models/database_entry.dart';
 import '../models/database_operation.dart';
 import '../models/log_entry.dart';
+import '../sources/operation_log_source.dart';
 import '../models/log_level.dart';
 import '../models/navigator_entry.dart';
 import '../models/network_entry.dart';
@@ -29,8 +31,13 @@ class FlutterInspector {
     this.navigatorKey,
     int bufferSize = 500,
     NetworkNotifier? notifier,
+    List<DatabaseBrowserSource>? databaseSources,
   }) : _registry = InspectorRegistry(bufferSize: bufferSize) {
     _navigatorObserver = FlutterInspectorNavigatorObserver(_registry.navigator);
+    _operationLogSource = OperationLogSource(_registry.database);
+    if (databaseSources != null) {
+      _customDatabaseSources.addAll(databaseSources);
+    }
     if (showNetworkNotification) {
       _notifier =
           notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
@@ -65,6 +72,8 @@ class FlutterInspector {
 
   final InspectorRegistry _registry;
   late final FlutterInspectorNavigatorObserver _navigatorObserver;
+  late final OperationLogSource _operationLogSource;
+  final List<DatabaseBrowserSource> _customDatabaseSources = [];
 
   /// The observer to be added to MaterialApp's navigatorObservers.
   FlutterInspectorNavigatorObserver get navigatorObserver => _navigatorObserver;
@@ -96,6 +105,15 @@ class FlutterInspector {
 
   /// Clears all database logs.
   void clearDatabase() => _registry.database.clear();
+
+  /// Retrieves the registered database browser sources.
+  List<DatabaseBrowserSource> get databaseSources =>
+      List.unmodifiable([_operationLogSource, ..._customDatabaseSources]);
+
+  /// Registers a database browser source.
+  void registerDatabaseSource(DatabaseBrowserSource source) {
+    _customDatabaseSources.add(source);
+  }
 
   OverlayEntry? _overlayEntry;
 

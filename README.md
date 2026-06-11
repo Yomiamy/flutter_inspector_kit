@@ -211,6 +211,171 @@ inspector.database(
 
 Available operations: `insert`, `update`, `delete`, `query`.
 
+### Browse database tables
+
+You can browse tables and rows directly from the Database tab. By default, operations logged via `inspector.database(...)` are grouped into virtual tables.
+
+To browse real databases (e.g. SQLite, ObjectBox), implement `DatabaseBrowserSource` and register it.
+
+#### SQLite Adapter Example
+Here is a complete, copy-pasteable implementation of `DatabaseBrowserSource` for `sqflite`:
+
+```dart
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:sqflite/sqflite.dart';
+
+class SqfliteBrowserSource implements DatabaseBrowserSource {
+  SqfliteBrowserSource(this._db, {this.name = 'SQLite database'});
+
+  final Database _db;
+
+  @override
+  final String name;
+
+  @override
+  Future<List<DatabaseTableInfo>> listTables() async {
+    final List<Map<String, Object?>> tables = await _db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    );
+
+    final List<DatabaseTableInfo> result = [];
+    for (final table in tables) {
+      final name = table['name'] as String;
+      final countResult = await _db.rawQuery('SELECT COUNT(*) as count FROM "$name"');
+      final rowCount = Sqflite.firstIntValue(countResult);
+      result.add(DatabaseTableInfo(name: name, rowCount: rowCount));
+    }
+    return result;
+  }
+
+  @override
+  Future<DatabaseTablePage> fetchRows(
+    String tableName, {
+    int limit = 200,
+    int offset = 0,
+  }) async {
+    final countResult = await _db.rawQuery('SELECT COUNT(*) as count FROM "$tableName"');
+    final totalRows = Sqflite.firstIntValue(countResult) ?? 0;
+
+    final List<Map<String, Object?>> queryResult = await _db.rawQuery(
+      'SELECT * FROM "$tableName" LIMIT ? OFFSET ?',
+      [limit, offset],
+    );
+
+    if (queryResult.isEmpty) {
+      final tableInfo = await _db.rawQuery('PRAGMA table_info("$tableName")');
+      final columns = tableInfo.map((info) => info['name'] as String).toList();
+      return DatabaseTablePage(
+        columns: columns,
+        rows: const [],
+        totalRows: totalRows,
+      );
+    }
+
+    final columns = queryResult.first.keys.toList();
+    final rows = queryResult.map((map) {
+      return columns.map((col) => map[col]).toList();
+    }).toList();
+
+    return DatabaseTablePage(
+      columns: columns,
+      rows: rows,
+      totalRows: totalRows,
+    );
+  }
+}
+```
+
+#### ObjectBox Adapter Example
+For ObjectBox, since Box/Entity represents a table and reflection is not available at runtime to convert entities to map, you can register entities manually:
+
+```dart
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:objectbox/objectbox.dart';
+
+class ObjectBoxEntityInfo<T> {
+  ObjectBoxEntityInfo({
+    required this.name,
+    required this.box,
+    required this.toMap,
+  });
+
+  final String name;
+  final Box<T> box;
+  final Map<String, dynamic> Function(T) toMap;
+}
+
+class ObjectBoxBrowserSource implements DatabaseBrowserSource {
+  ObjectBoxBrowserSource({
+    required this.entities,
+    this.name = 'ObjectBox database',
+  });
+
+  final List<ObjectBoxEntityInfo> entities;
+
+  @override
+  final String name;
+
+  @override
+  Future<List<DatabaseTableInfo>> listTables() async {
+    return entities.map((e) {
+      return DatabaseTableInfo(
+        name: e.name,
+        rowCount: e.box.count(),
+      );
+    }).toList();
+  }
+
+  @override
+  Future<DatabaseTablePage> fetchRows(
+    String tableName, {
+    int limit = 200,
+    int offset = 0,
+  }) async {
+    final entityInfo = entities.firstWhere((e) => e.name == tableName);
+    final totalRows = entityInfo.box.count();
+
+    // Query with offset and limit
+    final query = entityInfo.box.query().build();
+    query.limit = limit;
+    query.offset = offset;
+    final items = query.find();
+    query.close();
+
+    if (items.isEmpty) {
+      return DatabaseTablePage(
+        columns: [],
+        rows: const [],
+        totalRows: totalRows,
+      );
+    }
+
+    final maps = items.map((item) => entityInfo.toMap(item)).toList();
+    final columns = maps.first.keys.toList();
+    final rows = maps.map((map) => columns.map((col) => map[col]).toList()).toList();
+
+    return DatabaseTablePage(
+      columns: columns,
+      rows: rows,
+      totalRows: totalRows,
+    );
+  }
+}
+```
+
+#### Registration
+You can register these sources when initializing `FlutterInspector` or dynamically at runtime:
+
+```dart
+// At initialization
+final inspector = FlutterInspector(
+  databaseSources: [SqfliteBrowserSource(db)],
+);
+
+// Or dynamically
+inspector.registerDatabaseSource(SqfliteBrowserSource(db));
+```
+
 ## 🕹️ Example
 
 A complete, runnable integration lives in the [`example/`](example/) directory:

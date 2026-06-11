@@ -1,3 +1,17 @@
+## Unreleased
+
+### Added
+* Database table browser with two-level navigation (table list page and row grid view).
+* Multi-direction scrolling (horizontal and vertical) in row grid view.
+* Local column sorting with NULLs always sorted to the end in both directions.
+* Dialog value preview and copy for individual grid cell values.
+* Pagination for row grid (200 rows limit with 'Load More' button).
+* Public `DatabaseBrowserSource`, `DatabaseTableInfo`, and `DatabaseTablePage` classes.
+* `FlutterInspector.registerDatabaseSource` and constructor parameter `databaseSources` to dynamically registry third-party databases (e.g. SQLite, ObjectBox).
+
+### Changed
+* Redesigned Database tab from chronological operation list to database table list view.
+
 ## 0.1.0
 
 Initial release on pub.dev (package renamed from `flutter_inspector` to `flutter_inspector_kit`).

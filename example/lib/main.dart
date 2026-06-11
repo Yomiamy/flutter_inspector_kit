@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:sqflite/sqflite.dart';
+import 'sqflite_browser_source.dart';
 
 // Enable the live system notification summarising network calls (opt-in).
 // On Android this requires a notification icon + (Android 13+) the
@@ -92,6 +94,71 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  bool _sqliteRegistered = false;
+
+  Future<void> _seedSqlite() async {
+    try {
+      final databasesPath = await getDatabasesPath();
+      final path = '$databasesPath/demo.db';
+
+      final db = await openDatabase(
+        path,
+        version: 1,
+        onCreate: (db, version) async {
+          await db.execute(
+            'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
+          );
+        },
+      );
+
+      final countResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM users',
+      );
+      final count = Sqflite.firstIntValue(countResult) ?? 0;
+      if (count == 0) {
+        await db.insert('users', {
+          'id': 1,
+          'name': 'Alice',
+          'email': 'alice@example.com',
+          'age': 30,
+        });
+        await db.insert('users', {
+          'id': 2,
+          'name': 'Bob',
+          'email': null,
+          'age': 25,
+        });
+        await db.insert('users', {
+          'id': 3,
+          'name': 'Carol',
+          'email': 'carol@example.com',
+          'age': null,
+        });
+      }
+
+      if (!_sqliteRegistered) {
+        inspector.registerDatabaseSource(
+          SqfliteBrowserSource(db, name: 'demo.db'),
+        );
+        _sqliteRegistered = true;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('SQLite demo.db initialized and registered!'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('SQLite seeding failed: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,6 +179,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: _makeNetworkRequest,
               child: const Text('Make Network Request'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _seedSqlite,
+              child: const Text('Seed SQLite Demo'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(

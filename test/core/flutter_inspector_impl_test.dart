@@ -1,4 +1,5 @@
 import 'package:flutter_inspector_kit/src/core/flutter_inspector_impl.dart';
+import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
 import 'package:flutter_inspector_kit/src/models/database_operation.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
@@ -51,4 +52,67 @@ void main() {
       expect(observer, isNotNull);
     });
   });
+
+  group('Database Browser Sources API', () {
+    test('default source is always first and named Operation log', () {
+      final inspector = FlutterInspector();
+      expect(inspector.databaseSources.length, 1);
+      expect(inspector.databaseSources.first.name, 'Operation log');
+    });
+
+    test('constructor injects custom database sources', () {
+      final source = FakeDatabaseBrowserSource();
+      final inspector = FlutterInspector(databaseSources: [source]);
+      expect(inspector.databaseSources.length, 2);
+      expect(inspector.databaseSources[0].name, 'Operation log');
+      expect(inspector.databaseSources[1], source);
+    });
+
+    test('registerDatabaseSource registers custom source dynamically', () {
+      final inspector = FlutterInspector();
+      final source = FakeDatabaseBrowserSource();
+      inspector.registerDatabaseSource(source);
+      expect(inspector.databaseSources.length, 2);
+      expect(inspector.databaseSources[1], source);
+    });
+
+    test('databaseSources returns an unmodifiable list', () {
+      final inspector = FlutterInspector();
+      final sources = inspector.databaseSources;
+      expect(
+        () => (sources as List).add(FakeDatabaseBrowserSource()),
+        throwsUnsupportedError,
+      );
+    });
+
+    test(
+      'logs logged to database are visible via OperationLogSource',
+      () async {
+        final inspector = FlutterInspector();
+        inspector.database(DatabaseOperation.insert, 'users');
+
+        final opLogSource = inspector.databaseSources.first;
+        final tables = await opLogSource.listTables();
+        expect(tables.length, 1);
+        expect(tables.first.name, 'users');
+      },
+    );
+  });
+}
+
+class FakeDatabaseBrowserSource extends DatabaseBrowserSource {
+  @override
+  String get name => 'FakeSource';
+
+  @override
+  Future<List<DatabaseTableInfo>> listTables() async => [];
+
+  @override
+  Future<DatabaseTablePage> fetchRows(
+    String tableName, {
+    int limit = 200,
+    int offset = 0,
+  }) async {
+    return const DatabaseTablePage(columns: [], rows: []);
+  }
 }
