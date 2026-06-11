@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_inspector/src/inspectors/navigator_inspector.dart';
-import 'package:flutter_inspector/src/models/navigator_action.dart';
-import 'package:flutter_inspector/src/observers/navigator_observer.dart';
+import 'package:flutter_inspector_kit/src/inspectors/navigator_inspector.dart';
+import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
+import 'package:flutter_inspector_kit/src/observers/navigator_observer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

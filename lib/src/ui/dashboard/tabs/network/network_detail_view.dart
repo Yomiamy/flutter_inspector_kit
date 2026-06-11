@@ -34,10 +34,7 @@ class NetworkDetailView extends StatelessWidget {
                 value: _ShareAction.text,
                 child: Text('Copy as text'),
               ),
-              PopupMenuItem(
-                value: _ShareAction.share,
-                child: Text('Share…'),
-              ),
+              PopupMenuItem(value: _ShareAction.share, child: Text('Share…')),
             ],
           ),
         ],
@@ -47,18 +44,35 @@ class NetworkDetailView extends StatelessWidget {
         children: [
           _generalSection(context),
           if (entry.queryParameters.isNotEmpty)
-            _section(context, 'Query Parameters',
-                KeyValueTable(data: entry.queryParameters)),
-          _section(context, 'Request Headers',
-              KeyValueTable(data: entry.requestHeaders)),
+            _section(
+              context,
+              'Query Parameters',
+              KeyValueTable(data: entry.queryParameters),
+            ),
+          _section(
+            context,
+            'Request Headers',
+            KeyValueTable(data: entry.requestHeaders),
+          ),
           if (_hasBody(entry.requestBody))
-            _bodySection(context, 'Request Body', entry.requestBody!,
-                entry.isRequestJson),
-          _section(context, 'Response Headers',
-              KeyValueTable(data: entry.responseHeaders)),
+            _bodySection(
+              context,
+              'Request Body',
+              entry.requestBody!,
+              entry.isRequestJson,
+            ),
+          _section(
+            context,
+            'Response Headers',
+            KeyValueTable(data: entry.responseHeaders),
+          ),
           if (_hasBody(entry.responseBody))
-            _bodySection(context, 'Response Body', entry.responseBody!,
-                entry.isResponseJson),
+            _bodySection(
+              context,
+              'Response Body',
+              entry.responseBody!,
+              entry.isResponseJson,
+            ),
           if (entry.error != null) _errorSection(context),
         ],
       ),
@@ -77,22 +91,26 @@ class NetworkDetailView extends StatelessWidget {
           _kv(context, 'URL', entry.url),
           Row(
             children: [
-              Text('Status: ',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
               Text(
-                entry.isComplete
-                    ? '${entry.statusCode ?? '-'}'
-                    : 'Pending',
+                'Status: ',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                entry.isComplete ? '${entry.statusCode ?? '-'}' : 'Pending',
                 style: TextStyle(
-                    color: statusColor, fontWeight: FontWeight.w600),
+                  color: statusColor,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
-          _kv(context, 'Duration',
-              '${entry.duration?.inMilliseconds ?? '-'} ms'),
+          _kv(
+            context,
+            'Duration',
+            '${entry.duration?.inMilliseconds ?? '-'} ms',
+          ),
           _kv(context, 'Request size', formatBytes(entry.requestSizeBytes)),
           _kv(context, 'Response size', formatBytes(entry.responseSizeBytes)),
           if (entry.isTruncated)
@@ -101,7 +119,9 @@ class NetworkDetailView extends StatelessWidget {
               child: Text(
                 '⚠ Body truncated — size reflects the truncated value',
                 style: TextStyle(
-                    color: Theme.of(context).colorScheme.error, fontSize: 12),
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                ),
               ),
             ),
           _kv(context, 'Time', entry.timestamp.toIso8601String()),
@@ -111,7 +131,11 @@ class NetworkDetailView extends StatelessWidget {
   }
 
   Widget _bodySection(
-      BuildContext context, String title, String body, bool isJson) {
+    BuildContext context,
+    String title,
+    String body,
+    bool isJson,
+  ) {
     final rendered = isJson ? prettyJson(body) : body;
     return _section(
       context,
@@ -167,11 +191,12 @@ class NetworkDetailView extends StatelessWidget {
         children: [
           SizedBox(
             width: 120,
-            child: Text('$key:',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            child: Text(
+              '$key:',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(child: SelectableText(value)),
@@ -193,20 +218,26 @@ class NetworkDetailView extends StatelessWidget {
       case _ShareAction.curl:
         await Clipboard.setData(ClipboardData(text: buildCurl(entry)));
         messenger.showSnackBar(
-            const SnackBar(content: Text('cURL copied to clipboard')));
+          const SnackBar(content: Text('cURL copied to clipboard')),
+        );
       case _ShareAction.text:
         await Clipboard.setData(ClipboardData(text: buildPlainText(entry)));
         messenger.showSnackBar(
-            const SnackBar(content: Text('Details copied to clipboard')));
+          const SnackBar(content: Text('Details copied to clipboard')),
+        );
       case _ShareAction.share:
         try {
-          await SharePlus.instance
-              .share(ShareParams(text: buildPlainText(entry)));
+          await SharePlus.instance.share(
+            ShareParams(text: buildPlainText(entry)),
+          );
         } catch (_) {
           // Fallback to clipboard when the platform has no share sheet.
           await Clipboard.setData(ClipboardData(text: buildPlainText(entry)));
-          messenger.showSnackBar(const SnackBar(
-              content: Text('Share unavailable — copied to clipboard')));
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Share unavailable — copied to clipboard'),
+            ),
+          );
         }
     }
   }

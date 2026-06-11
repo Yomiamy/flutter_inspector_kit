@@ -70,8 +70,9 @@ class NetworkFilter {
     }
 
     if (statusGroups.isNotEmpty &&
-        !statusGroups
-            .any((g) => g.matches(entry.statusCode, entry.error != null))) {
+        !statusGroups.any(
+          (g) => g.matches(entry.statusCode, entry.error != null),
+        )) {
       return false;
     }
 

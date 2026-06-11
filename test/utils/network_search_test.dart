@@ -1,5 +1,5 @@
-import 'package:flutter_inspector/src/models/network_entry.dart';
-import 'package:flutter_inspector/src/utils/network_search.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/utils/network_search.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -30,20 +30,26 @@ void main() {
     });
 
     test('keyword matches url case-insensitively', () {
-      final result =
-          applyNetworkFilter(entries, const NetworkFilter(keyword: 'USERS'));
+      final result = applyNetworkFilter(
+        entries,
+        const NetworkFilter(keyword: 'USERS'),
+      );
       expect(result.length, 2);
     });
 
     test('keyword matches status code', () {
-      final result =
-          applyNetworkFilter(entries, const NetworkFilter(keyword: '401'));
+      final result = applyNetworkFilter(
+        entries,
+        const NetworkFilter(keyword: '401'),
+      );
       expect(result.single.url, 'https://api.test/login');
     });
 
     test('method filter', () {
-      final result =
-          applyNetworkFilter(entries, const NetworkFilter(methods: {'GET'}));
+      final result = applyNetworkFilter(
+        entries,
+        const NetworkFilter(methods: {'GET'}),
+      );
       expect(result.length, 2);
       expect(result.every((e) => e.method == 'GET'), isTrue);
     });

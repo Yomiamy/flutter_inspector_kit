@@ -1,5 +1,5 @@
 name: example
-description: "Example app demonstrating flutter_inspector usage."
+description: "Example app demonstrating flutter_inspector_kit usage."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -13,7 +13,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   dio: ^5.0.0
 
-  flutter_inspector:
+  flutter_inspector_kit:
     path: ../
 
 dev_dependencies:

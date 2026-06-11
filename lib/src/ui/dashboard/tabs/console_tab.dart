@@ -39,10 +39,7 @@ class _ConsoleTabState extends State<ConsoleTab> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refresh,
-            ),
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () {

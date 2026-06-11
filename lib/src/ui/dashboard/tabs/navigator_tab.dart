@@ -24,10 +24,7 @@ class _NavigatorTabState extends State<NavigatorTab> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refresh,
-            ),
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () {
@@ -44,9 +41,11 @@ class _NavigatorTabState extends State<NavigatorTab> {
               final entry = entries[index];
               return ListTile(
                 title: Text(
-                    '${entry.action.name.toUpperCase()} ${entry.routeName ?? "Unknown Route"}'),
+                  '${entry.action.name.toUpperCase()} ${entry.routeName ?? "Unknown Route"}',
+                ),
                 subtitle: Text(
-                    '${entry.timestamp.toIso8601String()}\nArgs: ${entry.arguments ?? "None"}'),
+                  '${entry.timestamp.toIso8601String()}\nArgs: ${entry.arguments ?? "None"}',
+                ),
               );
             },
           ),

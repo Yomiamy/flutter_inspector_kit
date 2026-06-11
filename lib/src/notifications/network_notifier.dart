@@ -18,8 +18,8 @@ class NetworkNotifier {
     FlutterLocalNotificationsPlugin? plugin,
     AlertThrottler? throttler,
     this.onTap,
-  })  : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
-        _throttler = throttler ?? AlertThrottler();
+  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
+       _throttler = throttler ?? AlertThrottler();
 
   /// Invoked when the user taps the notification (payload routing handled by
   /// the owner, e.g. opening the Network tab).
@@ -92,7 +92,8 @@ class NetworkNotifier {
     try {
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.deleteNotificationChannel(channelId: _legacyChannelId);
     } catch (e) {
       debugPrint('[FlutterInspector] legacy channel deletion failed: $e');
@@ -107,18 +108,23 @@ class NetworkNotifier {
     try {
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
       await _plugin
           .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
+            IOSFlutterLocalNotificationsPlugin
+          >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
       await _plugin
           .resolvePlatformSpecificImplementation<
-              MacOSFlutterLocalNotificationsPlugin>()
+            MacOSFlutterLocalNotificationsPlugin
+          >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
     } catch (e) {
-      debugPrint('[FlutterInspector] notification permission request failed: $e');
+      debugPrint(
+        '[FlutterInspector] notification permission request failed: $e',
+      );
     }
   }
 

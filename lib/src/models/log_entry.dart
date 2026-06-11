@@ -60,6 +60,5 @@ class LogEntry {
   int get hashCode => Object.hash(timestamp, level, message, stackTrace, data);
 
   @override
-  String toString() =>
-      'LogEntry(${level.name}, $message, $timestamp)';
+  String toString() => 'LogEntry(${level.name}, $message, $timestamp)';
 }

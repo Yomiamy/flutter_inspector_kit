@@ -5,3 +5,7 @@ docs/
 .claude/
 .gemini/
 .fvm/
+build/
+coverage/
+scripts/
+doc/

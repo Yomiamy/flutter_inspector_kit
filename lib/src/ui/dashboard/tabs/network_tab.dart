@@ -47,10 +47,10 @@ class _NetworkTabState extends State<NetworkTab> {
   void _refresh() => setState(() {});
 
   NetworkFilter get _filter => NetworkFilter(
-        keyword: _keyword,
-        methods: _methods,
-        statusGroups: _statusGroups,
-      );
+    keyword: _keyword,
+    methods: _methods,
+    statusGroups: _statusGroups,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +72,8 @@ class _NetworkTabState extends State<NetworkTab> {
                 )
               : ListView.builder(
                   itemCount: entries.length,
-                  itemBuilder: (context, index) => _buildEntryTile(entries[index]),
+                  itemBuilder: (context, index) =>
+                      _buildEntryTile(entries[index]),
                 ),
         ),
       ],
@@ -176,11 +177,7 @@ class _NetworkTabState extends State<NetworkTab> {
     return ListTile(
       dense: true,
       leading: _MethodBadge(method: entry.method, color: statusColor),
-      title: Text(
-        entry.url,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title: Text(entry.url, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         '$statusText · ${entry.duration?.inMilliseconds ?? '-'} ms · '
         '${formatBytes(totalSize)} · ${_timeOf(entry.timestamp)}',
@@ -188,9 +185,7 @@ class _NetworkTabState extends State<NetworkTab> {
       ),
       trailing: const Icon(Icons.chevron_right, size: 18),
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => NetworkDetailView(entry: entry),
-        ),
+        MaterialPageRoute(builder: (_) => NetworkDetailView(entry: entry)),
       ),
     );
   }

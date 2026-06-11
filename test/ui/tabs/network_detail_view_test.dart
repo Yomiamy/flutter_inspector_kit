@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inspector/src/models/network_entry.dart';
-import 'package:flutter_inspector/src/ui/dashboard/tabs/network/network_detail_view.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   final t = DateTime(2026, 6, 10, 12, 0, 0);
 
   NetworkEntry sample() => NetworkEntry(
-        method: 'POST',
-        url: 'https://api.test/users?page=2',
-        statusCode: 201,
-        duration: const Duration(milliseconds: 120),
-        requestHeaders: {'Content-Type': 'application/json'},
-        requestBody: '{"name":"x"}',
-        responseHeaders: {'content-type': 'application/json'},
-        responseBody: '{"id":1}',
-        isComplete: true,
-        timestamp: t,
-      );
+    method: 'POST',
+    url: 'https://api.test/users?page=2',
+    statusCode: 201,
+    duration: const Duration(milliseconds: 120),
+    requestHeaders: {'Content-Type': 'application/json'},
+    requestBody: '{"name":"x"}',
+    responseHeaders: {'content-type': 'application/json'},
+    responseBody: '{"id":1}',
+    isComplete: true,
+    timestamp: t,
+  );
 
   group('NetworkDetailView', () {
     testWidgets('renders all sections', (tester) async {
@@ -28,7 +28,8 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-          MaterialApp(home: NetworkDetailView(entry: sample())));
+        MaterialApp(home: NetworkDetailView(entry: sample())),
+      );
 
       expect(find.text('General'), findsOneWidget);
       expect(find.text('Query Parameters'), findsOneWidget);
@@ -51,7 +52,8 @@ void main() {
       );
 
       await tester.pumpWidget(
-          MaterialApp(home: NetworkDetailView(entry: sample())));
+        MaterialApp(home: NetworkDetailView(entry: sample())),
+      );
 
       await tester.tap(find.byIcon(Icons.share));
       await tester.pumpAndSettle();

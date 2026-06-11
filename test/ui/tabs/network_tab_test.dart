@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_inspector/src/core/flutter_inspector_impl.dart';
-import 'package:flutter_inspector/src/models/network_entry.dart';
-import 'package:flutter_inspector/src/ui/dashboard/tabs/network/network_detail_view.dart';
-import 'package:flutter_inspector/src/ui/dashboard/tabs/network_tab.dart';
+import 'package:flutter_inspector_kit/src/core/flutter_inspector_impl.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network_tab.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('NetworkTab', () {
-    testWidgets('displays network entries and supports clearing',
-        (tester) async {
+    testWidgets('displays network entries and supports clearing', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
-      inspector.logNetwork(NetworkEntry(
-        method: 'GET',
-        url: '/api/test',
-        statusCode: 200,
-      ));
+      inspector.logNetwork(
+        NetworkEntry(method: 'GET', url: '/api/test', statusCode: 200),
+      );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: NetworkTab(inspector: inspector)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NetworkTab(inspector: inspector)),
+        ),
+      );
 
       expect(find.text('/api/test'), findsOneWidget);
 
@@ -31,13 +32,17 @@ void main() {
     testWidgets('keyword search filters the list', (tester) async {
       final inspector = FlutterInspector();
       inspector.logNetwork(
-          NetworkEntry(method: 'GET', url: '/api/users', statusCode: 200));
+        NetworkEntry(method: 'GET', url: '/api/users', statusCode: 200),
+      );
       inspector.logNetwork(
-          NetworkEntry(method: 'POST', url: '/api/login', statusCode: 401));
+        NetworkEntry(method: 'POST', url: '/api/login', statusCode: 401),
+      );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: NetworkTab(inspector: inspector)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NetworkTab(inspector: inspector)),
+        ),
+      );
 
       expect(find.text('/api/users'), findsOneWidget);
       expect(find.text('/api/login'), findsOneWidget);
@@ -52,13 +57,17 @@ void main() {
     testWidgets('method filter chip narrows results', (tester) async {
       final inspector = FlutterInspector();
       inspector.logNetwork(
-          NetworkEntry(method: 'GET', url: '/api/users', statusCode: 200));
+        NetworkEntry(method: 'GET', url: '/api/users', statusCode: 200),
+      );
       inspector.logNetwork(
-          NetworkEntry(method: 'POST', url: '/api/login', statusCode: 401));
+        NetworkEntry(method: 'POST', url: '/api/login', statusCode: 401),
+      );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: NetworkTab(inspector: inspector)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NetworkTab(inspector: inspector)),
+        ),
+      );
 
       await tester.tap(find.widgetWithText(FilterChip, 'POST'));
       await tester.pump();
@@ -69,16 +78,20 @@ void main() {
 
     testWidgets('tapping an entry opens the detail view', (tester) async {
       final inspector = FlutterInspector();
-      inspector.logNetwork(NetworkEntry(
-        method: 'GET',
-        url: '/api/detail',
-        statusCode: 200,
-        isComplete: true,
-      ));
+      inspector.logNetwork(
+        NetworkEntry(
+          method: 'GET',
+          url: '/api/detail',
+          statusCode: 200,
+          isComplete: true,
+        ),
+      );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: NetworkTab(inspector: inspector)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NetworkTab(inspector: inspector)),
+        ),
+      );
 
       await tester.tap(find.text('/api/detail'));
       await tester.pumpAndSettle();

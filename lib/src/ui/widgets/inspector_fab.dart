@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 
 /// A draggable Floating Action Button that triggers the inspector dashboard.
 class InspectorFab extends StatefulWidget {
-  const InspectorFab({
-    required this.onTap,
-    this.visible = true,
-    super.key,
-  });
+  const InspectorFab({required this.onTap, this.visible = true, super.key});
 
   /// Called when the FAB is tapped.
   final VoidCallback onTap;
@@ -32,8 +28,14 @@ class _InspectorFabState extends State<InspectorFab> {
         onPanUpdate: (details) {
           final size = MediaQuery.of(context).size;
           setState(() {
-            final newX = (position.dx + details.delta.dx).clamp(0.0, size.width - 48.0);
-            final newY = (position.dy + details.delta.dy).clamp(0.0, size.height - 48.0);
+            final newX = (position.dx + details.delta.dx).clamp(
+              0.0,
+              size.width - 48.0,
+            );
+            final newY = (position.dy + details.delta.dy).clamp(
+              0.0,
+              size.height - 48.0,
+            );
             position = Offset(newX, newY);
           });
         },

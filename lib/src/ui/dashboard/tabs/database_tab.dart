@@ -24,10 +24,7 @@ class _DatabaseTabState extends State<DatabaseTab> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refresh,
-            ),
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () {
@@ -44,7 +41,8 @@ class _DatabaseTabState extends State<DatabaseTab> {
               final entry = entries[index];
               return ListTile(
                 title: Text(
-                    '${entry.operation.name.toUpperCase()} on ${entry.tableName}'),
+                  '${entry.operation.name.toUpperCase()} on ${entry.tableName}',
+                ),
                 subtitle: Text(
                   'Rows affected: ${entry.affectedRows ?? "-"}\n${entry.data?['query'] ?? ""}',
                 ),

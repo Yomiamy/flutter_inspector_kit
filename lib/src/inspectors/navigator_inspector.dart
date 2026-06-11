@@ -5,7 +5,7 @@ import '../models/navigator_entry.dart';
 class NavigatorInspector {
   /// Creates a navigator inspector with the given [bufferCapacity].
   NavigatorInspector({int bufferCapacity = 500})
-      : _buffer = RingBuffer<NavigatorEntry>(bufferCapacity);
+    : _buffer = RingBuffer<NavigatorEntry>(bufferCapacity);
 
   final RingBuffer<NavigatorEntry> _buffer;
 
