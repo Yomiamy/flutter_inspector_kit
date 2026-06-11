@@ -241,36 +241,39 @@ class _TableRowsViewState extends State<TableRowsView> {
                       child: SingleChildScrollView(
                         controller: _horizontalController,
                         scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          sortColumnIndex: _sortColumnIndex,
-                          sortAscending: _sortAscending,
-                          columns: _columns.map((col) {
-                            return DataColumn(
-                              label: Text(col),
-                              onSort: (colIdx, ascending) =>
-                                  _handleSort(colIdx, ascending),
-                            );
-                          }).toList(),
-                          rows: _rows.map((row) {
-                            return DataRow(
-                              cells: row.map((cell) {
-                                final preview = cellPreview(cell);
-                                final isNull = cell == null;
-                                return DataCell(
-                                  Text(
-                                    preview,
-                                    style: isNull
-                                        ? const TextStyle(
-                                            fontStyle: FontStyle.italic,
-                                            color: Colors.grey,
-                                          )
-                                        : null,
-                                  ),
-                                  onTap: () => _showCellDetails(cell),
-                                );
-                              }).toList(),
-                            );
-                          }).toList(),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: DataTable(
+                            sortColumnIndex: _sortColumnIndex,
+                            sortAscending: _sortAscending,
+                            columns: _columns.map((col) {
+                              return DataColumn(
+                                label: Text(col),
+                                onSort: (colIdx, ascending) =>
+                                    _handleSort(colIdx, ascending),
+                              );
+                            }).toList(),
+                            rows: _rows.map((row) {
+                              return DataRow(
+                                cells: row.map((cell) {
+                                  final preview = cellPreview(cell);
+                                  final isNull = cell == null;
+                                  return DataCell(
+                                    Text(
+                                      preview,
+                                      style: isNull
+                                          ? const TextStyle(
+                                              fontStyle: FontStyle.italic,
+                                              color: Colors.grey,
+                                            )
+                                          : null,
+                                    ),
+                                    onTap: () => _showCellDetails(cell),
+                                  );
+                                }).toList(),
+                              );
+                            }).toList(),
+                          ),
                         ),
                       ),
                     ),
