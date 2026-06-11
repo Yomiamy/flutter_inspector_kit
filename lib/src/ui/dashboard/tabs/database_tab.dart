@@ -19,6 +19,7 @@ class _DatabaseTabState extends State<DatabaseTab> {
   late DatabaseBrowserSource _selectedSource;
   List<DatabaseTableInfo> _tables = [];
   bool _loading = true;
+  bool _isFetching = false;
   String? _errorMessage;
 
   @override
@@ -29,7 +30,8 @@ class _DatabaseTabState extends State<DatabaseTab> {
   }
 
   Future<void> _loadTables() async {
-    if (!mounted) return;
+    if (!mounted || _isFetching) return;
+    _isFetching = true;
     setState(() {
       _loading = true;
       _errorMessage = null;
@@ -50,6 +52,8 @@ class _DatabaseTabState extends State<DatabaseTab> {
           _loading = false;
         });
       }
+    } finally {
+      _isFetching = false;
     }
   }
 

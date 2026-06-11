@@ -20,6 +20,7 @@ class TableRowsView extends StatefulWidget {
 
 class _TableRowsViewState extends State<TableRowsView> {
   bool _loading = true;
+  bool _isFetching = false;
   String? _errorMessage;
 
   List<String> _columns = [];
@@ -50,6 +51,9 @@ class _TableRowsViewState extends State<TableRowsView> {
   }
 
   Future<void> _loadData({required bool clearCurrent}) async {
+    if (_isFetching) return;
+    _isFetching = true;
+
     setState(() {
       _loading = true;
       _errorMessage = null;
@@ -88,6 +92,8 @@ class _TableRowsViewState extends State<TableRowsView> {
           _loading = false;
         });
       }
+    } finally {
+      _isFetching = false;
     }
   }
 

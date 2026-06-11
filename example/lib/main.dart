@@ -97,6 +97,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _sqliteRegistered = false;
 
   Future<void> _seedSqlite() async {
+    if (_sqliteRegistered) return;
     try {
       final databasesPath = await getDatabasesPath();
       final path = '$databasesPath/demo.db';
