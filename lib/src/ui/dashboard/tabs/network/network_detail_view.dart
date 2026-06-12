@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../../models/network_entry.dart';
 import '../../../../utils/network_formatters.dart';
+import '../../../../utils/share_text.dart';
 import '../../../widgets/key_value_table.dart';
 
 /// Actions exposed in the detail view's share menu.
@@ -227,9 +227,7 @@ class NetworkDetailView extends StatelessWidget {
         );
       case _ShareAction.share:
         try {
-          await SharePlus.instance.share(
-            ShareParams(text: buildPlainText(entry)),
-          );
+          await shareText(buildPlainText(entry));
         } catch (_) {
           // Fallback to clipboard when the platform has no share sheet.
           await Clipboard.setData(ClipboardData(text: buildPlainText(entry)));
