@@ -27,7 +27,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^0.2.0
+  flutter_inspector_kit: ^0.2.1
 ```
 
 Then run `flutter pub get`.
@@ -114,7 +114,7 @@ inspector.logNetwork(completedEntry, replaces: pending);
 
 - **Search & filter**: filter the call list by URL, method, or status code (case-insensitive); method and status (`2xx`/`3xx`/`4xx`/`5xx`/`Failed`) chips narrow it further.
 - **Call details**: tap any call for a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON-pretty bodies. Truncated bodies are clearly marked.
-- **Sharing**: copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (via `share_plus`).
+- **Sharing**: copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (native via `share_plus`, web via the browser Web Share API — falls back to the clipboard when unavailable).
 
 ### Live notification (opt-in)
 
