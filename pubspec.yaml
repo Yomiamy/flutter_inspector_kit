@@ -1,6 +1,6 @@
 name: flutter_inspector_kit
 description: "A multi-inspector tool integration for Flutter, bundling debugging and inspection utilities behind a single unified API."
-version: 0.2.0
+version: 0.2.1
 homepage: https://github.com/Yomiamy/flutter_inspector_kit
 repository: https://github.com/Yomiamy/flutter_inspector_kit
 issue_tracker: https://github.com/Yomiamy/flutter_inspector_kit/issues
@@ -17,9 +17,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  dio: ^5.0.0
+  dio: ^5.2.0
   share_plus: ^13.0.0
   flutter_local_notifications: ^22.0.0
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
