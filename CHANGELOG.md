@@ -1,3 +1,9 @@
+## 0.2.1
+
+### Fixed
+* Raised `dio` lower bound to `^5.2.0` to match the actual API usage (`DioException`), fixing the pub.dev downgrade analysis.
+* Restored WASM compatibility: web builds now use the browser Web Share API (`package:web`) instead of `share_plus`, and the network notifier resolves to a no-op stub on web, keeping `dart:io` out of the web import graph.
+
 ## 0.2.0
 
 ### Added
