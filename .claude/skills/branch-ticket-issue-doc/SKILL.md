@@ -1,36 +1,36 @@
 ---
 name: branch-ticket-issue-doc
-description: Use this skill after ticket-id-dev-prep has selected or prepared the development workspace and Codex needs to create or update docs/issues/<ticket-id>.md from the advisor parsed brief, YouTrack ticket details, and current workspace code context; focus on documenting the problem only, not writing specs or code.
+description: 在 ticket-id-dev-prep 已選定或準備好開發工作區，且 Codex 需從 advisor 解析的 brief、YouTrack ticket 細節與當前工作區程式碼脈絡建立或更新 docs/issues/<ticket-id>.md 時使用此 skill；只聚焦於記錄問題，不撰寫 specs 或程式碼。
 ---
 
 # Branch Ticket Issue Doc
 
-Use this skill in the development workspace selected by `ticket-id-dev-prep`.
+在 `ticket-id-dev-prep` 選定的開發工作區中使用此 skill。
 
-Goal: create or update `docs/issues/<ticket-id>.md` as the canonical problem document for the branch.
+目標：建立或更新 `docs/issues/<ticket-id>.md`，作為該 branch 的正規問題文件。
 
-Do not create specs here. Do not change product code here.
+不要在此建立 specs。不要在此變更產品程式碼。
 
-## Preconditions
+## 前置條件
 
-1. Confirm the current directory is the intended development workspace.
-2. Confirm the current branch contains the ticket id or the user explicitly provides the ticket id.
-3. Prefer using the parsed brief from `branch-ticket-solution-advisor`.
-4. If no parsed brief exists, read the YouTrack ticket and inspect only enough code context to document the problem.
-5. Create `docs/issues/` if missing.
+1. 確認當前目錄是預期的開發工作區。
+2. 確認當前 branch 含 ticket id，或使用者明確提供 ticket id。
+3. 優先使用來自 `branch-ticket-solution-advisor` 的已解析 brief。
+4. 若無已解析 brief，閱讀 YouTrack ticket，並僅檢視足以記錄問題的程式碼脈絡。
+5. 若 `docs/issues/` 不存在則建立。
 
-If `ticket-id-dev-prep` selected a different workspace, switch there before writing. If the selected strategy is `current-branch` or `current-worktree-new-branch`, writing in the current workspace is allowed.
+若 `ticket-id-dev-prep` 選定了不同的工作區，在寫入前切換過去。若選定策略為 `current-branch` 或 `current-worktree-new-branch`，則允許在當前工作區寫入。
 
-## Workflow
+## 工作流程
 
-1. Resolve the ticket id.
-2. Read existing `docs/issues/<ticket-id>.md` if present.
-3. Read `docs/issues/template.md` when present and preserve local documentation style.
-4. Gather source material:
-   - advisor parsed brief
-   - YouTrack title and description
-   - relevant fields such as `State`, `Type`, `Priority`, `Subsystem`
-   - current worktree code observations from targeted inspection
+1. 解析 ticket id。
+2. 若存在則讀取既有的 `docs/issues/<ticket-id>.md`。
+3. 若存在則讀取 `docs/issues/template.md`，並保留本地文件風格。
+4. 蒐集來源素材：
+   - advisor 已解析的 brief
+   - YouTrack 標題與描述
+   - 相關欄位，例如 `State`、`Type`、`Priority`、`Subsystem`
+   - 透過針對性檢視得到的當前 worktree 程式碼觀察
 5. **agy 優先策略**：收集完所有資料後，優先委派 antigravity-cli（`agy`）生成 issue doc 本文：
    - 透過 Bash 以 stdin 管道委派（`printf '%s' "<填入下方 prompt>" | agy -p --print-timeout 180s`），prompt 如下（以實際資料填入；務必在結尾要求「只輸出文件本文，不要任何開場白或人設評論」）：
      ```
@@ -102,36 +102,36 @@ If `ticket-id-dev-prep` selected a different workspace, switch there before writ
    - 若 `agy` 成功回傳包含 `## 問題描述` 與 `## 已知事實` 的結構，採用其內容。
    - **後處理（必做）**：`agy` 會讀取全域 CLAUDE.md 而附加 Linus 人設框架，且可能在生成時順手建立暫存檔。採用前須剝除人設包裝、只取目標 markdown 結構；並確認 `agy` 未在工作區誤建檔案（如有則刪除）。`docs/issues/<ticket-id>.md` 一律由 Claude 自行 Write 寫入，不依賴 `agy` 落檔。
    - 若 `agy` 不在 PATH、呼叫失敗或回傳格式不合法，回退至步驟 6 自行撰寫 issue doc。
-6. （Fallback）自行 write or update `docs/issues/<ticket-id>.md`，依照 Issue Doc Template。
-7. Distinguish facts, inference, and open questions.
-8. Keep the issue doc focused on the problem and current behavior.
-9. Do not add implementation strategy beyond short code-context observations.
+6. （Fallback）自行依照 Issue Doc Template write or update `docs/issues/<ticket-id>.md`。
+7. 區分事實、推論與未解問題。
+8. 讓 issue doc 聚焦於問題與當前行為。
+9. 除了簡短的程式碼脈絡觀察外，不要加入實作策略。
 
-## File Naming
+## 檔案命名
 
-Use:
+使用：
 
 `docs/issues/<TICKET-ID>-<description-suffix>.md`
 
-Where `<description-suffix>` is derived from the last path segment of the current branch name, with the leading ticket id portion removed.
+其中 `<description-suffix>` 取自當前 branch 名稱的最後一段路徑，並移除開頭的 ticket id 部分。
 
-Example:
+範例：
 
-- Branch: `fix/202605/BUG-2362-some-feature-fix`
-- Last segment: `BUG-2362-some-feature-fix`
-- Description suffix: `some-feature-fix`
-- File: `docs/issues/BUG-2362-some-feature-fix.md`
+- Branch：`fix/202605/BUG-2362-some-feature-fix`
+- 最後一段：`BUG-2362-some-feature-fix`
+- Description suffix：`some-feature-fix`
+- 檔案：`docs/issues/BUG-2362-some-feature-fix.md`
 
-Resolve the suffix by running:
+以下列指令解析 suffix：
 ```bash
 git rev-parse --abbrev-ref HEAD | sed 's|.*/||' | sed 's/^[A-Z][A-Z]*-[0-9]*-//'
 ```
 
-Preserve ticket id casing.
+保留 ticket id 的大小寫。
 
 ## Issue Doc Template
 
-Use this structure unless local template requires a tighter fit:
+除非本地 template 要求更貼合的格式，否則使用此結構：
 
 ```markdown
 # <TICKET-ID> <title>
@@ -175,28 +175,28 @@ Use this structure unless local template requires a tighter fit:
 ## 備註
 ```
 
-Omit empty sections only when they truly do not apply. Prefer `待確認` over invented details.
+僅在章節確實不適用時才省略空白章節。寧可填 `待確認`，也不要發明細節。
 
-## Quality Rules
+## 品質規則
 
-- Problem doc must be understandable without reading the full ticket.
-- Do not copy long ticket text verbatim.
-- Preserve exact error messages, labels, field names, and user-visible strings when relevant.
-- Note missing reproduction data explicitly.
-- If code context contradicts the ticket, record the mismatch.
+- 問題文件必須不需讀完整 ticket 就能理解。
+- 不要逐字複製冗長的 ticket 文字。
+- 相關時保留確切的錯誤訊息、標籤、欄位名稱與使用者可見字串。
+- 明確註記缺漏的重現資料。
+- 若程式碼脈絡與 ticket 矛盾，記錄此不一致。
 
-## Output Rules
+## 輸出規則
 
-Preferred output:
+偏好的輸出：
 
-1. `Issue Doc`: path created or updated
-2. `來源`: advisor brief, YouTrack, code inspection
-3. `重點`: one short problem summary
-4. `待確認`: only if present
-5. `Next`: run `issue-spec-prep`
+1. `Issue Doc`：建立或更新的路徑
+2. `來源`：advisor brief、YouTrack、程式碼檢視
+3. `重點`：一段簡短的問題摘要
+4. `待確認`：僅在存在時
+5. `Next`：執行 `issue-spec-prep`
 
-## Style Rules
+## 風格規則
 
-- Primary language: `zh-tw`
-- Keep necessary `en-us` technical terms such as `YouTrack`, `State`, `API`, `UI`, `Backend`, `QA`
-- Be concise and documentation-focused
+- 主要語言：`zh-tw`
+- 保留必要的 `en-us` 技術術語，例如 `YouTrack`、`State`、`API`、`UI`、`Backend`、`QA`
+- 精簡且以文件為導向

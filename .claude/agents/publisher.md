@@ -1,6 +1,6 @@
 ---
 name: publisher
-description: Use for creating GitHub PRs and closing out development work. Handles PR description generation. Best for the final step after review is complete. Never deletes the local branch.
+description: 用於建立 GitHub PR 並收尾開發工作。負責產生 PR 描述。最適合在 review 完成後的最終步驟。絕不刪除本地 branch。
 model: claude-sonnet-4-5
 tools: [Bash, Read, Write]
 ---

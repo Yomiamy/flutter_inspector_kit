@@ -1,65 +1,65 @@
 ---
 name: context-collector
-description: Use when Codex needs canonical issue context collection from YouTrack tickets, user briefs, QA reports, branch context, or focused repository evidence before issue docs, specs, workspace prep, implementation, or workflow routing. Produces or refreshes .agent-output/context/<issue-id-or-slug>.md as the main facts/inference/open-questions source without modifying source, tests, specs, PRs, or YouTrack state.
+description: 當 Codex 需要在 issue docs、specs、workspace prep、實作或工作流程路由之前，從 YouTrack tickets、使用者 briefs、QA 報告、branch 脈絡或聚焦的 repo 證據進行正規 issue context 蒐集時使用。在不修改 source、tests、specs、PRs 或 YouTrack state 的前提下，產生或更新 .agent-output/context/<issue-id-or-slug>.md 作為 facts/inference/open-questions 的主要來源。
 ---
 
 # Context Collector
 
-Use this skill as the canonical issue context source.
+把此 skill 作為正規的 issue context 來源。
 
-## Role
+## 角色
 
-- Role: issue context collector.
-- Strategy: collect facts once, make downstream skills read the same source.
+- 角色：issue context 蒐集者。
+- 策略：事實只蒐集一次，讓下游 skills 讀取同一來源。
 
-## Can modify
+## 可以修改
 
-- `.agent-output/context/*`.
+- `.agent-output/context/*`。
 
-## Cannot modify
+## 不可修改
 
-- Production code.
-- Tests.
-- `docs/issues/*`.
-- `docs/issues/specs/*`.
-- PRs.
-- YouTrack comments or State.
+- Production code。
+- Tests。
+- `docs/issues/*`。
+- `docs/issues/specs/*`。
+- PRs。
+- YouTrack 留言或 State。
 
-## Inputs
+## 輸入
 
-Accept any issue source:
+接受任何 issue 來源：
 
-- YouTrack issue id.
-- User-provided issue brief.
-- QA report.
-- Feature request.
-- Current branch context.
-- Existing issue doc or spec refresh request.
+- YouTrack issue id。
+- 使用者提供的 issue brief。
+- QA 報告。
+- Feature request。
+- 當前 branch 脈絡。
+- 既有 issue doc 或 spec 的更新請求。
 
-## Workflow
+## 工作流程
 
-1. Resolve the subject.
-2. Read source facts from YouTrack, user brief, branch context, QA evidence, and focused repo inspection as applicable.
-3. Distinguish facts, inference, and open questions.
-4. Inspect only code needed to understand likely affected areas.
-5. Write or refresh `.agent-output/context/<subject>.md`.
-6. Keep a concise `History` table in the same file.
-7. Report the context file path and whether it is ready for issue doc, workspace prep, or blocked.
+1. 解析 subject。
+2. 視情況從 YouTrack、使用者 brief、branch 脈絡、QA 證據與聚焦的 repo 檢視中讀取來源事實。
+3. 區分事實、推論與未解問題。
+4. 只檢視理解可能受影響區域所需的程式碼。
+5. 寫入或更新 `.agent-output/context/<subject>.md`。
+6. 在同一檔案內保留精簡的 `History` 表格。
+7. 回報 context 檔路徑，以及它是否已可供 issue doc、workspace prep 使用，或處於 blocked。
 
-## Path Rules
+## 路徑規則
 
-Use one canonical file per subject:
+每個 subject 使用單一正規檔案：
 
-- With issue id: `.agent-output/context/<ISSUE-ID>.md`
-- Without issue id: `.agent-output/context/<slug>.md`
+- 有 issue id：`.agent-output/context/<ISSUE-ID>.md`
+- 無 issue id：`.agent-output/context/<slug>.md`
 
-Do not add `-context` to the filename because the folder already defines artifact type.
+不要在檔名加上 `-context`，因為資料夾本身已定義 artifact 類型。
 
-If refreshing the same subject, overwrite the same file and update `History`. Do not create a `history/` folder.
+若更新同一 subject，覆寫同一檔案並更新 `History`。不要建立 `history/` 資料夾。
 
-## Required Sections
+## 必要章節
 
-Use this structure:
+使用此結構：
 
 ```markdown
 # <Subject> Context
@@ -86,22 +86,22 @@ Use this structure:
 | --- | --- | --- | --- |
 ```
 
-`Handoff` must say:
+`Handoff` 必須為以下之一：
 
 - `issue-doc-ready`
 - `workspace-prep-ready`
 - `blocked`
 
-Include blocker reason when blocked.
+blocked 時附上 blocker 原因。
 
-## History Rules
+## History 規則
 
-- Add one table row per context refresh.
-- Summarize the change, source, and caveat.
-- Do not paste full old content or full source text.
+- 每次 context 更新新增一列表格。
+- 摘要變更、來源與注意事項。
+- 不要貼上完整舊內容或完整來源文字。
 
-## Output Rules
+## 輸出規則
 
-- Primary language: `zh-tw`.
-- Keep necessary `en-us` technical terms.
-- Report only the context path, readiness, blockers, and suggested next skill.
+- 主要語言：`zh-tw`。
+- 保留必要的 `en-us` 技術術語。
+- 只回報 context 路徑、就緒度、blockers，與建議的下一個 skill。

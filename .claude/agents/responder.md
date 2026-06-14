@@ -1,6 +1,6 @@
 ---
 name: responder
-description: Use after receiving code review feedback from GitHub PR. Evaluates reviewer comments, decides what to accept or push back on, and replies to inline comments. Best for handling PR review cycles.
+description: 收到 GitHub PR 的 code review 意見後使用。評估審查者意見、決定接受或 pushback，並回覆 inline comments。最適合處理 PR review 循環。
 model: claude-sonnet-4-5
 tools: [Bash, Read, Write, Edit]
 ---

@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Use for deep code review and pre-completion verification. Handles branch diff analysis and enforces verification discipline. Best for catching bugs, regressions, and enforcing quality gates before PR.
+description: 用於深度 code review 與完成前的驗證。負責 branch diff 分析並強制驗證紀律。最適合在 PR 前抓出 bugs、regressions 並把關品質。
 model: fable
 tools: [Bash, Read, Glob, Grep]
 ---
