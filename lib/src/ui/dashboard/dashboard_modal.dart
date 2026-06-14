@@ -29,6 +29,7 @@ class DashboardModal extends StatelessWidget {
   }) {
     showGeneralDialog(
       context: context,
+      routeSettings: const RouteSettings(name: 'flutter_inspector_dashboard'),
       pageBuilder: (context, animation, secondaryAnimation) {
         return DashboardModal(inspector: inspector, initialIndex: initialIndex);
       },

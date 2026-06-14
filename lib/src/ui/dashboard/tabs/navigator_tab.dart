@@ -41,7 +41,7 @@ class _NavigatorTabState extends State<NavigatorTab> {
               final entry = entries[index];
               return ListTile(
                 title: Text(
-                  '${entry.action.name.toUpperCase()} ${entry.routeName ?? "Unknown Route"}',
+                  '${entry.action.name.toUpperCase()} ${entry.displayName}',
                 ),
                 subtitle: Text(
                   '${entry.timestamp.toIso8601String()}\nArgs: ${entry.arguments ?? "None"}',
