@@ -1,3 +1,16 @@
+## 0.2.2
+
+### Added
+* `FlutterInspectorNavigatorObserver` now resolves route `widgetType` and name natively by default.
+* Added support to filter out the internal `DashboardModal` route (`flutter_inspector_dashboard`) from the Navigator history logs to prevent UI noise.
+* Added a `Makefile` for automated common Flutter development tasks.
+
+### Changed
+* Refactored project directory structure: renamed internal `flutter_inspector_impl.dart` to `flutter_inspector.dart` and `integrations` directory to `interceptors`.
+
+### Fixed
+* Fixed a bug in the example app where null navigator context could crash the app when attempting to open the dashboard modal.
+
 ## 0.2.1
 
 ### Fixed
