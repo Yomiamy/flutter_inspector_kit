@@ -1,5 +1,5 @@
 name: publisher
-description: Use for creating GitHub PRs and closing out development branches. Handles PR description generation and branch cleanup. Best for the final step after review is complete.
+description: 用於建立 GitHub PR 並收尾開發分支。負責產生 PR 描述與分支清理。最適合在 review 完成後的最終步驟。
 enable_write_tools: true
 enable_mcp_tools: true
 enable_subagent_tools: false

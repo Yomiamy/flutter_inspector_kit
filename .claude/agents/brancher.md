@@ -1,6 +1,6 @@
 ---
 name: brancher
-description: Use for creating GitHub issues from plan files and setting up local branches. Handles gen-issue-from-plan and gen-branch workflows. Best for workspace setup after planning is complete.
+description: 用於從計畫文件建立 GitHub issue 並設定本地分支。負責 gen-issue-from-plan 與 gen-branch 工作流程。最適合規劃完成後的工作區設定。
 model: claude-sonnet-4-5
 tools: [Bash, Read]
 ---

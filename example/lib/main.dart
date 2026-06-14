@@ -37,6 +37,10 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return FlutterInspectorMagicalTap(
           onTap: () {
+            final context = navigatorKey.currentContext;
+
+            if (context == null) return;
+
             inspector.openDashboard(context);
           },
           child: child ?? const SizedBox.shrink(),
