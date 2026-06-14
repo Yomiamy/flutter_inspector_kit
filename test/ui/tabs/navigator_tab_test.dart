@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_inspector_kit/src/core/flutter_inspector_impl.dart';
+import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
 import 'package:flutter_inspector_kit/src/models/navigator_entry.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/navigator_tab.dart';

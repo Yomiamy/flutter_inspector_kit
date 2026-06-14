@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/flutter_inspector_impl.dart';
+import '../../../core/flutter_inspector.dart';
 import '../../../models/database_browser_source.dart';
 import '../../../sources/operation_log_source.dart';
 import 'database/table_rows_view.dart';

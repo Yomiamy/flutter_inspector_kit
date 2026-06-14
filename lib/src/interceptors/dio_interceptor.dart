@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../core/flutter_inspector_impl.dart';
+import '../core/flutter_inspector.dart';
 import '../models/network_entry.dart';
 
 /// A Dio interceptor that automatically records requests and responses to the
