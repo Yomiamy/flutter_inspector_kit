@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/flutter_inspector_impl.dart';
+import '../../core/flutter_inspector.dart';
 import 'dashboard_tab_bar.dart';
 import 'tabs/console_tab.dart';
 import 'tabs/database_tab.dart';

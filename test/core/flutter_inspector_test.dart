@@ -1,4 +1,4 @@
-import 'package:flutter_inspector_kit/src/core/flutter_inspector_impl.dart';
+import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
 import 'package:flutter_inspector_kit/src/models/database_operation.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';

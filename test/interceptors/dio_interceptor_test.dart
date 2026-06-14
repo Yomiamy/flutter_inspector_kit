@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_inspector_kit/src/core/flutter_inspector_impl.dart';
+import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:flutter_test/flutter_test.dart';
 

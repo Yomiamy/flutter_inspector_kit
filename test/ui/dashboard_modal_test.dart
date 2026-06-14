@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_inspector_kit/src/core/flutter_inspector_impl.dart';
+import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/dashboard_modal.dart';
 import 'package:flutter_test/flutter_test.dart';
 

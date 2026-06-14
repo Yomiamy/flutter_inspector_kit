@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/flutter_inspector_impl.dart';
+import '../../../core/flutter_inspector.dart';
 import '../../../models/log_level.dart';
 
 /// Tab for displaying console logs.

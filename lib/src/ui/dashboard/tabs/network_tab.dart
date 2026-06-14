@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/flutter_inspector_impl.dart';
+import '../../../core/flutter_inspector.dart';
 import '../../../models/network_entry.dart';
 import '../../../utils/network_formatters.dart';
 import '../../../utils/network_search.dart';

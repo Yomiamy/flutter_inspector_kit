@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/flutter_inspector_impl.dart';
+import '../../../core/flutter_inspector.dart';
 
 /// Tab for displaying navigator history.
 class NavigatorTab extends StatefulWidget {
