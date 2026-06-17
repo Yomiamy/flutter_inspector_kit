@@ -513,7 +513,7 @@ const results = await pipeline(
 
 ### 適用點 3：STAGE 3 多 angle 對抗式審查
 
-**reviewer 仍是主導者、最終判算者**（不違反「審查報告 reviewer 親自判斷」）。Workflow 的 verifier 只是平行找 bug 的助手：每個 verifier 帶**不同 lens**（correctness / security / 回歸風險 / 測試覆蓋），對抗式地嘗試挑出問題，reviewer 收斂所有 verdict 後親自寫審查報告。
+**reviewer 仍是主導者、最終判斷者**（不違反「審查報告 reviewer 親自判斷」）。Workflow 的 verifier 只是平行找 bug 的助手：每個 verifier 帶**不同 lens**（correctness / security / 回歸風險 / 測試覆蓋），對抗式地嘗試挑出問題，reviewer 收斂所有 verdict 後親自寫審查報告。
 
 ```js
 const LENSES = ['correctness', 'security', '回歸風險', '測試覆蓋']
