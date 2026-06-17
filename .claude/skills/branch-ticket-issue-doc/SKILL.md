@@ -1,6 +1,6 @@
 ---
 name: branch-ticket-issue-doc
-description: 在 ticket-id-dev-prep 已選定或準備好開發工作區，且 Codex 需從 advisor 解析的 brief、YouTrack ticket 細節與當前工作區程式碼脈絡建立或更新 docs/issues/<ticket-id>.md 時使用此 skill；只聚焦於記錄問題，不撰寫 specs 或程式碼。
+description: 在 ticket-id-dev-prep 已選定或準備好開發工作區，且 Codex 需從 advisor 解析的 brief、GitHub issue 細節與當前工作區程式碼脈絡建立或更新 docs/issues/<issue-id>.md 時使用此 skill；只聚焦於記錄問題，不撰寫 specs 或程式碼。
 ---
 
 # Branch Ticket Issue Doc
@@ -16,7 +16,7 @@ description: 在 ticket-id-dev-prep 已選定或準備好開發工作區，且 C
 1. 確認當前目錄是預期的開發工作區。
 2. 確認當前 branch 含 ticket id，或使用者明確提供 ticket id。
 3. 優先使用來自 `branch-ticket-solution-advisor` 的已解析 brief。
-4. 若無已解析 brief，閱讀 YouTrack ticket，並僅檢視足以記錄問題的程式碼脈絡。
+4. 若無已解析 brief，閱讀 GitHub issue，並僅檢視足以記錄問題的程式碼脈絡。
 5. 若 `docs/issues/` 不存在則建立。
 
 若 `ticket-id-dev-prep` 選定了不同的工作區，在寫入前切換過去。若選定策略為 `current-branch` 或 `current-worktree-new-branch`，則允許在當前工作區寫入。
@@ -28,7 +28,7 @@ description: 在 ticket-id-dev-prep 已選定或準備好開發工作區，且 C
 3. 若存在則讀取 `docs/issues/template.md`，並保留本地文件風格。
 4. 蒐集來源素材：
    - advisor 已解析的 brief
-   - YouTrack 標題與描述
+   - GitHub issue 標題與描述
    - 相關欄位，例如 `State`、`Type`、`Priority`、`Subsystem`
    - 透過針對性檢視得到的當前 worktree 程式碼觀察
 5. **agy 優先策略**：收集完所有資料後，優先委派 antigravity-cli（`agy`）生成 issue doc 本文：
@@ -54,7 +54,7 @@ description: 在 ticket-id-dev-prep 已選定或準備好開發工作區，且 C
 
      # <TICKET-ID> <title>
 
-     ## Ticket
+     ## Issue
 
      - URL:
      - State:
@@ -136,7 +136,7 @@ git rev-parse --abbrev-ref HEAD | sed 's|.*/||' | sed 's/^[A-Z][A-Z]*-[0-9]*-//'
 ```markdown
 # <TICKET-ID> <title>
 
-## Ticket
+## Issue
 
 - URL:
 - State:
@@ -190,7 +190,7 @@ git rev-parse --abbrev-ref HEAD | sed 's|.*/||' | sed 's/^[A-Z][A-Z]*-[0-9]*-//'
 偏好的輸出：
 
 1. `Issue Doc`：建立或更新的路徑
-2. `來源`：advisor brief、YouTrack、程式碼檢視
+2. `來源`：advisor brief、GitHub issue、程式碼檢視
 3. `重點`：一段簡短的問題摘要
 4. `待確認`：僅在存在時
 5. `Next`：執行 `issue-spec-prep`
@@ -198,5 +198,5 @@ git rev-parse --abbrev-ref HEAD | sed 's|.*/||' | sed 's/^[A-Z][A-Z]*-[0-9]*-//'
 ## 風格規則
 
 - 主要語言：`zh-tw`
-- 保留必要的 `en-us` 技術術語，例如 `YouTrack`、`State`、`API`、`UI`、`Backend`、`QA`
+- 保留必要的 `en-us` 技術術語，例如 `GitHub`、`State`、`API`、`UI`、`Backend`、`QA`
 - 精簡且以文件為導向
