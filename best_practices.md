@@ -64,6 +64,8 @@ class MySingleton {
 - 盡可能使用 `final` 提高不可變性與效能。
 - `const` 用於編譯時常數；建構函式不強迫使用 `const`（flutter_lints 5.0.0 已不再強制）。
 
+**⚠️ 規範優先權說明**：本檔為 Qodo Merge 審查參考依據。當與 `.agents/rules/flutter-rules.md` 的編碼規則衝突時（如 const 使用程度），以各自工具的適用範圍為準：Qodo 審查依本檔判準，AI agent 編碼遵循 `.agents/rules` 規範。
+
 ### 5.3. 避免深層巢狀
 
 以提取方法、衛語句 (guard clauses) 等方式降低巢狀深度。
