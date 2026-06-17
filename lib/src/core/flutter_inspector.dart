@@ -41,10 +41,17 @@ class FlutterInspector {
     if (showNetworkNotification) {
       _notifier =
           notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
-      _notifier!.init();
-      _registry.network.onAdd = (entry, total) {
-        _notifier!.showOrUpdate(entry, total);
-      };
+      // Wire onAdd only after init() resolves. init() never rejects (it catches
+      // and swallows platform errors internally), so this callback always runs.
+      // Requests that arrive before init completes are not forwarded to the
+      // notifier — which is correct, since _available isn't true until init
+      // succeeds, so showOrUpdate would no-op on them anyway. This just avoids
+      // holding a callback that fires into an uninitialised notifier.
+      _notifier!.init().then((_) {
+        _registry.network.onAdd = (entry, total) {
+          _notifier!.showOrUpdate(entry, total);
+        };
+      });
     }
   }
 

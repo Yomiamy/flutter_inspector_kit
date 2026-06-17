@@ -157,6 +157,7 @@ class NetworkNotifier {
       showWhen: false,
     );
     final darwinDetails = DarwinNotificationDetails(
+      presentAlert: alert,
       presentBanner: alert,
       presentList: true,
       presentSound: false,
