@@ -1,6 +1,6 @@
 ---
 name: context-collector
-description: 當 Codex 需要在 issue docs、specs、workspace prep、實作或工作流程路由之前，從 YouTrack tickets、使用者 briefs、QA 報告、branch 脈絡或聚焦的 repo 證據進行正規 issue context 蒐集時使用。在不修改 source、tests、specs、PRs 或 YouTrack state 的前提下，產生或更新 .agent-output/context/<issue-id-or-slug>.md 作為 facts/inference/open-questions 的主要來源。
+description: 當 Codex 需要在 issue docs、specs、workspace prep、實作或工作流程路由之前，從 GitHub issues、使用者 briefs、QA 報告、branch 脈絡或聚焦的 repo 證據進行正規 issue context 蒐集時使用。在不修改 source、tests、specs、PRs 或 GitHub state 的前提下，產生或更新 .agent-output/context/<issue-id-or-slug>.md 作為 facts/inference/open-questions 的主要來源。
 ---
 
 # Context Collector
@@ -23,13 +23,13 @@ description: 當 Codex 需要在 issue docs、specs、workspace prep、實作或
 - `docs/issues/*`。
 - `docs/issues/specs/*`。
 - PRs。
-- YouTrack 留言或 State。
+- GitHub 留言或 State。
 
 ## 輸入
 
 接受任何 issue 來源：
 
-- YouTrack issue id。
+- GitHub issue id。
 - 使用者提供的 issue brief。
 - QA 報告。
 - Feature request。
@@ -39,7 +39,7 @@ description: 當 Codex 需要在 issue docs、specs、workspace prep、實作或
 ## 工作流程
 
 1. 解析 subject。
-2. 視情況從 YouTrack、使用者 brief、branch 脈絡、QA 證據與聚焦的 repo 檢視中讀取來源事實。
+2. 視情況從 GitHub issue、使用者 brief、branch 脈絡、QA 證據與聚焦的 repo 檢視中讀取來源事實。
 3. 區分事實、推論與未解問題。
 4. 只檢視理解可能受影響區域所需的程式碼。
 5. 寫入或更新 `.agent-output/context/<subject>.md`。

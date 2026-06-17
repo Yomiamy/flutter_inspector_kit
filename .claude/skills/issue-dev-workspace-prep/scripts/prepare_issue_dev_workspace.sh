@@ -14,14 +14,15 @@ LOCAL_CONFIG_SOURCE_ROOTS=()
 usage() {
   cat <<'EOF'
 Usage:
-  prepare_ticket_dev_workspace.sh --ticket-id "BUG-2351" --prefix "fix/" --slug "password-fields-validator-error" [options]
+  prepare_ticket_dev_workspace.sh --ticket-id "2351" --prefix "fix/" --slug "password-fields-validator-error" [options]
+  prepare_ticket_dev_workspace.sh --prefix "chore/" --slug "cleanup-skill-docs" [options]
 
 Required:
-  --ticket-id       YouTrack issue key such as BUG-2351
   --prefix          Branch prefix such as fix/, feature/, chore/
   --slug            Lowercase kebab-case English slug
 
 Optional:
+  --issue-id        GitHub issue ID such as 2351 or BUG-2351
   --base            Base ref to branch from. Default: origin/main
   --worktree-parent Parent directory for the new worktree. Default: parent of current repo
   --skip-fetch      Skip fetching remote refs before creation
@@ -141,7 +142,7 @@ sync_local_config_files() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --ticket-id)
+    --ticket-id|--issue-id)
       TICKET_ID="${2:-}"
       shift 2
       ;;
@@ -181,14 +182,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "${TICKET_ID}" || -z "${PREFIX}" || -z "${SLUG}" ]]; then
+if [[ -z "${PREFIX}" || -z "${SLUG}" ]]; then
   echo "Missing required arguments" >&2
   usage >&2
   exit 1
 fi
 
-if ! [[ "${TICKET_ID}" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]; then
-  echo "Invalid ticket id: ${TICKET_ID}" >&2
+if [[ -n "${TICKET_ID}" ]] && ! [[ "${TICKET_ID}" =~ ^([A-Z][A-Z0-9]*-)?[0-9]+$ ]]; then
+  echo "Invalid issue id: ${TICKET_ID}" >&2
   exit 1
 fi
 
@@ -210,9 +211,14 @@ if [[ -z "${WORKTREE_PARENT}" ]]; then
   WORKTREE_PARENT="${REPO_PARENT}"
 fi
 
-TICKET_ID_LOWER="$(printf '%s' "${TICKET_ID}" | tr '[:upper:]' '[:lower:]')"
-BRANCH_NAME="${PREFIX}${TICKET_ID}-${SLUG}"
-WORKTREE_NAME="${REPO_NAME}-${TICKET_ID_LOWER}-${SLUG}"
+if [[ -n "${TICKET_ID}" ]]; then
+  TICKET_ID_LOWER="$(printf '%s' "${TICKET_ID}" | tr '[:upper:]' '[:lower:]')"
+  BRANCH_NAME="${PREFIX}${TICKET_ID}-${SLUG}"
+  WORKTREE_NAME="${REPO_NAME}-${TICKET_ID_LOWER}-${SLUG}"
+else
+  BRANCH_NAME="${PREFIX}${SLUG}"
+  WORKTREE_NAME="${REPO_NAME}-${SLUG}"
+fi
 WORKTREE_PATH="${WORKTREE_PARENT}/${WORKTREE_NAME}"
 
 if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then

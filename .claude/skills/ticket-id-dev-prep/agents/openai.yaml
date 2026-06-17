@@ -1,7 +1,7 @@
 interface:
   display_name: "Ticket Id Dev Prep"
-  short_description: "依解析後的 ticket brief 建立 worktree 與 branch 準備"
-  default_prompt: "Use $ticket-id-dev-prep to create a new worktree and branch from a safe base using the pasted parsed YouTrack ticket brief, keep the existing naming rules, and complete the minimal development setup."
+  short_description: "依解析後的 GitHub issue brief 建立 worktree 與 branch 準備"
+  default_prompt: "Use $ticket-id-dev-prep to create a new worktree and branch from a safe base using the pasted parsed GitHub issue brief, keep the existing naming rules, and complete the minimal development setup."
 
 policy:
   allow_implicit_invocation: true
