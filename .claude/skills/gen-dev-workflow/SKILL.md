@@ -53,7 +53,10 @@ description: |
                            ▼
     ┌─────────────────────────────────────────────────┐
     │  STAGE 1：建立分支            [Model: Sonnet (Max effort)] │
-    │  → 呼叫 brancher agent 產出草稿                  │
+    │  → 呼叫 gen-gh-issue skill 產出 Issue body       │
+    │    （五區段 zh-tw：Problem/Root cause/Fix/        │
+    │     Out of scope/Verification）                  │
+    │  → 呼叫 brancher agent 產出分支名草稿             │
     │  ⏸ 暫停：展示 Issue 標題/內容 + 分支名稱         │
     │          等使用者確認或修改                       │
     │  → agy 執行 gh issue create + git checkout   │
@@ -146,7 +149,8 @@ description: |
 你：好，開始執行開發流程。
     Task("planner", "規劃 <需求描述>，產出 plan 文件")
     → [等 planner 完成] → 展示計畫摘要 → 暫停確認
-    → Task("brancher", "執行 <plan 路徑>")
+    → Skill("gen-gh-issue") 依計畫產出 Issue body（五區段 zh-tw）
+    → Task("brancher", "用上述 Issue body 執行 <plan 路徑>")
     → Task("implementer", "執行 <plan 路徑>")
     → Task("reviewer", "審查 <branch-name>")
     → [若不通過] Task("implementer", "修正以下問題：<reviewer 回報>")
@@ -395,7 +399,7 @@ Model 不綁死在 agent 身上，而是**依工作性質動態選擇**。這是
 | Stage | Agent | 基準 Model | agy 委派 | 不委派的原因 |
 |-------|-------|-----------|------------|------------|
 | 0a/0b 規劃 | planner | Opus (xHigh effort) | — | 設計與計畫拆解是最高槓桿推論，錯了後面全錯 |
-| 1 建立分支 | brancher | Sonnet (Max effort) | ✦ gh issue create, git checkout | 純 IO |
+| 1 建立分支 | gen-gh-issue skill + brancher | Sonnet (Max effort) | ✦ gh issue create, git checkout | Issue body 由 gen-gh-issue 產（五區段 zh-tw），brancher 負責建立與 checkout，皆純 IO |
 | 2 實作 | implementer | **見下方分級** | ✦ 代碼+測試+commit（Claude 驗收）| — |
 | 3 審查 | reviewer | Opus (xHigh effort) | — | 根因判斷需最強推論，且不該讓產出代碼的同源 model 自審 |
 | 4 發布 | publisher | Sonnet (Max effort) | ✦ Diff 分析 → PR 草稿（Claude 校對）| — |
@@ -560,7 +564,8 @@ const findings = (await parallel(LENSES.map(lens => () =>
 # 只需要建分支（STAGE 1）
 /gen-dev-workflow branch <ISSUE-NUMBER>
 → 寫入狀態檔 { stage: 1, mode: "jump", issue: <ISSUE-NUMBER> }
-→ 呼叫 brancher agent
+→ 若需新建 Issue：先呼叫 gen-gh-issue skill 產出 Issue body（五區段 zh-tw）
+→ 呼叫 brancher agent（用該 Issue body 建立 Issue + 分支）
 
 # 繼續實作（STAGE 2）
 /gen-dev-workflow implement <plan 路徑>
