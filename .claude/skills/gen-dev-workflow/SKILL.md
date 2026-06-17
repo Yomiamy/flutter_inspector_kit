@@ -95,6 +95,8 @@ description: |
     ┌─────────────────────────────────────────────────┐
     │  STAGE 4：發布        [Model: Sonnet (Max effort)] │
     │  → 呼叫 publisher agent                         │
+    │  → publisher 內部用 gen-pr skill 產 PR 描述      │
+    │    （gen-pr 格式：Summary + 修正問題/修正方式）   │
     │  → agy 分析 Diff，Claude 校對草稿             │
     │  ⏸ 暫停：展示 PR 草稿，等使用者確認發布          │
     └──────────────────────┬──────────────────────────┘
@@ -154,7 +156,7 @@ description: |
     → Task("implementer", "執行 <plan 路徑>")
     → Task("reviewer", "審查 <branch-name>")
     → [若不通過] Task("implementer", "修正以下問題：<reviewer 回報>")
-    → Task("publisher", "發布 <branch-name>")
+    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>")
     → 暫停確認 → 完成
 ```
 
@@ -402,7 +404,7 @@ Model 不綁死在 agent 身上，而是**依工作性質動態選擇**。這是
 | 1 建立分支 | gen-gh-issue skill + brancher | Sonnet (Max effort) | ✦ gh issue create, git checkout | Issue body 由 gen-gh-issue 產（五區段 zh-tw），brancher 負責建立與 checkout，皆純 IO |
 | 2 實作 | implementer | **見下方分級** | ✦ 代碼+測試+commit（Claude 驗收）| — |
 | 3 審查 | reviewer | Opus (xHigh effort) | — | 根因判斷需最強推論，且不該讓產出代碼的同源 model 自審 |
-| 4 發布 | publisher | Sonnet (Max effort) | ✦ Diff 分析 → PR 草稿（Claude 校對）| — |
+| 4 發布 | publisher（內部用 gen-pr skill） | Sonnet (Max effort) | ✦ Diff 分析 → PR 草稿（Claude 校對）| PR 描述由 gen-pr 產（Summary + 修正問題/修正方式），publisher 負責 push + gh pr create |
 | 5 回覆 PR Review | responder | Sonnet (Max effort) | — | 逐條意見處理，短文判斷 |
 
 ### STAGE 2 implementer 內部的 model 分級
@@ -580,7 +582,7 @@ const findings = (await parallel(LENSES.map(lens => () =>
 # 只需要發 PR（STAGE 4）
 /gen-dev-workflow publish <branch-name>
 → 寫入狀態檔 { stage: 4, mode: "jump", branch: "<branch-name>" }
-→ 呼叫 publisher agent
+→ 呼叫 publisher agent（內部用 gen-pr skill 產 PR 描述，再 push + gh pr create）
 
 # 處理 PR review 意見（STAGE 5）
 /gen-dev-workflow review #<PR>
