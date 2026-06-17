@@ -51,6 +51,10 @@ class FlutterInspector {
         _registry.network.onAdd = (entry, total) {
           _notifier!.showOrUpdate(entry, total);
         };
+        final entries = _registry.network.entries;
+        if (entries.isNotEmpty) {
+          _notifier!.showOrUpdate(entries.first, entries.length);
+        }
       });
     }
   }

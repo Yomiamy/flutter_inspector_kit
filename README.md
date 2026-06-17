@@ -175,7 +175,10 @@ Also ensure a notification icon exists at `@mipmap/ic_launcher` (default Flutter
 
 #### Required iOS / macOS setup
 
-On iOS / macOS, the user is prompted for notification permission when the inspector initialises. The permission alone is **not** enough to show a banner while your app is in the **foreground**: iOS only presents a foreground notification when a `UNUserNotificationCenterDelegate` returns it from `willPresentNotification`. `FlutterAppDelegate` forwards that callback to plugins but does **not** assign itself as the delegate, so your host app must do it once in `AppDelegate`. Add the single delegate line to whatever `AppDelegate` your project already has:
+On iOS / macOS, the user is prompted for notification permission when the inspector initialises. The permission alone is **not** enough to show a banner while your app is in the **foreground**: the system only presents a foreground notification when a `UNUserNotificationCenterDelegate` returns it from `willPresentNotification`.
+
+##### iOS Setup
+`FlutterAppDelegate` on iOS already implements that forwarding and conforms to `UNUserNotificationCenterDelegate`, so your host app only needs to assign it in `AppDelegate.swift`:
 
 ```swift
 import UserNotifications // add this import
@@ -186,7 +189,31 @@ if #available(iOS 10.0, *) {
 }
 ```
 
-`FlutterAppDelegate` already conforms to `UNUserNotificationCenterDelegate`, so no extra protocol or method is needed — only the assignment. Keep the rest of your `AppDelegate` (including any `GeneratedPluginRegistrant` registration) unchanged. For macOS, add the same line to `macos/Runner/AppDelegate.swift`. See [`example/ios/Runner/AppDelegate.swift`](example/ios/Runner/AppDelegate.swift) and [`example/macos/Runner/AppDelegate.swift`](example/macos/Runner/AppDelegate.swift) for working references. **Without this line no foreground banner appears on iOS / macOS** — the notification is still delivered silently to Notification Center, and tapping it still works.
+##### macOS Setup
+Unlike iOS, `FlutterAppDelegate` on macOS does **not** conform to `UNUserNotificationCenterDelegate`. You must explicitly declare compliance and implement the callback in `macos/Runner/AppDelegate.swift`:
+
+```swift
+import UserNotifications // add this import
+
+@main
+class AppDelegate: FlutterAppDelegate, UNUserNotificationCenterDelegate {
+  override func applicationDidFinishLaunching(_ notification: Notification) {
+    UNUserNotificationCenter.current().delegate = self
+    super.applicationDidFinishLaunching(notification)
+  }
+
+  // Handle foreground notifications on macOS
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.alert, .sound])
+  }
+}
+```
+
+See [`example/ios/Runner/AppDelegate.swift`](example/ios/Runner/AppDelegate.swift) and [`example/macos/Runner/AppDelegate.swift`](example/macos/Runner/AppDelegate.swift) for working references. **Without this setup no foreground banner appears on iOS / macOS** — the notification is still delivered silently to Notification Center, and tapping it still works.
 
 If permission is denied or the platform isn't supported, the notifier degrades silently to a no-op — it never crashes your app.
 
