@@ -1,3 +1,10 @@
+## 0.2.3
+
+### Fixed
+* Fixed foreground notification banner on macOS where the host app `AppDelegate` failed to cast to `UNUserNotificationCenterDelegate`. macOS hosts must now explicitly conform and handle the callback.
+* Resolved a race condition during cold-starts where network notifications logged before the notifier finished initialization were lost.
+* Fixed the `README.md` setup instructions to separate iOS and macOS delegate compliance procedures.
+
 ## 0.2.2
 
 ### Added

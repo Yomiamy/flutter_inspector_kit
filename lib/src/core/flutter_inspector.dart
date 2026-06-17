@@ -17,7 +17,7 @@ import 'inspector_registry.dart';
 /// The core entry point for the Flutter Inspector.
 class FlutterInspector {
   /// Package version.
-  static const String version = '0.2.2';
+  static const String version = '0.2.3';
 
   /// Creates a new FlutterInspector instance.
   ///
