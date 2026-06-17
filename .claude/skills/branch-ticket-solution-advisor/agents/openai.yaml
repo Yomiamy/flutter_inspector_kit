@@ -1,7 +1,7 @@
 interface:
   display_name: "Branch Ticket Solution Advisor"
-  short_description: "依 branch ticket 摘要 YouTrack 並提出開發建議"
-  default_prompt: "Use $branch-ticket-solution-advisor to extract the YouTrack issue key from the current branch name, read the ticket, condense the description into an implementation brief, and propose concrete development, bug-fix, or improvement approaches."
+  short_description: "依 branch issue 摘要 GitHub 並提出開發建議"
+  default_prompt: "Use $branch-ticket-solution-advisor to extract the GitHub issue ID from the current branch name, read the issue, condense the description into an implementation brief, and propose concrete development, bug-fix, or improvement approaches."
 
 policy:
   allow_implicit_invocation: true

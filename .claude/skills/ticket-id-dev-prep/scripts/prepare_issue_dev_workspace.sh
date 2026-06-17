@@ -14,10 +14,10 @@ LOCAL_CONFIG_SOURCE_ROOTS=()
 usage() {
   cat <<'EOF'
 Usage:
-  prepare_ticket_dev_workspace.sh --ticket-id "BUG-2351" --prefix "fix/" --slug "password-fields-validator-error" [options]
+  prepare_issue_dev_workspace.sh --ticket-id "BUG-2351" --prefix "fix/" --slug "password-fields-validator-error" [options]
 
 Required:
-  --ticket-id       YouTrack issue key such as BUG-2351
+  --issue-id        GitHub issue key such as BUG-2351
   --prefix          Branch prefix such as fix/, feature/, chore/
   --slug            Lowercase kebab-case English slug
 
@@ -141,7 +141,7 @@ sync_local_config_files() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --ticket-id)
+    --ticket-id|--issue-id)
       TICKET_ID="${2:-}"
       shift 2
       ;;
@@ -187,8 +187,8 @@ if [[ -z "${TICKET_ID}" || -z "${PREFIX}" || -z "${SLUG}" ]]; then
   exit 1
 fi
 
-if ! [[ "${TICKET_ID}" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]; then
-  echo "Invalid ticket id: ${TICKET_ID}" >&2
+if [[ -n "${TICKET_ID}" ]] && ! [[ "${TICKET_ID}" =~ ^([A-Z][A-Z0-9]*-)?[0-9]+$ ]]; then
+  echo "Invalid issue id: ${TICKET_ID}" >&2
   exit 1
 fi
 

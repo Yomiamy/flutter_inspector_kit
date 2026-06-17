@@ -14,15 +14,15 @@ LOCAL_CONFIG_SOURCE_ROOTS=()
 usage() {
   cat <<'EOF'
 Usage:
-  prepare_ticket_dev_workspace.sh --ticket-id "BUG-2351" --prefix "fix/" --slug "password-fields-validator-error" [options]
-  prepare_ticket_dev_workspace.sh --prefix "chore/" --slug "cleanup-skill-docs" [options]
+  prepare_issue_dev_workspace.sh --ticket-id "2351" --prefix "fix/" --slug "password-fields-validator-error" [options]
+  prepare_issue_dev_workspace.sh --prefix "chore/" --slug "cleanup-skill-docs" [options]
 
 Required:
   --prefix          Branch prefix such as fix/, feature/, chore/
   --slug            Lowercase kebab-case English slug
 
 Optional:
-  --ticket-id       YouTrack issue key such as BUG-2351
+  --issue-id        GitHub issue ID such as 2351 or BUG-2351
   --base            Base ref to branch from. Default: origin/main
   --worktree-parent Parent directory for the new worktree. Default: parent of current repo
   --skip-fetch      Skip fetching remote refs before creation
@@ -142,7 +142,7 @@ sync_local_config_files() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --ticket-id)
+    --ticket-id|--issue-id)
       TICKET_ID="${2:-}"
       shift 2
       ;;
@@ -188,8 +188,8 @@ if [[ -z "${PREFIX}" || -z "${SLUG}" ]]; then
   exit 1
 fi
 
-if [[ -n "${TICKET_ID}" ]] && ! [[ "${TICKET_ID}" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]; then
-  echo "Invalid ticket id: ${TICKET_ID}" >&2
+if [[ -n "${TICKET_ID}" ]] && ! [[ "${TICKET_ID}" =~ ^([A-Z][A-Z0-9]*-)?[0-9]+$ ]]; then
+  echo "Invalid issue id: ${TICKET_ID}" >&2
   exit 1
 fi
 

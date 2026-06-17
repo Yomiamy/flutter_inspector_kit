@@ -104,7 +104,7 @@ test -f "$PLAN_FILE" && test -r "$PLAN_FILE"
 規則：
 
 - 不要把 plan 的逐步指令（step 1 / step 2 / 測試指令）整段搬進 issue body；issue 是高層摘要，plan 才是執行細節。
-- 若 plan 內含 ticket 連結（YouTrack / Jira），在 References 下加一行 `- Ticket: <link>`。
+- 若 plan 內含 ticket 連結（GitHub / Jira），在 References 下加一行 `- Ticket: <link>`。
 - 若 plan 提到驗收標準或測試重點，可額外補一個 `## Acceptance Criteria` 段落（條列）；無則略過。
 
 #### Labels（可選）

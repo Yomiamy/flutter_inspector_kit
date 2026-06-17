@@ -19,7 +19,7 @@ description: 在 context-collector 產出 issue context 後、且使用者想準
 - `docs/issues/*`。
 - `docs/issues/specs/*`。
 - PRs。
-- YouTrack 留言或 State。
+- GitHub 留言或 State。
 
 ## 必要輸入
 
