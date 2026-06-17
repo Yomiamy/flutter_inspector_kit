@@ -1,0 +1,81 @@
+# Qodo Merge (PR-Agent) 設定
+# 對照 .gemini/config.yaml 而來，供 Qodo Merge 雲端版 (GitHub App) 使用。
+#
+# 路線說明（v1 vs v2）：
+# - 本檔走 Qodo v1（Qodo Merge / PR-Agent）路線：審查設定跟著 repo 走，
+#   讀取 repo 根目錄的 .pr_agent.toml + best_practices.md。
+# - Qodo v2（Qodo Review）改用 web dashboard 的 Rule System / Centralized
+#   Governance（線上設定），repo 內這兩個檔是否生效，取決於所安裝的
+#   Qodo GitHub App 版本。若裝的是 v2 而本檔未生效，需改至 Qodo portal 設定。
+# 文件: https://docs.qodo.ai/code-review （舊版設定參考開源 pr-agent 的 configuration.toml）
+
+[pr_reviewer]
+# 對應 .gemini comment_severity_threshold: MEDIUM —— 抑制低價值意見，只留實質問題。
+num_max_findings = 6
+persistent_comment = true
+final_update_message = true
+require_score_review = false
+require_tests_review = true
+require_security_review = true
+extra_instructions = """
+語言與術語：
+- 所有評論必須使用繁體中文 (zh-tw)。
+- 專業術語保留英文原文（例如 Refactoring, Unit Test, Async/Await, Variable, Function, Memory Leak）。
+
+嚴重度：
+- 僅回報 MEDIUM 以上嚴重度的問題，避免吹毛求疵的風格瑣事。
+
+審查依據：
+- 嚴格遵循 repo 根目錄的 best_practices.md（Flutter/Dart Style Guide）作為審查基準。
+
+結尾創作規範（Closing Ritual）：
+- 每次 Code Review 結束時，必須根據審查內容隨機選擇一種「文學體裁」以繁體中文收尾，嚴禁僅使用英文。
+- 支援體裁：
+  - 五言/七言絕句：適合邏輯嚴謹、優雅的修正。
+  - 新詩 (Modern Poetry)：適合抽象的架構建議，使用隱喻。
+  - 俏皮話 (Witty Remarks)：適合抓到 Typos 或小 Bug，語氣幽默風趣。
+  - 順口溜 (Jingles)：適合總結多個修改點，讀起來要有節奏感。
+- 風格範例（供模仿，請勿照抄，依當次審查內容重新創作）：
+  - [五言/七言絕句]：
+    變數命名亂如麻，
+    函式結構需優化。
+    註解清晰如明月，
+    程式碼美如詩。
+  - [新詩]：
+    變數在黑暗中交會
+    沒有宣告的孤獨
+    指向一個不存在的遠方
+    我輕輕補上一行，讓記憶不再迷途。
+  - [俏皮話]：
+    這個 Function 寫得好，效能高到沒煩惱，
+    只是變數命名有點糟，隔壁同事看了會跌倒。
+  - [順口溜]：
+    邏輯通，Bug 噴，程式跑得像火輪。
+    註解多，維護易，這份專案有志氣。
+"""
+
+[pr_description]
+# 對應 .gemini pull_request_opened.summary: true
+publish_description_as_comment = false
+add_original_user_description = true
+generate_ai_title = false
+extra_instructions = """
+- PR 描述使用繁體中文 (zh-tw)，技術術語保留英文原文。
+"""
+
+[pr_code_suggestions]
+# 對應 /improve，會自動載入根目錄的 best_practices.md
+suggestions_score_threshold = 5
+extra_instructions = """
+- 建議內容使用繁體中文 (zh-tw)，技術術語保留英文原文。
+- 嚴格對齊 best_practices.md 的命名、註解、BLoC、Retrofit 與測試規範。
+"""
+
+# 對應 .gemini pull_request_opened —— PR 開啟時自動執行的工具。
+# Qodo Merge 雲端版會讀此段；對應 summary: true + code_review: true。
+[github_app]
+pr_commands = [
+    "/describe",
+    "/review",
+]
+# help: false（不在 PR 開啟時貼說明），對應 .gemini help: false —— 預設即不貼，無需額外設定。
