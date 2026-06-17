@@ -129,7 +129,7 @@ Once enabled, the inspector requests notification permission for you when it ini
 **Notification behaviour**:
 
 - **Android**: appears as a silent heads-up banner (no sound or vibration) when a new API call arrives. The banner animates in and dismisses automatically. Subsequent calls within a 2-second window silently update the notification content without re-alerting. After 2 seconds, the next call triggers another heads-up alert.
-- **iOS / macOS**: displays a silent foreground banner when enabled.
+- **iOS / macOS**: displays a foreground banner when a new API call arrives, throttled the same way as Android. **This requires one line of setup in your `AppDelegate` — see [Required iOS / macOS setup](#required-ios--macos-setup) below.** Without it, iOS silently suppresses the foreground banner (the entry is still delivered to Notification Center).
 - The notification uses a dedicated high-priority Android channel (`flutter_inspector_network_v2`) — if you upgrade from an earlier version, the old notification channel is automatically deleted and will not appear in system settings.
 
 To make **tapping the notification open the dashboard on the Network tab**, pass a `navigatorKey` that is also wired into your `MaterialApp`:
@@ -173,7 +173,47 @@ Also ensure a notification icon exists at `@mipmap/ic_launcher` (default Flutter
 
 </details>
 
-On iOS / macOS, the user is prompted for notification permission when the inspector initialises.
+#### Required iOS / macOS setup
+
+On iOS / macOS, the user is prompted for notification permission when the inspector initialises. The permission alone is **not** enough to show a banner while your app is in the **foreground**: the system only presents a foreground notification when a `UNUserNotificationCenterDelegate` returns it from `willPresentNotification`.
+
+##### iOS Setup
+`FlutterAppDelegate` on iOS already implements that forwarding and conforms to `UNUserNotificationCenterDelegate`, so your host app only needs to assign it in `AppDelegate.swift`:
+
+```swift
+import UserNotifications // add this import
+
+// ...inside application(_:didFinishLaunchingWithOptions:), before `return super...`:
+if #available(iOS 10.0, *) {
+  UNUserNotificationCenter.current().delegate = self as UNUserNotificationCenterDelegate
+}
+```
+
+##### macOS Setup
+Unlike iOS, `FlutterAppDelegate` on macOS does **not** conform to `UNUserNotificationCenterDelegate`. You must explicitly declare compliance and implement the callback in `macos/Runner/AppDelegate.swift`:
+
+```swift
+import UserNotifications // add this import
+
+@main
+class AppDelegate: FlutterAppDelegate, UNUserNotificationCenterDelegate {
+  override func applicationDidFinishLaunching(_ notification: Notification) {
+    UNUserNotificationCenter.current().delegate = self
+    super.applicationDidFinishLaunching(notification)
+  }
+
+  // Handle foreground notifications on macOS
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.alert, .sound])
+  }
+}
+```
+
+See [`example/ios/Runner/AppDelegate.swift`](example/ios/Runner/AppDelegate.swift) and [`example/macos/Runner/AppDelegate.swift`](example/macos/Runner/AppDelegate.swift) for working references. **Without this setup no foreground banner appears on iOS / macOS** — the notification is still delivered silently to Notification Center, and tapping it still works.
 
 If permission is denied or the platform isn't supported, the notifier degrades silently to a no-op — it never crashes your app.
 

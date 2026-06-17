@@ -122,6 +122,10 @@ void main() {
         expect(details.iOS!.presentBanner, isTrue);
       });
 
+      test('iOS presentAlert is true (foreground alert on iOS < 14)', () {
+        expect(details.iOS!.presentAlert, isTrue);
+      });
+
       test('iOS presentList is true (stays in notification centre)', () {
         expect(details.iOS!.presentList, isTrue);
       });
@@ -171,6 +175,10 @@ void main() {
 
       test('iOS presentBanner is false (no banner when throttled)', () {
         expect(details.iOS!.presentBanner, isFalse);
+      });
+
+      test('iOS presentAlert is false (no alert when throttled)', () {
+        expect(details.iOS!.presentAlert, isFalse);
       });
 
       test(
