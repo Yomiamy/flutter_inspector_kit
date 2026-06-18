@@ -1,15 +1,20 @@
 import 'package:flutter/widgets.dart';
 
-import '../inspectors/navigator_inspector.dart';
+import '../core/flutter_inspector.dart';
+import '../models/log_level.dart';
 import '../models/navigator_action.dart';
 import '../models/navigator_entry.dart';
 
-/// An observer that records navigation events into the [NavigatorInspector].
+/// An observer that records navigation events into the inspector.
+///
+/// Each navigation event is buffered into the navigator inspector and, mirroring
+/// [FlutterInspectorDioInterceptor], also written to the console log at
+/// [LogLevel.warning] so route changes are visible in the Console tab.
 class FlutterInspectorNavigatorObserver extends NavigatorObserver {
   /// Creates an observer that feeds events into [_inspector].
   FlutterInspectorNavigatorObserver(this._inspector);
 
-  final NavigatorInspector _inspector;
+  final FlutterInspector _inspector;
 
   bool _isInspectorRoute(Route<dynamic> route) =>
       route.settings.name == 'flutter_inspector_dashboard';
@@ -43,46 +48,44 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
     return null;
   }
 
+  /// Buffers [route] as a navigation event and mirrors it to the console log
+  /// at [LogLevel.warning], matching the interceptor's logging behaviour.
+  void _record(NavigatorAction action, Route<dynamic> route) {
+    final routeName = route.settings.name;
+    final widgetType = _resolveWidgetType(route);
+    _inspector.navigatorInspector.add(
+      NavigatorEntry(
+        action: action,
+        routeName: routeName,
+        widgetType: widgetType,
+        arguments: route.settings.arguments,
+      ),
+    );
+    _inspector.log(
+      "Action: ${action.name}\nRoute: ${routeName ?? '-'}\nWidget: ${widgetType ?? '-'}",
+      level: LogLevel.warning,
+    );
+  }
+
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
     if (_isInspectorRoute(route)) return;
-    _inspector.add(
-      NavigatorEntry(
-        action: NavigatorAction.push,
-        routeName: route.settings.name,
-        widgetType: _resolveWidgetType(route),
-        arguments: route.settings.arguments,
-      ),
-    );
+    _record(NavigatorAction.push, route);
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
     if (_isInspectorRoute(route)) return;
-    _inspector.add(
-      NavigatorEntry(
-        action: NavigatorAction.pop,
-        routeName: route.settings.name,
-        widgetType: _resolveWidgetType(route),
-        arguments: route.settings.arguments,
-      ),
-    );
+    _record(NavigatorAction.pop, route);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
     if (newRoute != null && !_isInspectorRoute(newRoute)) {
-      _inspector.add(
-        NavigatorEntry(
-          action: NavigatorAction.replace,
-          routeName: newRoute.settings.name,
-          widgetType: _resolveWidgetType(newRoute),
-          arguments: newRoute.settings.arguments,
-        ),
-      );
+      _record(NavigatorAction.replace, newRoute);
     }
   }
 
@@ -90,13 +93,6 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didRemove(route, previousRoute);
     if (_isInspectorRoute(route)) return;
-    _inspector.add(
-      NavigatorEntry(
-        action: NavigatorAction.remove,
-        routeName: route.settings.name,
-        widgetType: _resolveWidgetType(route),
-        arguments: route.settings.arguments,
-      ),
-    );
+    _record(NavigatorAction.remove, route);
   }
 }

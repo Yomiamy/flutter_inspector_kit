@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../inspectors/navigator_inspector.dart';
 import '../models/database_browser_source.dart';
 import '../models/database_entry.dart';
 import '../models/database_operation.dart';
@@ -33,7 +34,7 @@ class FlutterInspector {
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
   }) : _registry = InspectorRegistry(bufferSize: bufferSize) {
-    _navigatorObserver = FlutterInspectorNavigatorObserver(_registry.navigator);
+    _navigatorObserver = FlutterInspectorNavigatorObserver(this);
     _operationLogSource = OperationLogSource(_registry.database);
     if (databaseSources != null) {
       _customDatabaseSources.addAll(databaseSources);
@@ -104,6 +105,9 @@ class FlutterInspector {
 
   /// Clears all network logs.
   void clearNetwork() => _registry.network.clear();
+
+  /// The navigator inspector used by [navigatorObserver] to buffer events.
+  NavigatorInspector get navigatorInspector => _registry.navigator;
 
   /// Retrieves the current navigator history.
   List<NavigatorEntry> get navigatorEntries => _registry.navigator.entries;

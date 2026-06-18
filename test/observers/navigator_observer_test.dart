@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_inspector_kit/src/inspectors/navigator_inspector.dart';
+import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
+import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
 import 'package:flutter_inspector_kit/src/observers/navigator_observer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('FlutterInspectorNavigatorObserver', () {
-    late NavigatorInspector inspector;
+    late FlutterInspector inspector;
     late FlutterInspectorNavigatorObserver observer;
 
     setUp(() {
-      inspector = NavigatorInspector();
-      observer = FlutterInspectorNavigatorObserver(inspector);
+      inspector = FlutterInspector();
+      observer = inspector.navigatorObserver;
     });
 
     test('didPush captures push action', () {
@@ -21,8 +22,8 @@ void main() {
       );
       observer.didPush(route, null);
 
-      expect(inspector.entries.length, 1);
-      final entry = inspector.entries.first;
+      expect(inspector.navigatorInspector.entries.length, 1);
+      final entry = inspector.navigatorInspector.entries.first;
       expect(entry.action, NavigatorAction.push);
       expect(entry.routeName, '/home');
       expect(entry.arguments, 'arg1');
@@ -35,8 +36,8 @@ void main() {
       );
       observer.didPop(route, null);
 
-      expect(inspector.entries.length, 1);
-      final entry = inspector.entries.first;
+      expect(inspector.navigatorInspector.entries.length, 1);
+      final entry = inspector.navigatorInspector.entries.first;
       expect(entry.action, NavigatorAction.pop);
       expect(entry.routeName, '/home');
     });
@@ -48,8 +49,8 @@ void main() {
       );
       observer.didReplace(newRoute: newRoute, oldRoute: null);
 
-      expect(inspector.entries.length, 1);
-      final entry = inspector.entries.first;
+      expect(inspector.navigatorInspector.entries.length, 1);
+      final entry = inspector.navigatorInspector.entries.first;
       expect(entry.action, NavigatorAction.replace);
       expect(entry.routeName, '/new');
     });
@@ -61,8 +62,8 @@ void main() {
       );
       observer.didRemove(route, null);
 
-      expect(inspector.entries.length, 1);
-      final entry = inspector.entries.first;
+      expect(inspector.navigatorInspector.entries.length, 1);
+      final entry = inspector.navigatorInspector.entries.first;
       expect(entry.action, NavigatorAction.remove);
       expect(entry.routeName, '/removed');
     });
@@ -76,7 +77,7 @@ void main() {
 
       observer.didPush(route, null);
 
-      final entry = inspector.entries.first;
+      final entry = inspector.navigatorInspector.entries.first;
       expect(entry.widgetType, _SamplePage);
     });
 
@@ -98,7 +99,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        final pushEntry = inspector.entries
+        final pushEntry = inspector.navigatorInspector.entries
             .firstWhere((e) => e.action == NavigatorAction.push);
         expect(pushEntry.widgetType, _SamplePage);
       },
@@ -111,16 +112,40 @@ void main() {
       );
 
       observer.didPush(route, null);
-      expect(inspector.entries, isEmpty);
+      expect(inspector.navigatorInspector.entries, isEmpty);
 
       observer.didPop(route, null);
-      expect(inspector.entries, isEmpty);
+      expect(inspector.navigatorInspector.entries, isEmpty);
 
       observer.didReplace(newRoute: route, oldRoute: null);
-      expect(inspector.entries, isEmpty);
+      expect(inspector.navigatorInspector.entries, isEmpty);
 
       observer.didRemove(route, null);
-      expect(inspector.entries, isEmpty);
+      expect(inspector.navigatorInspector.entries, isEmpty);
+    });
+
+    test('mirrors a navigation event to the console log at warning level', () {
+      final route = MaterialPageRoute(
+        settings: const RouteSettings(name: '/home'),
+        builder: (_) => const SizedBox(),
+      );
+      observer.didPush(route, null);
+
+      expect(inspector.logEntries.length, 1);
+      final log = inspector.logEntries.first;
+      expect(log.level, LogLevel.warning);
+      expect(log.message, contains('Action: push'));
+      expect(log.message, contains('Route: /home'));
+    });
+
+    test('does not log for the inspector dashboard route', () {
+      final route = MaterialPageRoute(
+        settings: const RouteSettings(name: 'flutter_inspector_dashboard'),
+        builder: (_) => const SizedBox(),
+      );
+      observer.didPush(route, null);
+
+      expect(inspector.logEntries, isEmpty);
     });
   });
 }
