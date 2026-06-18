@@ -20,7 +20,7 @@ class _ConsoleTabState extends State<ConsoleTab> {
     switch (level) {
       case LogLevel.verbose:
       case LogLevel.debug:
-        return Colors.grey;
+        return Colors.blueGrey;
       case LogLevel.info:
         return Colors.blue;
       case LogLevel.warning:

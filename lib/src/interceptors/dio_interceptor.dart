@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_inspector_kit/src/models/log_level.dart';
 
 import '../core/flutter_inspector.dart';
 import '../models/network_entry.dart';
@@ -49,6 +50,10 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       timestamp: startTime,
     );
     _inspector.logNetwork(entry, replaces: pending);
+    _inspector.log(
+      "entry.url: ${entry.url}\nMethod: ${entry.method}\nStatus: ${entry.statusCode}",
+      level: LogLevel.debug,
+    );
     handler.next(response);
   }
 
@@ -78,6 +83,10 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       timestamp: startTime,
     );
     _inspector.logNetwork(entry, replaces: pending);
+    _inspector.log(
+      "entry.url: ${entry.url}\nMethod: ${entry.method}\nStatus: ${entry.statusCode}",
+      level: LogLevel.debug,
+    );
     handler.next(err);
   }
 }
