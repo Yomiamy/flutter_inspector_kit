@@ -1,3 +1,15 @@
+## 0.2.4
+
+### Added
+* Network requests and responses captured by `FlutterInspectorDioInterceptor` are now mirrored to the Console tab (at `debug` level), so HTTP traffic is visible alongside other logs.
+* `FlutterInspectorNavigatorObserver` now mirrors route changes (push / pop / replace / remove) to the Console tab at `warning` level, in addition to the Navigator history.
+
+### Changed
+* Adjusted the `LogLevel.debug` text color in the Console tab to blue-grey for better visibility.
+
+### Fixed
+* Fixed the `Status` row in the Network detail view's General section so its value aligns with the other fields (Method, URL, Duration, etc.) instead of starting at an inconsistent position.
+
 ## 0.2.3
 
 ### Fixed
