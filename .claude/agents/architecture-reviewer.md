@@ -29,7 +29,7 @@ model: opus
 - docs/issues/specs/*
 - docs/plans/*
 - PRs
-- YouTrack state
+- github issue state
 
 停止條件：
 - 缺少 issue doc 或 spec。

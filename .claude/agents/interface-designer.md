@@ -25,7 +25,7 @@ model: opus
 - source
 - tests
 - PRs
-- YouTrack state
+- github issue state
 
 停止條件：
 - 缺少 issue doc 或 spec。
