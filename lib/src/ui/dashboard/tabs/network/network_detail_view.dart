@@ -89,22 +89,17 @@ class NetworkDetailView extends StatelessWidget {
         children: [
           _kv(context, 'Method', entry.method),
           _kv(context, 'URL', entry.url),
-          Row(
-            children: [
-              Text(
-                'Status: ',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          _kv(
+            context,
+            'Status',
+            '',
+            valueWidget: SelectableText(
+              entry.isComplete ? '${entry.statusCode ?? '-'}' : 'Pending',
+              style: TextStyle(
+                color: statusColor,
+                fontWeight: FontWeight.w600,
               ),
-              Text(
-                entry.isComplete ? '${entry.statusCode ?? '-'}' : 'Pending',
-                style: TextStyle(
-                  color: statusColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+            ),
           ),
           _kv(
             context,
@@ -183,7 +178,12 @@ class NetworkDetailView extends StatelessWidget {
     );
   }
 
-  Widget _kv(BuildContext context, String key, String value) {
+  Widget _kv(
+    BuildContext context,
+    String key,
+    String value, {
+    Widget? valueWidget,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -199,7 +199,7 @@ class NetworkDetailView extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(child: SelectableText(value)),
+          Expanded(child: valueWidget ?? SelectableText(value)),
         ],
       ),
     );
