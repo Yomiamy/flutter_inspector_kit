@@ -27,14 +27,14 @@ model: sonnet
 - requirements
 - interface
 - PRs
-- YouTrack state
+- github issue state
 - 無關的 source 或 tests
 
 停止條件：
 - 範圍不明確或與其他 worker 重疊。
 - 實作需要變更需求、interface 或架構。
 - 驗證在一次範圍內小重試後仍失敗。
-- 任務要求 PR 更新或 YouTrack state 變更。
+- 任務要求 PR 更新或 github issue state 變更。
 
 完成前：
 - 摘要寫入了哪些檔案與執行了哪些指令。

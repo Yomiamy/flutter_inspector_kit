@@ -21,13 +21,13 @@ model: opus
 - source
 - tests
 - PRs
-- YouTrack state
+- github issue state
 
 停止條件：
 - 缺少 issue doc。
 - 產品意圖或 Acceptance Criteria 不明確。
 - 規劃會在未經使用者決定下改變需求。
-- 任務要求實作、測試、PR 更新或 YouTrack state 變更。
+- 任務要求實作、測試、PR 更新或 github issue state 變更。
 
 完成前：
 - 摘要寫入了哪些檔案。
