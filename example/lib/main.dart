@@ -8,21 +8,25 @@ import 'sqflite_browser_source.dart';
 // On Android this requires a notification icon + (Android 13+) the
 // POST_NOTIFICATIONS permission; on iOS/macOS the user is prompted on init.
 late final FlutterInspector inspector;
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
+  inspector = FlutterInspector(
+    showNetworkNotification: true,
+    navigatorKey: navigatorKey,
+    // Capture uncaught errors into the Console as LogLevel.error logs (opt-in).
+    // This wires the three standard hooks — FlutterError.onError,
+    // PlatformDispatcher.instance.onError and ErrorWidget.builder — which
+    // together cover framework, asynchronous and build-time errors. No zone is
+    // involved, so there is no Zone mismatch to worry about.
+    captureUncaughtErrors: true,
+  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-  MyApp({super.key}) {
-    inspector = FlutterInspector(
-      showNetworkNotification: true,
-      navigatorKey: navigatorKey,
-    );
-  }
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +207,18 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
               child: const Text('Push New Route'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              // Throws an uncaught async error. With captureUncaughtErrors
+              // enabled it is caught by PlatformDispatcher.instance.onError and
+              // surfaces as a red error log in the Console tab — tap it to
+              // expand the stack trace.
+              onPressed: () => Future<void>.error(
+                StateError('Demo: uncaught async error'),
+                StackTrace.current,
+              ),
+              child: const Text('Throw Uncaught Error'),
             ),
           ],
         ),

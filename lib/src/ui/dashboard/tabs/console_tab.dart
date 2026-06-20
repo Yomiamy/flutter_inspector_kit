@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/flutter_inspector.dart';
 import '../../../models/log_level.dart';
+import 'console/log_detail_view.dart';
 
 /// Tab for displaying console logs.
 class ConsoleTab extends StatefulWidget {
@@ -54,12 +55,25 @@ class _ConsoleTabState extends State<ConsoleTab> {
             itemCount: entries.length,
             itemBuilder: (context, index) {
               final entry = entries[index];
+              final canTap = (entry.stackTrace?.isNotEmpty ?? false) ||
+                  (entry.data?.isNotEmpty ?? false);
               return ListTile(
                 title: Text(
                   entry.message,
                   style: TextStyle(color: _getColorForLevel(entry.level)),
                 ),
                 subtitle: Text(entry.timestamp.toIso8601String()),
+                // Mark expandable rows with the same chevron the Network tab
+                // uses; non-expandable rows stay flat (trailing: null).
+                trailing:
+                    canTap ? const Icon(Icons.chevron_right, size: 18) : null,
+                onTap: canTap
+                    ? () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => LogDetailView(entry: entry),
+                          ),
+                        )
+                    : null,
               );
             },
           ),
