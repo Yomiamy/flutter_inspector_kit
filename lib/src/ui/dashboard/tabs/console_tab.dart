@@ -63,6 +63,10 @@ class _ConsoleTabState extends State<ConsoleTab> {
                   style: TextStyle(color: _getColorForLevel(entry.level)),
                 ),
                 subtitle: Text(entry.timestamp.toIso8601String()),
+                // Mark expandable rows with the same chevron the Network tab
+                // uses; non-expandable rows stay flat (trailing: null).
+                trailing:
+                    canTap ? const Icon(Icons.chevron_right, size: 18) : null,
                 onTap: canTap
                     ? () => Navigator.of(context).push(
                           MaterialPageRoute(

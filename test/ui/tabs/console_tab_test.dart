@@ -76,6 +76,34 @@ void main() {
       expect(find.byType(LogDetailView), findsOneWidget);
     });
 
+    testWidgets('shows a chevron only on expandable rows', (tester) async {
+      final inspector = FlutterInspector();
+      // Expandable: has a stackTrace.
+      inspector.log('Expandable', level: LogLevel.error, stackTrace: 'x');
+      // Non-expandable: plain info with neither stackTrace nor data.
+      inspector.log('Flat', level: LogLevel.info);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
+
+      // Exactly one chevron, and it belongs to the expandable row's tile.
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+      final expandableTile = find.ancestor(
+        of: find.text('Expandable'),
+        matching: find.byType(ListTile),
+      );
+      expect(
+        find.descendant(
+          of: expandableTile,
+          matching: find.byIcon(Icons.chevron_right),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('tapping pure info log without stackTrace or data does not navigate',
         (tester) async {
       final inspector = FlutterInspector();
