@@ -15,14 +15,14 @@ void main() {
   inspector = FlutterInspector(
     showNetworkNotification: true,
     navigatorKey: navigatorKey,
-    // Capture uncaught errors from the three standard Flutter hooks into the
-    // Console as LogLevel.error logs. Opt-in, defaults to false.
+    // Capture uncaught errors into the Console as LogLevel.error logs (opt-in).
+    // This wires the three standard hooks — FlutterError.onError,
+    // PlatformDispatcher.instance.onError and ErrorWidget.builder — which
+    // together cover framework, asynchronous and build-time errors. No zone is
+    // involved, so there is no Zone mismatch to worry about.
     captureUncaughtErrors: true,
   );
-  // runGuarded additionally captures uncaught *zone* errors (e.g. unawaited
-  // Future errors). It reuses the same hook wiring as above (deduped), so the
-  // two together give full coverage. Both forward errors downstream.
-  FlutterInspector.runGuarded(() => runApp(const MyApp()), inspector: inspector);
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -210,9 +210,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              // Throws an uncaught async error. With captureUncaughtErrors /
-              // runGuarded enabled, it surfaces as a red error log in the
-              // Console tab — tap it to expand the stack trace.
+              // Throws an uncaught async error. With captureUncaughtErrors
+              // enabled it is caught by PlatformDispatcher.instance.onError and
+              // surfaces as a red error log in the Console tab — tap it to
+              // expand the stack trace.
               onPressed: () => Future<void>.error(
                 StateError('Demo: uncaught async error'),
                 StackTrace.current,
