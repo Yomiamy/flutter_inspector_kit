@@ -242,16 +242,7 @@ It is **disabled by default** so the package never touches your error handling u
 final inspector = FlutterInspector(captureUncaughtErrors: true);
 ```
 
-This wires three standard Flutter hooks — `FlutterError.onError` (build/layout/paint errors), `PlatformDispatcher.instance.onError` (uncaught async errors), and `ErrorWidget.builder` (which widget failed to build). To **also** capture uncaught *zone* errors (e.g. unawaited `Future` errors), wrap `runApp` with `runGuarded`:
-
-```dart
-void main() {
-  final inspector = FlutterInspector(captureUncaughtErrors: true);
-  FlutterInspector.runGuarded(() => runApp(MyApp()), inspector: inspector);
-}
-```
-
-`runGuarded` reuses the same hook wiring (it never double-attaches), so you can use it together with `captureUncaughtErrors` for full coverage.
+This wires three standard Flutter hooks — `FlutterError.onError` (build/layout/paint errors), `PlatformDispatcher.instance.onError` (uncaught async errors, including unawaited `Future` errors), and `ErrorWidget.builder` (which widget failed to build). Together they cover framework, asynchronous and build-time errors without wrapping `runApp` in a custom zone, so there is no `Zone mismatch` to manage.
 
 > **Errors are never swallowed.** Every hook **chains/wraps** your existing handler rather than replacing it: the inspector records the error and then forwards it downstream (your handler, or Flutter's default presentation — debug red screen / release grey screen unchanged). The capture is purely additive.
 

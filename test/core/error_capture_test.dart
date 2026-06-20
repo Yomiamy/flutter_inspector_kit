@@ -193,55 +193,16 @@ void main() {
     });
   });
 
-  group('runGuarded (T2)', () {
-    test('captures zone error as a single LogLevel.error log', () {
-      FlutterError.onError = (_) {};
-      final inspector = FlutterInspector();
-
-      FlutterInspector.runGuarded(
-        () => throw StateError('boom'),
-        inspector: inspector,
-      );
-
-      final errors =
-          inspector.logEntries.where((e) => e.level == LogLevel.error).toList();
-      expect(errors, hasLength(1));
-      expect(errors.first.message, contains('boom'));
-      expect(errors.first.stackTrace, isNotNull);
-      expect(errors.first.data?['source'], 'zone');
-    });
-
-    test('captures an uncaught async (unawaited Future) zone error', () async {
-      FlutterError.onError = (_) {};
-      final inspector = FlutterInspector();
-
-      FlutterInspector.runGuarded(
-        () {
-          // Unawaited future error — only a guarded zone's onError catches this.
-          Future<void>.error(StateError('async boom'));
-        },
-        inspector: inspector,
-      );
-
-      // Let the microtask carrying the future error drain so runZonedGuarded's
-      // onError runs before we assert.
-      await Future<void>.delayed(Duration.zero);
-
-      final errors =
-          inspector.logEntries.where((e) => e.level == LogLevel.error).toList();
-      expect(errors, hasLength(1));
-      expect(errors.first.message, contains('async boom'));
-      expect(errors.first.data?['source'], 'zone');
-    });
-
+  group('dedup (T2)', () {
     test(
-        'dedup: captureUncaughtErrors:true then runGuarded attaches hooks once',
-        () {
+        'captureUncaughtErrors:true then a manual setupErrorHandlers attaches '
+        'hooks once', () {
       FlutterError.onError = (_) {};
       final inspector = FlutterInspector(captureUncaughtErrors: true);
 
-      // runGuarded calls setupErrorHandlers again; flag must prevent re-attach.
-      FlutterInspector.runGuarded(() {}, inspector: inspector);
+      // A second setupErrorHandlers call must be a no-op; the flag must prevent
+      // re-attaching the hooks.
+      inspector.setupErrorHandlers();
 
       FlutterError.onError!(buildDetails(StateError('boom')));
 

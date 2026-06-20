@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -99,7 +97,7 @@ class FlutterInspector {
   ///   [PlatformDispatcher.instance.onError] *after* constructing the inspector,
   ///   that later handler replaces the inspector's wrapper and capture silently
   ///   stops (the host always wins — nothing breaks). Construct the inspector
-  ///   (or call [runGuarded]) after installing any custom handlers.
+  ///   after installing any custom handlers.
   /// - Enable this on a single, app-wide inspector. The dedup guard is
   ///   per-instance, so creating multiple capture-enabled inspectors layers the
   ///   hooks and records the same error once per instance (host errors still
@@ -200,42 +198,12 @@ class FlutterInspector {
     );
   }
 
-  /// Runs [body] inside a guarded zone, capturing uncaught synchronous and
-  /// asynchronous zone errors as [LogLevel.error] log entries.
-  ///
-  /// This is a thin wrapper meant to wrap `runApp(...)`. It also wires the
-  /// three standard error hooks (via [setupErrorHandlers]) inside the zone,
-  /// before [body] runs, so `ErrorWidget.builder` is in place before
-  /// `runApp` reads it. The dedup flag guarantees the hooks attach only once
-  /// even if [captureUncaughtErrors] already attached them.
-  ///
-  /// Captured zone errors are logged but not rethrown — `runZonedGuarded`
-  /// absorbs them, which is the correct "captured, not propagated upward"
-  /// semantic for an error-reporting wrapper.
-  static void runGuarded(
-    void Function() body, {
-    required FlutterInspector inspector,
-  }) {
-    inspector.setupErrorHandlers();
-    runZonedGuarded(body, (e, st) {
-      inspector.log(
-        e.toString(),
-        level: LogLevel.error,
-        stackTrace: st.toString(),
-        data: {
-          'source': 'zone',
-          'exceptionType': e.runtimeType.toString(),
-        },
-      );
-    });
-  }
-
   /// Attaches the three standard Flutter error hooks, chaining/wrapping any
   /// existing host handler so errors are always forwarded downstream.
   ///
   /// Idempotent: the dedup flag ensures hooks are attached at most once, so an
-  /// error never produces two log entries even when both [captureUncaughtErrors]
-  /// and [runGuarded] are used together.
+  /// error never produces two log entries even when [captureUncaughtErrors] and
+  /// a manual [setupErrorHandlers] call are combined.
   @visibleForTesting
   void setupErrorHandlers() {
     if (_uncaughtErrorHandlersAttached) return;
