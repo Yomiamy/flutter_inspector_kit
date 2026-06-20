@@ -44,7 +44,7 @@ class LogDetailView extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         children: [
           _generalSection(context),
-          if (entry.stackTrace != null) _stackTraceSection(context),
+          if (entry.stackTrace?.isNotEmpty ?? false) _stackTraceSection(context),
           _dataSection(context),
         ],
       ),
@@ -133,10 +133,8 @@ class LogDetailView extends StatelessWidget {
   }
 
   String _shortTimestamp(DateTime ts) {
-    final h = ts.hour.toString().padLeft(2, '0');
-    final m = ts.minute.toString().padLeft(2, '0');
-    final s = ts.second.toString().padLeft(2, '0');
-    return '${ts.year}-${_p(ts.month)}-${_p(ts.day)} $h:$m:$s';
+    return '${ts.year}-${_p(ts.month)}-${_p(ts.day)} '
+        '${_p(ts.hour)}:${_p(ts.minute)}:${_p(ts.second)}';
   }
 
   String _p(int n) => n.toString().padLeft(2, '0');
