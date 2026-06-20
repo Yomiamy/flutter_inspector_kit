@@ -232,6 +232,31 @@ inspector.log(
 
 Available levels: `verbose`, `debug`, `info`, `warning`, `error`.
 
+### Uncaught error capture (opt-in)
+
+By default you have to log errors yourself. Enable **uncaught error capture** to have the inspector automatically turn uncaught errors into `error`-level Console logs — no manual `try/catch` needed.
+
+It is **disabled by default** so the package never touches your error handling unless you ask. Enable it on the constructor:
+
+```dart
+final inspector = FlutterInspector(captureUncaughtErrors: true);
+```
+
+This wires three standard Flutter hooks — `FlutterError.onError` (build/layout/paint errors), `PlatformDispatcher.instance.onError` (uncaught async errors), and `ErrorWidget.builder` (which widget failed to build). To **also** capture uncaught *zone* errors (e.g. unawaited `Future` errors), wrap `runApp` with `runGuarded`:
+
+```dart
+void main() {
+  final inspector = FlutterInspector(captureUncaughtErrors: true);
+  FlutterInspector.runGuarded(() => runApp(MyApp()), inspector: inspector);
+}
+```
+
+`runGuarded` reuses the same hook wiring (it never double-attaches), so you can use it together with `captureUncaughtErrors` for full coverage.
+
+> **Errors are never swallowed.** Every hook **chains/wraps** your existing handler rather than replacing it: the inspector records the error and then forwards it downstream (your handler, or Flutter's default presentation — debug red screen / release grey screen unchanged). The capture is purely additive.
+
+Captured errors appear as red logs in the **Console** tab. Tap any log that carries a stack trace or structured data to open a detail view with a copyable stack trace and the structured payload, plus copy/share actions.
+
 ### Track navigation
 
 Nothing to do here — routes are tracked automatically once you register `inspector.navigatorObserver` in `navigatorObservers` (see [Initialize](#initialize)). Pushes, pops, and replacements all show up in the Navigator tab.
