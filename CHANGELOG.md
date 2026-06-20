@@ -1,8 +1,12 @@
-## Unreleased
+## 0.3.0
 
 ### Added
-* **Uncaught error capture (opt-in)**: pass `captureUncaughtErrors: true` to `FlutterInspector(...)`, or wrap `runApp` with `FlutterInspector.runGuarded(...)`, to capture uncaught errors from `FlutterError.onError`, `PlatformDispatcher.instance.onError`, `ErrorWidget.builder` and guarded zones as `LogLevel.error` logs in the Console tab. Defaults to **off**; when on, every hook chains/wraps the existing host handler — errors are always forwarded downstream, never swallowed.
+* **Uncaught error capture (opt-in)**: pass `captureUncaughtErrors: true` to `FlutterInspector(...)` to capture uncaught errors from `FlutterError.onError`, `PlatformDispatcher.instance.onError` (including unawaited `Future` errors) and `ErrorWidget.builder` as `LogLevel.error` logs in the Console tab. Defaults to **off**; when on, every hook chains/wraps the existing host handler — errors are always forwarded downstream, never swallowed.
 * **Expandable Console error logs**: tapping a Console log that carries a `stackTrace` or structured `data` now opens a detail view (`LogDetailView`) showing the message, level, timestamp, a selectable/copyable stack trace, and the structured data — with copy/share actions.
+* Expandable Console rows now show a trailing chevron, matching the Network tab, so it is clear at a glance which logs open a detail view.
+
+### Fixed
+* A log carrying an empty-string `stackTrace` is no longer treated as expandable, so it neither appears tappable in the Console nor renders an empty stack-trace section in the detail view.
 
 ## 0.2.4
 
