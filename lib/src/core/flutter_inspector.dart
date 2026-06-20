@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../inspectors/navigator_inspector.dart';
@@ -30,10 +33,12 @@ class FlutterInspector {
     this.magicalTapCount = 5,
     this.showNetworkNotification = false,
     this.navigatorKey,
+    this.captureUncaughtErrors = false,
     int bufferSize = 500,
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
   }) : _registry = InspectorRegistry(bufferSize: bufferSize) {
+    if (captureUncaughtErrors) setupErrorHandlers();
     _navigatorObserver = FlutterInspectorNavigatorObserver(this);
     _operationLogSource = OperationLogSource(_registry.database);
     if (databaseSources != null) {
@@ -79,6 +84,19 @@ class FlutterInspector {
   /// network notification opens the dashboard on the Network tab. Without it,
   /// the tap is a no-op since there is no [BuildContext] to route from.
   final GlobalKey<NavigatorState>? navigatorKey;
+
+  /// Whether to capture uncaught errors from the three standard Flutter hooks
+  /// ([FlutterError.onError], [PlatformDispatcher.instance.onError],
+  /// [ErrorWidget.builder]) and turn them into [LogLevel.error] log entries.
+  ///
+  /// Defaults to `false` so the package never touches host error handlers
+  /// unless the host opts in. When `true`, all hooks chain/wrap the existing
+  /// host handler — the error is always forwarded downstream, never swallowed.
+  final bool captureUncaughtErrors;
+
+  FlutterExceptionHandler? _oldFlutterErrorHandler;
+  bool Function(Object, StackTrace)? _oldPlatformDispatcherOnError;
+  bool _uncaughtErrorHandlersAttached = false;
 
   NetworkNotifier? _notifier;
 
@@ -164,6 +182,110 @@ class FlutterInspector {
         stackTrace: stackTrace,
         data: data,
       ),
+    );
+  }
+
+  /// Runs [body] inside a guarded zone, capturing uncaught synchronous and
+  /// asynchronous zone errors as [LogLevel.error] log entries.
+  ///
+  /// This is a thin wrapper meant to wrap `runApp(...)`. It also wires the
+  /// three standard error hooks (via [setupErrorHandlers]) inside the zone,
+  /// before [body] runs, so `ErrorWidget.builder` is in place before
+  /// `runApp` reads it. The dedup flag guarantees the hooks attach only once
+  /// even if [captureUncaughtErrors] already attached them.
+  ///
+  /// Captured zone errors are logged but not rethrown — `runZonedGuarded`
+  /// absorbs them, which is the correct "captured, not propagated upward"
+  /// semantic for an error-reporting wrapper.
+  static void runGuarded(
+    void Function() body, {
+    required FlutterInspector inspector,
+  }) {
+    inspector.setupErrorHandlers();
+    runZonedGuarded(body, (e, st) {
+      inspector.log(
+        e.toString(),
+        level: LogLevel.error,
+        stackTrace: st.toString(),
+        data: {
+          'source': 'zone',
+          'exceptionType': e.runtimeType.toString(),
+        },
+      );
+    });
+  }
+
+  /// Attaches the three standard Flutter error hooks, chaining/wrapping any
+  /// existing host handler so errors are always forwarded downstream.
+  ///
+  /// Idempotent: the dedup flag ensures hooks are attached at most once, so an
+  /// error never produces two log entries even when both [captureUncaughtErrors]
+  /// and [runGuarded] are used together.
+  @visibleForTesting
+  void setupErrorHandlers() {
+    if (_uncaughtErrorHandlersAttached) return;
+    _uncaughtErrorHandlersAttached = true;
+
+    // 1) FlutterError.onError — chain.
+    _oldFlutterErrorHandler = FlutterError.onError;
+    FlutterError.onError = (details) {
+      _logFlutterError(details, source: 'flutterError');
+      if (_oldFlutterErrorHandler != null) {
+        _oldFlutterErrorHandler!(details);
+      } else {
+        FlutterError.presentError(details);
+      }
+    };
+
+    // 2) PlatformDispatcher.instance.onError — chain.
+    _oldPlatformDispatcherOnError = PlatformDispatcher.instance.onError;
+    PlatformDispatcher.instance.onError = (e, st) {
+      log(
+        e.toString(),
+        level: LogLevel.error,
+        stackTrace: st.toString(),
+        data: {
+          'source': 'platformDispatcher',
+          'exceptionType': e.runtimeType.toString(),
+        },
+      );
+      final old = _oldPlatformDispatcherOnError;
+      return old != null ? old(e, st) : false;
+    };
+
+    // 3) ErrorWidget.builder — wrap.
+    final original = ErrorWidget.builder;
+    ErrorWidget.builder = (details) {
+      try {
+        _logFlutterError(details, source: 'errorWidget');
+      } catch (e, s) {
+        debugPrintStack(
+          stackTrace: s,
+          label: 'inspector errorWidget log failed: $e',
+        );
+      }
+      return original(details);
+    };
+  }
+
+  void _logFlutterError(
+    FlutterErrorDetails details, {
+    required String source,
+  }) {
+    final data = <String, dynamic>{
+      'source': source,
+      'exceptionType': details.exception.runtimeType.toString(),
+    };
+    final library = details.library;
+    if (library != null) data['library'] = library;
+    final context = details.context;
+    if (context != null) data['context'] = context.toString();
+
+    log(
+      details.exceptionAsString(),
+      level: LogLevel.error,
+      stackTrace: details.stack?.toString(),
+      data: data,
     );
   }
 
