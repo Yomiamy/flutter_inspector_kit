@@ -78,6 +78,9 @@ void main() {
       expect(errors.first.message, contains('build boom'));
       expect(errors.first.stackTrace, isNotNull);
       expect(errors.first.data?['source'], 'flutterError');
+      // The detail view relies on these being populated.
+      expect(errors.first.data?['exceptionType'], 'StateError');
+      expect(errors.first.data?['library'], 'test library');
     });
 
     test('chains the existing host handler (error forwarded downstream)', () {
@@ -96,8 +99,14 @@ void main() {
   });
 
   group('PlatformDispatcher.onError return semantics', () {
-    test('host return true is preserved', () {
-      PlatformDispatcher.instance.onError = (error, stack) => true;
+    test('host return true is preserved AND the host handler is invoked', () {
+      // Flip a flag in the host handler so we assert the chain side effect,
+      // not just a return value that happens to coincide.
+      var hostCalled = false;
+      PlatformDispatcher.instance.onError = (error, stack) {
+        hostCalled = true;
+        return true;
+      };
       final inspector = FlutterInspector(captureUncaughtErrors: true);
 
       final handled = PlatformDispatcher.instance.onError!(
@@ -106,10 +115,34 @@ void main() {
       );
 
       expect(handled, isTrue);
+      expect(hostCalled, isTrue);
       final errors =
           inspector.logEntries.where((e) => e.level == LogLevel.error).toList();
       expect(errors, hasLength(1));
       expect(errors.first.data?['source'], 'platformDispatcher');
+    });
+
+    test('host return false is preserved (never upgrades to handled)', () {
+      // The most regression-prone path: a careless change to `return true`
+      // would silently swallow an error the host explicitly left unhandled.
+      var hostCalled = false;
+      PlatformDispatcher.instance.onError = (error, stack) {
+        hostCalled = true;
+        return false;
+      };
+      final inspector = FlutterInspector(captureUncaughtErrors: true);
+
+      final handled = PlatformDispatcher.instance.onError!(
+        StateError('async boom'),
+        StackTrace.current,
+      );
+
+      expect(handled, isFalse);
+      expect(hostCalled, isTrue);
+      expect(
+        inspector.logEntries.where((e) => e.level == LogLevel.error),
+        hasLength(1),
+      );
     });
 
     test('returns false when host has no handler (never swallows)', () {
@@ -175,6 +208,29 @@ void main() {
       expect(errors, hasLength(1));
       expect(errors.first.message, contains('boom'));
       expect(errors.first.stackTrace, isNotNull);
+      expect(errors.first.data?['source'], 'zone');
+    });
+
+    test('captures an uncaught async (unawaited Future) zone error', () async {
+      FlutterError.onError = (_) {};
+      final inspector = FlutterInspector();
+
+      FlutterInspector.runGuarded(
+        () {
+          // Unawaited future error — only a guarded zone's onError catches this.
+          Future<void>.error(StateError('async boom'));
+        },
+        inspector: inspector,
+      );
+
+      // Let the microtask carrying the future error drain so runZonedGuarded's
+      // onError runs before we assert.
+      await Future<void>.delayed(Duration.zero);
+
+      final errors =
+          inspector.logEntries.where((e) => e.level == LogLevel.error).toList();
+      expect(errors, hasLength(1));
+      expect(errors.first.message, contains('async boom'));
       expect(errors.first.data?['source'], 'zone');
     });
 

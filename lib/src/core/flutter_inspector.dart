@@ -92,6 +92,21 @@ class FlutterInspector {
   /// Defaults to `false` so the package never touches host error handlers
   /// unless the host opts in. When `true`, all hooks chain/wrap the existing
   /// host handler — the error is always forwarded downstream, never swallowed.
+  ///
+  /// Notes:
+  /// - The hooks capture whatever handler is installed at construction time.
+  ///   If the host installs its own [FlutterError.onError] /
+  ///   [PlatformDispatcher.instance.onError] *after* constructing the inspector,
+  ///   that later handler replaces the inspector's wrapper and capture silently
+  ///   stops (the host always wins — nothing breaks). Construct the inspector
+  ///   (or call [runGuarded]) after installing any custom handlers.
+  /// - Enable this on a single, app-wide inspector. The dedup guard is
+  ///   per-instance, so creating multiple capture-enabled inspectors layers the
+  ///   hooks and records the same error once per instance (host errors still
+  ///   forward correctly — just duplicated logs).
+  /// - The hooks are not torn down: once attached they remain for the process
+  ///   lifetime ([detach] only removes the FAB overlay). The `_old*` handlers
+  ///   are kept solely to chain to, not to restore.
   final bool captureUncaughtErrors;
 
   FlutterExceptionHandler? _oldFlutterErrorHandler;
@@ -227,9 +242,15 @@ class FlutterInspector {
     _uncaughtErrorHandlersAttached = true;
 
     // 1) FlutterError.onError — chain.
+    // The logging call is guarded so a failure while recording can never break
+    // the chain to the host handler — the error is always forwarded downstream.
     _oldFlutterErrorHandler = FlutterError.onError;
     FlutterError.onError = (details) {
-      _logFlutterError(details, source: 'flutterError');
+      try {
+        _logFlutterError(details, source: 'flutterError');
+      } catch (e, s) {
+        debugPrintStack(stackTrace: s, label: 'inspector log failed: $e');
+      }
       if (_oldFlutterErrorHandler != null) {
         _oldFlutterErrorHandler!(details);
       } else {
@@ -238,17 +259,23 @@ class FlutterInspector {
     };
 
     // 2) PlatformDispatcher.instance.onError — chain.
+    // The logging call is guarded so a failure while recording can never alter
+    // the boolean the host handler returns (its "handled" semantics are kept).
     _oldPlatformDispatcherOnError = PlatformDispatcher.instance.onError;
     PlatformDispatcher.instance.onError = (e, st) {
-      log(
-        e.toString(),
-        level: LogLevel.error,
-        stackTrace: st.toString(),
-        data: {
-          'source': 'platformDispatcher',
-          'exceptionType': e.runtimeType.toString(),
-        },
-      );
+      try {
+        log(
+          e.toString(),
+          level: LogLevel.error,
+          stackTrace: st.toString(),
+          data: {
+            'source': 'platformDispatcher',
+            'exceptionType': e.runtimeType.toString(),
+          },
+        );
+      } catch (err, s) {
+        debugPrintStack(stackTrace: s, label: 'inspector log failed: $err');
+      }
       final old = _oldPlatformDispatcherOnError;
       return old != null ? old(e, st) : false;
     };

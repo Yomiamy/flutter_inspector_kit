@@ -55,7 +55,8 @@ class _ConsoleTabState extends State<ConsoleTab> {
             itemCount: entries.length,
             itemBuilder: (context, index) {
               final entry = entries[index];
-              final canTap = entry.stackTrace != null || entry.data != null;
+              final canTap = entry.stackTrace != null ||
+                  (entry.data?.isNotEmpty ?? false);
               return ListTile(
                 title: Text(
                   entry.message,
