@@ -1,3 +1,9 @@
+## 0.3.1
+
+### Documentation
+* Refreshed the README screenshots: re-captured the database browser view and added Uncaught Error and Database Browse captures sourced from the example app.
+* Removed the legacy Database (operation-log) screenshot in favor of the Database Browse capture, and re-flowed the Screenshots grid to a clean 3-column layout.
+
 ## 0.3.0
 
 ### Added
