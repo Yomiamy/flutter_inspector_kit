@@ -21,6 +21,10 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 |---|---|---|
 |<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/network_detail.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/navigator.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/database.png?raw=true"/>|
 
+|Uncaught Error|Database Browse||
+|---|---|---|
+|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/uncaught_error.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/database_browse.png?raw=true"/>||
+
 ## 🪚 Usage
 
 ### Add to pubspec.yaml
