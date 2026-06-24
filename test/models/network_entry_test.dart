@@ -53,6 +53,46 @@ void main() {
       expect(a.hashCode, b.hashCode);
     });
 
+    group('isReplay', () {
+      test('defaults to false', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
+        expect(entry.isReplay, isFalse);
+      });
+
+      test('copyWith(isReplay: true) sets isReplay, other fields unchanged', () {
+        final original = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          statusCode: 200,
+          timestamp: fixedTime,
+          isComplete: true,
+        );
+        final replayed = original.copyWith(isReplay: true);
+        expect(replayed.isReplay, isTrue);
+        expect(replayed.method, original.method);
+        expect(replayed.url, original.url);
+        expect(replayed.statusCode, original.statusCode);
+        expect(replayed.timestamp, original.timestamp);
+        expect(replayed.isComplete, original.isComplete);
+      });
+
+      test('entries differing only in isReplay are not equal', () {
+        final base = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          isComplete: true,
+        );
+        final replay = base.copyWith(isReplay: true);
+        expect(base, isNot(equals(replay)));
+        expect(base.hashCode, isNot(replay.hashCode));
+      });
+    });
+
     group('truncateBody', () {
       test('returns null for null input', () {
         expect(NetworkEntry.truncateBody(null), isNull);

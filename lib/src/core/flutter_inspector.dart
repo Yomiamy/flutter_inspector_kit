@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -32,6 +33,7 @@ class FlutterInspector {
     this.showNetworkNotification = false,
     this.navigatorKey,
     this.captureUncaughtErrors = false,
+    this.dio,
     int bufferSize = 500,
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
@@ -106,6 +108,12 @@ class FlutterInspector {
   ///   lifetime ([detach] only removes the FAB overlay). The `_old*` handlers
   ///   are kept solely to chain to, not to restore.
   final bool captureUncaughtErrors;
+
+  /// Optional [Dio] instance supplied by the host application.
+  ///
+  /// When provided, the UI layer uses this instance to replay captured network
+  /// requests. If `null`, replay functionality is unavailable.
+  final Dio? dio;
 
   FlutterExceptionHandler? _oldFlutterErrorHandler;
   bool Function(Object, StackTrace)? _oldPlatformDispatcherOnError;
