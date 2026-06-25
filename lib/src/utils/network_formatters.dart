@@ -5,6 +5,42 @@ import '../models/network_entry.dart';
 /// Pure formatting helpers for the Network inspector. No Flutter dependencies,
 /// so everything here is unit-testable in isolation.
 
+/// The four essentials needed to replay an HTTP request.
+///
+/// Deliberately free of any Dio / http-client dependency so that this file
+/// stays pure-formatting and fully unit-testable.
+class ReplayRequest {
+  const ReplayRequest({
+    required this.method,
+    required this.url,
+    this.headers,
+    this.body,
+  });
+
+  /// HTTP method, e.g. `GET`, `POST`.
+  final String method;
+
+  /// Full request URL.
+  final String url;
+
+  /// Request headers (may be `null` when the original request had none).
+  final Map<String, dynamic>? headers;
+
+  /// Request body (may be `null` when the original request had none).
+  /// Raw, un-escaped.
+  final String? body;
+}
+
+/// Extracts the four replay-relevant fields from [entry] without any escaping.
+ReplayRequest buildReplayRequest(NetworkEntry entry) {
+  return ReplayRequest(
+    method: entry.method,
+    url: entry.url,
+    headers: entry.requestHeaders,
+    body: entry.requestBody,
+  );
+}
+
 /// Formats a byte count into a human-readable string, e.g. `0 B`, `1.2 KB`,
 /// `3.4 MB`.
 String formatBytes(int bytes) {
@@ -33,10 +69,11 @@ String prettyJson(String? body) {
 
 /// Builds an executable `curl` command reproducing [entry]'s request.
 String buildCurl(NetworkEntry entry) {
+  final req = buildReplayRequest(entry);
   final buffer = StringBuffer('curl');
-  buffer.write(" -X ${entry.method.toUpperCase()}");
+  buffer.write(" -X ${req.method.toUpperCase()}");
 
-  final headers = entry.requestHeaders;
+  final headers = req.headers;
   if (headers != null) {
     for (final h in headers.entries) {
       final value = h.value?.toString().replaceAll("'", r"'\''") ?? '';
@@ -44,13 +81,14 @@ String buildCurl(NetworkEntry entry) {
     }
   }
 
-  final body = entry.requestBody;
+  final body = req.body;
   if (body != null && body.isNotEmpty) {
     final escaped = body.replaceAll("'", r"'\''");
     buffer.write(" --data '$escaped'");
   }
 
-  buffer.write(" '${entry.url}'");
+  final escapedUrl = req.url.replaceAll("'", r"'\''");
+  buffer.write(" '$escapedUrl'");
   return buffer.toString();
 }
 

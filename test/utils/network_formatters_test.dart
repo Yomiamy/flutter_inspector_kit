@@ -74,6 +74,17 @@ void main() {
       final curl = buildCurl(entry);
       expect(curl.contains(r"'\''"), isTrue);
     });
+
+    test('escapes single quotes in URL', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: "https://api.test/x?q=it's",
+        timestamp: fixedTime,
+      );
+      final curl = buildCurl(entry);
+      // URL must use the same '\'' escape as header/body values.
+      expect(curl, endsWith(r"'https://api.test/x?q=it'\''s'"));
+    });
   });
 
   group('buildPlainText', () {
@@ -97,6 +108,47 @@ void main() {
       expect(text.contains('=== Request Body ==='), isTrue);
       expect(text.contains('=== Error ==='), isTrue);
       expect(text.contains('Server error'), isTrue);
+    });
+  });
+
+  group('buildReplayRequest', () {
+    test('extracts method, url, headers and body from entry', () {
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test/items',
+        requestHeaders: {'Content-Type': 'application/json'},
+        requestBody: '{"name":"x"}',
+        timestamp: fixedTime,
+      );
+      final req = buildReplayRequest(entry);
+      expect(req.method, 'POST');
+      expect(req.url, 'https://api.test/items');
+      expect(req.headers, {'Content-Type': 'application/json'});
+      expect(req.body, '{"name":"x"}');
+    });
+
+    test('headers and body are null when entry has none', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        timestamp: fixedTime,
+      );
+      final req = buildReplayRequest(entry);
+      expect(req.method, 'GET');
+      expect(req.url, 'https://api.test/items');
+      expect(req.headers, isNull);
+      expect(req.body, isNull);
+    });
+
+    test('preserves raw body without any escaping', () {
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test',
+        requestBody: "it's a 'test'",
+        timestamp: fixedTime,
+      );
+      final req = buildReplayRequest(entry);
+      expect(req.body, "it's a 'test'");
     });
   });
 }

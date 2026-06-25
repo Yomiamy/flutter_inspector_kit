@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -22,6 +23,7 @@ class NetworkDetailView extends StatelessWidget {
       appBar: AppBar(
         title: Text('[${entry.method}] ${_shortUrl(entry.url)}'),
         actions: [
+          _ResendAction(entry: entry),
           PopupMenuButton<_ShareAction>(
             icon: const Icon(Icons.share),
             onSelected: (action) => _onShare(context, action),
@@ -256,4 +258,93 @@ Color statusColorFor(int? statusCode, bool hasError) {
   if (statusCode >= 300) return Colors.blue;
   if (statusCode >= 200) return Colors.green;
   return Colors.grey;
+}
+
+// ---------------------------------------------------------------------------
+// Resend action – a small StatefulWidget so only it holds loading state.
+// ---------------------------------------------------------------------------
+class _ResendAction extends StatefulWidget {
+  const _ResendAction({required this.entry});
+
+  final NetworkEntry entry;
+
+  @override
+  State<_ResendAction> createState() => _ResendActionState();
+}
+
+class _ResendActionState extends State<_ResendAction> {
+  bool _inFlight = false;
+
+  bool get _disabled =>
+      widget.entry.sourceDio?.target == null ||
+      !widget.entry.isComplete ||
+      widget.entry.isRequestTruncated ||
+      _inFlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final String tooltip;
+    if (widget.entry.isRequestTruncated) {
+      tooltip = 'Cannot resend: request body truncated';
+    } else if (widget.entry.sourceDio?.target == null) {
+      tooltip = 'Cannot resend: source Dio not available';
+    } else {
+      tooltip = 'Resend';
+    }
+
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: _disabled ? null : () => _resend(context),
+      icon: _inFlight
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.replay),
+    );
+  }
+
+  Future<void> _resend(BuildContext context) async {
+    final dio = widget.entry.sourceDio?.target;
+    if (dio == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Resend failed: source Dio not available')),
+      );
+      return;
+    }
+    setState(() => _inFlight = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final req = buildReplayRequest(widget.entry);
+    try {
+      await dio.request<dynamic>(
+        req.url,
+        data: req.body,
+        options: Options(
+          method: req.method,
+          headers: req.headers,
+          extra: <String, dynamic>{'_inspector_is_replay': true},
+        ),
+      );
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Request resent')),
+      );
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.badResponse) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Request resent')),
+        );
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Resend failed')),
+        );
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Resend failed')),
+      );
+    } finally {
+      if (mounted) setState(() => _inFlight = false);
+    }
+  }
 }

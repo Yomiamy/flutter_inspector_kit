@@ -72,7 +72,12 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _dio = Dio();
-    _dio.interceptors.add(FlutterInspectorDioInterceptor(inspector));
+    // Pass `sourceDio: _dio` so each captured entry remembers the Dio that
+    // issued it, enabling the Resend action in the network detail view to
+    // replay the request through the original Dio.
+    _dio.interceptors.add(
+      FlutterInspectorDioInterceptor(inspector, sourceDio: _dio),
+    );
 
     // Show FAB after frame builds
     WidgetsBinding.instance.addPostFrameCallback((_) {

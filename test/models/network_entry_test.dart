@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -51,6 +52,99 @@ void main() {
       );
       expect(a, equals(b));
       expect(a.hashCode, b.hashCode);
+    });
+
+    group('isReplay', () {
+      test('defaults to false', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
+        expect(entry.isReplay, isFalse);
+      });
+
+      test('copyWith(isReplay: true) sets isReplay, other fields unchanged', () {
+        final original = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          statusCode: 200,
+          timestamp: fixedTime,
+          isComplete: true,
+        );
+        final replayed = original.copyWith(isReplay: true);
+        expect(replayed.isReplay, isTrue);
+        expect(replayed.method, original.method);
+        expect(replayed.url, original.url);
+        expect(replayed.statusCode, original.statusCode);
+        expect(replayed.timestamp, original.timestamp);
+        expect(replayed.isComplete, original.isComplete);
+      });
+
+      test('entries differing only in isReplay are not equal', () {
+        final base = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          isComplete: true,
+        );
+        final replay = base.copyWith(isReplay: true);
+        expect(base, isNot(equals(replay)));
+        expect(base.hashCode, isNot(replay.hashCode));
+      });
+    });
+
+    group('sourceDio (transient)', () {
+      test('transient sourceDio does not affect equality or hashCode', () {
+        final dio = Dio();
+        final a = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          isComplete: true,
+          sourceDio: dio,
+        );
+        final b = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          isComplete: true,
+          sourceDio: null,
+        );
+        expect(a, equals(b));
+        expect(a.hashCode, b.hashCode);
+      });
+
+      test('copyWith carries sourceDio while preserving other fields', () {
+        final dio = Dio();
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://api',
+          statusCode: 200,
+          timestamp: fixedTime,
+          isComplete: true,
+        );
+        final withDio = entry.copyWith(sourceDio: dio);
+        expect(withDio.sourceDio, same(dio));
+        expect(withDio.method, entry.method);
+        expect(withDio.url, entry.url);
+        expect(withDio.statusCode, entry.statusCode);
+        expect(withDio.timestamp, entry.timestamp);
+        expect(withDio.isComplete, entry.isComplete);
+      });
+
+      test('copyWith without sourceDio preserves original value', () {
+        final dio = Dio();
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          sourceDio: dio,
+        );
+        final copied = entry.copyWith(isReplay: true);
+        expect(copied.sourceDio, same(dio));
+        expect(copied.isReplay, isTrue);
+      });
     });
 
     group('truncateBody', () {
