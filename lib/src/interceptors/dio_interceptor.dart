@@ -8,9 +8,12 @@ import '../models/network_entry.dart';
 /// [FlutterInspector].
 class FlutterInspectorDioInterceptor extends Interceptor {
   /// Creates the interceptor, feeding entries to the provided [_inspector].
-  FlutterInspectorDioInterceptor(this._inspector);
+  FlutterInspectorDioInterceptor(this._inspector, {this.sourceDio});
 
   final FlutterInspector _inspector;
+
+  /// Optional [Dio] instance that originated this request (e.g. for replay).
+  final Dio? sourceDio;
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     options.extra['_inspector_start_time'] = DateTime.now();
@@ -19,6 +22,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       url: options.uri.toString(),
       requestHeaders: options.headers,
       requestBody: options.data?.toString(),
+      sourceDio: sourceDio,
+      isReplay: options.extra['_inspector_is_replay'] == true,
     );
     options.extra['_inspector_pending_entry'] = _inspector.logNetwork(entry);
     handler.next(options);
@@ -48,6 +53,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       responseBody: response.data?.toString(),
       isComplete: true,
       timestamp: startTime,
+      sourceDio: sourceDio,
+      isReplay: response.requestOptions.extra['_inspector_is_replay'] == true,
     );
     _inspector.logNetwork(entry, replaces: pending);
     _inspector.log(
@@ -81,6 +88,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       error: err.toString(),
       isComplete: true,
       timestamp: startTime,
+      sourceDio: sourceDio,
+      isReplay: err.requestOptions.extra['_inspector_is_replay'] == true,
     );
     _inspector.logNetwork(entry, replaces: pending);
     _inspector.log(

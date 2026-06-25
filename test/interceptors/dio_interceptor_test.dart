@@ -96,5 +96,135 @@ void main() {
       expect(entryB.statusCode, 200);
       expect(entryA.isComplete, false);
     });
+
+    group('sourceDio', () {
+      test('backward compat: single-arg constructor yields null sourceDio', () {
+        final interceptor0 = FlutterInspectorDioInterceptor(inspector);
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor0.onRequest(options, RequestInterceptorHandler());
+
+        expect(
+          inspector.registry.network.entries.first.sourceDio,
+          isNull,
+        );
+      });
+
+      test('sourceDio is recorded on onRequest entry', () {
+        final dio = Dio();
+        final interceptor0 =
+            FlutterInspectorDioInterceptor(inspector, sourceDio: dio);
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor0.onRequest(options, RequestInterceptorHandler());
+
+        expect(
+          inspector.registry.network.entries.first.sourceDio,
+          same(dio),
+        );
+      });
+
+      test('sourceDio is recorded on onResponse entry', () {
+        final dio = Dio();
+        final interceptor0 =
+            FlutterInspectorDioInterceptor(inspector, sourceDio: dio);
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor0.onRequest(options, RequestInterceptorHandler());
+        interceptor0.onResponse(
+          Response(requestOptions: options, statusCode: 200),
+          ResponseInterceptorHandler(),
+        );
+
+        expect(
+          inspector.registry.network.entries.first.sourceDio,
+          same(dio),
+        );
+      });
+
+      test('sourceDio is recorded on onError entry', () async {
+        final dio = Dio();
+        final interceptor0 =
+            FlutterInspectorDioInterceptor(inspector, sourceDio: dio);
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor0.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor0.onError(
+          DioException(requestOptions: options, error: 'fail'),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await errorHandler.future.then((_) {}, onError: (_) {});
+
+        expect(
+          inspector.registry.network.entries.first.sourceDio,
+          same(dio),
+        );
+      });
+    });
+
+    group('isReplay flag', () {
+      test('onRequest: isReplay true when extra flag set', () {
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          extra: {'_inspector_is_replay': true},
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        expect(inspector.registry.network.entries.first.isReplay, true);
+      });
+
+      test('onRequest: isReplay false when extra flag absent', () {
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        expect(inspector.registry.network.entries.first.isReplay, false);
+      });
+
+      test('onResponse: isReplay true when extra flag set', () {
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          extra: {'_inspector_is_replay': true},
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+        interceptor.onResponse(
+          Response(requestOptions: options, statusCode: 200),
+          ResponseInterceptorHandler(),
+        );
+
+        expect(inspector.registry.network.entries.first.isReplay, true);
+      });
+
+      test('onError: isReplay true when extra flag set', () async {
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          extra: {'_inspector_is_replay': true},
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor.onError(
+          DioException(requestOptions: options, error: 'fail'),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await errorHandler.future.then((_) {}, onError: (_) {});
+
+        expect(inspector.registry.network.entries.first.isReplay, true);
+      });
+
+      test('onError: isReplay false when extra flag absent', () async {
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor.onError(
+          DioException(requestOptions: options, error: 'fail'),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await errorHandler.future.then((_) {}, onError: (_) {});
+
+        expect(inspector.registry.network.entries.first.isReplay, false);
+      });
+    });
   });
 }

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -22,6 +23,7 @@ class NetworkDetailView extends StatelessWidget {
       appBar: AppBar(
         title: Text('[${entry.method}] ${_shortUrl(entry.url)}'),
         actions: [
+          _ResendAction(entry: entry),
           PopupMenuButton<_ShareAction>(
             icon: const Icon(Icons.share),
             onSelected: (action) => _onShare(context, action),
@@ -256,4 +258,66 @@ Color statusColorFor(int? statusCode, bool hasError) {
   if (statusCode >= 300) return Colors.blue;
   if (statusCode >= 200) return Colors.green;
   return Colors.grey;
+}
+
+// ---------------------------------------------------------------------------
+// Resend action – a small StatefulWidget so only it holds loading state.
+// ---------------------------------------------------------------------------
+class _ResendAction extends StatefulWidget {
+  const _ResendAction({required this.entry});
+
+  final NetworkEntry entry;
+
+  @override
+  State<_ResendAction> createState() => _ResendActionState();
+}
+
+class _ResendActionState extends State<_ResendAction> {
+  bool _inFlight = false;
+
+  bool get _disabled =>
+      widget.entry.sourceDio == null ||
+      !widget.entry.isComplete ||
+      _inFlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Resend',
+      onPressed: _disabled ? null : () => _resend(context),
+      icon: _inFlight
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.replay),
+    );
+  }
+
+  Future<void> _resend(BuildContext context) async {
+    setState(() => _inFlight = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final req = buildReplayRequest(widget.entry);
+    try {
+      await widget.entry.sourceDio!.request<dynamic>(
+        req.url,
+        data: req.body,
+        options: Options(
+          method: req.method,
+          headers: req.headers,
+          extra: <String, dynamic>{'_inspector_is_replay': true},
+        ),
+      );
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Request resent')),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Resend failed')),
+      );
+    } finally {
+      if (mounted) setState(() => _inFlight = false);
+    }
+  }
 }
