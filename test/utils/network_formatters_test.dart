@@ -74,6 +74,17 @@ void main() {
       final curl = buildCurl(entry);
       expect(curl.contains(r"'\''"), isTrue);
     });
+
+    test('escapes single quotes in URL', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: "https://api.test/x?q=it's",
+        timestamp: fixedTime,
+      );
+      final curl = buildCurl(entry);
+      // URL must use the same '\'' escape as header/body values.
+      expect(curl, endsWith(r"'https://api.test/x?q=it'\''s'"));
+    });
   });
 
   group('buildPlainText', () {

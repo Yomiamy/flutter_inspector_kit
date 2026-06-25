@@ -87,7 +87,8 @@ String buildCurl(NetworkEntry entry) {
     buffer.write(" --data '$escaped'");
   }
 
-  buffer.write(" '${req.url}'");
+  final escapedUrl = req.url.replaceAll("'", r"'\''");
+  buffer.write(" '$escapedUrl'");
   return buffer.toString();
 }
 
