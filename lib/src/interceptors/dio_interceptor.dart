@@ -10,8 +10,7 @@ import '../models/network_entry.dart';
 /// [FlutterInspector].
 class FlutterInspectorDioInterceptor extends Interceptor {
   /// Creates the interceptor, feeding entries to the provided [_inspector].
-  FlutterInspectorDioInterceptor(this._inspector, {Dio? sourceDio})
-      : sourceDio = sourceDio ?? _inspector.dio;
+  FlutterInspectorDioInterceptor(this._inspector, {this.sourceDio});
 
   final FlutterInspector _inspector;
 

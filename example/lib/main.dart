@@ -4,15 +4,15 @@ import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 import 'package:sqflite/sqflite.dart';
 import 'sqflite_browser_source.dart';
 
-// A global Dio instance shared by the app and registered with the inspector.
-final Dio globalDio = Dio();
+// Enable the live system notification summarising network calls (opt-in).
+// On Android this requires a notification icon + (Android 13+) the
+// POST_NOTIFICATIONS permission; on iOS/macOS the user is prompted on init.
 late final FlutterInspector inspector;
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   inspector = FlutterInspector(
-    dio: globalDio,
     showNetworkNotification: true,
     navigatorKey: navigatorKey,
     // Capture uncaught errors into the Console as LogLevel.error logs (opt-in).
@@ -71,12 +71,12 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _dio = globalDio;
-    // Add the inspector interceptor. Since `globalDio` is passed into
-    // `FlutterInspector(dio: globalDio)`, the interceptor automatically falls back
-    // to it, making the Resend action in the network tab functional out of the box.
+    _dio = Dio();
+    // Pass `sourceDio: _dio` so each captured entry remembers the Dio that
+    // issued it, enabling the Resend action in the network detail view to
+    // replay the request through the original Dio.
     _dio.interceptors.add(
-      FlutterInspectorDioInterceptor(inspector),
+      FlutterInspectorDioInterceptor(inspector, sourceDio: _dio),
     );
 
     // Show FAB after frame builds
