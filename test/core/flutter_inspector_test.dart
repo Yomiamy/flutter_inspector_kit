@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
 import 'package:flutter_inspector_kit/src/models/database_operation.dart';
@@ -51,19 +50,6 @@ void main() {
       final inspector = FlutterInspector();
       final observer = inspector.navigatorObserver;
       expect(observer, isNotNull);
-    });
-  });
-
-  group('Dio parameter', () {
-    test('dio is null when not provided', () {
-      final inspector = FlutterInspector();
-      expect(inspector.dio, isNull);
-    });
-
-    test('dio holds the supplied instance', () {
-      final customDio = Dio();
-      final inspector = FlutterInspector(dio: customDio);
-      expect(inspector.dio, same(customDio));
     });
   });
 
