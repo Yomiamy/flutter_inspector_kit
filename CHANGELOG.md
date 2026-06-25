@@ -1,3 +1,12 @@
+## 1.0.0
+
+### Added
+* **Network Request Replay**: You can now resend captured HTTP requests directly within the Network detail view. It replays the request locally using the same Dio client (carrying the same headers, base URL, and interceptors). Replayed requests automatically show up as new entries in the Network tab, marked with a dedicated "Replay" label.
+
+### Changed
+* **Breaking Change**: `FlutterInspector` constructor no longer takes a `dio` parameter, and does not provide a default fallback Dio. To use the Network Request Replay feature, you must explicitly pass the source `Dio` instance when creating `FlutterInspectorDioInterceptor`.
+* **Dio Interceptor Signature**: `FlutterInspectorDioInterceptor` now takes an optional named `sourceDio` parameter (`FlutterInspectorDioInterceptor(inspector, {sourceDio: dio})`). Without passing the `sourceDio`, the "Resend" action in the Network detail view will be disabled.
+
 ## 0.3.1
 
 ### Documentation

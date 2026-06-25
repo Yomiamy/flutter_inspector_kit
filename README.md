@@ -31,7 +31,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^0.3.1
+  flutter_inspector_kit: ^1.0.0
 ```
 
 Then run `flutter pub get`.
@@ -91,11 +91,11 @@ Remove it again with `inspector.detach()`.
 
 #### With Dio
 
-Add the interceptor to your `Dio` instance and every request/response is captured automatically.
+Add the interceptor to your `Dio` instance and every request/response is captured automatically. Pass the `sourceDio` instance to enable the **Resend (Replay)** feature in the Network detail view.
 
 ```dart
 final dio = Dio();
-dio.interceptors.add(FlutterInspectorDioInterceptor(inspector));
+dio.interceptors.add(FlutterInspectorDioInterceptor(inspector, sourceDio: dio));
 ```
 
 #### With other HTTP clients
@@ -119,6 +119,7 @@ inspector.logNetwork(completedEntry, replaces: pending);
 - **Search & filter**: filter the call list by URL, method, or status code (case-insensitive); method and status (`2xx`/`3xx`/`4xx`/`5xx`/`Failed`) chips narrow it further.
 - **Call details**: tap any call for a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON-pretty bodies. Truncated bodies are clearly marked.
 - **Sharing**: copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (native via `share_plus`, web via the browser Web Share API — falls back to the clipboard when unavailable).
+- **Replay / Resend**: for requests captured with a `sourceDio` provided to the interceptor, you can trigger a "Resend" action in the detail view to replay the request locally using the same Dio client (carrying the same headers, base URL, and interceptors). Replayed requests automatically show up as new entries with a dedicated "Replay" label.
 
 ### Live notification (opt-in)
 
