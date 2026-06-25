@@ -98,6 +98,22 @@ final dio = Dio();
 dio.interceptors.add(FlutterInspectorDioInterceptor(inspector, sourceDio: dio));
 ```
 
+##### Multiple Dio Instances
+
+If your app uses multiple `Dio` instances (e.g., `authDio` for authenticated API calls, `publicDio` for public assets), register the interceptor on each instance and make sure to pass the respective instance as `sourceDio`:
+
+```dart
+// Authenticated API client
+final authDio = Dio();
+authDio.interceptors.add(FlutterInspectorDioInterceptor(inspector, sourceDio: authDio));
+
+// Public API client
+final publicDio = Dio();
+publicDio.interceptors.add(FlutterInspectorDioInterceptor(inspector, sourceDio: publicDio));
+```
+
+This guarantees that replaying a request in the Network detail view uses the exact same `Dio` instance, maintaining the correct baseUrl, interceptors, and authentication state.
+
 #### With other HTTP clients
 
 Build a `NetworkEntry` yourself and pass it in:
