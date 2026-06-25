@@ -31,9 +31,10 @@ class NetworkEntry {
     this.error,
     this.isComplete = false,
     this.isReplay = false,
-    this.sourceDio,
+    Dio? sourceDio,
     DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
+  }) : sourceDio = sourceDio != null ? WeakReference(sourceDio) : null,
+       timestamp = timestamp ?? DateTime.now();
 
   /// When the request started.
   final DateTime timestamp;
@@ -73,16 +74,11 @@ class NetworkEntry {
 
   /// The [Dio] instance that originated this request.
   ///
-  /// This is a **transient runtime reference**, deliberately excluded from
-  /// [operator ==], [hashCode], and all serialisation (cURL, plain-text, or
-  /// any other export format).
-  ///
-  /// Rationale: two entries whose data fields are identical must compare equal
-  /// even when they originate from different [Dio] instances.  This invariant
-  /// is critical for [RingBuffer.replace] (pending → complete in-place swap)
-  /// and for existing equality tests.  Additionally, a [Dio] instance cannot
-  /// be meaningfully serialised.
-  final Dio? sourceDio;
+  /// This is a **transient runtime reference** wrapped in a [WeakReference]
+  /// to prevent bounded memory leaks of Dio instances held by the ring buffer.
+  /// It is deliberately excluded from [operator ==], [hashCode], and all
+  /// serialisation (cURL, plain-text, or any other export format).
+  final WeakReference<Dio>? sourceDio;
 
   /// Truncates [body] to [kNetworkBodyMaxLength] characters, appending
   /// [kTruncatedMarker] when truncation occurs. Returns `null` for `null` input.
@@ -121,7 +117,7 @@ class NetworkEntry {
       error: error ?? this.error,
       isComplete: isComplete ?? this.isComplete,
       isReplay: isReplay ?? this.isReplay,
-      sourceDio: sourceDio ?? this.sourceDio,
+      sourceDio: sourceDio ?? this.sourceDio?.target,
     );
   }
 

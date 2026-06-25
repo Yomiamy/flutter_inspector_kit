@@ -276,7 +276,7 @@ class _ResendActionState extends State<_ResendAction> {
   bool _inFlight = false;
 
   bool get _disabled =>
-      widget.entry.sourceDio == null ||
+      widget.entry.sourceDio?.target == null ||
       !widget.entry.isComplete ||
       widget.entry.isRequestTruncated ||
       _inFlight;
@@ -286,7 +286,7 @@ class _ResendActionState extends State<_ResendAction> {
     final String tooltip;
     if (widget.entry.isRequestTruncated) {
       tooltip = 'Cannot resend: request body truncated';
-    } else if (widget.entry.sourceDio == null) {
+    } else if (widget.entry.sourceDio?.target == null) {
       tooltip = 'Cannot resend: source Dio not available';
     } else {
       tooltip = 'Resend';
@@ -306,11 +306,18 @@ class _ResendActionState extends State<_ResendAction> {
   }
 
   Future<void> _resend(BuildContext context) async {
+    final dio = widget.entry.sourceDio?.target;
+    if (dio == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Resend failed: source Dio not available')),
+      );
+      return;
+    }
     setState(() => _inFlight = true);
     final messenger = ScaffoldMessenger.of(context);
     final req = buildReplayRequest(widget.entry);
     try {
-      await widget.entry.sourceDio!.request<dynamic>(
+      await dio.request<dynamic>(
         req.url,
         data: req.body,
         options: Options(

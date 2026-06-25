@@ -186,7 +186,7 @@ void main() {
       final replays =
           inspector.networkEntries.where((e) => e.isReplay).toList();
       expect(replays.length, 1);
-      expect(identical(replays.first.sourceDio, dio), isTrue);
+      expect(identical(replays.first.sourceDio?.target, dio), isTrue);
 
       // Success snackbar shown.
       expect(find.text('Request resent'), findsOneWidget);

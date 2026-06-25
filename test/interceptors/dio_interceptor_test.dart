@@ -130,7 +130,7 @@ void main() {
         interceptor0.onRequest(options, RequestInterceptorHandler());
 
         expect(
-          inspector.registry.network.entries.first.sourceDio,
+          inspector.registry.network.entries.first.sourceDio?.target,
           isNull,
         );
       });
@@ -143,7 +143,7 @@ void main() {
         interceptor0.onRequest(options, RequestInterceptorHandler());
 
         expect(
-          inspector.registry.network.entries.first.sourceDio,
+          inspector.registry.network.entries.first.sourceDio?.target,
           same(dio),
         );
       });
@@ -160,7 +160,7 @@ void main() {
         );
 
         expect(
-          inspector.registry.network.entries.first.sourceDio,
+          inspector.registry.network.entries.first.sourceDio?.target,
           same(dio),
         );
       });
@@ -181,7 +181,7 @@ void main() {
         await errorHandler.future.then((_) {}, onError: (_) {});
 
         expect(
-          inspector.registry.network.entries.first.sourceDio,
+          inspector.registry.network.entries.first.sourceDio?.target,
           same(dio),
         );
       });
