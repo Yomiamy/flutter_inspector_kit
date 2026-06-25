@@ -124,7 +124,7 @@ void main() {
     testWidgets('disabled when sourceDio is null', (tester) async {
       await pumpView(tester, sample()); // sample() has no sourceDio
       final button = tester.widget<IconButton>(find.ancestor(
-        of: find.byTooltip('Resend'),
+        of: find.byTooltip('Cannot resend: source Dio not available'),
         matching: find.byType(IconButton),
       ));
       expect(button.onPressed, isNull);
@@ -192,8 +192,8 @@ void main() {
       expect(find.text('Request resent'), findsOneWidget);
     });
 
-    // Test 4: failed resend → error entry recorded + snackbar, no crash
-    testWidgets('resend failure records error entry and shows snackbar',
+    // Test 4: badResponse (500) resend → error entry recorded + "Request resent" snackbar
+    testWidgets('resend badResponse (500) records error entry and shows request resent',
         (tester) async {
       final inspector = FlutterInspector();
       final dio = Dio()
@@ -218,18 +218,67 @@ void main() {
       await tester.tap(find.byTooltip('Resend'));
       await tester.pumpAndSettle();
 
-      // Interceptor's onError should have logged exactly one replay entry
-      // (no duplicate from the UI catch).
       final replays =
           inspector.networkEntries.where((e) => e.isReplay).toList();
       expect(replays.length, 1);
-
-      // A 500 fails Dio's default validateStatus, so the request goes through
-      // onError and the entry carries an error message.
       expect(replays.first.error, isNotNull);
 
-      // Failure snackbar shown.
+      // badResponse is treated as successful transmission.
+      expect(find.text('Request resent'), findsOneWidget);
+    });
+
+    // Test 4b: connection failure resend → "Resend failed" snackbar
+    testWidgets('resend connection failure shows resend failed',
+        (tester) async {
+      final inspector = FlutterInspector();
+      final dio = Dio()
+        ..httpClientAdapter = _StubAdapter(
+          (_) async => throw DioException(
+            requestOptions: RequestOptions(path: 'https://api.test/users'),
+            type: DioExceptionType.connectionError,
+            error: 'Connection failed',
+          ),
+        );
+      dio.interceptors
+          .add(FlutterInspectorDioInterceptor(inspector, sourceDio: dio));
+
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test/users',
+        requestHeaders: {'Content-Type': 'application/json'},
+        requestBody: '{"name":"fail"}',
+        statusCode: 200,
+        isComplete: true,
+        sourceDio: dio,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+      await tester.tap(find.byTooltip('Resend'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Resend failed'), findsOneWidget);
+    });
+
+    // Test 4c: truncated request body → disabled
+    testWidgets('disabled when request body is truncated', (tester) async {
+      final dio = Dio();
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test/users',
+        requestBody: 'a' * 10 * 1024 + kTruncatedMarker,
+        statusCode: 200,
+        isComplete: true,
+        sourceDio: dio,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+      final button = tester.widget<IconButton>(find.ancestor(
+        of: find.byTooltip('Cannot resend: request body truncated'),
+        matching: find.byType(IconButton),
+      ));
+      expect(button.onPressed, isNull);
     });
 
     // Test 5: double-tap guard during in-flight request

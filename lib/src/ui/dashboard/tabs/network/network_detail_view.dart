@@ -278,12 +278,22 @@ class _ResendActionState extends State<_ResendAction> {
   bool get _disabled =>
       widget.entry.sourceDio == null ||
       !widget.entry.isComplete ||
+      widget.entry.isRequestTruncated ||
       _inFlight;
 
   @override
   Widget build(BuildContext context) {
+    final String tooltip;
+    if (widget.entry.isRequestTruncated) {
+      tooltip = 'Cannot resend: request body truncated';
+    } else if (widget.entry.sourceDio == null) {
+      tooltip = 'Cannot resend: source Dio not available';
+    } else {
+      tooltip = 'Resend';
+    }
+
     return IconButton(
-      tooltip: 'Resend',
+      tooltip: tooltip,
       onPressed: _disabled ? null : () => _resend(context),
       icon: _inFlight
           ? const SizedBox(
@@ -312,6 +322,16 @@ class _ResendActionState extends State<_ResendAction> {
       messenger.showSnackBar(
         const SnackBar(content: Text('Request resent')),
       );
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.badResponse) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Request resent')),
+        );
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Resend failed')),
+        );
+      }
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Resend failed')),

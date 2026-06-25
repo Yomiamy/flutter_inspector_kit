@@ -186,8 +186,12 @@ class NetworkEntry {
 
   /// Whether either body was truncated to fit [kNetworkBodyMaxLength].
   bool get isTruncated =>
-      (requestBody?.endsWith(kTruncatedMarker) ?? false) ||
+      isRequestTruncated ||
       (responseBody?.endsWith(kTruncatedMarker) ?? false);
+
+  /// Whether the request body was truncated to fit [kNetworkBodyMaxLength].
+  bool get isRequestTruncated =>
+      requestBody?.endsWith(kTruncatedMarker) ?? false;
 
   static String? _headerValue(Map<String, dynamic>? headers, String name) {
     if (headers == null) return null;

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 
@@ -14,6 +16,20 @@ class FlutterInspectorDioInterceptor extends Interceptor {
 
   /// Optional [Dio] instance that originated this request (e.g. for replay).
   final Dio? sourceDio;
+
+  String? _stringifyData(dynamic data) {
+    if (data == null) return null;
+    if (data is String) return data;
+    if (data is Map || data is List) {
+      try {
+        return jsonEncode(data);
+      } catch (_) {
+        return data.toString();
+      }
+    }
+    return data.toString();
+  }
+
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     options.extra['_inspector_start_time'] = DateTime.now();
@@ -21,7 +37,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       method: options.method,
       url: options.uri.toString(),
       requestHeaders: options.headers,
-      requestBody: options.data?.toString(),
+      requestBody: _stringifyData(options.data),
       sourceDio: sourceDio,
       isReplay: options.extra['_inspector_is_replay'] == true,
     );
@@ -46,11 +62,11 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       statusCode: response.statusCode,
       duration: duration,
       requestHeaders: response.requestOptions.headers,
-      requestBody: response.requestOptions.data?.toString(),
+      requestBody: _stringifyData(response.requestOptions.data),
       responseHeaders: response.headers.map.map(
         (k, v) => MapEntry(k, v.join(',')),
       ),
-      responseBody: response.data?.toString(),
+      responseBody: _stringifyData(response.data),
       isComplete: true,
       timestamp: startTime,
       sourceDio: sourceDio,
@@ -80,11 +96,11 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       statusCode: err.response?.statusCode,
       duration: duration,
       requestHeaders: err.requestOptions.headers,
-      requestBody: err.requestOptions.data?.toString(),
+      requestBody: _stringifyData(err.requestOptions.data),
       responseHeaders: err.response?.headers.map.map(
         (k, v) => MapEntry(k, v.join(',')),
       ),
-      responseBody: err.response?.data?.toString(),
+      responseBody: _stringifyData(err.response?.data),
       error: err.toString(),
       isComplete: true,
       timestamp: startTime,

@@ -28,6 +28,32 @@ void main() {
       expect(entry.isComplete, false);
     });
 
+    test('onRequest and onResponse serialize Map/List data as JSON string', () async {
+      final options = RequestOptions(
+        path: 'http://example.com/api',
+        method: 'POST',
+        data: {'userId': 1, 'id': 1, 'title': 'delectus', 'completed': false},
+      );
+      final handler = RequestInterceptorHandler();
+      interceptor.onRequest(options, handler);
+
+      expect(inspector.registry.network.entries.length, 1);
+      var entry = inspector.registry.network.entries.first;
+      // Should be valid JSON, not Map's toString() representation
+      expect(entry.requestBody, '{"userId":1,"id":1,"title":"delectus","completed":false}');
+
+      final response = Response(
+        requestOptions: options,
+        statusCode: 200,
+        data: ['item1', 'item2'],
+      );
+      interceptor.onResponse(response, ResponseInterceptorHandler());
+
+      expect(inspector.registry.network.entries.length, 1);
+      entry = inspector.registry.network.entries.first;
+      expect(entry.responseBody, '["item1","item2"]');
+    });
+
     test('onResponse replaces the pending entry in place', () async {
       final options = RequestOptions(
         path: 'http://example.com/api',
