@@ -103,6 +103,158 @@ void main() {
       expect(clipboardText, isNotNull);
       expect(clipboardText!.startsWith('curl -X POST'), isTrue);
     });
+
+    testWidgets(
+        'opt-out: redactSensitiveData false leaves Authorization unmasked in cURL',
+        (tester) async {
+      String? clipboardText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardText = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test/users?page=2',
+        statusCode: 201,
+        duration: const Duration(milliseconds: 120),
+        requestHeaders: {
+          'Authorization': 'Bearer secret-token-123',
+          'Content-Type': 'application/json',
+        },
+        requestBody: '{"name":"x"}',
+        responseHeaders: {'content-type': 'application/json'},
+        responseBody: '{"id":1}',
+        isComplete: true,
+        timestamp: t,
+      );
+
+      tester.view.physicalSize = const Size(1200, 4000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NetworkDetailView(entry: entry, redactSensitiveData: false),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.share));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy as cURL'));
+      await tester.pumpAndSettle();
+
+      expect(clipboardText, isNotNull);
+      expect(clipboardText, contains('secret-token-123'));
+      expect(clipboardText, isNot(contains('••••')));
+    });
+
+    testWidgets(
+        'default: redactSensitiveData omitted masks Authorization in cURL',
+        (tester) async {
+      String? clipboardText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardText = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test/users?page=2',
+        statusCode: 201,
+        duration: const Duration(milliseconds: 120),
+        requestHeaders: {
+          'Authorization': 'Bearer secret-token-123',
+          'Content-Type': 'application/json',
+        },
+        requestBody: '{"name":"x"}',
+        responseHeaders: {'content-type': 'application/json'},
+        responseBody: '{"id":1}',
+        isComplete: true,
+        timestamp: t,
+      );
+
+      tester.view.physicalSize = const Size(1200, 4000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(home: NetworkDetailView(entry: entry)),
+      );
+
+      await tester.tap(find.byIcon(Icons.share));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy as cURL'));
+      await tester.pumpAndSettle();
+
+      expect(clipboardText, isNotNull);
+      expect(clipboardText, contains('••••'));
+      expect(clipboardText, isNot(contains('secret-token-123')));
+    });
+
+    testWidgets(
+        'default: redactSensitiveData omitted masks Authorization and Cookie '
+        'in text',
+        (tester) async {
+      String? clipboardText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardText = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test/users?page=2',
+        statusCode: 201,
+        duration: const Duration(milliseconds: 120),
+        requestHeaders: {
+          'Authorization': 'Bearer secret-token-123',
+          'Cookie': 'session=abc-secret',
+          'Content-Type': 'application/json',
+        },
+        requestBody: '{"name":"x"}',
+        responseHeaders: {'content-type': 'application/json'},
+        responseBody: '{"id":1}',
+        isComplete: true,
+        timestamp: t,
+      );
+
+      tester.view.physicalSize = const Size(1200, 4000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(home: NetworkDetailView(entry: entry)),
+      );
+
+      await tester.tap(find.byIcon(Icons.share));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy as text'));
+      await tester.pumpAndSettle();
+
+      expect(clipboardText, isNotNull);
+      expect(clipboardText, contains('••••'));
+      expect(clipboardText, isNot(contains('secret-token-123')));
+      expect(clipboardText, isNot(contains('session=abc-secret')));
+    });
   });
 
   group('statusColorFor', () {
