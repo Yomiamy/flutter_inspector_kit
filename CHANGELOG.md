@@ -1,3 +1,12 @@
+## 1.1.0
+
+### Added
+* **Merged cross-layer timeline**: the Console tab now interleaves logs, network, navigation, and database events on a single timestamp-sorted timeline (newest first), with a filter chip per source to narrow it down. The same view is exposed programmatically via `FlutterInspector.mergedTimeline({sources})`, which returns `List<TimestampedEntry>` sorted by `timestamp` descending. Filter with the new `TimelineSource` enum (`log` / `network` / `nav` / `db`); a shared `displayTime` (`HH:mm:ss.mmm`) helper is available on every timeline entry.
+* **Sensitive-data redaction**: a new `redactSensitiveData` constructor flag on `FlutterInspector` (defaults to `true`) masks sensitive headers — `Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key` (matched case-insensitively) — with `••••` across every Network share/export path (copy as cURL, copy as text, system share sheet). Secure by default; pass `redactSensitiveData: false` to opt out. Headers shown live inside the dashboard are unaffected.
+
+### Changed
+* The Console timeline is now assembled by merging the four event buffers at render time instead of mirroring network and navigation events into the Console as separate log strings. As a result, `FlutterInspectorDioInterceptor` no longer emits an extra `debug`-level Console log per request, and `FlutterInspectorNavigatorObserver` no longer mirrors route changes as `warning`-level logs (both introduced in 0.2.4) — those events still appear on the merged timeline via their own buffers, without the duplicate log entries.
+
 ## 1.0.0
 
 ### Added

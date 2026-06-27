@@ -5,7 +5,9 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 ## 📦 Features
 
 - 🪵 **Console**: capture logs across five severity levels, with optional structured data and stack traces
+- 🧵 **Merged timeline**: the Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips
 - 📡 **Network**: intercept HTTP traffic via Dio, inspect structured request/response details, search/filter, share as cURL
+- 🛡️ **Sensitive-data redaction**: secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path
 - 🧭 **Navigator**: track route pushes, pops, and replacements automatically
 - 🗄️ **Database**: record insert / update / delete / query operations with affected-row counts and payloads
 - 👆 **Magical tap & floating button**: open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB
@@ -31,7 +33,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.0.0
+  flutter_inspector_kit: ^1.1.0
 ```
 
 Then run `flutter pub get`.
@@ -136,6 +138,22 @@ inspector.logNetwork(completedEntry, replaces: pending);
 - **Call details**: tap any call for a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON-pretty bodies. Truncated bodies are clearly marked.
 - **Sharing**: copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (native via `share_plus`, web via the browser Web Share API — falls back to the clipboard when unavailable).
 - **Replay / Resend**: for requests captured with a `sourceDio` provided to the interceptor, you can trigger a "Resend" action in the detail view to replay the request locally using the same Dio client (carrying the same headers, base URL, and interceptors). Replayed requests automatically show up as new entries with a dedicated "Replay" label.
+
+### Redact sensitive headers
+
+Every share/export path in the Network detail view — copy as `cURL`, copy as text, and the system share sheet — **masks sensitive headers by default**, so secrets never leak to the clipboard, a share sheet, or a screenshot. The masked keys are `Authorization`, `Cookie`, `Set-Cookie`, and `X-Api-Key` (matched case-insensitively); their values are replaced with `••••`.
+
+This is controlled by the `redactSensitiveData` constructor flag, which defaults to `true`:
+
+```dart
+// Secure by default — sensitive headers are masked in shared/exported output.
+final inspector = FlutterInspector();
+
+// Opt out (e.g. internal builds where you need the raw values).
+final inspector = FlutterInspector(redactSensitiveData: false);
+```
+
+The flag only affects shared/exported text — the headers shown live inside the dashboard are always the real values.
 
 ### Live notification (opt-in)
 
@@ -252,6 +270,27 @@ inspector.log(
 ```
 
 Available levels: `verbose`, `debug`, `info`, `warning`, `error`.
+
+### Read the merged timeline
+
+The **Console** tab already interleaves logs, network, navigation, and database events on a single timeline (newest first), with a filter chip per source. You can also read that same merged view programmatically:
+
+```dart
+// All sources, newest first.
+final entries = inspector.mergedTimeline();
+
+// Filter to specific sources only.
+final networkAndLogs = inspector.mergedTimeline(
+  sources: {TimelineSource.network, TimelineSource.log},
+);
+
+for (final entry in entries) {
+  // displayTime is a shared HH:mm:ss.mmm helper on every TimestampedEntry.
+  print('${entry.displayTime}  $entry');
+}
+```
+
+`mergedTimeline` returns `List<TimestampedEntry>` sorted by `timestamp` descending. Available sources: `TimelineSource.log`, `.network`, `.nav`, `.db` (defaults to all). The entries are the live buffer objects, so a pending network call that later completes is reflected on the next read.
 
 ### Uncaught error capture (opt-in)
 
