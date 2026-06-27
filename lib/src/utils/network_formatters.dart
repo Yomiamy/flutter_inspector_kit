@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/network_entry.dart';
+import 'redaction.dart';
 
 /// Pure formatting helpers for the Network inspector. No Flutter dependencies,
 /// so everything here is unit-testable in isolation.
@@ -68,12 +69,17 @@ String prettyJson(String? body) {
 }
 
 /// Builds an executable `curl` command reproducing [entry]'s request.
-String buildCurl(NetworkEntry entry) {
+///
+/// When [redact] is true (the secure default), sensitive request headers
+/// (see [redactHeaders]) are masked before serialisation.
+String buildCurl(NetworkEntry entry, {bool redact = true}) {
   final req = buildReplayRequest(entry);
   final buffer = StringBuffer('curl');
   buffer.write(" -X ${req.method.toUpperCase()}");
 
-  final headers = req.headers;
+  final headers = redact && req.headers != null
+      ? redactHeaders(req.headers!)
+      : req.headers;
   if (headers != null) {
     for (final h in headers.entries) {
       final value = h.value?.toString().replaceAll("'", r"'\''") ?? '';
@@ -94,7 +100,10 @@ String buildCurl(NetworkEntry entry) {
 
 /// Builds a full plain-text export of [entry] covering general info, request,
 /// response, and error sections.
-String buildPlainText(NetworkEntry entry) {
+///
+/// When [redact] is true (the secure default), sensitive request/response
+/// headers (see [redactHeaders]) are masked before serialisation.
+String buildPlainText(NetworkEntry entry, {bool redact = true}) {
   final b = StringBuffer()
     ..writeln('=== General ===')
     ..writeln('Method: ${entry.method}')
@@ -112,7 +121,7 @@ String buildPlainText(NetworkEntry entry) {
   }
 
   b.writeln('\n=== Request Headers ===');
-  _writeHeaders(b, entry.requestHeaders);
+  _writeHeaders(b, entry.requestHeaders, redact: redact);
   if (entry.requestBody != null && entry.requestBody!.isNotEmpty) {
     b
       ..writeln('\n=== Request Body ===')
@@ -122,7 +131,7 @@ String buildPlainText(NetworkEntry entry) {
   }
 
   b.writeln('\n=== Response Headers ===');
-  _writeHeaders(b, entry.responseHeaders);
+  _writeHeaders(b, entry.responseHeaders, redact: redact);
   if (entry.responseBody != null && entry.responseBody!.isNotEmpty) {
     b
       ..writeln('\n=== Response Body ===')
@@ -142,10 +151,15 @@ String buildPlainText(NetworkEntry entry) {
   return b.toString().trimRight();
 }
 
-void _writeHeaders(StringBuffer b, Map<String, dynamic>? headers) {
+void _writeHeaders(
+  StringBuffer b,
+  Map<String, dynamic>? headers, {
+  bool redact = true,
+}) {
   if (headers == null || headers.isEmpty) {
     b.writeln('(none)');
     return;
   }
-  headers.forEach((k, v) => b.writeln('$k: $v'));
+  final shown = redact ? redactHeaders(headers) : headers;
+  shown.forEach((k, v) => b.writeln('$k: $v'));
 }

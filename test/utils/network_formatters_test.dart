@@ -87,6 +87,62 @@ void main() {
     });
   });
 
+  group('buildCurl redaction', () {
+    test('masks sensitive request headers by default', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        requestHeaders: {
+          'Authorization': 'Bearer secret-token',
+          'Accept': 'application/json',
+        },
+        timestamp: fixedTime,
+      );
+      final curl = buildCurl(entry);
+      expect(curl.contains('secret-token'), isFalse);
+      expect(curl.contains("-H 'Authorization: ••••'"), isTrue);
+      expect(curl.contains("-H 'Accept: application/json'"), isTrue);
+    });
+
+    test('keeps raw sensitive headers when redact is disabled', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        requestHeaders: {'Authorization': 'Bearer secret-token'},
+        timestamp: fixedTime,
+      );
+      final curl = buildCurl(entry, redact: false);
+      expect(curl.contains("-H 'Authorization: Bearer secret-token'"), isTrue);
+    });
+  });
+
+  group('buildPlainText redaction', () {
+    test('masks sensitive request and response headers by default', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        requestHeaders: {'Cookie': 'session=abc'},
+        responseHeaders: {'Set-Cookie': 'session=abc; HttpOnly'},
+        timestamp: fixedTime,
+      );
+      final text = buildPlainText(entry);
+      expect(text.contains('session=abc'), isFalse);
+      expect(text.contains('Cookie: ••••'), isTrue);
+      expect(text.contains('Set-Cookie: ••••'), isTrue);
+    });
+
+    test('keeps raw sensitive headers when redact is disabled', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        requestHeaders: {'Cookie': 'session=abc'},
+        timestamp: fixedTime,
+      );
+      final text = buildPlainText(entry, redact: false);
+      expect(text.contains('Cookie: session=abc'), isTrue);
+    });
+  });
+
   group('buildPlainText', () {
     test('includes general, request, response and error sections', () {
       final entry = NetworkEntry(

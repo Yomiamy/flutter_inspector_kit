@@ -51,6 +51,16 @@ void main() {
       final observer = inspector.navigatorObserver;
       expect(observer, isNotNull);
     });
+
+    test('redactSensitiveData defaults to true (secure by default)', () {
+      final inspector = FlutterInspector();
+      expect(inspector.redactSensitiveData, isTrue);
+    });
+
+    test('redactSensitiveData can be disabled explicitly', () {
+      final inspector = FlutterInspector(redactSensitiveData: false);
+      expect(inspector.redactSensitiveData, isFalse);
+    });
   });
 
   group('Database Browser Sources API', () {
