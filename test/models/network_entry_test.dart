@@ -126,7 +126,9 @@ void main() {
           isComplete: true,
         );
         final withDio = entry.copyWith(sourceDio: dio);
-        expect(withDio.sourceDio, same(dio));
+        // sourceDio is stored as a WeakReference<Dio>; unwrap .target to
+        // compare against the original instance.
+        expect(withDio.sourceDio?.target, same(dio));
         expect(withDio.method, entry.method);
         expect(withDio.url, entry.url);
         expect(withDio.statusCode, entry.statusCode);
@@ -143,7 +145,9 @@ void main() {
           sourceDio: dio,
         );
         final copied = entry.copyWith(isReplay: true);
-        expect(copied.sourceDio, same(dio));
+        // sourceDio is stored as a WeakReference<Dio>; unwrap .target to
+        // compare against the original instance.
+        expect(copied.sourceDio?.target, same(dio));
         expect(copied.isReplay, isTrue);
       });
     });
