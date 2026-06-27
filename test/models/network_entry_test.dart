@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/models/timestamped_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -171,6 +172,35 @@ void main() {
           result.substring(0, kNetworkBodyMaxLength),
           'a' * kNetworkBodyMaxLength,
         );
+      });
+    });
+
+    group('TimestampedEntry contract', () {
+      test('NetworkEntry is a TimestampedEntry', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
+        expect(entry, isA<TimestampedEntry>());
+      });
+
+      test('displayTime formats as HH:mm:ss.mmm', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: DateTime(2026, 6, 9, 14, 30, 1, 123),
+        );
+        expect(entry.displayTime, '14:30:01.123');
+      });
+
+      test('displayTime zero-pads all components', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: DateTime(2026, 1, 1, 1, 2, 3, 4),
+        );
+        expect(entry.displayTime, '01:02:03.004');
       });
     });
 

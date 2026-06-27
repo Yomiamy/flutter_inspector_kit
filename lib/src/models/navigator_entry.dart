@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 
 import 'navigator_action.dart';
+import 'timestamped_entry.dart';
 
 /// An immutable record of a navigation event, displayed in the Navigator tab.
 @immutable
-class NavigatorEntry {
+class NavigatorEntry implements TimestampedEntry {
   /// Creates a navigator entry. [timestamp] defaults to the moment of creation.
   NavigatorEntry({
     required this.action,
@@ -15,6 +16,7 @@ class NavigatorEntry {
   }) : timestamp = timestamp ?? DateTime.now();
 
   /// When the navigation event occurred.
+  @override
   final DateTime timestamp;
 
   /// The kind of navigation event.

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import 'timestamped_entry.dart';
+
 /// Maximum number of bytes (characters) retained for a request/response body
 /// before truncation. Bodies larger than this are cut and marked.
 const int kNetworkBodyMaxLength = 10 * 1024;
@@ -17,7 +19,7 @@ const String kTruncatedMarker = '...[truncated]';
 /// known, and is later replaced by a completed entry once the response or error
 /// arrives.
 @immutable
-class NetworkEntry {
+class NetworkEntry implements TimestampedEntry {
   /// Creates a network entry. [timestamp] defaults to the moment of creation.
   NetworkEntry({
     required this.method,
@@ -37,6 +39,7 @@ class NetworkEntry {
        timestamp = timestamp ?? DateTime.now();
 
   /// When the request started.
+  @override
   final DateTime timestamp;
 
   /// HTTP method, e.g. `GET`, `POST`.

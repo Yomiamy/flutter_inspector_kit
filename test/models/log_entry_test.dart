@@ -1,5 +1,6 @@
 import 'package:flutter_inspector_kit/src/models/log_entry.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
+import 'package:flutter_inspector_kit/src/models/timestamped_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -66,6 +67,25 @@ void main() {
       );
       expect(entry.toString(), contains('error'));
       expect(entry.toString(), contains('boom'));
+    });
+
+    test('implements TimestampedEntry', () {
+      final entry = LogEntry(message: 'hello', timestamp: fixedTime);
+      expect(entry, isA<TimestampedEntry>());
+    });
+
+    test('displayTime returns HH:mm:ss.mmm format', () {
+      // fixedTime = DateTime(2026, 6, 9, 12, 0, 0) → 12:00:00.000
+      final entry = LogEntry(message: 'hello', timestamp: fixedTime);
+      expect(entry.displayTime, '12:00:00.000');
+    });
+
+    test('displayTime pads single-digit components', () {
+      final entry = LogEntry(
+        message: 'x',
+        timestamp: DateTime(2026, 1, 1, 9, 5, 3, 7),
+      );
+      expect(entry.displayTime, '09:05:03.007');
     });
   });
 }

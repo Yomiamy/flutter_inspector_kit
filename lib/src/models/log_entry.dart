@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 
 import 'log_level.dart';
+import 'timestamped_entry.dart';
 
 /// An immutable record of a single console log, displayed in the Console tab.
 @immutable
-class LogEntry {
+class LogEntry implements TimestampedEntry {
   /// Creates a log entry. [timestamp] defaults to the moment of creation.
   LogEntry({
     required this.message,
@@ -15,6 +16,7 @@ class LogEntry {
   }) : timestamp = timestamp ?? DateTime.now();
 
   /// When the log was recorded.
+  @override
   final DateTime timestamp;
 
   /// Severity of the log.

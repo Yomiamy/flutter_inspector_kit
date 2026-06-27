@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 
 import 'database_operation.dart';
+import 'timestamped_entry.dart';
 
 /// An immutable record of a database operation, displayed in the Database tab.
 @immutable
-class DatabaseEntry {
+class DatabaseEntry implements TimestampedEntry {
   /// Creates a database entry. [timestamp] defaults to the moment of creation.
   DatabaseEntry({
     required this.operation,
@@ -15,6 +16,7 @@ class DatabaseEntry {
   }) : timestamp = timestamp ?? DateTime.now();
 
   /// When the operation was recorded.
+  @override
   final DateTime timestamp;
 
   /// The kind of operation.
