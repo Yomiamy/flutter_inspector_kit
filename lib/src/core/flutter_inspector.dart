@@ -32,10 +32,12 @@ class FlutterInspector {
     this.showNetworkNotification = false,
     this.navigatorKey,
     this.captureUncaughtErrors = false,
+    this.redactSensitiveData = true,
     int bufferSize = 500,
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
-  }) : _registry = InspectorRegistry(bufferSize: bufferSize) {
+  }) {
+    _registry = InspectorRegistry(bufferSize: bufferSize);
     if (captureUncaughtErrors) setupErrorHandlers();
     _navigatorObserver = FlutterInspectorNavigatorObserver(this);
     _operationLogSource = OperationLogSource(_registry.database);
@@ -107,13 +109,20 @@ class FlutterInspector {
   ///   are kept solely to chain to, not to restore.
   final bool captureUncaughtErrors;
 
+  /// Whether to mask sensitive headers (e.g. `Authorization`, `Cookie`,
+  /// `Set-Cookie`, `X-Api-Key`) in all share/export paths (cURL, plain text).
+  ///
+  /// Defaults to `true` so secrets never leak to the clipboard, a share sheet,
+  /// or a screenshot unless the host explicitly opts out.
+  final bool redactSensitiveData;
+
   FlutterExceptionHandler? _oldFlutterErrorHandler;
   bool Function(Object, StackTrace)? _oldPlatformDispatcherOnError;
   bool _uncaughtErrorHandlersAttached = false;
 
   NetworkNotifier? _notifier;
 
-  final InspectorRegistry _registry;
+  late final InspectorRegistry _registry;
   late final FlutterInspectorNavigatorObserver _navigatorObserver;
   late final OperationLogSource _operationLogSource;
   final List<DatabaseBrowserSource> _customDatabaseSources = [];
@@ -263,10 +272,7 @@ class FlutterInspector {
     };
   }
 
-  void _logFlutterError(
-    FlutterErrorDetails details, {
-    required String source,
-  }) {
+  void _logFlutterError(FlutterErrorDetails details, {required String source}) {
     final data = <String, dynamic>{
       'source': source,
       'exceptionType': details.exception.runtimeType.toString(),

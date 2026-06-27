@@ -13,9 +13,18 @@ enum _ShareAction { curl, text, share }
 /// A full-screen, structured view of a single [NetworkEntry], showing request
 /// and response sections plus sharing (cURL / plain text / system share).
 class NetworkDetailView extends StatelessWidget {
-  const NetworkDetailView({required this.entry, super.key});
+  const NetworkDetailView({
+    required this.entry,
+    this.redactSensitiveData = true,
+    super.key,
+  });
 
   final NetworkEntry entry;
+
+  /// Whether share/export paths mask sensitive headers. Mirrors
+  /// [FlutterInspector.redactSensitiveData]. Defaults to `true` (secure by
+  /// default) so a NetworkDetailView built without this value still redacts.
+  final bool redactSensitiveData;
 
   @override
   Widget build(BuildContext context) {
@@ -224,21 +233,31 @@ class NetworkDetailView extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     switch (action) {
       case _ShareAction.curl:
-        await Clipboard.setData(ClipboardData(text: buildCurl(entry)));
+        await Clipboard.setData(
+          ClipboardData(text: buildCurl(entry, redact: redactSensitiveData)),
+        );
         messenger.showSnackBar(
           const SnackBar(content: Text('cURL copied to clipboard')),
         );
       case _ShareAction.text:
-        await Clipboard.setData(ClipboardData(text: buildPlainText(entry)));
+        await Clipboard.setData(
+          ClipboardData(
+            text: buildPlainText(entry, redact: redactSensitiveData),
+          ),
+        );
         messenger.showSnackBar(
           const SnackBar(content: Text('Details copied to clipboard')),
         );
       case _ShareAction.share:
         try {
-          await shareText(buildPlainText(entry));
+          await shareText(buildPlainText(entry, redact: redactSensitiveData));
         } catch (_) {
           // Fallback to clipboard when the platform has no share sheet.
-          await Clipboard.setData(ClipboardData(text: buildPlainText(entry)));
+          await Clipboard.setData(
+            ClipboardData(
+              text: buildPlainText(entry, redact: redactSensitiveData),
+            ),
+          );
           messenger.showSnackBar(
             const SnackBar(
               content: Text('Share unavailable — copied to clipboard'),

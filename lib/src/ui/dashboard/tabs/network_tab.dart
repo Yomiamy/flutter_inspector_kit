@@ -185,7 +185,12 @@ class _NetworkTabState extends State<NetworkTab> {
       ),
       trailing: const Icon(Icons.chevron_right, size: 18),
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => NetworkDetailView(entry: entry)),
+        MaterialPageRoute(
+          builder: (_) => NetworkDetailView(
+            entry: entry,
+            redactSensitiveData: widget.inspector.redactSensitiveData,
+          ),
+        ),
       ),
     );
   }
