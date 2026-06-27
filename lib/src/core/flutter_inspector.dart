@@ -10,6 +10,7 @@ import '../sources/operation_log_source.dart';
 import '../models/log_level.dart';
 import '../models/navigator_entry.dart';
 import '../models/network_entry.dart';
+import '../models/timestamped_entry.dart';
 import '../notifications/network_notifier.dart';
 import '../observers/navigator_observer.dart';
 import '../ui/dashboard/dashboard_modal.dart';
@@ -160,6 +161,18 @@ class FlutterInspector {
 
   /// Clears all database logs.
   void clearDatabase() => _registry.database.clear();
+
+  /// Cross-layer merged timeline: reads the four buffers filtered by [sources],
+  /// merged and sorted by timestamp descending (newest first). Defaults to all
+  /// sources. Thin forward to [InspectorRegistry.mergedTimeline].
+  List<TimestampedEntry> mergedTimeline({
+    Set<TimelineSource> sources = const {
+      TimelineSource.log,
+      TimelineSource.network,
+      TimelineSource.nav,
+      TimelineSource.db,
+    },
+  }) => _registry.mergedTimeline(sources: sources);
 
   /// Retrieves the registered database browser sources.
   List<DatabaseBrowserSource> get databaseSources =>

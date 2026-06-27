@@ -1,15 +1,13 @@
 import 'package:flutter/widgets.dart';
 
 import '../core/flutter_inspector.dart';
-import '../models/log_level.dart';
 import '../models/navigator_action.dart';
 import '../models/navigator_entry.dart';
 
 /// An observer that records navigation events into the inspector.
 ///
-/// Each navigation event is buffered into the navigator inspector and, mirroring
-/// [FlutterInspectorDioInterceptor], also written to the console log at
-/// [LogLevel.warning] so route changes are visible in the Console tab.
+/// Each navigation event is buffered into the navigator inspector so that
+/// route changes are visible in the Navigator tab.
 class FlutterInspectorNavigatorObserver extends NavigatorObserver {
   /// Creates an observer that feeds events into [_inspector].
   FlutterInspectorNavigatorObserver(this._inspector);
@@ -48,8 +46,7 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
     return null;
   }
 
-  /// Buffers [route] as a navigation event and mirrors it to the console log
-  /// at [LogLevel.warning], matching the interceptor's logging behaviour.
+  /// Buffers [route] as a navigation event into the navigator inspector.
   void _record(NavigatorAction action, Route<dynamic> route) {
     final routeName = route.settings.name;
     final widgetType = _resolveWidgetType(route);
@@ -60,10 +57,6 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
         widgetType: widgetType,
         arguments: route.settings.arguments,
       ),
-    );
-    _inspector.log(
-      "Action: ${action.name}\nRoute: ${routeName ?? '-'}\nWidget: ${widgetType ?? '-'}",
-      level: LogLevel.warning,
     );
   }
 

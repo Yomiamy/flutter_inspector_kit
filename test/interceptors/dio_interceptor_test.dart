@@ -187,6 +187,40 @@ void main() {
       });
     });
 
+    group('no mirror debug log', () {
+      test('onResponse does not produce any log entry', () {
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          method: 'GET',
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+        interceptor.onResponse(
+          Response(requestOptions: options, statusCode: 200),
+          ResponseInterceptorHandler(),
+        );
+
+        expect(inspector.logEntries, isEmpty);
+      });
+
+      test('onError does not produce any log entry', () async {
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          method: 'GET',
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor.onError(
+          DioException(requestOptions: options, error: 'fail'),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await errorHandler.future.then((_) {}, onError: (_) {});
+
+        expect(inspector.logEntries, isEmpty);
+      });
+    });
+
     group('isReplay flag', () {
       test('onRequest: isReplay true when extra flag set', () {
         final options = RequestOptions(

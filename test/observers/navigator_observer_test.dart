@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
-import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
 import 'package:flutter_inspector_kit/src/observers/navigator_observer.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,23 +123,9 @@ void main() {
       expect(inspector.navigatorInspector.entries, isEmpty);
     });
 
-    test('mirrors a navigation event to the console log at warning level', () {
+    test('does not mirror any navigation event to the console log', () {
       final route = MaterialPageRoute(
         settings: const RouteSettings(name: '/home'),
-        builder: (_) => const SizedBox(),
-      );
-      observer.didPush(route, null);
-
-      expect(inspector.logEntries.length, 1);
-      final log = inspector.logEntries.first;
-      expect(log.level, LogLevel.warning);
-      expect(log.message, contains('Action: push'));
-      expect(log.message, contains('Route: /home'));
-    });
-
-    test('does not log for the inspector dashboard route', () {
-      final route = MaterialPageRoute(
-        settings: const RouteSettings(name: 'flutter_inspector_dashboard'),
         builder: (_) => const SizedBox(),
       );
       observer.didPush(route, null);
