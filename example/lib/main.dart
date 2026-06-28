@@ -100,7 +100,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _makeNetworkRequest() async {
     try {
-      await _dio.get('https://jsonplaceholder.typicode.com/todos/1');
+      final Options option = Options(
+        headers: {
+          "Authorization": "Bearer mock-token-123",
+          "Set-Cookie": "mock-cookie-123",
+          "X-Api-Key": "mock-api-key-123",
+        },
+      );
+      await _dio.get(
+        'https://jsonplaceholder.typicode.com/todos/1',
+        options: option,
+      );
       inspector.log('Network request successful', level: LogLevel.info);
     } catch (e) {
       inspector.log('Network request failed: $e', level: LogLevel.error);
@@ -122,14 +132,17 @@ class _MyHomePageState extends State<MyHomePage> {
           await db.execute(
             'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
           );
+          await db.execute(
+            'CREATE TABLE member (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
+          );
         },
       );
 
-      final countResult = await db.rawQuery(
+      final usersResult = await db.rawQuery(
         'SELECT COUNT(*) as count FROM users',
       );
-      final count = Sqflite.firstIntValue(countResult) ?? 0;
-      if (count == 0) {
+      final usersCount = Sqflite.firstIntValue(usersResult) ?? 0;
+      if (usersCount == 0) {
         await db.insert('users', {
           'id': 1,
           'name': 'Alice',
@@ -143,6 +156,31 @@ class _MyHomePageState extends State<MyHomePage> {
           'age': 25,
         });
         await db.insert('users', {
+          'id': 3,
+          'name': 'Carol',
+          'email': 'carol@example.com',
+          'age': null,
+        });
+      }
+
+      final membersResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM member',
+      );
+      final membersCount = Sqflite.firstIntValue(membersResult) ?? 0;
+      if (membersCount == 0) {
+        await db.insert('member', {
+          'id': 1,
+          'name': 'Alice',
+          'email': 'alice@example.com',
+          'age': 30,
+        });
+        await db.insert('member', {
+          'id': 2,
+          'name': 'Bob',
+          'email': null,
+          'age': 25,
+        });
+        await db.insert('member', {
           'id': 3,
           'name': 'Carol',
           'email': 'carol@example.com',
