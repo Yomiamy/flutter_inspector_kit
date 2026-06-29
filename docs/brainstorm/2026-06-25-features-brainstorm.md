@@ -1,5 +1,7 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
+> **建立日期**：2026-06-25（檔名）｜**最後更新**：2026-06-29（含 v1.1.0 完成度核對）
+
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
 > 這份報告**只聚焦一件事**：當 app 出錯時，`flutter_inspector_kit` 能不能讓開發者/QA 用最少的步驟「看見錯誤、關聯原因、帶走證據」。
@@ -7,24 +9,25 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-06-25）
+## 📊 完成度總覽（截至 2026-06-29 · 含 v1.1.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
+> **更新說明**：原 6/25 快照已過時。v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
 | #1 | 全局未捕捉例外捕捉 | ✅ | PR #30：`captureUncaughtErrors`(default off) + 三掛點 chain，含去重 |
-| #4 | Dio 結構化錯誤捕捉 | 🟡 | 已抓 statusCode/headers/body；**缺** `errorType`/`errorStackTrace` 結構化分類與 Exception Details section |
-| #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾 |
-| #2 | 跨 Inspector 時序關聯 | ⬜ | 未實作（現僅有 nav/network 鏡射到 console log 的廉價替代） |
-| #3 | 一鍵診斷報告 | ⬜ | 未實作 |
 | #6 | 網路請求重放 | ✅ | PR #36 / v1.0.0 已完成：支援 per-Dio 原樣重送、`isReplay` 標記、狀態回饋與防連點保護 |
-| #7 | 錯誤聚合摘要 | ⬜ | 未實作 |
-| #8 | 當前路由堆疊可視化 | ⬜ | 未實作 |
+| #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄） |
+| #4 | Dio 結構化錯誤捕捉 | 🟡 | 已抓 statusCode/headers/body；**缺** `errorType`/`errorStackTrace` 結構化分類與 Exception Details section |
+| #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾（`utils/` 下仍無 log_search） |
+| #3 | 一鍵診斷報告 | ⬜ | 未實作（查無 `buildDiagnosticReport`） |
+| #7 | 錯誤聚合摘要 | ⬜ | 未實作（查無 `ErrorSummary`） |
+| #8 | 當前路由堆疊可視化 | ⬜ | 未實作（查無 `currentStack`） |
 
 **Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking）— ✅ 正確地皆未實作，守住「不走向微核心」。
 
-**進度結論**：五階段路徑走完「第一階段一半 + 第二階段一半」。下一刀應收尾 **#4 結構化分類** 與 **#5 console 搜尋/過濾**。
+**進度結論**：8 項裡 **3 項完成**（#1、#6，以及 v1.1.0 實質完成的 **#2 時序軸主體**），**2 項半成品**（#4 結構化錯誤、#5 console 搜尋/過濾），**3 項未動**（#3、#7、#8）。下一刀應收尾 **#4 結構化分類** 與 **#5 console 搜尋/過濾**——這兩項是 console 排查化僅剩的缺口。
 
 ---
 
@@ -71,7 +74,7 @@
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 * **✅ 實作現況**：PR #30 已完成。`FlutterInspector(captureUncaughtErrors: false)` 入口 + `setupErrorHandlers()` 三掛點（`FlutterError.onError` chain、`PlatformDispatcher.onError`、`ErrorWidget.builder`）皆落地，並補上同一例外的去重；`runGuarded` 已移除改用 `PlatformDispatcher.onError`。
 
-### 2. 跨 Inspector 時序關聯（Correlated Timeline）— ⬜ 未實作（原 🔴 排查的靈魂）
+### 2. 跨 Inspector 時序關聯（Correlated Timeline）— 🟡 部分完成（原 🔴 排查的靈魂）
 * **痛點**：錯誤幾乎都是跨層的——「點了某按鈕（nav）→ 發了某 API（network）→ 5xx → 印了某 error log」。但現在這四件事躺在四個孤立 buffer 裡，開發者得在四個 tab 之間用肉眼對時間戳，這是排查最大的摩擦。
 * **好品味設計**：
   > 四個 buffer 共用 `timestamp`——這個共通欄位就是答案，不需要新資料管線。
@@ -80,6 +83,7 @@
 * **重用**：各 entry 的 `timestamp`、`InspectorRegistry` 已持有四個 buffer、`LogLevel` 配色、`KeyValueTable`。
 * **品味守則**：`TimelineEvent` 只是**指標包裝**（指向既有 entry），不複製資料、不引入第二份真相。
 * **Effort**：A=low / B=medium ｜ **排查價值**：⭐⭐⭐⭐⭐
+* **🟡 實作現況（v1.1.0 / PR #40 #42）**：**做法 B 已落地，且實作得比原構想更乾淨**——沒有引入 `TimelineEvent` union，而是讓四個 entry model 共同實作 `TimestampedEntry` 介面，由 `InspectorRegistry.mergedTimeline()` 把四個 `RingBuffer` 拍扁後依 `timestamp` 降序歸併排序，`ConsoleTab` 直接渲染（`ConsoleTab` 的 `build()` 內呼叫 `inspector.mergedTimeline(sources: _selected)`），按 entry runtime type 動態分派渲染、點 Network 列跳 `NetworkDetailView`。這同時消滅了 v1.1.0 前「鏡射到 console log 的廉價替代」（見本文件頂部與 overview 的歷史演進）。**未完成**：做法 A 的「±5s 同時段側欄」尚未做（現為整條混合時間軸，無以單筆為中心的時間窗聚焦）。
 
 ### 3. 一鍵診斷報告（Diagnostic Report）— ⬜ 未實作（原 🔴 QA 提 bug 的剛需）
 * **痛點**：QA 重現 bug 後，要手動切四個 tab、逐筆截圖/複製、再手打 device/OS/版本資訊。耗時且容易漏，回報品質參差。
@@ -114,12 +118,13 @@
 
 ## 🚀 第二部分：加分但非核心（中優先）
 
-### 6. 網路請求重放（Replay / Resend）— ⬜ 未實作
+### 6. 網路請求重放（Replay / Resend）— ✅ 已完成（PR #36 / v1.0.0）
 * **價值**：API 出錯時，原地重送（可改 header/body）即時確認「是否仍重現 / server 是否恢復」，免去複製 cURL 跳終端的 context switch。
 * **設計**：`NetworkDetailView` 加「Resend」按鈕，從 entry 重建請求（沿用 `buildCurl()` 已證明的請求重組邏輯）經注入的 Dio 重送，結果作為新 `NetworkEntry` 記回 buffer。
 * **重用**：`buildCurl()` 的請求重組、init 時傳入的 Dio client。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐
 * **邊界**：只「重送原請求」。**不**做 mocking、不做腳本化改寫——那是 Proxyman/Charles 的地盤（見 anti-features）。
+* **✅ 實作現況**：PR #36 / v1.0.0 已完成。`NetworkDetailView` 的「Resend」按鈕經原始 `sourceDio`（`WeakReference<Dio>`）原樣重送，重送結果以 `isReplay` 標記記回 buffer，並含狀態回饋與防連點保護。
 
 ### 7. 錯誤聚合摘要（Error Aggregation）— ⬜ 未實作
 * **價值**：同一個 502 每 30 秒打一次 → 現在是 500 條各自獨立的列表項。聚合成「502 Bad Gateway × N 次，最近 5 分鐘」一張卡，一眼看出是「持續故障」還是「偶發」。
@@ -160,8 +165,10 @@
 
 1. **第一階段 · 點亮盲區**（🟡 進行中）：實作 **#1 全局未捕捉例外捕捉**（可選 default-off）✅ + **#4 Dio 結構化錯誤捕捉** 🟡（結構化分類欄位待補）。此後 inspector 才真正「看得見」錯誤。
 2. **第二階段 · ConsoleTab 排查化**（🟡 進行中）：實作 **#5**（stackTrace 詳情 ✅ + error 搜尋/過濾 ⬜ 待補），讓捕捉到的錯誤可被秒速定位與檢視。
-3. **第三階段 · 建立關聯**（⬜ 未開始）：實作 **#2 做法 A**（detail view 的 ±5s 同時段側欄）——最低成本就讓跨層關聯落地；行有餘力再上做法 B 的 Timeline 視圖。
+3. **第三階段 · 建立關聯**（🟡 主體已完成）：**#2 做法 B（Timeline 混合視圖）已於 v1.1.0 落地** ✅（`mergedTimeline` + `TimestampedEntry`）；僅剩 **做法 A**（detail view 的 ±5s 同時段側欄 ⬜）尚未做，可視回饋決定是否補上。
 4. **第四階段 · 帶走證據**（⬜ 未開始）：實作 **#3 一鍵診斷報告**（含 #8 路由堆疊快照、device info）。QA 提 bug 的剛需在此閉環。
-5. 第五階段 · 加分項（✅ 已完成）：#6 Replay 已於 v1.0.0 完成實作；後續可視回饋實作 #7 錯誤聚合摘要。
+5. 第五階段 · 加分項（✅ 部分完成）：#6 Replay 已於 v1.0.0 完成實作；後續可視回饋實作 #7 錯誤聚合摘要。
+
+> **收尾建議（截至 2026-06-29）**：console 排查鏈只剩兩個明確缺口——**#4 的結構化錯誤分類** 與 **#5 的搜尋/過濾**。兩者寫入路徑不重疊（#4 動 interceptor + model、#5 動 console UI），可並行收掉，console 排查化即閉環。其後再進第四階段 #3 診斷報告。
 
 > 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（#1 動 core、#4 動 interceptor、#5 動 console UI、#3 動 utils + dashboard），適合並行推進。
