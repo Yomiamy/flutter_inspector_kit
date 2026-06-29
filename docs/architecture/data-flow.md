@@ -114,7 +114,7 @@
 | **擷取期 (Capture)** | 寫入 Network RingBuffer，同時產生一條字串 `LogEntry` 寫入 Log RingBuffer。 | **只寫入 Network RingBuffer**，日誌快取維持 100% 純淨。 |
 | **狀態更新 (Update)** | Network 快取原地更新為 Completed，但 Log 快取內的字串依然是舊的 pending 快照。 | 各快取獨立，Network 原地更新。**不存在第二份真相**。 |
 | **讀取期 (Read)** | UI `ConsoleTab` 只需單純讀取 `LogInspector.entries`。 | UI `ConsoleTab` 通過 `FlutterInspector.mergedTimeline(sources)` 向 Registry 查詢。 |
-| **整合排序 (Sort)** | 無需排序（因為寫入時已按先後順序轉為 Log 字串）。 | **渲染時排序**：讀取四個 RingBuffer 拍扁（Flatten）成 `List<TimestampedEntry>`，並在內存中按 `timestamp` 進行降序 merge-sort。 |
+| **整合排序 (Sort)** | 無需排序（因為寫入時已按先後順序轉為 Log 字串）。 | **渲染時排序**：讀取四個 RingBuffer 拍扁（Flatten）成 `List<TimestampedEntry>`，並在記憶體中按 `timestamp` 進行降序 merge-sort。 |
 | **點擊查看 (Interaction)** | 點擊鏡射日誌只能看字串，無 Headers/Body，因為它只是個 `LogEntry`。 | 點擊 Network 類型的時序軸列，會利用 `is` 判型直接跳轉至完整的 `NetworkDetailView`，支持 cURL/Replay。 |
 
 ---
@@ -274,6 +274,6 @@
 
 ### 資料分頁與排序 (TableRowsView & TableSort)
 1. **動態加載 (Load More)**：`TableRowsView` 採用 `limit` (預設 200) 與 `offset` 機制進行分頁加載。用戶滑動到底部時觸發 `Load More`，累加 `offset` 並向資料源重新請求數據。
-2. **表頭排序 (Sort)**：點擊表頭時，由 `table_sort.dart` 的 `sortRows` 執行內存排序：
+2. **表頭排序 (Sort)**：點擊表頭時，由 `table_sort.dart` 的 `sortRows` 執行記憶體排序：
    - 排序原則：`Null` 值一律排在最後（不論正序/倒序）。
    - 數值類型按數值大小比較，其餘類型轉為字串比較。

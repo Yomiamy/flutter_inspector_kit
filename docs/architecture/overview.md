@@ -44,7 +44,7 @@
 ### 2. 數據模型層 (Domain Models)
 - 採用 **Immutable (不可變)** 的設計模式。
 - 包括 `LogEntry`、`NetworkEntry`、`NavigatorEntry` 與 `DatabaseEntry`。
-- **好品味體現**：快取中的數據一旦寫入就不應被隨意修改。對於 `NetworkEntry` 等需要異步更新的數據，採用 `copyWith` 與 `RingBuffer.replace` 在快取中原地替換，防止列表重建時發生狀態混亂與不必要的內存拷貝。
+- **好品味體現**：快取中的數據一旦寫入就不應被隨意修改。對於 `NetworkEntry` 等需要異步更新的數據，採用 `copyWith` 與 `RingBuffer.replace` 在快取中原地替換，防止列表重建時發生狀態混亂與不必要的記憶體拷貝。
 
 ### 3. 數據擷取層 (Collectors / Interceptors)
 - **`DioInterceptor`** 〔獨立 class · `lib/src/interceptors/dio_interceptor.dart`〕：攔截 Dio 請求與響應，處理 pending 狀態更新，並支持請求重發（Replay）。
@@ -87,7 +87,7 @@
 
 ### 2. 弱引用與防洩漏設計 (WeakReference)
 在 `NetworkEntry` 中，重發（Replay）功能需要調用發起請求的 `Dio` 實例：
-- **致命風險**：如果直接持有 `Dio` 實例強引用，隨著 RingBuffer 達到上限並拋棄舊 Entry，這些已失效的 `Dio` 將無法被垃圾回收，造成嚴重的內存洩漏。
+- **致命風險**：如果直接持有 `Dio` 實例強引用，隨著 RingBuffer 達到上限並拋棄舊 Entry，這些已失效的 `Dio` 將無法被垃圾回收，造成嚴重的記憶體洩漏。
 - **Linus 式解法**：在 `NetworkEntry` 中使用 `WeakReference<Dio>`。這是一個暫時性的運行期引用，只在 Replay 時嘗試獲取。此欄位被刻意排除在 `==`、`hashCode` 與所有導出序列化之外，確保安全、乾淨且零洩漏。
 
 ### 3. 無害的錯誤鉤子 (Never Break Host App)
