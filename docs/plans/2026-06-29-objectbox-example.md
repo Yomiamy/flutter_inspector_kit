@@ -35,7 +35,7 @@ Dashboard 的 Database tab → 看到 `Note`、`Tag` 兩張表與資料。
 | `example/lib/objectbox_entities.dart` | `@Entity` 定義:`Note`(id/title/body)、`Tag`(id/label) | Create |
 | `example/lib/objectbox_browser_source.dart` | `DatabaseBrowserSource` 的 ObjectBox 實作 + `_EntityAdapter` helper | Create |
 | `example/lib/objectbox.g.dart` | build_runner 生成的 binding | Generate(commit) |
-| `example/objectbox-model.json` | build_runner 生成的 model metadata | Generate(commit) |
+| `example/lib/objectbox-model.json` | build_runner 生成的 model metadata | Generate(commit) |
 | `example/lib/main.dart` | 加 Seed ObjectBox Demo 按鈕 + 註冊 source + web 防呆 | Modify |
 
 ---
@@ -53,7 +53,7 @@ Dashboard 的 Database tab → 看到 `Note`、`Tag` 兩張表與資料。
 
 ```yaml
   objectbox: ^5.3.1
-  objectbox_flutter_libs: any
+  objectbox_flutter_libs: ^5.3.1
   path_provider: ^2.1.0
 ```
 
@@ -61,8 +61,12 @@ Dashboard 的 Database tab → 看到 `Note`、`Tag` 兩張表與資料。
 
 ```yaml
   build_runner: ^2.4.11
-  objectbox_generator: any
+  objectbox_generator: ^5.3.1
 ```
+
+> 三件套(objectbox / objectbox_flutter_libs / objectbox_generator)版本必須一致,
+> 一律用 caret 約束鎖在同一 major,**不要用 `any`** —— `any` 會讓 transitive
+> 解析自由跳版,埋下不相容地雷。
 
 - [ ] **Step 2: 取得依賴**
 
@@ -137,7 +141,7 @@ git commit -m "feat(example): define Note and Tag ObjectBox entities"
 
 **Files:**
 - Generate: `example/lib/objectbox.g.dart`
-- Generate: `example/objectbox-model.json`
+- Generate: `example/lib/objectbox-model.json`
 
 > 這一步需要本機已安裝 ObjectBox 的 native 產生環境。Claude 無法產生正確的
 > 生成檔內容,必須由人執行下列指令。
@@ -146,9 +150,9 @@ git commit -m "feat(example): define Note and Tag ObjectBox entities"
 
 Run: `cd example && dart run build_runner build --delete-conflicting-outputs`
 Expected:
-- 終端輸出 `Succeeded after ...`。
+- 終端輸出 `wrote 2 outputs` / `Succeeded` 之類成功訊息。
 - `example/lib/objectbox.g.dart` 出現,內含 `getObjectBoxModel()`、`openStore()`、`Note_`、`Tag_`。
-- `example/objectbox-model.json` 出現。
+- `example/lib/objectbox-model.json` 出現(generator 生在 lib/ 下,不是 example 根)。
 
 若失敗:
 - 缺 native lib → 依 https://docs.objectbox.io/getting-started 安裝(macOS 通常需 `bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-dart/main/install.sh)`)。
@@ -162,7 +166,7 @@ Expected: ≥ 2(兩個 helper 都生成)。
 - [ ] **Step 3: Commit 生成檔**
 
 ```bash
-git add example/lib/objectbox.g.dart example/objectbox-model.json
+git add example/lib/objectbox.g.dart example/lib/objectbox-model.json
 git commit -m "chore(example): generate ObjectBox bindings for Note/Tag"
 ```
 
@@ -296,12 +300,15 @@ git commit -m "feat(example): add ObjectBoxBrowserSource reference implementatio
 
 ```dart
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:objectbox/objectbox.dart';
 import 'package:path_provider/path_provider.dart';
 import 'objectbox.g.dart';
 import 'objectbox_browser_source.dart';
 import 'objectbox_entities.dart';
 ```
+
+> 注意:**不要**直接 import `package:objectbox/objectbox.dart` —— `objectbox.g.dart`
+> 已 `export` 它(`Store` 等型別都拿得到),重複 import 會被 analyzer 標
+> `unnecessary_import`。
 
 - [ ] **Step 2: 加 state 旗標**
 
@@ -336,7 +343,8 @@ import 'objectbox_entities.dart';
     if (_objectboxRegistered) return;
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final store = openStore(directory: '${dir.path}/objectbox-demo');
+      // openStore() returns Future<Store> in objectbox 5.x — must await.
+      final store = await openStore(directory: '${dir.path}/objectbox-demo');
       _objectboxStore = store;
 
       final noteBox = store.box<Note>();
@@ -427,8 +435,17 @@ Expected: No issues found.
 
 - [ ] **Step 2: 編譯驗證(擇一可用平台,非 web)**
 
-Run: `cd example && flutter build apk --debug`(或 `flutter build macos --debug`)
-Expected: 編譯成功。確認 ObjectBox native libs 正確連結。
+Run: `cd example && flutter build macos --debug`(或 `flutter build apk --debug`)
+Expected: 編譯成功(`✓ Built ...`)。確認 ObjectBox native libs 正確連結。
+
+> ⚠️ **平台最低版本**:objectbox_flutter_libs 對 OS 版本有下限,既有 example
+> 範本的設定通常偏低,第一次編譯會在 `pod install` / gradle 階段失敗:
+> - **macOS**:需 deployment target ≥ **11.0**。改 `macos/Podfile` 的
+>   `platform :osx, '11.0'` 與 `macos/Runner.xcodeproj/project.pbxproj` 三處
+>   `MACOSX_DEPLOYMENT_TARGET = 11.0`。
+> - **iOS**:需 ≥ 12.0(`ios/Podfile` 的 `platform :ios`)。
+> - **Android**:需 minSdk ≥ 21(一般 Flutter 範本已滿足)。
+> 錯誤訊息會明白指出要調到的版本,照著改即可。
 
 - [ ] **Step 3: 人工煙霧測試**
 
