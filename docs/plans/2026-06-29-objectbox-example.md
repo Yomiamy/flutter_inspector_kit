@@ -118,7 +118,9 @@ class Tag {
 - [ ] **Step 2: 分析(此時會因缺少 objectbox.g.dart 而有 import 警告,屬預期)**
 
 Run: `cd example && flutter analyze lib/objectbox_entities.dart`
-Expected: 僅 objectbox 相關 import 解析正常;此檔本身不 import 生成檔,應無錯誤。
+Expected: 此檔本身不 import 生成檔,應無錯誤。注意:`@Entity`/`@Id` 等
+annotation 在 build_runner 尚未跑過時不會報錯(它們是 objectbox 套件提供的,
+非生成檔);若 analyzer 提示 generator 相關的 info/warning,可忽略,Task 3 跑完即消失。
 
 - [ ] **Step 3: Commit**
 
