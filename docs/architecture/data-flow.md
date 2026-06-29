@@ -38,7 +38,7 @@
 
 ### 關鍵細節：請求重發 (Replay Request)
 在 `NetworkDetailView` 中點擊「重發」按鈕時：
-1. **安全性檢查**：必須滿足「來源 `Dio` 未被回收（`sourceDio.target != null`）」且「Body 未被截斷（`isRequestTruncated == false`）」。
+1. **安全性檢查**：必須滿足「請求已完成（`entry.isComplete == true`）」、「來源 `Dio` 未被回收（`sourceDio.target != null`）」且「Body 未被截斷（`isRequestTruncated == false`）」。
 2. **防死循環標記**：重發的請求會自動注入 `_inspector_is_replay: true` 到 `options.extra` 中。這可以使新請求在被攔截器捕獲時，標記為 `isReplay = true`，防止開發者混淆。
 
 ---
