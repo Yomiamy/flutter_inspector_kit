@@ -1,7 +1,12 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'objectbox.g.dart';
+import 'objectbox_browser_source.dart';
+import 'objectbox_entities.dart';
 import 'sqflite_browser_source.dart';
 
 // Enable the live system notification summarising network calls (opt-in).
@@ -85,6 +90,12 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  @override
+  void dispose() {
+    _objectboxStore?.close();
+    super.dispose();
+  }
+
   void _incrementCounter() {
     setState(() {
       _counter++;
@@ -118,6 +129,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool _sqliteRegistered = false;
+  bool _objectboxRegistered = false;
+  Store? _objectboxStore;
 
   Future<void> _seedSqlite() async {
     if (_sqliteRegistered) return;
@@ -211,6 +224,63 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _seedObjectBox() async {
+    // ObjectBox relies on native libraries and does NOT support web.
+    // Fail loudly-but-gracefully instead of crashing the app.
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ObjectBox is not supported on web. '
+              'Run this demo on a mobile or desktop target.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (_objectboxRegistered) return;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final store = await openStore(directory: '${dir.path}/objectbox-demo');
+      _objectboxStore = store;
+
+      final noteBox = store.box<Note>();
+      if (noteBox.isEmpty()) {
+        noteBox.putMany([
+          Note(title: 'Welcome', body: 'This row comes from ObjectBox.'),
+          Note(title: 'No SQL here', body: null),
+          Note(title: 'Strongly typed', body: 'Mapped by hand in the source.'),
+        ]);
+      }
+
+      final tagBox = store.box<Tag>();
+      if (tagBox.isEmpty()) {
+        tagBox.putMany([Tag(label: 'demo'), Tag(label: 'objectbox')]);
+      }
+
+      inspector.registerDatabaseSource(
+        ObjectBoxBrowserSource(store, name: 'objectbox-demo'),
+      );
+      _objectboxRegistered = true;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ObjectBox demo seeded and registered!'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('ObjectBox seeding failed: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -236,6 +306,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: _seedSqlite,
               child: const Text('Seed SQLite Demo'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _seedObjectBox,
+              child: const Text('Seed ObjectBox Demo'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
