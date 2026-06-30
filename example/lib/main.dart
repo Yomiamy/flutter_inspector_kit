@@ -119,8 +119,13 @@ class _MyHomePageState extends State<MyHomePage> {
           "X-Api-Key": "mock-api-key-123",
         },
       );
-      await _dio.get(
-        'https://jsonplaceholder.typicode.com/todos/1',
+      await _dio.post(
+        'https://httpbin.org/post',
+        data: {
+          'title': 'flutter_inspector demo',
+          'completed': false,
+          'userId': 1,
+        },
         options: option,
       );
       inspector.log('Network request successful', level: LogLevel.info);
