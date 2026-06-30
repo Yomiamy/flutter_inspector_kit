@@ -13,6 +13,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   dio: ^5.0.0
   sqflite: ^2.4.0
+  objectbox: ^5.3.1
+  objectbox_flutter_libs: ^5.3.1
+  path_provider: ^2.1.0
 
   flutter_inspector_kit:
     path: ../
@@ -21,6 +24,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  build_runner: ^2.4.11
+  objectbox_generator: ^5.3.1
 
 flutter:
   uses-material-design: true

@@ -1,7 +1,12 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'objectbox.g.dart';
+import 'objectbox_browser_source.dart';
+import 'objectbox_entities.dart';
 import 'sqflite_browser_source.dart';
 
 // Enable the live system notification summarising network calls (opt-in).
@@ -85,6 +90,13 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  @override
+  void dispose() {
+    _sqliteDb?.close();
+    _objectboxStore?.close();
+    super.dispose();
+  }
+
   void _incrementCounter() {
     setState(() {
       _counter++;
@@ -100,7 +112,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _makeNetworkRequest() async {
     try {
-      await _dio.get('https://jsonplaceholder.typicode.com/todos/1');
+      final Options option = Options(
+        headers: {
+          "Authorization": "Bearer mock-token-123",
+          "Set-Cookie": "mock-cookie-123",
+          "X-Api-Key": "mock-api-key-123",
+        },
+      );
+      await _dio.get(
+        'https://jsonplaceholder.typicode.com/todos/1',
+        options: option,
+      );
       inspector.log('Network request successful', level: LogLevel.info);
     } catch (e) {
       inspector.log('Network request failed: $e', level: LogLevel.error);
@@ -108,6 +130,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool _sqliteRegistered = false;
+  Database? _sqliteDb;
+  bool _objectboxRegistered = false;
+  Store? _objectboxStore;
 
   Future<void> _seedSqlite() async {
     if (_sqliteRegistered) return;
@@ -115,34 +140,48 @@ class _MyHomePageState extends State<MyHomePage> {
       final databasesPath = await getDatabasesPath();
       final path = '$databasesPath/demo.db';
 
-      final db = await openDatabase(
+      // version 2 added the `member` table. Both onCreate (fresh install) and
+      // onUpgrade (existing demo.db from v1, which only had `users`) build the
+      // tables via the same IF NOT EXISTS statements, so a device with an old
+      // single-table db still gets `member` instead of failing on query.
+      _sqliteDb = await openDatabase(
         path,
-        version: 1,
+        version: 2,
         onCreate: (db, version) async {
           await db.execute(
-            'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
+            'CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
           );
+          await db.execute(
+            'CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
+          );
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute(
+              'CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
+            );
+          }
         },
       );
 
-      final countResult = await db.rawQuery(
+      final usersResult = await _sqliteDb?.rawQuery(
         'SELECT COUNT(*) as count FROM users',
       );
-      final count = Sqflite.firstIntValue(countResult) ?? 0;
-      if (count == 0) {
-        await db.insert('users', {
+      final usersCount = Sqflite.firstIntValue(usersResult ?? []) ?? 0;
+      if (usersCount == 0) {
+        await _sqliteDb?.insert('users', {
           'id': 1,
           'name': 'Alice',
           'email': 'alice@example.com',
           'age': 30,
         });
-        await db.insert('users', {
+        await _sqliteDb?.insert('users', {
           'id': 2,
           'name': 'Bob',
           'email': null,
           'age': 25,
         });
-        await db.insert('users', {
+        await _sqliteDb?.insert('users', {
           'id': 3,
           'name': 'Carol',
           'email': 'carol@example.com',
@@ -150,9 +189,34 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
 
-      if (!_sqliteRegistered) {
+      final membersResult = await _sqliteDb?.rawQuery(
+        'SELECT COUNT(*) as count FROM member',
+      );
+      final membersCount = Sqflite.firstIntValue(membersResult ?? []) ?? 0;
+      if (membersCount == 0) {
+        await _sqliteDb?.insert('member', {
+          'id': 1,
+          'name': 'Alice',
+          'email': 'alice@example.com',
+          'age': 30,
+        });
+        await _sqliteDb?.insert('member', {
+          'id': 2,
+          'name': 'Bob',
+          'email': null,
+          'age': 25,
+        });
+        await _sqliteDb?.insert('member', {
+          'id': 3,
+          'name': 'Carol',
+          'email': 'carol@example.com',
+          'age': null,
+        });
+      }
+
+      if (!_sqliteRegistered && _sqliteDb != null) {
         inspector.registerDatabaseSource(
-          SqfliteBrowserSource(db, name: 'demo.db'),
+          SqfliteBrowserSource(_sqliteDb!, name: 'demo.db'),
         );
         _sqliteRegistered = true;
       }
@@ -169,6 +233,63 @@ class _MyHomePageState extends State<MyHomePage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('SQLite seeding failed: $e')));
+      }
+    }
+  }
+
+  Future<void> _seedObjectBox() async {
+    // ObjectBox relies on native libraries and does NOT support web.
+    // Fail loudly-but-gracefully instead of crashing the app.
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ObjectBox is not supported on web. '
+              'Run this demo on a mobile or desktop target.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (_objectboxRegistered) return;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final store = await openStore(directory: '${dir.path}/objectbox-demo');
+      _objectboxStore = store;
+
+      final noteBox = store.box<Note>();
+      if (noteBox.isEmpty()) {
+        noteBox.putMany([
+          Note(title: 'Welcome', body: 'This row comes from ObjectBox.'),
+          Note(title: 'No SQL here', body: null),
+          Note(title: 'Strongly typed', body: 'Mapped by hand in the source.'),
+        ]);
+      }
+
+      final tagBox = store.box<Tag>();
+      if (tagBox.isEmpty()) {
+        tagBox.putMany([Tag(label: 'demo'), Tag(label: 'objectbox')]);
+      }
+
+      inspector.registerDatabaseSource(
+        ObjectBoxBrowserSource(store, name: 'objectbox-demo'),
+      );
+      _objectboxRegistered = true;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ObjectBox demo seeded and registered!'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('ObjectBox seeding failed: $e')));
       }
     }
   }
@@ -198,6 +319,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: _seedSqlite,
               child: const Text('Seed SQLite Demo'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _seedObjectBox,
+              child: const Text('Seed ObjectBox Demo'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
