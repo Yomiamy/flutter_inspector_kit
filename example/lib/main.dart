@@ -1,13 +1,9 @@
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
-import 'objectbox.g.dart';
-import 'objectbox_browser_source.dart';
-import 'objectbox_entities.dart';
-import 'sqflite_browser_source.dart';
+
+import 'demos/network_demo.dart';
+import 'demos/objectbox_demo.dart';
+import 'demos/sqlite_demo.dart';
 
 // Enable the live system notification summarising network calls (opt-in).
 // On Android this requires a notification icon + (Android 13+) the
@@ -71,18 +67,17 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
-  late final Dio _dio;
+
+  late final NetworkDemo _networkDemo;
+  late final SqliteDemo _sqliteDemo;
+  late final ObjectBoxDemo _objectBoxDemo;
 
   @override
   void initState() {
     super.initState();
-    _dio = Dio();
-    // Pass `sourceDio: _dio` so each captured entry remembers the Dio that
-    // issued it, enabling the Resend action in the network detail view to
-    // replay the request through the original Dio.
-    _dio.interceptors.add(
-      FlutterInspectorDioInterceptor(inspector, sourceDio: _dio),
-    );
+    _networkDemo = NetworkDemo(inspector);
+    _sqliteDemo = SqliteDemo(inspector);
+    _objectBoxDemo = ObjectBoxDemo(inspector);
 
     // Show FAB after frame builds
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -92,8 +87,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    _sqliteDb?.close();
-    _objectboxStore?.close();
+    _sqliteDemo.dispose();
+    _objectBoxDemo.dispose();
     super.dispose();
   }
 
@@ -110,192 +105,13 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<void> _makeNetworkRequest() async {
-    try {
-      final Options option = Options(
-        headers: {
-          "Authorization": "Bearer mock-token-123",
-          "Set-Cookie": "mock-cookie-123",
-          "X-Api-Key": "mock-api-key-123",
-        },
-      );
-      await _dio.post(
-        'https://httpbin.org/post',
-        data: {
-          'title': 'flutter_inspector demo',
-          'completed': false,
-          'userId': 1,
-        },
-        options: option,
-      );
-      inspector.log('Network request successful', level: LogLevel.info);
-    } catch (e) {
-      inspector.log('Network request failed: $e', level: LogLevel.error);
-    }
-  }
-
-  bool _sqliteRegistered = false;
-  Database? _sqliteDb;
-  bool _objectboxRegistered = false;
-  Store? _objectboxStore;
-
-  Future<void> _seedSqlite() async {
-    if (_sqliteRegistered) return;
-    try {
-      final databasesPath = await getDatabasesPath();
-      final path = '$databasesPath/demo.db';
-
-      // version 2 added the `member` table. Both onCreate (fresh install) and
-      // onUpgrade (existing demo.db from v1, which only had `users`) build the
-      // tables via the same IF NOT EXISTS statements, so a device with an old
-      // single-table db still gets `member` instead of failing on query.
-      _sqliteDb = await openDatabase(
-        path,
-        version: 2,
-        onCreate: (db, version) async {
-          await db.execute(
-            'CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
-          );
-          await db.execute(
-            'CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
-          );
-        },
-        onUpgrade: (db, oldVersion, newVersion) async {
-          if (oldVersion < 2) {
-            await db.execute(
-              'CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
-            );
-          }
-        },
-      );
-
-      final usersResult = await _sqliteDb?.rawQuery(
-        'SELECT COUNT(*) as count FROM users',
-      );
-      final usersCount = Sqflite.firstIntValue(usersResult ?? []) ?? 0;
-      if (usersCount == 0) {
-        await _sqliteDb?.insert('users', {
-          'id': 1,
-          'name': 'Alice',
-          'email': 'alice@example.com',
-          'age': 30,
-        });
-        await _sqliteDb?.insert('users', {
-          'id': 2,
-          'name': 'Bob',
-          'email': null,
-          'age': 25,
-        });
-        await _sqliteDb?.insert('users', {
-          'id': 3,
-          'name': 'Carol',
-          'email': 'carol@example.com',
-          'age': null,
-        });
-      }
-
-      final membersResult = await _sqliteDb?.rawQuery(
-        'SELECT COUNT(*) as count FROM member',
-      );
-      final membersCount = Sqflite.firstIntValue(membersResult ?? []) ?? 0;
-      if (membersCount == 0) {
-        await _sqliteDb?.insert('member', {
-          'id': 1,
-          'name': 'Alice',
-          'email': 'alice@example.com',
-          'age': 30,
-        });
-        await _sqliteDb?.insert('member', {
-          'id': 2,
-          'name': 'Bob',
-          'email': null,
-          'age': 25,
-        });
-        await _sqliteDb?.insert('member', {
-          'id': 3,
-          'name': 'Carol',
-          'email': 'carol@example.com',
-          'age': null,
-        });
-      }
-
-      if (!_sqliteRegistered && _sqliteDb != null) {
-        inspector.registerDatabaseSource(
-          SqfliteBrowserSource(_sqliteDb!, name: 'demo.db'),
-        );
-        _sqliteRegistered = true;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('SQLite demo.db initialized and registered!'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('SQLite seeding failed: $e')));
-      }
-    }
-  }
-
-  Future<void> _seedObjectBox() async {
-    // ObjectBox relies on native libraries and does NOT support web.
-    // Fail loudly-but-gracefully instead of crashing the app.
-    if (kIsWeb) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'ObjectBox is not supported on web. '
-              'Run this demo on a mobile or desktop target.',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-    if (_objectboxRegistered) return;
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final store = await openStore(directory: '${dir.path}/objectbox-demo');
-      _objectboxStore = store;
-
-      final noteBox = store.box<Note>();
-      if (noteBox.isEmpty()) {
-        noteBox.putMany([
-          Note(title: 'Welcome', body: 'This row comes from ObjectBox.'),
-          Note(title: 'No SQL here', body: null),
-          Note(title: 'Strongly typed', body: 'Mapped by hand in the source.'),
-        ]);
-      }
-
-      final tagBox = store.box<Tag>();
-      if (tagBox.isEmpty()) {
-        tagBox.putMany([Tag(label: 'demo'), Tag(label: 'objectbox')]);
-      }
-
-      inspector.registerDatabaseSource(
-        ObjectBoxBrowserSource(store, name: 'objectbox-demo'),
-      );
-      _objectboxRegistered = true;
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ObjectBox demo seeded and registered!'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('ObjectBox seeding failed: $e')));
-      }
+  /// Runs a demo's seed step and surfaces its status message, if any.
+  Future<void> _runSeed(Future<String?> Function() seed) async {
+    final message = await seed();
+    if (message != null && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -317,17 +133,17 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _makeNetworkRequest,
+              onPressed: _networkDemo.makeRequest,
               child: const Text('Make Network Request'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _seedSqlite,
+              onPressed: () => _runSeed(_sqliteDemo.seed),
               child: const Text('Seed SQLite Demo'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _seedObjectBox,
+              onPressed: () => _runSeed(_objectBoxDemo.seed),
               child: const Text('Seed ObjectBox Demo'),
             ),
             const SizedBox(height: 20),
