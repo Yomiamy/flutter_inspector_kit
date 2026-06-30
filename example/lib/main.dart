@@ -144,7 +144,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // onUpgrade (existing demo.db from v1, which only had `users`) build the
       // tables via the same IF NOT EXISTS statements, so a device with an old
       // single-table db still gets `member` instead of failing on query.
-      final db = await openDatabase(
+      _sqliteDb = await openDatabase(
         path,
         version: 2,
         onCreate: (db, version) async {
@@ -163,26 +163,25 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         },
       );
-      _sqliteDb = db;
 
-      final usersResult = await db.rawQuery(
+      final usersResult = await _sqliteDb?.rawQuery(
         'SELECT COUNT(*) as count FROM users',
       );
-      final usersCount = Sqflite.firstIntValue(usersResult) ?? 0;
+      final usersCount = Sqflite.firstIntValue(usersResult ?? []) ?? 0;
       if (usersCount == 0) {
-        await db.insert('users', {
+        await _sqliteDb?.insert('users', {
           'id': 1,
           'name': 'Alice',
           'email': 'alice@example.com',
           'age': 30,
         });
-        await db.insert('users', {
+        await _sqliteDb?.insert('users', {
           'id': 2,
           'name': 'Bob',
           'email': null,
           'age': 25,
         });
-        await db.insert('users', {
+        await _sqliteDb?.insert('users', {
           'id': 3,
           'name': 'Carol',
           'email': 'carol@example.com',
@@ -190,24 +189,24 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
 
-      final membersResult = await db.rawQuery(
+      final membersResult = await _sqliteDb?.rawQuery(
         'SELECT COUNT(*) as count FROM member',
       );
-      final membersCount = Sqflite.firstIntValue(membersResult) ?? 0;
+      final membersCount = Sqflite.firstIntValue(membersResult ?? []) ?? 0;
       if (membersCount == 0) {
-        await db.insert('member', {
+        await _sqliteDb?.insert('member', {
           'id': 1,
           'name': 'Alice',
           'email': 'alice@example.com',
           'age': 30,
         });
-        await db.insert('member', {
+        await _sqliteDb?.insert('member', {
           'id': 2,
           'name': 'Bob',
           'email': null,
           'age': 25,
         });
-        await db.insert('member', {
+        await _sqliteDb?.insert('member', {
           'id': 3,
           'name': 'Carol',
           'email': 'carol@example.com',
@@ -215,9 +214,9 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
 
-      if (!_sqliteRegistered) {
+      if (!_sqliteRegistered && _sqliteDb != null) {
         inspector.registerDatabaseSource(
-          SqfliteBrowserSource(db, name: 'demo.db'),
+          SqfliteBrowserSource(_sqliteDb!, name: 'demo.db'),
         );
         _sqliteRegistered = true;
       }
