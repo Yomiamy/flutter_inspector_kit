@@ -92,6 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
+    _sqliteDb?.close();
     _objectboxStore?.close();
     super.dispose();
   }
@@ -129,6 +130,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool _sqliteRegistered = false;
+  Database? _sqliteDb;
   bool _objectboxRegistered = false;
   Store? _objectboxStore;
 
@@ -138,18 +140,30 @@ class _MyHomePageState extends State<MyHomePage> {
       final databasesPath = await getDatabasesPath();
       final path = '$databasesPath/demo.db';
 
+      // version 2 added the `member` table. Both onCreate (fresh install) and
+      // onUpgrade (existing demo.db from v1, which only had `users`) build the
+      // tables via the same IF NOT EXISTS statements, so a device with an old
+      // single-table db still gets `member` instead of failing on query.
       final db = await openDatabase(
         path,
-        version: 1,
+        version: 2,
         onCreate: (db, version) async {
           await db.execute(
-            'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
+            'CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
           );
           await db.execute(
-            'CREATE TABLE member (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
+            'CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
           );
         },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute(
+              'CREATE TABLE IF NOT EXISTS member (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER)',
+            );
+          }
+        },
       );
+      _sqliteDb = db;
 
       final usersResult = await db.rawQuery(
         'SELECT COUNT(*) as count FROM users',
