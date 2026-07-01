@@ -25,7 +25,7 @@ class _NavigatorTabState extends State<NavigatorTab> {
   Widget _buildActiveStack(BuildContext context, List<NavigatorEntry> entries) {
     final stack = NavigatorStackResolver().resolve(entries);
     if (stack.isEmpty) {
-      return const Center(child: Text('當前堆疊為空'));
+      return const Center(child: Text('Empty stack history'));
     }
     return ListView.builder(
       itemCount: stack.length,
@@ -35,19 +35,22 @@ class _NavigatorTabState extends State<NavigatorTab> {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ListTile(
             leading: index == 0
-                ? const Icon(Icons.play_arrow, color: Colors.blue)
+                ? const Icon(Icons.visibility, color: Colors.blue)
                 : null,
             title: Text(entry.displayName),
             subtitle: Text(entry.routeName ?? '(no route name)'),
             trailing: index == 0
                 ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.withAlpha(50),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
-                      '當前',
+                      'Current',
                       style: TextStyle(fontSize: 10, color: Colors.blue),
                     ),
                   )
@@ -115,4 +118,3 @@ class _NavigatorTabState extends State<NavigatorTab> {
     );
   }
 }
-
