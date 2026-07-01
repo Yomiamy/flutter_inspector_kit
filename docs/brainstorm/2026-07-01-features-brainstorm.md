@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（檔名）｜**最後更新**：2026-06-29（含 v1.1.0 完成度核對）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-01（PR #51 完成 #8 當前路由堆疊可視化，檔名日期前綴同步更新）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -9,25 +9,25 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-06-29 · 含 v1.1.0）
+## 📊 完成度總覽（截至 2026-07-01 · 含 v1.1.0 與 PR #51）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
-> **更新說明**：原 6/25 快照已過時。v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。
+> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
 | #1 | 全局未捕捉例外捕捉 | ✅ | PR #30：`captureUncaughtErrors`(default off) + 三掛點 chain，含去重 |
 | #6 | 網路請求重放 | ✅ | PR #36 / v1.0.0 已完成：支援 per-Dio 原樣重送、`isReplay` 標記、狀態回饋與防連點保護 |
+| #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `SegmentedButton` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
 | #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄） |
 | #4 | Dio 結構化錯誤捕捉 | 🟡 | 已抓 statusCode/headers/body；**缺** `errorType`/`errorStackTrace` 結構化分類與 Exception Details section |
 | #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾（`utils/` 下仍無 log_search） |
 | #3 | 一鍵診斷報告 | ⬜ | 未實作（查無 `buildDiagnosticReport`） |
 | #7 | 錯誤聚合摘要 | ⬜ | 未實作（查無 `ErrorSummary`） |
-| #8 | 當前路由堆疊可視化 | ⬜ | 未實作（查無 `currentStack`） |
 
 **Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking）— ✅ 正確地皆未實作，守住「不走向微核心」。
 
-**進度結論**：8 項裡 **3 項完成**（#1、#6，以及 v1.1.0 實質完成的 **#2 時序軸主體**），**2 項半成品**（#4 結構化錯誤、#5 console 搜尋/過濾），**3 項未動**（#3、#7、#8）。下一刀應收尾 **#4 結構化分類** 與 **#5 console 搜尋/過濾**——這兩項是 console 排查化僅剩的缺口。
+**進度結論**：8 項裡 **4 項完成**（#1、#6、#8，以及 v1.1.0 實質完成的 **#2 時序軸主體**），**2 項半成品**（#4 結構化錯誤、#5 console 搜尋/過濾），**2 項未動**（#3、#7）。下一刀應收尾 **#4 結構化分類** 與 **#5 console 搜尋/過濾**——這兩項是 console 排查化僅剩的缺口。
 
 ---
 
@@ -44,9 +44,11 @@
 
 ## 🔍 排查能力現況盤點
 
+> **這是 v1.1.0 之前的原始盤點快照**，保留以記錄各功能當初的動機。實際現況請以本文件頂部的「完成度總覽」為準——下表多列已因後續實作而改變（例如 #1 例外捕捉已完成、#2 時序軸主體已落地）。
+
 | 排查環節 | 現況 | 評級 |
 |---|---|---|
-| 看見「我主動 log 的」錯誤 | `inspector.log(..., level: error, stackTrace: ...)` 可記錄，但 stackTrace **UI 從不展示** | 🟡 半殘 |
+| 看見「我主動 log 的」錯誤 | `inspector.log(..., level: error, stackTrace: ...)` 可記錄；`LogDetailView` 已可點擊展開並複製 stackTrace（截至 2026-07-01 核對） | ✅ 已可展示 |
 | 看見「未捕捉」的例外 | **無**任何 `FlutterError.onError` / `runZonedGuarded` / `PlatformDispatcher.onError` / `ErrorWidget.builder` | 🔴 盲區 |
 | 看見網路失敗的根因 | Dio `onError` 只存 `err.toString()`，丟掉 `err.type`/`err.stackTrace`/`err.response` | 🟡 失真 |
 | 關聯「錯誤前後發生了什麼」 | 4 個 buffer（log/network/nav/db）共用 `timestamp` 卻**完全孤立**，無跨層時序 | 🔴 斷裂 |
@@ -132,12 +134,13 @@
 * **重用**：`NetworkStatusGroup.matches()` 分組邏輯、`RingBuffer` 作資料源。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐
 
-### 8. 當前路由堆疊可視化（Active Navigation Stack）— ⬜ 未實作
+### 8. 當前路由堆疊可視化（Active Navigation Stack）— ✅ 已完成（PR #51）
 * **價值**：排查「頁面有沒有被重複 push / 該 pop 沒 pop（記憶體洩漏前兆）」。錯誤發生時的路由堆疊也是 #3 診斷報告的關鍵 context。
 * **設計**：`NavigatorObserver` 即時維護 `currentStack`，`NavigatorTab` 頂部以麵包屑顯示 Root→Top，偵測重複 push 時標 warning。
 * **重用**：既有 push/pop/replace 回調、`KeyValueTable`。
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐
 * **註**：與上一份 brainstorm 的「Navigator Stack Visualizer」同一構想，此處定位為「為診斷報告提供 crash 當下路由快照」。
+* **✅ 實作現況**：PR #51（Issue #50）已完成。新增 `NavigatorStackResolver`（`lib/src/inspectors/navigator_stack_resolver.dart`）純 Dart 重播器，將 `navigatorEntries`（newest-first）反轉回時序後重播 push/pop/replace/remove，推導出 top-first 當前堆疊；`NavigatorTab` 以 `SegmentedButton` 在「當前堆疊」（垂直卡片，顯示 `displayName` + `routeName`）與既有「事件歷史」之間切換。採**垂直卡片**而非麵包屑（經 STAGE 0a 規格確認調整，理由見 `docs/features/2026-07-01-navigator-active-stack.md`）；replace/remove 的歧義情況採明確可預測的 best-effort 規則，不做 nested Navigator 多樹精確還原。
 
 ---
 
@@ -166,8 +169,8 @@
 1. **第一階段 · 點亮盲區**（🟡 進行中）：實作 **#1 全局未捕捉例外捕捉**（可選 default-off）✅ + **#4 Dio 結構化錯誤捕捉** 🟡（結構化分類欄位待補）。此後 inspector 才真正「看得見」錯誤。
 2. **第二階段 · ConsoleTab 排查化**（🟡 進行中）：實作 **#5**（stackTrace 詳情 ✅ + error 搜尋/過濾 ⬜ 待補），讓捕捉到的錯誤可被秒速定位與檢視。
 3. **第三階段 · 建立關聯**（🟡 主體已完成）：**#2 做法 B（Timeline 混合視圖）已於 v1.1.0 落地** ✅（`mergedTimeline` + `TimestampedEntry`）；僅剩 **做法 A**（detail view 的 ±5s 同時段側欄 ⬜）尚未做，可視回饋決定是否補上。
-4. **第四階段 · 帶走證據**（⬜ 未開始）：實作 **#3 一鍵診斷報告**（含 #8 路由堆疊快照、device info）。QA 提 bug 的剛需在此閉環。
-5. 第五階段 · 加分項（✅ 部分完成）：#6 Replay 已於 v1.0.0 完成實作；後續可視回饋實作 #7 錯誤聚合摘要。
+4. **第四階段 · 帶走證據**（⬜ 未開始）：實作 **#3 一鍵診斷報告**（device info；路由堆疊快照可直接複用已完成的 #8 `NavigatorStackResolver`）。QA 提 bug 的剛需在此閉環。
+5. 第五階段 · 加分項（✅ 部分完成）：#6 Replay 已於 v1.0.0 完成實作、**#8 路由堆疊可視化已於 PR #51 完成**；後續可視回饋實作 #7 錯誤聚合摘要。
 
 > **收尾建議（截至 2026-06-29）**：console 排查鏈只剩兩個明確缺口——**#4 的結構化錯誤分類** 與 **#5 的搜尋/過濾**。兩者寫入路徑不重疊（#4 動 interceptor + model、#5 動 console UI），可並行收掉，console 排查化即閉環。其後再進第四階段 #3 診斷報告。
 

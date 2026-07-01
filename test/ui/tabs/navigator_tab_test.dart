@@ -33,5 +33,81 @@ void main() {
 
       expect(find.text('PUSH /home'), findsNothing);
     });
+
+    testWidgets('shows ChoiceChips with both mode labels', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector();
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/init',
+          arguments: null,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      expect(find.byType(ChoiceChip), findsNWidgets(2));
+      expect(find.text('Active Stack'), findsOneWidget);
+      expect(find.text('Event History'), findsOneWidget);
+    });
+
+    testWidgets('defaults to eventHistory mode showing event list', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector();
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/default',
+          arguments: null,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      // Event history visible by default
+      expect(find.text('PUSH /default'), findsOneWidget);
+      expect(find.byType(ListView), findsOneWidget);
+      // Active stack cards not shown until switched
+      expect(find.byType(Card), findsNothing);
+    });
+
+    testWidgets('switching to activeStack shows resolved stack and hides events', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector();
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/switch',
+          arguments: null,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      // Tap the "Active Stack" chip
+      await tester.tap(find.text('Active Stack'));
+      await tester.pump();
+
+      // Resolved active stack card is visible
+      expect(find.text('/switch'), findsNWidgets(2));
+      // Event history text gone
+      expect(find.text('PUSH /switch'), findsNothing);
+    });
   });
 }

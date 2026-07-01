@@ -1,0 +1,50 @@
+# CodeRabbit 設定
+# 對照 .gemini/config.yaml 與 .pr_agent.toml 而來，供 CodeRabbit GitHub App 使用。
+#
+# 與另外兩者的關鍵差異：CodeRabbit 沒有 comment_severity_threshold 這種
+# 數值/枚舉門檻欄位，嚴重度改用 reviews.profile（chill/assertive）兩檔位控制。
+# chill：只報 bug / security / 邏輯錯誤，不挑風格瑣事——對應 .gemini 的
+# MEDIUM 門檻與 .pr_agent.toml 的「僅回報 MEDIUM 以上」意圖。
+# 文件: https://docs.coderabbit.ai/getting-started/yaml-configuration
+#       https://docs.coderabbit.ai/reference/configuration
+
+# 對應 .gemini language（該檔其實無獨立語言欄位）與 .pr_agent.toml
+# 「所有評論必須使用中文」——CodeRabbit 原生支援語言欄位，直接指定。
+language: "zh-CN"
+
+reviews:
+  # 對應 .gemini comment_severity_threshold: MEDIUM 與 .pr_agent.toml
+  # num_max_findings 的抑制噪音意圖——只留實質問題，不挑風格瑣事。
+  profile: "chill"
+
+  # 對應 .gemini pull_request_opened.code_review / .pr_agent.toml
+  # [github_app] pr_commands 內含 /review。
+  auto_review:
+    enabled: true
+    drafts: false
+
+  # 對應 .gemini pull_request_opened.summary / .pr_agent.toml
+  # [github_app] pr_commands 內含 /describe。
+  high_level_summary: true
+
+  # 對應 .pr_agent.toml [pr_reviewer] extra_instructions 的專案審查依據：
+  # 嚴格遵循 repo 根目錄 best_practices.md（Flutter/Dart Style Guide）。
+  path_instructions:
+    - path: "**/*.dart"
+      instructions: |
+        嚴格對齊 repo 根目錄 best_practices.md 的 Flutter/Dart 命名、格式化、
+        BLoC、Retrofit 與測試規範。專業術語保留英文原文
+        （例如 Refactoring, Unit Test, Async/Await, Variable, Function, Memory Leak）。
+
+  # 對應 .pr_agent.toml extra_instructions 語氣要求的可移植子集——
+  # tone_instructions 僅限 250 字元，無法承載完整的「結尾創作規範」
+  # （五言絕句/新詩/俏皮話/順口溜），該規範仍只由 .pr_agent.toml 驅動。
+  tone_instructions: "以繁體中文回覆，語氣直接、精簡，只點出實質問題。"
+
+# 對應 .pr_agent.toml extra_instructions 的審查依據來源，
+# 與 .gemini styleguide: styleguide.md 同一意圖——把專案規範餵給 AI。
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "best_practices.md"
