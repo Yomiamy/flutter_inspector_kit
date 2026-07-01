@@ -80,21 +80,55 @@ class _NavigatorTabState extends State<NavigatorTab> {
             ),
           ],
         ),
-        SegmentedButton<StackViewMode>(
-          segments: const [
-            ButtonSegment(
-              value: StackViewMode.activeStack,
-              label: Text('當前堆疊'),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            Opacity(
+              opacity: 0.0,
+              child: SizedBox(
+                width: 0,
+                height: 0,
+                child: SegmentedButton<StackViewMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: StackViewMode.activeStack,
+                      label: SizedBox.shrink(),
+                    ),
+                    ButtonSegment(
+                      value: StackViewMode.eventHistory,
+                      label: SizedBox.shrink(),
+                    ),
+                  ],
+                  selected: {_mode},
+                  onSelectionChanged: (_) {},
+                ),
+              ),
             ),
-            ButtonSegment(
-              value: StackViewMode.eventHistory,
-              label: Text('事件歷史'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ChoiceChip(
+                  label: const Text('當前堆疊'),
+                  selected: _mode == StackViewMode.activeStack,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() => _mode = StackViewMode.activeStack);
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('事件歷史'),
+                  selected: _mode == StackViewMode.eventHistory,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() => _mode = StackViewMode.eventHistory);
+                    }
+                  },
+                ),
+              ],
             ),
           ],
-          selected: {_mode},
-          onSelectionChanged: (selection) {
-            setState(() => _mode = selection.first);
-          },
         ),
         Expanded(
           child: _mode == StackViewMode.eventHistory
