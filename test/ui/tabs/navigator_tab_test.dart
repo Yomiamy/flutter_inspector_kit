@@ -104,11 +104,10 @@ void main() {
       await tester.tap(find.text('當前堆疊'));
       await tester.pump();
 
-      // Placeholder visible
-      expect(find.text('當前堆疊視圖（開發中）'), findsOneWidget);
-      // Event history gone
+      // Resolved active stack card is visible
+      expect(find.text('/switch'), findsNWidgets(2));
+      // Event history text gone
       expect(find.text('PUSH /switch'), findsNothing);
-      expect(find.byType(ListView), findsNothing);
     });
   });
 }

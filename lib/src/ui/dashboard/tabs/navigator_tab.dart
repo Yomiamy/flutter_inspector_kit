@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/flutter_inspector.dart';
+import '../../../inspectors/navigator_stack_resolver.dart';
+import '../../../models/navigator_entry.dart';
 
 /// Which sub-view of the Navigator tab is currently displayed.
 enum StackViewMode { activeStack, eventHistory }
@@ -19,6 +21,42 @@ class _NavigatorTabState extends State<NavigatorTab> {
   StackViewMode _mode = StackViewMode.eventHistory;
 
   void _refresh() => setState(() {});
+
+  Widget _buildActiveStack(BuildContext context, List<NavigatorEntry> entries) {
+    final stack = NavigatorStackResolver().resolve(entries);
+    if (stack.isEmpty) {
+      return const Center(child: Text('當前堆疊為空'));
+    }
+    return ListView.builder(
+      itemCount: stack.length,
+      itemBuilder: (context, index) {
+        final entry = stack[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ListTile(
+            leading: index == 0
+                ? const Icon(Icons.play_arrow, color: Colors.blue)
+                : null,
+            title: Text(entry.displayName),
+            subtitle: Text(entry.routeName ?? '(no route name)'),
+            trailing: index == 0
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withAlpha(50),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '當前',
+                      style: TextStyle(fontSize: 10, color: Colors.blue),
+                    ),
+                  )
+                : null,
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,9 +109,10 @@ class _NavigatorTabState extends State<NavigatorTab> {
                     );
                   },
                 )
-              : const Center(child: Text('當前堆疊視圖（開發中）')),
+              : _buildActiveStack(context, entries),
         ),
       ],
     );
   }
 }
+
