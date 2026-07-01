@@ -1,3 +1,8 @@
+## 1.2.0
+
+### Added
+* **Navigator active route stack visualization**: the Navigator tab now offers an "Active Stack" / "Event History" toggle. Active Stack derives the current route stack live from the recorded push/pop/replace/remove events and renders it top-first as vertical cards, with the current screen highlighted; Event History remains the original raw event log, unchanged.
+
 ## 1.1.0
 
 ### Added

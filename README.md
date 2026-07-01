@@ -11,7 +11,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 - 🧵 **Merged timeline**: the Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips
 - 📡 **Network**: intercept HTTP traffic via Dio, inspect structured request/response details, search/filter, share as cURL
 - 🛡️ **Sensitive-data redaction**: secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path
-- 🧭 **Navigator**: track route pushes, pops, and replacements automatically
+- 🧭 **Navigator**: track route pushes, pops, and replacements automatically, with an "Active Stack" view that derives and visualizes the current route stack
 - 🗄️ **Database**: record insert / update / delete / query operations with affected-row counts and payloads
 - 👆 **Magical tap & floating button**: open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB
 - 🔔 **Live notification (opt-in)**: a system notification that summarises the latest API call and the running total
@@ -36,7 +36,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.1.0
+  flutter_inspector_kit: ^1.2.0
 ```
 
 Then run `flutter pub get`.
@@ -314,6 +314,11 @@ Captured errors appear as red logs in the **Console** tab. Tap any log that carr
 ### Track navigation
 
 Nothing to do here — routes are tracked automatically once you register `inspector.navigatorObserver` in `navigatorObservers` (see [Initialize](#initialize)). Pushes, pops, and replacements all show up in the Navigator tab.
+
+The Navigator tab offers two views, toggled via chips at the top:
+
+- **Event History**: the raw log of push/pop/replace/remove events (the original behavior).
+- **Active Stack**: the current route stack, derived live from the event history and rendered top-first as vertical cards — the topmost card (the current screen) is highlighted. Shows "Empty stack history" when no routes have been recorded yet.
 
 ### Track database operations
 
