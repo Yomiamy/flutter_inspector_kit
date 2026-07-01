@@ -9,8 +9,8 @@
 #       https://docs.coderabbit.ai/reference/configuration
 
 # 對應 .gemini language（該檔其實無獨立語言欄位）與 .pr_agent.toml
-# 「所有評論必須使用繁體中文」——CodeRabbit 原生支援語言欄位，直接指定。
-language: "zh-TW"
+# 「所有評論必須使用中文」——CodeRabbit 原生支援語言欄位，直接指定。
+language: "zh-CN"
 
 reviews:
   # 對應 .gemini comment_severity_threshold: MEDIUM 與 .pr_agent.toml
