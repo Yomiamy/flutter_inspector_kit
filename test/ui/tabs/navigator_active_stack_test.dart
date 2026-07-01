@@ -91,8 +91,7 @@ void main() {
       await tester.tap(find.text('當前堆疊'));
       await tester.pump();
 
-      // We expect some empty placeholder text, e.g. "當前堆疊為空"
-      expect(find.text('當前堆疊為空'), findsOneWidget);
+      expect(find.text('Empty stack history'), findsOneWidget);
       expect(find.byType(Card), findsNothing);
     });
 
@@ -121,7 +120,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('/routeToClear'), findsNothing);
-      expect(find.text('當前堆疊為空'), findsOneWidget);
+      expect(find.text('Empty stack history'), findsOneWidget);
     });
   });
 }
