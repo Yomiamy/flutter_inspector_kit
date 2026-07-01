@@ -1,7 +1,9 @@
 # Flutter/Dart 專案 Best Practices
 
-本檔供 Qodo Merge 的 `/improve` 與 `/review` 自動載入，作為 Code Review 與程式碼建議的審查基準。
-語言與術語、評論嚴重度、結尾創作規範等 review 行為設定於 `.pr_agent.toml` 的 `extra_instructions`。
+本檔供 Qodo Merge 的 `/improve` 與 `/review` 自動載入，亦透過 `.coderabbit.yaml` 的
+`knowledge_base.code_guidelines` 提供給 CodeRabbit，作為 Code Review 與程式碼建議的審查基準。
+語言與術語、評論嚴重度、結尾創作規範等 review 行為設定於 `.pr_agent.toml` 的 `extra_instructions`；
+CodeRabbit 對應設定見 `.coderabbit.yaml`（語言、profile 嚴重度門檻、path_instructions）。
 
 Flutter 版本 3.35
 
