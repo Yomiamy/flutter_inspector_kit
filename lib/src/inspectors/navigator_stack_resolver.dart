@@ -18,13 +18,14 @@ class NavigatorStackResolver {
   /// The returned list is **top-first**: index 0 is the top of the stack (the
   /// current screen) and the last element is the root route.
   List<NavigatorEntry> resolve(List<NavigatorEntry> entries) {
-    // Reverse newest-first input back into chronological (oldest-first) order.
-    final chronological = entries.reversed.toList();
-
     // Working stack is bottom-to-top: stack.last is the top of the stack.
     final stack = <NavigatorEntry>[];
 
-    for (final entry in chronological) {
+    // entries is newest-first; walking backwards visits them in the
+    // chronological (oldest-first) order the replay requires, with no
+    // separate reversed copy.
+    for (var i = entries.length - 1; i >= 0; i--) {
+      final entry = entries[i];
       switch (entry.action) {
         case NavigatorAction.push:
           stack.add(entry);
