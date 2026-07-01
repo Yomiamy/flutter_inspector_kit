@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/flutter_inspector.dart';
 
+/// Which sub-view of the Navigator tab is currently displayed.
+enum StackViewMode { activeStack, eventHistory }
+
 /// Tab for displaying navigator history.
 class NavigatorTab extends StatefulWidget {
   const NavigatorTab({required this.inspector, super.key});
@@ -13,6 +16,8 @@ class NavigatorTab extends StatefulWidget {
 }
 
 class _NavigatorTabState extends State<NavigatorTab> {
+  StackViewMode _mode = StackViewMode.eventHistory;
+
   void _refresh() => setState(() {});
 
   @override
@@ -34,21 +39,39 @@ class _NavigatorTabState extends State<NavigatorTab> {
             ),
           ],
         ),
+        SegmentedButton<StackViewMode>(
+          segments: const [
+            ButtonSegment(
+              value: StackViewMode.activeStack,
+              label: Text('當前堆疊'),
+            ),
+            ButtonSegment(
+              value: StackViewMode.eventHistory,
+              label: Text('事件歷史'),
+            ),
+          ],
+          selected: {_mode},
+          onSelectionChanged: (selection) {
+            setState(() => _mode = selection.first);
+          },
+        ),
         Expanded(
-          child: ListView.builder(
-            itemCount: entries.length,
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              return ListTile(
-                title: Text(
-                  '${entry.action.name.toUpperCase()} ${entry.displayName}',
-                ),
-                subtitle: Text(
-                  '${entry.timestamp.toIso8601String()}\nArgs: ${entry.arguments ?? "None"}',
-                ),
-              );
-            },
-          ),
+          child: _mode == StackViewMode.eventHistory
+              ? ListView.builder(
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = entries[index];
+                    return ListTile(
+                      title: Text(
+                        '${entry.action.name.toUpperCase()} ${entry.displayName}',
+                      ),
+                      subtitle: Text(
+                        '${entry.timestamp.toIso8601String()}\nArgs: ${entry.arguments ?? "None"}',
+                      ),
+                    );
+                  },
+                )
+              : const Center(child: Text('當前堆疊視圖（開發中）')),
         ),
       ],
     );
