@@ -12,8 +12,9 @@ class NavigatorStackResolver {
   ///
   /// [entries] is expected in the shape of `FlutterInspector.navigatorEntries`:
   /// **newest-first** (the most recent event at index 0). The replay must apply
-  /// events in the order they occurred, so the first step reverses [entries]
-  /// back into chronological (oldest-first) order.
+  /// events in the order they occurred, so this walks [entries] backwards by
+  /// index to visit them chronologically (oldest-first) without allocating a
+  /// separate reversed copy.
   ///
   /// The returned list is **top-first**: index 0 is the top of the stack (the
   /// current screen) and the last element is the root route.

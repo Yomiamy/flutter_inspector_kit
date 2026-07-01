@@ -3,7 +3,7 @@
 - **日期**：2026-07-01
 - **階段**：STAGE 0b — 實作計畫（只寫 How）
 - **對應規格**：`docs/features/2026-07-01-navigator-active-stack.md`（source of truth）
-- **性質**：既有 Navigator tab 的視圖增補。核心工作是新增一個**純函式重播器**（把事件序列推導成當前堆疊），再把 tab 改為 Segmented Tab、掛上垂直卡片子視圖。事件模型與公開 API 不動。
+- **性質**：既有 Navigator tab 的視圖增補。核心工作是新增一個**純函式重播器**（把事件序列推導成當前堆疊），再把 tab 加上頂部切換、掛上垂直卡片子視圖。事件模型與公開 API 不動。
 
 ---
 
@@ -13,13 +13,13 @@
 
 規格 §5 已誠實界定：`NavigatorEntry` 是事件記錄、非堆疊快照，當前堆疊必須由事件序列**推導**。本計畫把推導封裝成一個**純函式 class**，與 Flutter widget tree 完全解耦，讓它能被單元測試逐一覆蓋。
 
-#### 1.1 關鍵事實：資料方向必須先反轉
+#### 1.1 關鍵事實：資料方向必須先反轉（實作階段簡化：無需額外拷貝）
 
 - `NavigatorInspector.entries`（`navigator_inspector.dart:13`）回傳 `RingBuffer.items`，順序為 **newest first（最新在前）**。
 - `FlutterInspector.navigatorEntries`（`flutter_inspector.dart:154`）直接轉發，同樣 newest first。
-- 重播堆疊語意必須依**發生時序（oldest first）**逐一 apply，因此 resolver 內部第一步就是 `entries.reversed`。
+- 重播堆疊語意必須依**發生時序（oldest first）**逐一 apply。**實作簡化**：不建立 `entries.reversed.toList()` 這份額外拷貝，改用 `for (var i = entries.length - 1; i >= 0; i--)` 直接倒著走 index，效果等價但省一次 `O(n)` 拷貝（見 commit `5b942a0`）。
 
-> 這是整個演算法最容易出錯的一點：若直接對 newest-first 重播，push/pop 順序會完全顛倒。Resolver 對外接受「呼叫端給什麼順序」由參數明確標註，內部固定以時序重播。
+> 這是整個演算法最容易出錯的一點：若直接對 newest-first 順序（不反轉、不倒走）重播，push/pop 順序會完全顛倒。無論是「先建反轉拷貝再正向走」或「直接倒著走 index」，語意都是依時序（oldest first）逐一 apply，兩者等價；本專案採後者以避免多餘配置。
 
 #### 1.2 核心資料結構：不新增 model，直接複用 `NavigatorEntry`
 
@@ -41,7 +41,7 @@ List<NavigatorEntry> resolve(List<NavigatorEntry> entries)
 
 內部演算法（以「底→頂」的可變工作堆疊 `stack` 進行，最後反轉成 top-first 輸出）：
 
-1. **時序化**：`final chronological = entries.reversed.toList();`（oldest → newest）。
+1. **倒著走 index**：`for (var i = entries.length - 1; i >= 0; i--)`，從 `entries`（newest-first）的尾端往頭端走，即依時序（oldest → newest）逐一取得 `entry`——不建立額外的反轉拷貝（見 §1.1 實作簡化）。
 2. 逐一 apply 每個 `entry`，工作堆疊語意為 `stack.last == 堆疊頂`：
 
 | action | 重播規則 | fallback（規則不適用時） |
@@ -71,42 +71,47 @@ bool _matches(NavigatorEntry a, NavigatorEntry b) =>
 
 `flutter_inspector_dashboard` 在事件記錄層級（`_isInspectorRoute`）就已排除，從不進入 `navigatorEntries`。Resolver 只讀 `navigatorEntries`，天然不含它。**Resolver 不需、也不應**重新加任何 inspector 路由過濾（加了反而是第二份真相）。此點以測試確認（見任務 T3）。
 
-### 2. UI 改動：Segmented Tab + 垂直卡片
+### 2. UI 改動：頂部切換 + 垂直卡片
 
-#### 2.1 版面選型：`SegmentedButton`（Material 3 內建）
+#### 2.1 版面選型：`ChoiceChip`（實作階段由 `SegmentedButton` 改版，見規格 §6 決策 5）
 
-規格 §6 已拍板頂部切換（Segmented Tab）。選 **`SegmentedButton<StackViewMode>`** 而非 `TabBar` 或 `CupertinoSlidingSegmentedControl`：
+原計畫選定 `SegmentedButton<StackViewMode>`，理由是 Material 3 內建的單選語意、避免 `TabBar`/`CupertinoSlidingSegmentedControl` 的過度工程。**實作階段改為 `ChoiceChip`**（包在私有 `_Tab` StatelessWidget 內，見 commit `c3c2d7b`、`68f0cc7`、`dae52d8`），原因：
 
-- **理由 1（語意）**：這裡是「同一資料源的兩種視圖互斥切換」，不是「多個獨立 tab 頁」。`SegmentedButton` 的單選語意正是這個；`TabBar` 帶 `TabController` + `TabBarView` 是為多頁滑動設計，對兩個子視圖是過度工程。
-- **理由 2（相依）**：`SegmentedButton` 是 Material 3 內建，不引入 Cupertino 混用；專案 UI 已全面 `material.dart`。
-- **理由 3（狀態）**：切換狀態就是一個 `StackViewMode` enum 欄位存在既有 `_NavigatorTabState`，`setState` 切換即可，零新 controller、零 dispose 負擔。
+- **相容性**：`SegmentedButton` 在專案實際執行環境下出現相容性問題（見 commit `68f0cc7 remove compatibility SegmentedButton hack`），改用更輕量、相容性更好的 `ChoiceChip` 組合排除該問題。
+- **狀態管理不變**：切換狀態仍是 `StackViewMode` enum 欄位存在 `_NavigatorTabState`，`setState` 切換即可，`ChoiceChip.selected` + `onSelected` 與原本 `SegmentedButton.selected`/`onSelectionChanged` 語意等價，零新 controller、零 dispose 負擔。
+- **視覺**：兩個 `_Tab(label: ..., selected: ..., onSelected: ...)` 各自包一個 `ChoiceChip`，維持「同一資料源兩視圖互斥切換」的單選語意，只是元件從 `SegmentedButton` 換成 `ChoiceChip` 組合。
 
-新增 `enum StackViewMode { activeStack, eventHistory }`（放 `navigator_tab.dart` 檔內私有或同檔頂層即可，不對外導出）。
+`enum StackViewMode { activeStack, eventHistory }` 維持放在 `navigator_tab.dart` 檔內頂層（不對外導出）。
 
-#### 2.2 `NavigatorTab` 結構（改動後）
+#### 2.2 `NavigatorTab` 結構（實作後現況）
 
 ```
 Column
-├─ Row（既有 refresh / delete 按鈕，原樣保留）
-├─ SegmentedButton<StackViewMode>（新增，切 activeStack / eventHistory）
+├─ Row（統一工具列，同一列並存：）
+│   ├─ _Tab('Active Stack')   （ChoiceChip 包裝，切 activeStack）
+│   ├─ _Tab('Event History')  （ChoiceChip 包裝，切 eventHistory）
+│   ├─ Spacer()
+│   ├─ IconButton(refresh)
+│   └─ IconButton(delete)
 └─ Expanded
-   └─ switch (_mode)
-      ├─ activeStack  → _ActiveStackView（新增：垂直卡片列表）
+   └─ 三元運算依 _mode 切換
+      ├─ activeStack  → _buildActiveStack（私有方法：垂直卡片列表）
       └─ eventHistory → 既有 ListView.builder（原樣搬移，邏輯零變更）
 ```
 
-- 既有「事件歷史」的 `ListView.builder`（`navigator_tab.dart:38-51`）**整段搬進 `eventHistory` 分支，內容一字不改**——保 US-5。
-- refresh / delete 按鈕列不動：它們操作的是 `navigatorEntries` 與 `clearNavigator()`，對兩個視圖都適用（clear 後兩視圖同步清空，因為堆疊是 `navigatorEntries` 的衍生）。
+- 原計畫設想「Row（refresh/delete）」與「切換元件」是 `Column` 底下兩個獨立子項；**實作階段收斂為單一統一 Row**（commit `dae52d8 extract _Tab widget and unify toolbar row`）：切換 chip 靠左，`Spacer()` 把 refresh/delete 按鈕推到最右，兩個模式共用同一列工具列，兩者恆常可見。
+- 既有「事件歷史」的 `ListView.builder` **整段搬進 `eventHistory` 分支，內容一字不改**——保 US-5。
+- refresh / delete 按鈕操作的是 `navigatorEntries` 與 `clearNavigator()`，對兩個視圖都適用（clear 後兩視圖同步清空，因為堆疊是 `navigatorEntries` 的衍生）。
 
-#### 2.3 `_ActiveStackView`（新增垂直卡片子視圖）
+#### 2.3 `_buildActiveStack`（垂直卡片子視圖，實作為 `_NavigatorTabState` 私有方法，非獨立 widget 檔）
 
 - 在 build 當下呼叫 `NavigatorStackResolver().resolve(widget.inspector.navigatorEntries)`，得到 top-first 堆疊。
-- 空堆疊 → 顯示佔位文字（如「當前堆疊為空」），不崩潰。
+- 空堆疊 → 顯示佔位文字 **`'Empty stack history'`**（英文，見 commit `517b25f`、`a04ed8e`；原計畫的中文「當前堆疊為空」僅為示意文字，未被規格 §6 拍板，實作採此英文字串），不崩潰。
 - 非空 → `ListView.builder` 逐層渲染 `Card`：
   - 標題：`entry.displayName`
   - 副標：`entry.routeName ?? '(no route name)'`（displayName + routeName 並陳，對應規格 §6 卡片欄位集）
   - **不顯示 `arguments`**（規格 §6 已定，維持卡片簡潔）。
-- 頂層（index 0）可加一個「當前」視覺標記（例如 leading icon / 標籤），輔助「頂=當前畫面」的心智模型；此為 nice-to-have，不影響驗收。
+- 頂層（index 0）已加「當前」視覺標記（此為原計畫核准的 nice-to-have，已定案）：leading `Icon(Icons.visibility, color: Colors.blue)` + trailing 圓角徽章 `Text('Current', ...)`；index != 0 時 `leading`/`trailing` 皆為 `null`。
 
 ---
 
@@ -125,10 +130,10 @@ Column
 
 | 路徑 | 改動 |
 |---|---|
-| `lib/src/ui/dashboard/tabs/navigator_tab.dart` | 加 `StackViewMode` enum、`SegmentedButton`、`_mode` 狀態、兩分支切換；既有事件歷史 `ListView.builder` 原樣搬入 `eventHistory` 分支 |
-| `test/ui/tabs/navigator_tab_test.dart` | **只增不改**：既有 case 全保留（US-5）；新增「Segmented Tab 存在且可切換」的 case |
+| `lib/src/ui/dashboard/tabs/navigator_tab.dart` | 加 `StackViewMode` enum、`_mode` 狀態、兩分支切換；新增私有 `_Tab` StatelessWidget（包 `ChoiceChip`，取代原計畫的 `SegmentedButton`，見 §2.1）；`_buildActiveStack` 私有方法渲染垂直卡片（未獨立成 `active_stack_view.dart`）；既有事件歷史 `ListView.builder` 原樣搬入 `eventHistory` 分支 |
+| `test/ui/tabs/navigator_tab_test.dart` | **只增不改**：既有 case 全保留（US-5）；新增「ChoiceChip 切換存在且可切換」的 case |
 
-> 註：若 `_ActiveStackView` 選擇內嵌 `navigator_tab.dart`（結構夠小時），則不新增 `active_stack_view.dart`，對應測試併入 `navigator_tab_test.dart`。此為 T5 的設計判斷，計畫兩案並列，實作時擇一。
+> 實作結果（T5 設計判斷已定案）：`_ActiveStackView` 選擇**內嵌** `navigator_tab.dart` 作為私有方法 `_buildActiveStack`，未新增 `active_stack_view.dart` 獨立檔；對應測試在獨立的 `test/ui/tabs/navigator_active_stack_test.dart`（而非併入 `navigator_tab_test.dart`）。
 
 ---
 
@@ -169,14 +174,14 @@ Column
   - resolver 輸入不含 `flutter_inspector_dashboard`（因記錄層級已排除）→ 堆疊不含它（US-3 確認）。
 - **依賴**：T1、T2（同檔續寫）。
 
-### T4 — Segmented Tab 骨架（切換機制，不含卡片內容）【整合】
+### T4 — 頂部切換骨架（切換機制，不含卡片內容）【整合】
 
-- **描述**：`navigator_tab.dart` 加 `StackViewMode` enum、`_mode` 狀態、`SegmentedButton`，兩分支先用佔位；既有事件歷史 `ListView.builder` 原樣搬入 `eventHistory` 分支。
+- **描述**：`navigator_tab.dart` 加 `StackViewMode` enum、`_mode` 狀態、切換元件，兩分支先用佔位；既有事件歷史 `ListView.builder` 原樣搬入 `eventHistory` 分支。**實作結果**：切換元件為私有 `_Tab` widget（包 `ChoiceChip`），標籤為英文「Active Stack」/「Event History」，取代計畫原定的 `SegmentedButton` + 中文標籤（見規格 §6 決策 5）。
 - **寫入 scope**：`lib/src/ui/dashboard/tabs/navigator_tab.dart`、`test/ui/tabs/navigator_tab_test.dart`
 - **測試案例概要**：
   - **既有 case 全數保留且通過**（US-5：`PUSH /home` 顯示、delete 清空）——預設 `_mode` 須落在能看到事件歷史的狀態，或測試明確切到 eventHistory。
-  - 新增：SegmentedButton 存在，含「當前堆疊」「事件歷史」兩選項。
-  - 新增：切到「當前堆疊」→ 事件歷史列表消失、堆疊視圖區塊出現（此時可為空佔位）。
+  - 新增：兩個 `ChoiceChip` 存在，含「Active Stack」「Event History」兩選項。
+  - 新增：切到「Active Stack」→ 事件歷史列表消失、堆疊視圖區塊出現（此時可為空佔位）。
 - **依賴**：無（可與 T1–T3 並行，不同檔）。
 
 ### T5 — 垂直卡片子視圖 `_ActiveStackView`【整合】
@@ -188,7 +193,7 @@ Column
   - 卡片顯示 `displayName` 與 `routeName` 並陳；**不出現 `arguments` 內容**。
   - 空 `navigatorEntries` → 顯示空佔位、不崩潰。
   - clear（delete 按鈕）後切當前堆疊 → 空佔位（驗證衍生同步）。
-- **依賴**：T1–T3（需 resolver）、T4（需 Segmented 骨架）。
+- **依賴**：T1–T3（需 resolver）、T4（需頂部切換骨架）。
 
 ### T6 — 迴歸驗證與收尾【機械性】
 
@@ -231,7 +236,7 @@ Column
 ## 驗證方式
 
 1. **單元測試（resolver 為主）**：`flutter test test/inspectors/navigator_stack_resolver_test.dart` — push/pop/replace/remove 四規則與各 fallback 全覆蓋，純函式無 widget tree 依賴，快速可重複。
-2. **Widget 測試**：`flutter test test/ui/tabs/navigator_tab_test.dart test/ui/tabs/navigator_active_stack_test.dart` — Segmented 切換、卡片 top-first 排序、欄位並陳、空堆疊佔位、clear 同步。
+2. **Widget 測試**：`flutter test test/ui/tabs/navigator_tab_test.dart test/ui/tabs/navigator_active_stack_test.dart` — ChoiceChip 切換、卡片 top-first 排序、欄位並陳、空堆疊佔位、clear 同步。
 3. **迴歸**：`flutter test test/models/navigator_entry_test.dart test/observers/navigator_observer_test.dart` — 確認 US-5 既有契約全綠。
 4. **靜態檢查**：`dart analyze` 無新增警告；resolver 檔案確認未 import `package:flutter/material.dart`（保純函式可測性）。
 5. **驗收對照**：逐條核對規格 §2 的 US-1～US-5 驗收條件（尤其 US-4 的三個邊界：pop 到底、replace 深度不變、remove 非頂部不誤傷）。
@@ -245,14 +250,14 @@ Column
 ### 選項 A：subagent-driven（序列 + 局部並行）
 
 - **並行群 1**：T1→T2→T3（resolver 三任務同檔、必須序列）與 T4（`navigator_tab.dart` 骨架、不同檔）**可並行**——resolver 檔與 tab 檔寫入 scope 不重疊。
-- **收斂**：T5 需同時依賴 resolver（T1–T3）與 Segmented 骨架（T4），為匯流點。
+- **收斂**：T5 需同時依賴 resolver（T1–T3）與頂部切換骨架（T4），為匯流點。
 - **收尾**：T6 迴歸。
 - 適合：單一 session 內以 subagent 分派 resolver 與 UI 骨架兩條線，主 agent 於 T5 收斂。
 
 ### 選項 B：parallel session（兩條獨立線）
 
 - **Session 1（資料線）**：T1→T2→T3→（resolver 對應測試）。純 Dart，可獨立跑到綠。
-- **Session 2（UI 線）**：T4（Segmented 骨架，先用假堆疊資料或空佔位）。
+- **Session 2（UI 線）**：T4（頂部切換骨架，先用假堆疊資料或空佔位）。
 - **合流 session**：T5 接線 + T6 迴歸。
 - 適合：資料演算法與 UI 版面由不同人／不同 model 並行推進；風險是 T5 合流前 UI 線只能用 stub，需在合流時補齊真實 resolver 呼叫。
 

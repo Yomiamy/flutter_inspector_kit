@@ -52,7 +52,7 @@ Navigator Tab 目前只有一份**事件流水帳**（push / pop / replace / rem
 
 - [ ] Navigator tab 新增一個可視化「當前路由堆疊」的區塊 / 子視圖，以**垂直卡片**呈現：由上（堆疊頂 = 當前顯示中的路由）到下（堆疊底 = 根路由）。
 - [ ] 每一層卡片顯示 `displayName`（優先 `widgetType`，次之 `routeName`，最後泛用占位）與原始 `routeName`（兩者並陳，方便比對解析結果與原始名稱）。
-- [ ] 堆疊視圖與既有事件歷史列表**同處 Navigator tab**，以**頂部切換（Segmented Tab）**呈現：兩個子頁籤（「當前堆疊」/「事件歷史」）互斥切換顯示，畫面乾淨不擁擠（版面設計細節屬 STAGE 0b）。
+- [ ] 堆疊視圖與既有事件歷史列表**同處 Navigator tab**，以**頂部切換**呈現：兩個子頁籤（**"Active Stack" / "Event History"**，英文標籤）互斥切換顯示，畫面乾淨不擁擠（實作採 `ChoiceChip` + 私有 `_Tab` widget，非 `SegmentedButton`，見 §6 決策紀錄與 `docs/plans/` 實作計畫）。
 
 ### US-2：堆疊視圖即時反映最新狀態，不是歷史流水帳
 
@@ -147,12 +147,13 @@ Navigator Tab 目前只有一份**事件流水帳**（push / pop / replace / rem
 
 ---
 
-## 6. 決策紀錄（STAGE 0a 已拍板）
+## 6. 決策紀錄（STAGE 0a 已拍板，含實作階段修訂）
 
-1. **版面關係**：頂部切換（Segmented Tab）——「當前堆疊」與「事件歷史」為互斥切換的兩個子頁籤。
+1. **版面關係**：頂部切換——「Active Stack」與「Event History」為互斥切換的兩個子頁籤。
 2. **麵包屑**：本次不做，僅交付垂直卡片視圖；麵包屑留待後續迭代評估。
 3. **best-effort 規則可接受度**：已確認可接受——不要求 100% 精確重建 nested Navigator 或 replace/remove 歧義情況，只要求不誤導、行為可預測。
-4. **卡片欄位集**：`displayName` + `routeName` 並陳顯示；不顯示 `arguments` 摘要（維持卡片簡潔）。
+4. **卡片欄位集**：`displayName` + `routeName` 並陳顯示；不顯示 `arguments` 摘要（維持卡片簡潔）。堆疊頂（index 0）額外加視覺標記：`Icons.visibility` leading icon + 「Current」trailing 徽章，屬 `docs/plans/` §2.3 預先核准的 nice-to-have。
+5. **切換元件與標籤語言（實作階段修訂）**：STAGE 0a 原拍板 `SegmentedButton` + 中文標籤（當前堆疊/事件歷史）。實作過程中改為 `ChoiceChip`（包在私有 `_Tab` widget 內）+ 英文標籤（"Active Stack" / "Event History"），理由與細節見 `docs/plans/2026-07-01-navigator-active-stack.md` §2.1。此為已確認的新拍板決定，取代原決策，互斥切換的行為本身不變。
 
 ---
 
@@ -163,4 +164,4 @@ Navigator Tab 目前只有一份**事件流水帳**（push / pop / replace / rem
 - 範圍邊界（不重構事件模型 API、不做轉場動畫、不跨 Isolate/Engine、不承諾 nested 多樹精確還原、唯讀可視化）已確認。
 - §5 技術限制與 best-effort 規則可接受度已確認。
 
-進入 STAGE 0b（實作計畫），細化：當前堆疊的資料表示（衍生計算的形狀）、事件重播演算法（push/pop/replace/remove 的堆疊語意規則、nested/歧義的最佳努力處置）、垂直卡片 UI 與 Segmented Tab 版面、與事件列表的切換機制，以及對應的 TDD 任務拆解與逐檔異動清單。
+進入 STAGE 0b（實作計畫），細化：當前堆疊的資料表示（衍生計算的形狀）、事件重播演算法（push/pop/replace/remove 的堆疊語意規則、nested/歧義的最佳努力處置）、垂直卡片 UI 與頂部切換版面、與事件列表的切換機制，以及對應的 TDD 任務拆解與逐檔異動清單。
