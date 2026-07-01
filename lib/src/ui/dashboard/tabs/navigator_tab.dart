@@ -68,38 +68,28 @@ class _NavigatorTabState extends State<NavigatorTab> {
     return Column(
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            _Tab(
+              label: 'Active Stack',
+              selected: _mode == StackViewMode.activeStack,
+              onSelected: () {
+                setState(() => _mode = StackViewMode.activeStack);
+              },
+            ),
+            _Tab(
+              label: 'Event History',
+              selected: _mode == StackViewMode.eventHistory,
+              onSelected: () {
+                setState(() => _mode = StackViewMode.eventHistory);
+              },
+            ),
+            const Spacer(),
             IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () {
                 widget.inspector.clearNavigator();
                 _refresh();
-              },
-            ),
-          ],
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ChoiceChip(
-              label: const Text('當前堆疊'),
-              selected: _mode == StackViewMode.activeStack,
-              onSelected: (selected) {
-                if (selected) {
-                  setState(() => _mode = StackViewMode.activeStack);
-                }
-              },
-            ),
-            const SizedBox(width: 8),
-            ChoiceChip(
-              label: const Text('事件歷史'),
-              selected: _mode == StackViewMode.eventHistory,
-              onSelected: (selected) {
-                if (selected) {
-                  setState(() => _mode = StackViewMode.eventHistory);
-                }
               },
             ),
           ],
@@ -123,6 +113,32 @@ class _NavigatorTabState extends State<NavigatorTab> {
               : _buildActiveStack(context, entries),
         ),
       ],
+    );
+  }
+}
+
+class _Tab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  const _Tab({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (value) {
+          if (value) onSelected();
+        },
+      ),
     );
   }
 }

@@ -53,8 +53,8 @@ void main() {
       );
 
       expect(find.byType(ChoiceChip), findsNWidgets(2));
-      expect(find.text('當前堆疊'), findsOneWidget);
-      expect(find.text('事件歷史'), findsOneWidget);
+      expect(find.text('Active Stack'), findsOneWidget);
+      expect(find.text('Event History'), findsOneWidget);
     });
 
     testWidgets('defaults to eventHistory mode showing event list', (
@@ -100,8 +100,8 @@ void main() {
         ),
       );
 
-      // Tap the 「當前堆疊」 segment
-      await tester.tap(find.text('當前堆疊'));
+      // Tap the "Active Stack" chip
+      await tester.tap(find.text('Active Stack'));
       await tester.pump();
 
       // Resolved active stack card is visible

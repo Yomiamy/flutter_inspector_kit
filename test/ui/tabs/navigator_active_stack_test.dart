@@ -34,8 +34,8 @@ void main() {
         ),
       );
 
-      // Tap 「當前堆疊」 segment
-      await tester.tap(find.text('當前堆疊'));
+      // Tap "Active Stack" chip
+      await tester.tap(find.text('Active Stack'));
       await tester.pump();
 
       // We expect two cards
@@ -71,7 +71,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('當前堆疊'));
+      await tester.tap(find.text('Active Stack'));
       await tester.pump();
 
       expect(find.text('Scaffold'), findsOneWidget);
@@ -88,7 +88,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('當前堆疊'));
+      await tester.tap(find.text('Active Stack'));
       await tester.pump();
 
       expect(find.text('Empty stack history'), findsOneWidget);
@@ -110,7 +110,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('當前堆疊'));
+      await tester.tap(find.text('Active Stack'));
       await tester.pump();
 
       expect(find.text('/routeToClear'), findsNWidgets(2));
