@@ -78,11 +78,11 @@ void main() {
       // Event history visible by default
       expect(find.text('PUSH /default'), findsOneWidget);
       expect(find.byType(ListView), findsOneWidget);
-      // Placeholder not visible
-      expect(find.text('當前堆疊視圖（開發中）'), findsNothing);
+      // Active stack cards not shown until switched
+      expect(find.byType(Card), findsNothing);
     });
 
-    testWidgets('switching to activeStack shows placeholder and hides events', (
+    testWidgets('switching to activeStack shows resolved stack and hides events', (
       tester,
     ) async {
       final inspector = FlutterInspector();
