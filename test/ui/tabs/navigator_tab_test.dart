@@ -34,7 +34,7 @@ void main() {
       expect(find.text('PUSH /home'), findsNothing);
     });
 
-    testWidgets('shows SegmentedButton with both mode labels', (
+    testWidgets('shows ChoiceChips with both mode labels', (
       tester,
     ) async {
       final inspector = FlutterInspector();
@@ -52,7 +52,7 @@ void main() {
         ),
       );
 
-      expect(find.byType(SegmentedButton<StackViewMode>), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsNWidgets(2));
       expect(find.text('當前堆疊'), findsOneWidget);
       expect(find.text('事件歷史'), findsOneWidget);
     });
