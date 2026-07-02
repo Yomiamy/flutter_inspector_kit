@@ -3,7 +3,8 @@ name: gen-dev-workflow
 description: |
   完整開發流程編排器。使用者說「幫我做 X 功能」時觸發，自動依序驅動所有 agent 直到 PR 建立，只在關鍵決策點暫停確認。
   也可用既有 GitHub issue id 直接進入 STAGE 1（跳過 STAGE 0a/0b 規劃），例如「開發 issue #42」「處理 #54」。
-  觸發條件：dev workflow, 開始開發, 新功能開發, 幫我做 X 功能, 繼續, 繼續上次, 繼續開發, /gen-dev-workflow, 開發 issue #<id>, 處理 #<id>
+  PR 實際合併後，可另外觸發 STAGE 6 清理該 PR 對應的 worktree（branch 一律保留不刪除）。
+  觸發條件：dev workflow, 開始開發, 新功能開發, 幫我做 X 功能, 繼續, 繼續上次, 繼續開發, /gen-dev-workflow, 開發 issue #<id>, 處理 #<id>, PR #<id> 合併了 清理 worktree
 ---
 
 # Dev Workflow（自動編排模式）
@@ -110,7 +111,8 @@ description: |
                            ▼
                       PR 建立完成 ✦
                       流程結束，Claude 停止。
-                      （本地 branch 一律保留，不自動刪除）
+                      （worktree 與本地 branch 一律保留，不自動刪除；
+                       PR 合併後可手動觸發 STAGE 6 清理 worktree）
 
     ──────────────────────────────────────────────────
     [Model: ...] = 該 stage 委派時選用的基準 model。
@@ -125,6 +127,18 @@ description: |
     → 呼叫 responder agent 處理每條意見      [Model: Sonnet (Max effort)]
     → 處理完畢 → 呼叫 reviewer agent 重新審查 [Model: Opus (xHigh effort)]
     → 審查通過 → 呼叫 publisher agent 更新 PR [Model: Sonnet (Max effort)]
+    → 完成後流程再次結束，Claude 停止等待。
+
+    ──────────────────────────────────────────────────
+    STAGE 6：清理 Worktree（獨立入口，由你手動觸發）
+    ──────────────────────────────────────────────────
+    觸發方式：PR **實際合併後**，你說「PR #42 合併了，清理 worktree」
+    → 呼叫 worktree-close-cleanup skill 移除 STAGE 1 建立的 worktree
+    → 只移除 worktree 本身，**對應 branch 一律保留、不刪除**
+      （worktree-close-cleanup 的既有規則，不因併入此流程而改變）
+    → 不自動觸發：workflow 不會偵測 PR 合併狀態並自動清理，
+      需你明確告知已合併才執行，避免在 PR 還可能需要修改時
+      誤刪工作區。
     → 完成後流程再次結束，Claude 停止等待。
 ```
 
@@ -467,6 +481,7 @@ Model 不綁死在 agent 身上，而是**依工作性質動態選擇**。這是
 | 3 審查 | reviewer | Opus (xHigh effort) | — | 根因判斷需最強推論，且不該讓產出代碼的同源 model 自審 |
 | 4 發布 | publisher（內部用 gen-pr skill） | Sonnet (Max effort) | ✦ Diff 分析 → PR 草稿（Claude 校對）| PR 描述由 gen-pr 產（Summary + 修正問題/修正方式），publisher 負責 push + gh pr create |
 | 5 回覆 PR Review | responder | Sonnet (Max effort) | — | 逐條意見處理，短文判斷 |
+| 6 清理 Worktree | worktree-close-cleanup skill | Sonnet (Max effort) | ✦ git worktree remove | 純 IO，且只移除 worktree、不刪 branch，決策成本低 |
 
 ### STAGE 2 implementer 內部的 model 分級
 
@@ -606,6 +621,7 @@ const findings = (await parallel(LENSES.map(lens => () =>
 | `/gen-dev-workflow code-review <branch>` | 3 | 執行代碼審查 |
 | `/gen-dev-workflow publish <branch>` | 4 | 建立 PR |
 | `/gen-dev-workflow review #<PR>` | 5 | 處理 PR review 意見 |
+| `/gen-dev-workflow cleanup <branch>` | 6 | PR 合併後清理 worktree（branch 保留）|
 
 ---
 
@@ -653,4 +669,10 @@ const findings = (await parallel(LENSES.map(lens => () =>
 → 呼叫 responder agent 處理所有 review 意見
 → 處理完畢後呼叫 reviewer agent 重新審查
 → 審查通過後呼叫 publisher agent 更新 PR
+
+# PR 合併後清理 worktree（STAGE 6）
+/gen-dev-workflow cleanup <branch-name>
+→ 寫入狀態檔 { stage: 6, mode: "jump", branch: "<branch-name>" }
+→ 呼叫 worktree-close-cleanup skill 移除該 branch 對應的 worktree
+→ 只移除 worktree，branch 本身保留不刪除
 ```
