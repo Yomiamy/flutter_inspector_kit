@@ -77,5 +77,7 @@ extra_instructions = """
 pr_commands = [
     "/describe",
     "/review",
+    "/agentic_describe",
+    "/agentic_review",
 ]
 # help: false（不在 PR 開啟時貼說明），對應 .gemini help: false —— 預設即不貼，無需額外設定。
