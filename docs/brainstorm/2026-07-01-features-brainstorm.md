@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-01（PR #51 完成 #8 當前路由堆疊可視化，檔名日期前綴同步更新）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-02（同步 v1.2.1／PR #55：Console tab clear 按鈕修正，四來源一併清除）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -9,17 +9,17 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-07-01 · 含 v1.1.0 與 PR #51）
+## 📊 完成度總覽（截至 2026-07-02 · 含 v1.1.0～v1.2.1）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
-> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。
+> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。v1.2.0（PR #51）完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.2.1（PR #55）修正 Console tab 的 clear 按鈕，使其連動清除 mergedTimeline 的四個底層來源——這是對 **#2** 既有 🟡 狀態的正確性補強，完成度評級不變（仍缺做法 A 的 ±5s 側欄）。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
 | #1 | 全局未捕捉例外捕捉 | ✅ | PR #30：`captureUncaughtErrors`(default off) + 三掛點 chain，含去重 |
 | #6 | 網路請求重放 | ✅ | PR #36 / v1.0.0 已完成：支援 per-Dio 原樣重送、`isReplay` 標記、狀態回饋與防連點保護 |
-| #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `SegmentedButton` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
-| #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄） |
+| #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50，v1.2.0）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `SegmentedButton` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
+| #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**v1.2.1（PR #55）** 修正 clear 按鈕連動清除 log/network/navigator/database 四來源，補上先前「清除後殘留資料重新浮現」的缺陷；**缺** 做法 A（detail view 的 ±5s 同時段側欄） |
 | #4 | Dio 結構化錯誤捕捉 | 🟡 | 已抓 statusCode/headers/body；**缺** `errorType`/`errorStackTrace` 結構化分類與 Exception Details section |
 | #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾（`utils/` 下仍無 log_search） |
 | #3 | 一鍵診斷報告 | ⬜ | 未實作（查無 `buildDiagnosticReport`） |
@@ -86,6 +86,7 @@
 * **品味守則**：`TimelineEvent` 只是**指標包裝**（指向既有 entry），不複製資料、不引入第二份真相。
 * **Effort**：A=low / B=medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 * **🟡 實作現況（v1.1.0 / PR #40 #42）**：**做法 B 已落地，且實作得比原構想更乾淨**——沒有引入 `TimelineEvent` union，而是讓四個 entry model 共同實作 `TimestampedEntry` 介面，由 `InspectorRegistry.mergedTimeline()` 把四個 `RingBuffer` 拍扁後依 `timestamp` 降序歸併排序，`ConsoleTab` 直接渲染（`ConsoleTab` 的 `build()` 內呼叫 `inspector.mergedTimeline(sources: _selected)`），按 entry runtime type 動態分派渲染、點 Network 列跳 `NetworkDetailView`。這同時消滅了 v1.1.0 前「鏡射到 console log 的廉價替代」（見本文件頂部與 overview 的歷史演進）。**未完成**：做法 A 的「±5s 同時段側欄」尚未做（現為整條混合時間軸，無以單筆為中心的時間窗聚焦）。
+* **🟡 v1.2.1 修正（PR #55，Issue #54）**：`ConsoleTab` 的 clear 按鈕原本只呼叫 `inspector.clearLogs()`，但 mergedTimeline 渲染的 network/navigator/database entries 仍留在各自的 buffer 裡，清除後會重新出現在時間軸——對「四來源共享同一時間軸」的架構而言，這是不完整的清除語意。修正後 `onPressed` 改為同時呼叫 `clearLogs()` / `clearNetwork()` / `clearNavigator()` / `clearDatabase()`，四個來源一併清空。純正確性修補，不影響 #2 的完成度評級。
 
 ### 3. 一鍵診斷報告（Diagnostic Report）— ⬜ 未實作（原 🔴 QA 提 bug 的剛需）
 * **痛點**：QA 重現 bug 後，要手動切四個 tab、逐筆截圖/複製、再手打 device/OS/版本資訊。耗時且容易漏，回報品質參差。
