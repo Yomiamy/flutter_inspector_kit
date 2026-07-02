@@ -37,6 +37,45 @@ void main() {
       expect(find.text('Test message 2'), findsNothing);
     });
 
+    testWidgets('clearing wipes all four merged-timeline sources, not just logs',
+        (tester) async {
+      final inspector = FlutterInspector();
+      inspector.log('log msg', level: LogLevel.info);
+      inspector.registry.navigator.add(
+        NavigatorEntry(action: NavigatorAction.push, routeName: '/home'),
+      );
+      inspector.logNetwork(
+        NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/x',
+          statusCode: 200,
+          isComplete: true,
+        ),
+      );
+      inspector.registry.database.add(
+        DatabaseEntry(operation: DatabaseOperation.insert, tableName: 'users'),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
+
+      expect(find.text('log msg'), findsOneWidget);
+      expect(find.textContaining('/home'), findsOneWidget);
+      expect(find.textContaining('https://api.test/x'), findsOneWidget);
+      expect(find.textContaining('users'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.delete));
+      await tester.pump();
+
+      expect(find.text('log msg'), findsNothing);
+      expect(find.textContaining('/home'), findsNothing);
+      expect(find.textContaining('https://api.test/x'), findsNothing);
+      expect(find.textContaining('users'), findsNothing);
+    });
+
     testWidgets('tapping error log with stackTrace opens LogDetailView',
         (tester) async {
       final inspector = FlutterInspector();
