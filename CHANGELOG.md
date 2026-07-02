@@ -1,3 +1,8 @@
+## 1.2.1
+
+### Fixed
+* **Console tab clear button**: clearing the Console tab's merged timeline now wipes all four underlying sources (log, network, navigator, database) instead of only logs. Previously, network/navigator/database entries would reappear after clearing because they share the same buffers rendered in the Console tab's merged timeline.
+
 ## 1.2.0
 
 ### Added
