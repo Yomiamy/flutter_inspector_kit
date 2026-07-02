@@ -2,7 +2,8 @@
 name: gen-dev-workflow
 description: |
   完整開發流程編排器。使用者說「幫我做 X 功能」時觸發，自動依序驅動所有 agent 直到 PR 建立，只在關鍵決策點暫停確認。
-  觸發條件：dev workflow, 開始開發, 新功能開發, 幫我做 X 功能, 繼續, 繼續上次, 繼續開發, /gen-dev-workflow
+  也可用既有 GitHub issue id 直接進入 STAGE 1（跳過 STAGE 0a/0b 規劃），例如「開發 issue #42」「處理 #54」。
+  觸發條件：dev workflow, 開始開發, 新功能開發, 幫我做 X 功能, 繼續, 繼續上次, 繼續開發, /gen-dev-workflow, 開發 issue #<id>, 處理 #<id>
 ---
 
 # Dev Workflow（自動編排模式）
@@ -13,7 +14,7 @@ description: |
 > 需求：`agy` 須在 PATH（預設於 `~/.local/bin/agy`）。
 > `agy` 不在 PATH 時各 agent 會自動退回 Fallback 模式，功能仍可運作但不會委派給 `agy`。
 
-> **多 workflow 並行：** 同一 repo 可同時跑多個獨立 workflow（多個終端 / 多個 session）。隔離 key 是 **git branch**——每個 workflow 跑在自己的 branch 上，寫自己 branch 對應的 state 檔，彼此天然零衝突，不需要任何鎖或中央索引。唯一需要額外處理的窗口是「兩個流程都還在 STAGE 0a/0b（尚無 branch）」，靠 **workflow-id** 持久化區分（見「狀態追蹤」章節）。
+> **多 workflow 並行：** 同一 repo 可同時跑多個獨立 workflow（多個終端 / 多個 session）。STAGE 1 起隔離 key 是**獨立 worktree**（沿用 `ticket-id-dev-prep` 規則建立）——每個 workflow 跑在自己的 worktree 目錄裡，state 檔天然分開存放，彼此零衝突，不需要任何鎖或中央索引。唯一需要額外處理的窗口是「兩個流程都還在 STAGE 0a/0b（尚無 worktree，仍在原 repo 目錄）」，靠 **workflow-id** 持久化區分（見「狀態追蹤」章節）。
 
 > **Claude Workflow 編排（可選加速層）。** 本流程內**特定的並行、唯讀或路徑不重疊、且該段落內部不需要問使用者**的環節，可改用 Claude `Workflow` 工具（JS 腳本 fan-out 多 subagent）執行，取代逐個 `Task(...)` 串接。適用點只有三處：**STAGE 0a 雙線 context 收集**、**STAGE 2 同批獨立任務**、**STAGE 3 多 angle 對抗式審查**（各章節有專節說明）。
 >
@@ -52,14 +53,19 @@ description: |
                            │ 使用者確認
                            ▼
     ┌─────────────────────────────────────────────────┐
-    │  STAGE 1：建立分支            [Model: Sonnet (Max effort)] │
+    │  STAGE 1：建立 Issue + Worktree [Model: Sonnet (Max effort)] │
     │  → 呼叫 gen-gh-issue skill 產出 Issue body       │
     │    （五區段 zh-tw：Problem/Root cause/Fix/        │
     │     Out of scope/Verification）                  │
     │  → 呼叫 brancher agent 產出分支名草稿             │
-    │  ⏸ 暫停：展示 Issue 標題/內容 + 分支名稱         │
+    │    （prefix/slug 規則沿用 ticket-id-dev-prep，    │
+    │     見「分支與 Worktree 建立」章節）              │
+    │  ⏸ 暫停：展示 Issue 標題/內容 + 分支/worktree 名稱│
     │          等使用者確認或修改                       │
-    │  → agy 執行 gh issue create + git checkout   │
+    │  → agy 執行 gh issue create                   │
+    │  → brancher 依 ticket-id-dev-prep 規則建立       │
+    │    worktree + branch（見下方章節），主對話 cd     │
+    │    進新 worktree 繼續後續所有 stage               │
     └──────────────────────┬──────────────────────────┘
                            │ 使用者確認
                            ▼
@@ -142,6 +148,42 @@ description: |
 
 ---
 
+## 分支與 Worktree 建立（STAGE 1 統一規則）
+
+STAGE 1 建立分支與工作區時，**不論從哪個入口進來**，最後一步一律沿用 `ticket-id-dev-prep` skill 的 prefix/slug/worktree 規則，避免命名邏輯在兩個 skill 裡各寫一套。
+
+### 兩種入口，同一套收斂邏輯
+
+| 入口 | 觸發方式 | 前置動作 | 到達 STAGE 1 時已有什麼 |
+|------|---------|---------|------------------------|
+| **正常路徑**（多數情況） | 「幫我做 X 功能」 | 已跑完 STAGE 0a/0b，`gen-gh-issue` 已產出五區段 Issue body | 結構化 Issue body，尚無 Issue 編號 |
+| **issue-id 路徑** | 使用者提供既有 issue id（例如「開發 issue #42」「處理 #54」） | 跳過 STAGE 0a/0b（規格/計畫已內含於既有 issue，不重新規劃） | 只有 issue id，Issue 內容需解析 |
+
+兩種入口在 STAGE 1 收斂為同一套步驟：
+
+1. **取得 Issue 內容**：
+   - 正常路徑：`gen-gh-issue` 產出的五區段 body 直接作為 issue brief 來源，`brancher` 呼叫 `gh issue create` 建立新 Issue。
+   - issue-id 路徑：`brancher` 先用 `gh issue view <id>` 取得既有 Issue 內容，依 `ticket-id-dev-prep` 的「已解析 Brief 規則」濃縮為 `zh-tw` 實作 brief（不重新調查，issue 內容本身就是真實來源）。
+2. **決定 branch prefix + slug**（沿用 `ticket-id-dev-prep` 的「Slug 規則」與「Branch 與 Worktree 規則」）：
+   - prefix 依 issue 意圖選擇：`fix/YYYYMM`（bug/regression）、`feature/YYYYMM`（新功能）、`chore/YYYYMM`（refactor/維護）。
+   - slug：2–6 個英文字的 kebab-case，具體且與實作相關，避免 `handle`/`update`/`fix-issue` 這類填充詞。
+   - branch 名稱：`<prefix>/<ISSUE-ID>-<slug>`，其中 `<prefix>` 已含 `YYYYMM`（例：`fix/202607/54-console-clear-not-wiping`）。
+   - worktree 目錄：`<repo-name>-<ISSUE-ID>-<slug>`，建在當前 repo 旁（同層目錄），除非使用者要求其他位置。
+3. **建立 worktree + branch**：優先使用 `ticket-id-dev-prep` 內附的 `scripts/prepare_issue_dev_workspace.sh`（若存在於當前專案）；否則走手動回退流程：
+   ```bash
+   git fetch origin main --prune
+   git worktree add -b "<branch-name>" "<worktree-path>" "origin/main"
+   ```
+   base branch 預設 `origin/main`，除非使用者明確要求其他 base。若目標 branch 或 worktree 路徑已存在，停止並回報，不默默重用或覆蓋。
+4. **最小設定檢查**：`cd` 進新 worktree 後執行 `git branch --show-current` 與 `git status --short` 驗證，並 `flutter pub get`（依 `ticket-id-dev-prep` 的「設定完成規則」，若專案有本地限定設定檔如 `.env`、簽章檔，同步進新 worktree）。
+5. **主對話切換工作目錄**：後續 STAGE 2–4 的所有 Bash 指令與檔案操作都在新 worktree 路徑下執行，state 檔（見「狀態追蹤」章節）也寫在新 worktree 內的 `.claude/workflow-state/`，與主 repo 分開、互不干擾。
+
+### 與 STAGE 2 並行任務用的 `isolation: 'worktree'` 的區別
+
+「用 Claude Workflow 執行並行」章節提到的 `agent(..., {isolation: 'worktree'})` 是**子 agent 層級**的臨時隔離（跑完自動清除，不留存），只用來避免 STAGE 2 並行任務互踩工作區；這裡的 STAGE 1 worktree 是**整個 workflow 的長駐工作區**，直到 PR 合併都持續存在，兩者不是同一回事，不要混用。
+
+---
+
 ## 執行方式
 
 ### 啟動完整流程
@@ -167,6 +209,23 @@ description: |
 你：根據當前狀態跳入對應 stage，其餘流程照常自動執行。
 ```
 
+### 從既有 issue id 啟動（跳過 STAGE 0a/0b）
+```
+使用者：開發 issue #54
+
+你：好，直接進 STAGE 1。
+    Task("brancher", "解析 issue #54 內容為實作 brief，依 ticket-id-dev-prep 規則
+                       決定 prefix/slug，建立 worktree + branch")
+    → [等 brancher 完成] → 展示解析後的 brief + branch/worktree 名稱 → 暫停確認
+    → cd 進新 worktree
+    → Task("implementer", "依 issue brief 執行實作")
+    → Task("reviewer", "審查 <branch-name>")
+    → [若不通過] Task("implementer", "修正以下問題：<reviewer 回報>")
+    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>")
+    → 暫停確認 → 完成
+```
+此路徑跳過 STAGE 0a/0b（規格與計畫）——issue 內容本身就是實作依據，不重新規劃。若 issue 內容過於模糊而無法產生可靠的實作 brief，依 `ticket-id-dev-prep` 的安全規則停下向使用者確認，不臆測需求。
+
 ---
 
 ## 狀態追蹤
@@ -174,8 +233,8 @@ description: |
 每個 stage 開始前，輸出一行進度提示。**前綴帶流程識別**（pending 階段帶 `<wf-id>`，已建 branch 後帶 branch slug），讓多個並行 workflow 的輸出能一眼分辨：
 
 ```
-[wf-1717400000-3f9a] [0a/5] 撰寫功能規格中...   ← 尚無 branch，帶 wf-id
-[feature-202605-42-cart] [1/5] 建立分支中...     ← 已建 branch，帶 slug
+[wf-1717400000-3f9a] [0a/5] 撰寫功能規格中...   ← 尚無 worktree，帶 wf-id
+[feature-202605-42-cart] [1/5] 建立 Issue + Worktree 中...  ← 已建 worktree，帶 slug
 [feature-202605-42-cart] [2/5] 實作中（共 N 個任務）...
 [feature-202605-42-cart] [3/5] 審查中...
 [feature-202605-42-cart] [4/5] 發布準備中...
@@ -184,13 +243,15 @@ description: |
 
 ### 狀態檔：每個 workflow 一個檔，用 branch 命名
 
-**多 workflow 並行的隔離 key 是 git branch。** 同一 repo 上兩個並行 workflow 一旦各自建了 branch，就寫各自 branch 對應的 state 檔，彼此天然零衝突——不需要任何鎖、不需要中央索引。
+**STAGE 1 之後（已建 worktree）的隔離 key 是工作目錄本身。** 自 STAGE 1 起每個 workflow 都在自己的 worktree 內，state 檔自然分開存放於各自 worktree 的 `.claude/workflow-state/`，不會與其他 workflow 或主 repo 衝突，比舊版「同目錄切 branch」更徹底——連檔名撞名的可能性都不存在。
+
+**STAGE 0a/0b（尚無 worktree）階段**：這段仍在**原 repo 目錄**下執行（規劃階段不需要獨立工作區），此時多個並行 workflow 仍共用同一個 `.claude/workflow-state/`，隔離 key 維持 `<wf-id>`（見下方說明）。
 
 **檔案路徑規則：**
 
 ```
-.claude/workflow-state/<branch-slug>.json      ← 已建 branch 的 workflow（STAGE 1 之後）
-.claude/workflow-state/.pending-<wf-id>.json   ← 尚無 branch 時的暫存（STAGE 0a / 0b）
+<worktree-path>/.claude/workflow-state/<branch-slug>.json   ← 已建 worktree 的 workflow（STAGE 1 之後，存於新 worktree 內）
+.claude/workflow-state/.pending-<wf-id>.json                ← 尚無 worktree 時的暫存（STAGE 0a / 0b，存於原 repo）
 ```
 
 - `<branch-slug>`：當前 branch 名稱把 `/` 換成 `-`。
@@ -217,23 +278,23 @@ description: |
 
 進度回報行格式（每次 stage 切換、每個任務完成時輸出）：
 ```
-[wf-1717400000-3f9a] [1/5] 建立分支中...
+[wf-1717400000-3f9a] [1/5] 建立 Issue + Worktree 中...
 ```
-branch 建立後改帶 branch slug，不再需要 workflow-id：
+worktree 建立後改帶 branch slug，不再需要 workflow-id：
 ```
 [feature-202605-42-cart] [2/5] 實作中（共 5 個任務）...
 ```
 
-**state 檔生命週期（解決「尚無 branch」這個唯一邊界）：**
+**state 檔生命週期（解決「尚無 worktree」這個唯一邊界）：**
 
 | 時機 | 動作 |
 |------|------|
-| STAGE 0a 啟動（流程剛開始，還沒 branch） | 產生 `<wf-id>` → 建 `.pending-<wf-id>.json`（內含 `workflow_id`）→ 之後進度行都帶 `[<wf-id>]` |
-| STAGE 1 建好 branch 後 | `mv .claude/workflow-state/.pending-<wf-id>.json .claude/workflow-state/<branch-slug>.json`，補上 `branch` 欄位（`workflow_id` 保留，便於追溯） |
-| STAGE 1 之後每次寫入 | 寫 `<branch-slug>.json`，零衝突 |
-| 直接 jump 進 STAGE 1+（已知 branch） | 略過 pending，直接寫 `<branch-slug>.json` |
+| STAGE 0a 啟動（流程剛開始，還沒 worktree，在原 repo 目錄） | 產生 `<wf-id>` → 於原 repo 建 `.pending-<wf-id>.json`（內含 `workflow_id`）→ 之後進度行都帶 `[<wf-id>]` |
+| STAGE 1 建好 worktree 後 | 把 `.pending-<wf-id>.json` 的內容寫入新 worktree 內的 `<worktree-path>/.claude/workflow-state/<branch-slug>.json`，補上 `branch` 欄位（`workflow_id` 保留，便於追溯），刪除原 repo 的 pending 檔，主對話 `cd` 進新 worktree |
+| STAGE 1 之後每次寫入 | 寫新 worktree 內的 `<branch-slug>.json`，因 worktree 本身已隔離，零衝突 |
+| 直接 jump 進 STAGE 1+（已知 branch，已在該 worktree 內） | 略過 pending，直接寫當前 worktree 的 `<branch-slug>.json` |
 
-> 關鍵：每個 session 只寫**自己**那一個檔——pending 階段靠 `<wf-id>` 認領、STAGE 1 之後靠當前 branch 推導，絕不掃別人的檔來寫，所以任意數量的並行 workflow 都不會互踩。
+> 關鍵：pending 階段（原 repo 目錄）靠 `<wf-id>` 認領，避免多個並行 workflow 在同一目錄搶檔；STAGE 1 之後每個 workflow 各自在專屬 worktree 內，天然零衝突，不需要再靠命名規則互相禮讓。
 
 **每個 stage 完成後寫入對應 state 檔**，讓新 session 可以從中斷點繼續：
 
@@ -401,7 +462,7 @@ Model 不綁死在 agent 身上，而是**依工作性質動態選擇**。這是
 | Stage | Agent | 基準 Model | agy 委派 | 不委派的原因 |
 |-------|-------|-----------|------------|------------|
 | 0a/0b 規劃 | planner | Opus (xHigh effort) | — | 設計與計畫拆解是最高槓桿推論，錯了後面全錯 |
-| 1 建立分支 | gen-gh-issue skill + brancher | Sonnet (Max effort) | ✦ gh issue create, git checkout | Issue body 由 gen-gh-issue 產（五區段 zh-tw），brancher 負責建立與 checkout，皆純 IO |
+| 1 建立 Issue + Worktree | gen-gh-issue skill + brancher | Sonnet (Max effort) | ✦ gh issue create/view, git worktree add, flutter pub get | Issue body 由 gen-gh-issue 產（五區段 zh-tw，或 issue-id 路徑由 brancher 解析既有 issue），brancher 依 ticket-id-dev-prep 規則建立 worktree + branch，皆純 IO |
 | 2 實作 | implementer | **見下方分級** | ✦ 代碼+測試+commit（Claude 驗收）| — |
 | 3 審查 | reviewer | Opus (xHigh effort) | — | 根因判斷需最強推論，且不該讓產出代碼的同源 model 自審 |
 | 4 發布 | publisher（內部用 gen-pr skill） | Sonnet (Max effort) | ✦ Diff 分析 → PR 草稿（Claude 校對）| PR 描述由 gen-pr 產（Summary + 修正問題/修正方式），publisher 負責 push + gh pr create |
@@ -540,7 +601,7 @@ const findings = (await parallel(LENSES.map(lens => () =>
 | `/gen-dev-workflow` | — | 查看目前流程狀態 / 開始新流程 |
 | `/gen-dev-workflow spec <description>` | 0a | 撰寫功能規格 |
 | `/gen-dev-workflow plan <spec-path>` | 0b | 產出實作計畫 |
-| `/gen-dev-workflow branch <issue>` | 1 | 建立 Issue + 分支 |
+| `/gen-dev-workflow branch <issue>` | 1 | 建立 Issue + Worktree |
 | `/gen-dev-workflow implement <plan-path>` | 2 | 執行實作 |
 | `/gen-dev-workflow code-review <branch>` | 3 | 執行代碼審查 |
 | `/gen-dev-workflow publish <branch>` | 4 | 建立 PR |
@@ -563,11 +624,13 @@ const findings = (await parallel(LENSES.map(lens => () =>
 → 寫入狀態檔 { stage: "0b", mode: "jump", spec: "<spec 路徑>" }
 → 呼叫 planner agent 依規格產出實作計畫
 
-# 只需要建分支（STAGE 1）
+# 只需要建 Issue + Worktree（STAGE 1）
 /gen-dev-workflow branch <ISSUE-NUMBER>
 → 寫入狀態檔 { stage: 1, mode: "jump", issue: <ISSUE-NUMBER> }
 → 若需新建 Issue：先呼叫 gen-gh-issue skill 產出 Issue body（五區段 zh-tw）
-→ 呼叫 brancher agent（用該 Issue body 建立 Issue + 分支）
+→ 若 issue 已存在：brancher 依 ticket-id-dev-prep 規則解析既有 issue 內容為 brief
+→ 呼叫 brancher agent（依 ticket-id-dev-prep 規則建立 worktree + branch，
+  主對話 cd 進新 worktree）
 
 # 繼續實作（STAGE 2）
 /gen-dev-workflow implement <plan 路徑>
