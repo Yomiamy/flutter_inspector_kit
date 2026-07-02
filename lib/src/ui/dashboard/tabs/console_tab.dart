@@ -116,6 +116,9 @@ class _ConsoleTabState extends State<ConsoleTab> {
               icon: const Icon(Icons.delete),
               onPressed: () {
                 widget.inspector.clearLogs();
+                widget.inspector.clearNetwork();
+                widget.inspector.clearNavigator();
+                widget.inspector.clearDatabase();
                 _refresh();
               },
             ),

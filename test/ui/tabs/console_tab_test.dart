@@ -37,8 +37,53 @@ void main() {
       expect(find.text('Test message 2'), findsNothing);
     });
 
-    testWidgets('tapping error log with stackTrace opens LogDetailView',
-        (tester) async {
+    testWidgets(
+      'clearing wipes all four merged-timeline sources, not just logs',
+      (tester) async {
+        final inspector = FlutterInspector();
+        inspector.log('log msg', level: LogLevel.info);
+        inspector.registry.navigator.add(
+          NavigatorEntry(action: NavigatorAction.push, routeName: '/home'),
+        );
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/x',
+            statusCode: 200,
+            isComplete: true,
+          ),
+        );
+        inspector.registry.database.add(
+          DatabaseEntry(
+            operation: DatabaseOperation.insert,
+            tableName: 'users',
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+
+        expect(find.text('log msg'), findsOneWidget);
+        expect(find.textContaining('/home'), findsOneWidget);
+        expect(find.textContaining('https://api.test/x'), findsOneWidget);
+        expect(find.textContaining('users'), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.delete));
+        await tester.pump();
+
+        expect(find.text('log msg'), findsNothing);
+        expect(find.textContaining('/home'), findsNothing);
+        expect(find.textContaining('https://api.test/x'), findsNothing);
+        expect(find.textContaining('users'), findsNothing);
+      },
+    );
+
+    testWidgets('tapping error log with stackTrace opens LogDetailView', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
       inspector.log(
         'Error occurred',
@@ -61,8 +106,9 @@ void main() {
       expect(find.byType(LogDetailView), findsOneWidget);
     });
 
-    testWidgets('tapping error log with data opens LogDetailView',
-        (tester) async {
+    testWidgets('tapping error log with data opens LogDetailView', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
       inspector.log(
         'Error with data',
@@ -114,28 +160,29 @@ void main() {
     });
 
     testWidgets(
-        'tapping pure info log without stackTrace or data does not navigate',
-        (tester) async {
-      final inspector = FlutterInspector();
-      inspector.log('Pure info', level: LogLevel.info);
+      'tapping pure info log without stackTrace or data does not navigate',
+      (tester) async {
+        final inspector = FlutterInspector();
+        inspector.log('Pure info', level: LogLevel.info);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: ConsoleTab(inspector: inspector)),
-        ),
-      );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
 
-      expect(find.text('Pure info'), findsOneWidget);
-      expect(find.byType(LogDetailView), findsNothing);
+        expect(find.text('Pure info'), findsOneWidget);
+        expect(find.byType(LogDetailView), findsNothing);
 
-      // Try to tap the log entry.
-      final tile = find.byType(ListTile).first;
-      await tester.tap(tile);
-      await tester.pumpAndSettle();
+        // Try to tap the log entry.
+        final tile = find.byType(ListTile).first;
+        await tester.tap(tile);
+        await tester.pumpAndSettle();
 
-      // LogDetailView should not appear because onTap is null.
-      expect(find.byType(LogDetailView), findsNothing);
-    });
+        // LogDetailView should not appear because onTap is null.
+        expect(find.byType(LogDetailView), findsNothing);
+      },
+    );
 
     // ---- New merged-timeline tests ----
 
@@ -169,8 +216,9 @@ void main() {
       expect(find.textContaining('https://api.test/x'), findsOneWidget);
     });
 
-    testWidgets('All filter shows mixed sources sorted newest-first',
-        (tester) async {
+    testWidgets('All filter shows mixed sources sorted newest-first', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
       final tLog = DateTime(2026, 6, 26, 10, 0, 0); // oldest
       final tNav = DateTime(2026, 6, 26, 10, 0, 1);
@@ -216,7 +264,9 @@ void main() {
 
       // Newest-first: db row above network above nav above log.
       final dbY = tester.getTopLeft(find.textContaining('users')).dy;
-      final netY = tester.getTopLeft(find.textContaining('https://api.test/x')).dy;
+      final netY = tester
+          .getTopLeft(find.textContaining('https://api.test/x'))
+          .dy;
       final navY = tester.getTopLeft(find.textContaining('/home')).dy;
       final logY = tester.getTopLeft(find.text('log msg')).dy;
 
@@ -270,22 +320,21 @@ void main() {
       await tester.tap(find.textContaining('https://api.test/x'));
       await tester.pumpAndSettle();
 
-      final view =
-          tester.widget<NetworkDetailView>(find.byType(NetworkDetailView));
+      final view = tester.widget<NetworkDetailView>(
+        find.byType(NetworkDetailView),
+      );
       expect(view.redactSensitiveData, isFalse);
     });
 
-    testWidgets('nav and db rows are not tappable (no chevron)',
-        (tester) async {
+    testWidgets('nav and db rows are not tappable (no chevron)', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
       inspector.registry.navigator.add(
         NavigatorEntry(action: NavigatorAction.push, routeName: '/home'),
       );
       inspector.registry.database.add(
-        DatabaseEntry(
-          operation: DatabaseOperation.insert,
-          tableName: 'users',
-        ),
+        DatabaseEntry(operation: DatabaseOperation.insert, tableName: 'users'),
       );
 
       await tester.pumpWidget(
@@ -313,7 +362,10 @@ void main() {
     testWidgets('each row shows displayTime (HH:mm:ss.mmm)', (tester) async {
       final inspector = FlutterInspector();
       inspector.registry.log.add(
-        LogEntry(message: 'tm', timestamp: DateTime(2026, 6, 26, 14, 30, 1, 123)),
+        LogEntry(
+          message: 'tm',
+          timestamp: DateTime(2026, 6, 26, 14, 30, 1, 123),
+        ),
       );
 
       await tester.pumpWidget(
