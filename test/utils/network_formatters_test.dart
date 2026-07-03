@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/utils/network_formatters.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -164,6 +165,60 @@ void main() {
       expect(text.contains('=== Request Body ==='), isTrue);
       expect(text.contains('=== Error ==='), isTrue);
       expect(text.contains('Server error'), isTrue);
+    });
+
+    test('includes error type in Error section when errorType is present', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        errorType: DioExceptionType.connectionError,
+        error: 'Connection failed',
+        timestamp: fixedTime,
+      );
+      final text = buildPlainText(entry);
+      expect(text.contains('=== Error ==='), isTrue);
+      expect(text.contains('Error Type: connectionError'), isTrue);
+      expect(text.contains('Connection failed'), isTrue);
+    });
+
+    test('includes Stack Trace section when errorStackTrace is present', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        errorStackTrace: '#0 foo\n#1 bar',
+        timestamp: fixedTime,
+      );
+      final text = buildPlainText(entry);
+      expect(text.contains('=== Stack Trace ==='), isTrue);
+      expect(text.contains('#0 foo\n#1 bar'), isTrue);
+    });
+
+    test('does not include Error or Stack Trace sections for success entry', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        statusCode: 200,
+        timestamp: fixedTime,
+      );
+      final text = buildPlainText(entry);
+      expect(text.contains('=== Error ==='), isFalse);
+      expect(text.contains('=== Stack Trace ==='), isFalse);
+    });
+
+    test('redact does not affect errorType or errorStackTrace', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        errorType: DioExceptionType.connectionError,
+        errorStackTrace: '#0 foo',
+        timestamp: fixedTime,
+      );
+      final redactedText = buildPlainText(entry, redact: true);
+      final clearText = buildPlainText(entry, redact: false);
+      expect(redactedText.contains('Error Type: connectionError'), isTrue);
+      expect(redactedText.contains('=== Stack Trace ==='), isTrue);
+      expect(redactedText.contains('#0 foo'), isTrue);
+      expect(redactedText, equals(clearText));
     });
   });
 

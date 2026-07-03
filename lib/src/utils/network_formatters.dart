@@ -142,10 +142,20 @@ String buildPlainText(NetworkEntry entry, {bool redact = true}) {
       );
   }
 
-  if (entry.error != null) {
+  if (entry.error != null || entry.errorType != null) {
+    b.writeln('\n=== Error ===');
+    if (entry.errorType != null) {
+      b.writeln('Error Type: ${entry.errorType!.name}');
+    }
+    if (entry.error != null) {
+      b.writeln(entry.error);
+    }
+  }
+  final st = entry.errorStackTrace;
+  if (st != null && st.isNotEmpty) {
     b
-      ..writeln('\n=== Error ===')
-      ..writeln(entry.error);
+      ..writeln('\n=== Stack Trace ===')
+      ..writeln(st);
   }
 
   return b.toString().trimRight();
