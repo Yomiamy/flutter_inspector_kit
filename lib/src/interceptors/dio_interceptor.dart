@@ -97,6 +97,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       ),
       responseBody: _stringifyData(err.response?.data),
       error: err.toString(),
+      errorType: err.type,
+      errorStackTrace: err.stackTrace.toString(),
       isComplete: true,
       timestamp: startTime,
       sourceDio: sourceDio,

@@ -208,6 +208,99 @@ void main() {
       });
     });
 
+    group('structured error fields', () {
+      test('defaults to null when not provided', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
+        expect(entry.errorType, isNull);
+        expect(entry.errorStackTrace, isNull);
+      });
+
+      test('copyWith sets errorType and errorStackTrace', () {
+        final base = NetworkEntry(
+          method: 'POST',
+          url: 'https://api',
+          timestamp: fixedTime,
+        );
+        final updated = base.copyWith(
+          errorType: DioExceptionType.connectionError,
+          errorStackTrace: '#0 foo\n#1 bar',
+        );
+        expect(updated.errorType, DioExceptionType.connectionError);
+        expect(updated.errorStackTrace, '#0 foo\n#1 bar');
+        expect(updated.method, base.method);
+        expect(updated.url, base.url);
+      });
+
+      test('copyWith preserves errorType when not specified', () {
+        final base = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          errorType: DioExceptionType.badResponse,
+        );
+        final updated = base.copyWith(isReplay: true);
+        expect(updated.errorType, DioExceptionType.badResponse);
+        expect(updated.isReplay, isTrue);
+      });
+
+      test('equality differs when errorType differs', () {
+        final a = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          errorType: DioExceptionType.connectionError,
+        );
+        final b = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          errorType: DioExceptionType.badResponse,
+        );
+        expect(a, isNot(equals(b)));
+        expect(a.hashCode, isNot(b.hashCode));
+      });
+
+      test('equality differs when errorStackTrace differs', () {
+        final a = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          errorStackTrace: '#0 foo',
+        );
+        final b = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          errorStackTrace: '#0 bar',
+        );
+        expect(a, isNot(equals(b)));
+        expect(a.hashCode, isNot(b.hashCode));
+      });
+
+      test('equality and hashCode same when errorType and errorStackTrace match', () {
+        final a = NetworkEntry(
+          method: 'POST',
+          url: 'https://api',
+          timestamp: fixedTime,
+          errorType: DioExceptionType.badResponse,
+          errorStackTrace: '#0 trace',
+        );
+        final b = NetworkEntry(
+          method: 'POST',
+          url: 'https://api',
+          timestamp: fixedTime,
+          errorType: DioExceptionType.badResponse,
+          errorStackTrace: '#0 trace',
+        );
+        expect(a, equals(b));
+        expect(a.hashCode, b.hashCode);
+      });
+    });
+
     group('derived getters', () {
       test('size getters count UTF-8 bytes, 0 for null', () {
         final entry = NetworkEntry(

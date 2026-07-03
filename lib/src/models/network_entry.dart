@@ -31,6 +31,8 @@ class NetworkEntry implements TimestampedEntry {
     this.responseHeaders,
     this.responseBody,
     this.error,
+    this.errorType,
+    this.errorStackTrace,
     this.isComplete = false,
     this.isReplay = false,
     Dio? sourceDio,
@@ -69,6 +71,12 @@ class NetworkEntry implements TimestampedEntry {
   /// Error message if the request failed.
   final String? error;
 
+  /// Machine-readable error classification from Dio, if the request failed.
+  final DioExceptionType? errorType;
+
+  /// Stringified stack trace captured at the point of failure, if any.
+  final String? errorStackTrace;
+
   /// Whether the response or error has been recorded.
   final bool isComplete;
 
@@ -103,6 +111,8 @@ class NetworkEntry implements TimestampedEntry {
     Map<String, dynamic>? responseHeaders,
     String? responseBody,
     String? error,
+    DioExceptionType? errorType,
+    String? errorStackTrace,
     bool? isComplete,
     bool? isReplay,
     Dio? sourceDio,
@@ -118,6 +128,8 @@ class NetworkEntry implements TimestampedEntry {
       responseHeaders: responseHeaders ?? this.responseHeaders,
       responseBody: responseBody ?? this.responseBody,
       error: error ?? this.error,
+      errorType: errorType ?? this.errorType,
+      errorStackTrace: errorStackTrace ?? this.errorStackTrace,
       isComplete: isComplete ?? this.isComplete,
       isReplay: isReplay ?? this.isReplay,
       sourceDio: sourceDio ?? this.sourceDio?.target,
@@ -137,6 +149,8 @@ class NetworkEntry implements TimestampedEntry {
         mapEquals(other.responseHeaders, responseHeaders) &&
         other.responseBody == responseBody &&
         other.error == error &&
+        other.errorType == errorType &&
+        other.errorStackTrace == errorStackTrace &&
         other.isComplete == isComplete &&
         other.isReplay == isReplay;
   }
@@ -151,6 +165,8 @@ class NetworkEntry implements TimestampedEntry {
     requestBody,
     responseBody,
     error,
+    errorType,
+    errorStackTrace,
     isComplete,
     isReplay,
   );

@@ -477,4 +477,94 @@ void main() {
       await tester.pumpAndSettle();
     });
   });
+
+  group('Exception Details section', () {
+    testWidgets('transport layer failure renders kind and error type', (tester) async {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test',
+        statusCode: null,
+        errorType: DioExceptionType.connectionError,
+        error: 'Connection failed',
+        isComplete: true,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+
+      expect(find.text('Exception Details'), findsOneWidget);
+      expect(find.text('傳輸層失敗 (transport failure — request did not reach server)'), findsOneWidget);
+      expect(find.text('connectionError'), findsOneWidget);
+      expect(find.text('Connection failed'), findsOneWidget);
+
+      // Verify Status displays '-'
+      expect(
+        find.descendant(
+          of: find.byType(Row),
+          matching: find.byWidgetPredicate((widget) => widget is SelectableText && widget.data == '-'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('server error failure renders kind and is displayed with response sections', (tester) async {
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test',
+        statusCode: 500,
+        errorType: DioExceptionType.badResponse,
+        error: 'Internal Server Error',
+        responseHeaders: {'content-type': 'application/json'},
+        responseBody: 'oops',
+        isComplete: true,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+
+      expect(find.text('Exception Details'), findsOneWidget);
+      expect(find.text('Server 錯誤回應 (server responded with error)'), findsOneWidget);
+      expect(find.text('badResponse'), findsOneWidget);
+      expect(find.text('Internal Server Error'), findsOneWidget);
+
+      // Verify response headers and body are also rendered
+      expect(find.text('Response Headers'), findsOneWidget);
+      expect(find.text('Response Body'), findsOneWidget);
+    });
+
+    testWidgets('renders selectable and copyable stack trace', (tester) async {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test',
+        errorStackTrace: '#0 foo\n#1 bar',
+        isComplete: true,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+
+      expect(find.text('Exception Details'), findsOneWidget);
+      final selectableTextFinder = find.byWidgetPredicate(
+        (widget) => widget is SelectableText && widget.data == '#0 foo\n#1 bar',
+      );
+      expect(selectableTextFinder, findsOneWidget);
+      
+      final selectableText = tester.widget<SelectableText>(selectableTextFinder);
+      expect(selectableText.style?.fontFamily, 'monospace');
+    });
+
+    testWidgets('does not render Exception Details for success request', (tester) async {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test',
+        statusCode: 200,
+        isComplete: true,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+
+      expect(find.text('Exception Details'), findsNothing);
+    });
+  });
 }
