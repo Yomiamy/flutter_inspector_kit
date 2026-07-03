@@ -1,3 +1,10 @@
+## 1.3.0
+
+### Added
+* **Structured DioException error capture**: `FlutterInspectorDioInterceptor.onError` now preserves the machine-readable `errorType` (`DioExceptionType`) and the `errorStackTrace` (stringified stack trace) instead of discarding them.
+* **Exception Details section**: the Network detail view now displays an "Exception Details" card section for failed requests. It clearly distinguishes between transport-layer failures (where the request did not reach the server, showing `statusCode == null`) and server-side responses (where the server returned an error status code). It also provides a monospace-styled, copyable stack trace for debugging.
+* **Text export support**: `buildPlainText` exports now include the `Error Type` and the `Stack Trace` when present, improving the diagnostic value of shared logs.
+
 ## 1.2.1
 
 ### Fixed
