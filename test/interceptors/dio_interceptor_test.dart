@@ -286,5 +286,87 @@ void main() {
         expect(inspector.registry.network.entries.first.isReplay, false);
       });
     });
+
+    group('structured error fields', () {
+      test('transport layer failure sets errorType and null statusCode', () async {
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        final err = DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+          error: 'x',
+        );
+        interceptor.onError(err, errorHandler);
+        // ignore: invalid_use_of_protected_member
+        await errorHandler.future.then((_) {}, onError: (_) {});
+
+        expect(inspector.registry.network.entries.length, 1);
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.errorType, DioExceptionType.connectionError);
+        expect(entry.statusCode, isNull);
+      });
+
+      test('server error path sets errorType, statusCode and responseBody', () async {
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        final err = DioException(
+          requestOptions: options,
+          type: DioExceptionType.badResponse,
+          response: Response(
+            requestOptions: options,
+            statusCode: 500,
+            data: 'oops',
+          ),
+        );
+        interceptor.onError(err, errorHandler);
+        // ignore: invalid_use_of_protected_member
+        await errorHandler.future.then((_) {}, onError: (_) {});
+
+        expect(inspector.registry.network.entries.length, 1);
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.errorType, DioExceptionType.badResponse);
+        expect(entry.statusCode, 500);
+        expect(entry.responseBody, 'oops');
+      });
+
+      test('stackTrace is recorded and not null or empty', () async {
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        final st = StackTrace.current;
+        final err = DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+          stackTrace: st,
+        );
+        interceptor.onError(err, errorHandler);
+        // ignore: invalid_use_of_protected_member
+        await errorHandler.future.then((_) {}, onError: (_) {});
+
+        expect(inspector.registry.network.entries.length, 1);
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.errorStackTrace, isNotNull);
+        expect(entry.errorStackTrace, isNotEmpty);
+        expect(entry.errorStackTrace, contains('dio_interceptor_test.dart'));
+      });
+
+      test('success path does not have errorType or errorStackTrace', () async {
+        final options = RequestOptions(path: 'http://example.com/api');
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final response = Response(requestOptions: options, statusCode: 200);
+        interceptor.onResponse(response, ResponseInterceptorHandler());
+
+        expect(inspector.registry.network.entries.length, 1);
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.errorType, isNull);
+        expect(entry.errorStackTrace, isNull);
+      });
+    });
   });
 }
