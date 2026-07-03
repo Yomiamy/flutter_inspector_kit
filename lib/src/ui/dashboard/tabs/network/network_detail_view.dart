@@ -84,7 +84,11 @@ class NetworkDetailView extends StatelessWidget {
               entry.responseBody!,
               entry.isResponseJson,
             ),
-          if (entry.error != null) _errorSection(context),
+          if (entry.error != null ||
+              entry.errorType != null ||
+              (entry.errorStackTrace != null &&
+                  entry.errorStackTrace!.isNotEmpty))
+            _exceptionDetailsSection(context),
         ],
       ),
     );
@@ -160,13 +164,64 @@ class NetworkDetailView extends StatelessWidget {
     );
   }
 
-  Widget _errorSection(BuildContext context) {
+  Widget _exceptionDetailsSection(BuildContext context) {
     return _section(
       context,
-      'Error',
-      SelectableText(
-        entry.error!,
-        style: TextStyle(color: Theme.of(context).colorScheme.error),
+      'Exception Details',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (entry.errorType != null) ...[
+            if (entry.statusCode == null)
+              _kv(
+                context,
+                'Kind',
+                '傳輸層失敗 (transport failure — request did not reach server)',
+              )
+            else
+              _kv(
+                context,
+                'Kind',
+                'Server 錯誤回應 (server responded with error)',
+              ),
+            _kv(context, 'Error Type', entry.errorType!.name),
+          ],
+          if (entry.error != null)
+            _kvWidget(
+              context,
+              'Error',
+              SelectableText(
+                entry.error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          if (entry.errorStackTrace != null &&
+              entry.errorStackTrace!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Stack Trace',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: SelectableText(
+                entry.errorStackTrace!,
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
