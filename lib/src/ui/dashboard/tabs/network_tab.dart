@@ -20,10 +20,9 @@ class _NetworkTabState extends State<NetworkTab> {
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _methods = <String>{};
   final Set<NetworkStatusGroup> _statusGroups = <NetworkStatusGroup>{};
-  String _keyword = '';
 
   NetworkFilter get _filter => NetworkFilter(
-    keyword: _keyword,
+    keyword: _searchController.text,
     methods: _methods,
     statusGroups: _statusGroups,
   );
@@ -43,10 +42,9 @@ class _NetworkTabState extends State<NetworkTab> {
       children: [
         _SearchBar(
           controller: _searchController,
-          keyword: _keyword,
           total: networkEntries.length,
           shown: entries.length,
-          onKeywordChanged: (value) => setState(() => _keyword = value),
+          onKeywordChanged: (_) => setState(() {}),
           onRefresh: _refresh,
           onClearAll: () {
             widget.inspector.clearNetwork();
@@ -92,15 +90,12 @@ class _NetworkTabState extends State<NetworkTab> {
     }
   });
 
-
-
   void _refresh() => setState(() {});
 }
 
 /// Search field with refresh and clear-all actions for the Network tab.
 class _SearchBar extends StatelessWidget {
   final TextEditingController controller;
-  final String keyword;
   final int total;
   final int shown;
   final ValueChanged<String> onKeywordChanged;
@@ -109,7 +104,6 @@ class _SearchBar extends StatelessWidget {
 
   const _SearchBar({
     required this.controller,
-    required this.keyword,
     required this.total,
     required this.shown,
     required this.onKeywordChanged,
@@ -130,7 +124,7 @@ class _SearchBar extends StatelessWidget {
                 isDense: true,
                 hintText: 'Search url / method / status',
                 prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: keyword.isEmpty
+                suffixIcon: controller.text.isEmpty
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.clear, size: 18),

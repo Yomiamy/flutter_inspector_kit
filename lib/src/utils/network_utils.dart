@@ -1,5 +1,6 @@
 import '../models/network_entry.dart';
 
+/// Formats [t] as a zero-padded `HH:mm:ss` local-time string.
 String timeOf(DateTime t) =>
     '${t.hour.toString().padLeft(2, '0')}:'
     '${t.minute.toString().padLeft(2, '0')}:'
