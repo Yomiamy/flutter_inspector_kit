@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../models/network_entry.dart';
 import '../../../utils/network_formatters.dart';
-import '../../../utils/network_search.dart';
+import '../../../utils/network_utils.dart';
 import 'network/network_detail_view.dart';
 
 /// Tab for displaying network requests with keyword search and filtering.
@@ -17,11 +17,6 @@ class NetworkTab extends StatefulWidget {
 }
 
 class _NetworkTabState extends State<NetworkTab> {
-  final TextEditingController _searchController = TextEditingController();
-  String _keyword = '';
-  final Set<String> _methods = <String>{};
-  final Set<NetworkStatusGroup> _statusGroups = <NetworkStatusGroup>{};
-
   static const List<String> _commonMethods = [
     'GET',
     'POST',
@@ -29,6 +24,11 @@ class _NetworkTabState extends State<NetworkTab> {
     'PATCH',
     'DELETE',
   ];
+
+  final TextEditingController _searchController = TextEditingController();
+  final Set<String> _methods = <String>{};
+  final Set<NetworkStatusGroup> _statusGroups = <NetworkStatusGroup>{};
+  String _keyword = '';
 
   static const Map<NetworkStatusGroup, String> _statusLabels = {
     NetworkStatusGroup.success: '2xx',

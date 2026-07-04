@@ -1,5 +1,5 @@
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
-import 'package:flutter_inspector_kit/src/utils/network_search.dart';
+import 'package:flutter_inspector_kit/src/utils/network_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
