@@ -13,6 +13,7 @@
 ### 🔴 垃圾/平庸的部分 (Bad Taste & Flaws)
 * **超級上帝類別 (God Class)**：`FlutterInspector` 類別同時管理核心 Registry、初始化、全域例外鉤子（error hooks）、UI FAB 懸浮按鈕的 attach/detach 與 Dashboard 彈窗的打開。這嚴重違反了 **單一職責原則 (SRP)**。
 * **UI 與業務邏輯緊密耦合**：`NetworkTab` 等 UI 元件直接在 `build` 方法中呼叫 `applyNetworkFilter` 做資料過濾與狀態更新，並且依賴 `setState` 刷新整個視圖。當資料量變大時，容易造成嚴重卡頓。
+  > ✅ **2026-07-05 部分處理**：`NetworkTab` 已拆為 `_SearchBar` / `_FilterChips` / `_EntryTile` / `_MethodBadge` 四個 widget class，function widget 清零；純函數（`timeOf` 等）與常數（`httpMethods`、`statusLabels`）集中至 `network_utils.dart`。`build` 內呼叫 `applyNetworkFilter` 的耦合**保留**——buffer 上限 500 筆、過濾為微秒級，「資料量變大卡頓」的疑慮經評估不成立。
 * **命名不一致**：`models/` 下的概念混亂。`database_entry.dart`、`network_entry.dart` 等「Entry」物件在系統中同時扮演了 Dto、Domain Entity 與 UI Model 的三重身形，沒有做到邏輯層的隔離。
 
 ---
@@ -42,6 +43,7 @@
     ```
     UI 必須自己去拿原始 `networkEntries`，自己去跑 `applyNetworkFilter`。
   * 改進方向：即使不依賴 BLoC，也應引入簡單的 `ChangeNotifier` 或 `ValueNotifier`（例如 `NetworkController`），由它負責持有 entries、filter 與 filtering 邏輯，UI 僅訂閱此 Controller。
+  > ❌ **2026-07-05 未採納 Controller**：filtering 邏輯已是 `network_utils.dart` 的純函數且有獨立單元測試，Controller 能提供的可測試性已經存在；State 僅剩 4 個欄位與 `_toggle`/`_refresh` 兩個 glue 方法，再抽一層 `ChangeNotifier` 是淨增一個檔案與一層 `ListenableBuilder` 縮排，`network_tab.dart` 不會更簡潔。詳見階段一的落地狀態註記。
 
 ### 3. 命名慣例 (Naming)
 
@@ -76,6 +78,17 @@ graph TD
   1. 建立 `src/controllers/network_controller.dart`，將 `NetworkTab` 內部的 `_searchController`、`_keyword`、`_methods`、`_statusGroups` 與過濾邏輯（`applyNetworkFilter`）全部移入該 Controller。
   2. `NetworkTab` 轉為 `StatelessWidget`（或僅保留基本動畫的 `StatefulWidget`），透過 `ListenableBuilder` 或 `AnimatedBuilder` 監聽 `NetworkController`。
   3. 這可以將 UI 層的縮排與複雜度砍掉一半以上，消滅 UI 中的計算邊界情況。
+
+> [!NOTE]
+> **階段一落地狀態（2026-07-05）——以替代方案完成，未採納 Controller**
+>
+> * ✅ **已完成（widget class 拆分路線）**：
+>   * `NetworkTab` 的三個 `_buildXxx` helper method 全數改為獨立 widget class：`_SearchBar`、`_FilterChips`、`_EntryTile`（加上原有 `_MethodBadge` 共四個），狀態仍由 `_NetworkTabState` 持有，widget 只收資料與 callback。
+>   * method/statusGroup 重複的 add/remove 分支收斂為單一泛型 `_toggle<T>`。
+>   * `network_search.dart` 更名為 `network_utils.dart`，`timeOf`、`httpMethods`、`statusLabels` 集中至該檔（維持純函數、可獨立測試）。
+> * ❌ **未採納：`NetworkController`（本節具體作法 1、2）**。理由：過濾邏輯已是有測試的純函數；State 剩餘內容是 glue 而非邏輯；引入 Controller 對 `network_tab.dart` 是行數持平、總量淨增。本 package 規模（buffer 500 筆）不構成對照組式分層的動機。
+> * 🔁 **重新評估條件**（任一成立時再引入 Controller）：需要 live auto-update（`NetworkInspector.onAdd` 目前為單一 callback slot、已被通知功能佔用，屆時需一併改為可多方訂閱）；filter 狀態需跨 dashboard 開關保留；多個入口需共享同一份過濾狀態。
+> * ⚠️ **勘誤**：上方 mermaid 圖中的 `NetworkNotifier` 與既有 `lib/src/notifications/` 的通知類別撞名，未來若實作僅能命名為 `NetworkController`；具體作法 2 的「轉為 `StatelessWidget`」不可行——Controller 的生命週期（dispose）需由 State 管理。
 
 ### 階段二：分離 UI 與核心 Hook 職責 (解耦 God Class)
 
