@@ -17,34 +17,10 @@ class NetworkTab extends StatefulWidget {
 }
 
 class _NetworkTabState extends State<NetworkTab> {
-  static const List<String> _commonMethods = [
-    'GET',
-    'POST',
-    'PUT',
-    'PATCH',
-    'DELETE',
-  ];
-
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _methods = <String>{};
   final Set<NetworkStatusGroup> _statusGroups = <NetworkStatusGroup>{};
   String _keyword = '';
-
-  static const Map<NetworkStatusGroup, String> _statusLabels = {
-    NetworkStatusGroup.success: '2xx',
-    NetworkStatusGroup.redirect: '3xx',
-    NetworkStatusGroup.clientError: '4xx',
-    NetworkStatusGroup.serverError: '5xx',
-    NetworkStatusGroup.failed: 'Failed',
-  };
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _refresh() => setState(() {});
 
   NetworkFilter get _filter => NetworkFilter(
     keyword: _keyword,
@@ -53,13 +29,30 @@ class _NetworkTabState extends State<NetworkTab> {
   );
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final all = widget.inspector.networkEntries;
     final entries = applyNetworkFilter(all, _filter);
 
     return Column(
       children: [
-        _buildSearchBar(all.length, entries.length),
+        _SearchBar(
+          controller: _searchController,
+          keyword: _keyword,
+          total: all.length,
+          shown: entries.length,
+          onKeywordChanged: (value) => setState(() => _keyword = value),
+          onRefresh: _refresh,
+          onClearAll: () {
+            widget.inspector.clearNetwork();
+            _refresh();
+          },
+        ),
         _buildFilterChips(),
         const Divider(height: 1),
         Expanded(
@@ -80,50 +73,6 @@ class _NetworkTabState extends State<NetworkTab> {
     );
   }
 
-  Widget _buildSearchBar(int total, int shown) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: 'Search url / method / status',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _keyword.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _keyword = '');
-                        },
-                      ),
-                border: const OutlineInputBorder(),
-              ),
-              onChanged: (value) => setState(() => _keyword = value),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Refresh ($shown/$total)',
-            icon: const Icon(Icons.refresh),
-            onPressed: _refresh,
-          ),
-          IconButton(
-            tooltip: 'Clear all',
-            icon: const Icon(Icons.delete),
-            onPressed: () {
-              widget.inspector.clearNetwork();
-              _refresh();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildFilterChips() {
     return SizedBox(
       height: 44,
@@ -131,7 +80,7 @@ class _NetworkTabState extends State<NetworkTab> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         children: [
-          for (final method in _commonMethods)
+          for (final method in httpMethods)
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: FilterChip(
@@ -147,11 +96,11 @@ class _NetworkTabState extends State<NetworkTab> {
               ),
             ),
           const SizedBox(width: 8),
-          for (final group in _statusLabels.keys)
+          for (final group in statusLabels.keys)
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: FilterChip(
-                label: Text(_statusLabels[group]!),
+                label: Text(statusLabels[group]!),
                 selected: _statusGroups.contains(group),
                 onSelected: (selected) => setState(() {
                   if (selected) {
@@ -199,6 +148,71 @@ class _NetworkTabState extends State<NetworkTab> {
       '${t.hour.toString().padLeft(2, '0')}:'
       '${t.minute.toString().padLeft(2, '0')}:'
       '${t.second.toString().padLeft(2, '0')}';
+
+  void _refresh() => setState(() {});
+}
+
+/// Search field with refresh and clear-all actions for the Network tab.
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({
+    required this.controller,
+    required this.keyword,
+    required this.total,
+    required this.shown,
+    required this.onKeywordChanged,
+    required this.onRefresh,
+    required this.onClearAll,
+  });
+
+  final TextEditingController controller;
+  final String keyword;
+  final int total;
+  final int shown;
+  final ValueChanged<String> onKeywordChanged;
+  final VoidCallback onRefresh;
+  final VoidCallback onClearAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Search url / method / status',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: keyword.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          controller.clear();
+                          onKeywordChanged('');
+                        },
+                      ),
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: onKeywordChanged,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Refresh ($shown/$total)',
+            icon: const Icon(Icons.refresh),
+            onPressed: onRefresh,
+          ),
+          IconButton(
+            tooltip: 'Clear all',
+            icon: const Icon(Icons.delete),
+            onPressed: onClearAll,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// A small colored pill showing the HTTP method.
