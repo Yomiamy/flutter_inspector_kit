@@ -129,7 +129,7 @@ class _NetworkTabState extends State<NetworkTab> {
       title: Text(entry.url, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         '$statusText · ${entry.duration?.inMilliseconds ?? '-'} ms · '
-        '${formatBytes(totalSize)} · ${_timeOf(entry.timestamp)}',
+        '${formatBytes(totalSize)} · ${timeOf(entry.timestamp)}',
         style: TextStyle(color: entry.error != null ? statusColor : null),
       ),
       trailing: const Icon(Icons.chevron_right, size: 18),
@@ -143,11 +143,6 @@ class _NetworkTabState extends State<NetworkTab> {
       ),
     );
   }
-
-  String _timeOf(DateTime t) =>
-      '${t.hour.toString().padLeft(2, '0')}:'
-      '${t.minute.toString().padLeft(2, '0')}:'
-      '${t.second.toString().padLeft(2, '0')}';
 
   void _refresh() => setState(() {});
 }

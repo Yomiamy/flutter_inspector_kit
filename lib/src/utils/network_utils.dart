@@ -1,13 +1,12 @@
 import '../models/network_entry.dart';
 
+String timeOf(DateTime t) =>
+    '${t.hour.toString().padLeft(2, '0')}:'
+    '${t.minute.toString().padLeft(2, '0')}:'
+    '${t.second.toString().padLeft(2, '0')}';
+
 /// HTTP methods offered as quick filter chips in the Network tab.
-const List<String> httpMethods = [
-  'GET',
-  'POST',
-  'PUT',
-  'PATCH',
-  'DELETE',
-];
+const List<String> httpMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
 /// Chip labels for each [NetworkStatusGroup] shown in the Network tab.
 const Map<NetworkStatusGroup, String> statusLabels = {
