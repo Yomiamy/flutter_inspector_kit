@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-02（同步 v1.2.1／PR #55：Console tab clear 按鈕修正，四來源一併清除）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-01（PR #51 完成 #8 當前路由堆疊可視化，檔名日期前綴同步更新）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -9,17 +9,17 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-07-02 · 含 v1.1.0～v1.2.1）
+## 📊 完成度總覽（截至 2026-07-01 · 含 v1.1.0 與 PR #51）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
-> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。v1.2.0（PR #51）完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.2.1（PR #55）修正 Console tab 的 clear 按鈕，使其連動清除 mergedTimeline 的四個底層來源——這是對 **#2** 既有 🟡 狀態的正確性補強，完成度評級不變（仍缺做法 A 的 ±5s 側欄）。
+> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
 | #1 | 全局未捕捉例外捕捉 | ✅ | PR #30：`captureUncaughtErrors`(default off) + 三掛點 chain，含去重 |
 | #6 | 網路請求重放 | ✅ | PR #36 / v1.0.0 已完成：支援 per-Dio 原樣重送、`isReplay` 標記、狀態回饋與防連點保護 |
-| #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50，v1.2.0）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `SegmentedButton` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
-| #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**v1.2.1（PR #55）** 修正 clear 按鈕連動清除 log/network/navigator/database 四來源，補上先前「清除後殘留資料重新浮現」的缺陷；**缺** 做法 A（detail view 的 ±5s 同時段側欄） |
+| #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `ChoiceChip` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
+| #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄） |
 | #4 | Dio 結構化錯誤捕捉 | 🟡 | 已抓 statusCode/headers/body；**缺** `errorType`/`errorStackTrace` 結構化分類與 Exception Details section |
 | #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾（`utils/` 下仍無 log_search） |
 | #3 | 一鍵診斷報告 | ⬜ | 未實作（查無 `buildDiagnosticReport`） |
@@ -86,7 +86,6 @@
 * **品味守則**：`TimelineEvent` 只是**指標包裝**（指向既有 entry），不複製資料、不引入第二份真相。
 * **Effort**：A=low / B=medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 * **🟡 實作現況（v1.1.0 / PR #40 #42）**：**做法 B 已落地，且實作得比原構想更乾淨**——沒有引入 `TimelineEvent` union，而是讓四個 entry model 共同實作 `TimestampedEntry` 介面，由 `InspectorRegistry.mergedTimeline()` 把四個 `RingBuffer` 拍扁後依 `timestamp` 降序歸併排序，`ConsoleTab` 直接渲染（`ConsoleTab` 的 `build()` 內呼叫 `inspector.mergedTimeline(sources: _selected)`），按 entry runtime type 動態分派渲染、點 Network 列跳 `NetworkDetailView`。這同時消滅了 v1.1.0 前「鏡射到 console log 的廉價替代」（見本文件頂部與 overview 的歷史演進）。**未完成**：做法 A 的「±5s 同時段側欄」尚未做（現為整條混合時間軸，無以單筆為中心的時間窗聚焦）。
-* **🟡 v1.2.1 修正（PR #55，Issue #54）**：`ConsoleTab` 的 clear 按鈕原本只呼叫 `inspector.clearLogs()`，但 mergedTimeline 渲染的 network/navigator/database entries 仍留在各自的 buffer 裡，清除後會重新出現在時間軸——對「四來源共享同一時間軸」的架構而言，這是不完整的清除語意。修正後 `onPressed` 改為同時呼叫 `clearLogs()` / `clearNetwork()` / `clearNavigator()` / `clearDatabase()`，四個來源一併清空。純正確性修補，不影響 #2 的完成度評級。
 
 ### 3. 一鍵診斷報告（Diagnostic Report）— ⬜ 未實作（原 🔴 QA 提 bug 的剛需）
 * **痛點**：QA 重現 bug 後，要手動切四個 tab、逐筆截圖/複製、再手打 device/OS/版本資訊。耗時且容易漏，回報品質參差。
@@ -98,7 +97,7 @@
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 
 ### 4. Dio 錯誤的結構化捕捉（Structured Network Error）— 🟡 部分完成
-* **痛點**：`onError()` 只存 `err.toString()`，把 `DioException` 的精華全丟了：**根因類型**（connectionTimeout / DNS / SSL / parse / cancel）、`err.stackTrace`、以及**伺服器回傳的 error body**。開發者看到一坨字串，分不清是「斷網」還是「server 5xx」。
+* **痛點**：`onError()` 只存 `err.toString()`，把 `DioException` 的結構資訊大部分丟了：**根因類型**（connectionTimeout / DNS / SSL / parse / cancel）與 `err.stackTrace`。注意：`statusCode` 已顯示在 `NetworkDetailView` 的 General section，4xx/5xx 錯誤是可辨識的；**真正的盲區是 `statusCode == null` 的傳輸層失敗**（斷網、DNS 失敗、SSL 握手錯誤、request cancel 等），目前這些一律只顯示一坨 toString() 字串，無法從 UI 分辨根因。
 * **好品味設計**：
   - `dio_interceptor.onError` 改為擷取結構化欄位：`err.type`（分類）、`err.stackTrace`、`err.response?.statusCode`、保住 `err.response?.data`（伺服器的錯誤說明）。
   - 核心區分一條：**`response == null` → 傳輸層失敗（沒到 server）**；**`response != null` → server 回了錯誤碼**。這條判斷消滅了「Failed 到底是斷網還是後端壞了」的猜謎。
@@ -113,7 +112,7 @@
   - `LogDetailView`（仿 `NetworkDetailView`）：點 log 展開 message / level / **可複製 stackTrace** / `data`（用 `KeyValueTable`）。
   - 搜尋欄 + LogLevel FilterChip + 「errors only」快捷——直接套 `NetworkTab` 的搜尋/chip 模式與 `applyNetworkFilter` 邏輯框架，error log 終於能秒定位。
 * **重用**：`NetworkTab` 搜尋 bar + FilterChip、`LogInspector.entriesAtLevel()`（已存在）、`KeyValueTable`、`NetworkDetailView` 佈局。
-* **注意**：搜尋/過濾/詳情面板在 [上一份 brainstorm](../../brainstorm/2026-06-18-feature_brainstorming.md) 已列入。**此處只強調其排查價值並與 #2 的時序側欄、#3 的報告打包對齊**，避免重複規劃；實作時應一併考量。
+* **注意**：搜尋/過濾/詳情面板在上一份 brainstorm（已歸檔）中已列入。**此處只強調其排查價值並與 #2 的時序側欄、#3 的報告打包對齊**，避免重複規劃；實作時應一併考量。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐
 * **🟡 實作現況**：`LogDetailView` 已完成（點擊展開、可複製 stackTrace 區段、Data 區段、分享），Console 列已加 chevron 標記可展開。**未完成**：ConsoleTab 的搜尋欄、LogLevel FilterChip、errors-only 過濾尚未實作，`entriesAtLevel()` 仍未被使用。
 
@@ -141,7 +140,7 @@
 * **重用**：既有 push/pop/replace 回調、`KeyValueTable`。
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐
 * **註**：與上一份 brainstorm 的「Navigator Stack Visualizer」同一構想，此處定位為「為診斷報告提供 crash 當下路由快照」。
-* **✅ 實作現況**：PR #51（Issue #50）已完成。新增 `NavigatorStackResolver`（`lib/src/inspectors/navigator_stack_resolver.dart`）純 Dart 重播器，將 `navigatorEntries`（newest-first）反轉回時序後重播 push/pop/replace/remove，推導出 top-first 當前堆疊；`NavigatorTab` 以 `SegmentedButton` 在「當前堆疊」（垂直卡片，顯示 `displayName` + `routeName`）與既有「事件歷史」之間切換。採**垂直卡片**而非麵包屑（經 STAGE 0a 規格確認調整，理由見 `docs/features/2026-07-01-navigator-active-stack.md`）；replace/remove 的歧義情況採明確可預測的 best-effort 規則，不做 nested Navigator 多樹精確還原。
+* **✅ 實作現況**：PR #51（Issue #50）已完成。新增 `NavigatorStackResolver`（`lib/src/inspectors/navigator_stack_resolver.dart`）純 Dart 重播器，將 `navigatorEntries`（newest-first）反轉回時序後重播 push/pop/replace/remove，推導出 top-first 當前堆疊；`NavigatorTab` 以 `ChoiceChip`（`_Tab` 私有元件）在「當前堆疊」（垂直卡片，顯示 `displayName` + `routeName`，頂部路由標 `Current` 標籤 + `visibility` 圖示）與既有「事件歷史」之間切換，模式切換器與 refresh / delete 工具列並排於同一 Row。採**垂直卡片**而非麵包屑（經 STAGE 0a 規格確認調整，理由見 `docs/features/2026-07-01-navigator-active-stack.md`）；replace/remove 的歧義情況採明確可預測的 best-effort 規則，不做 nested Navigator 多樹精確還原。
 
 ---
 
