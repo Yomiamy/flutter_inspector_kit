@@ -56,7 +56,7 @@
 | :--- | :--- | :--- | :--- |
 | [`log_formatters.dart`](../../lib/src/utils/log_formatters.dart) | - | 將 `LogEntry` 轉換為純文字導出格式。 | - |
 | [`network_formatters.dart`](../../lib/src/utils/network_formatters.dart) | `ReplayRequest` | 提供網路請求的格式化工具，如 `buildCurl` 產出 cURL、`prettyJson` 縮排、`formatBytes` 等。 | - |
-| [`network_search.dart`](../../lib/src/utils/network_search.dart) | `NetworkStatusGroup`<br>`NetworkFilter` | 網路請求的搜尋過濾邏輯（基於關鍵字、Method 與 HTTP 狀態分組）。 | - |
+| [`network_utils.dart`](../../lib/src/utils/network_utils.dart) | `NetworkStatusGroup`<br>`NetworkFilter` | 網路請求的搜尋過濾邏輯（基於關鍵字、Method 與 HTTP 狀態分組），並集中 `timeOf` 時間格式化與 `httpMethods`/`statusLabels` 篩選常數。 | - |
 | [`redaction.dart`](../../lib/src/utils/redaction.dart) | - | 安全過濾。識別敏感 header（如 `authorization`）並將其內容遮蔽為 `••••`。 | - |
 | [`share_text.dart`](../../lib/src/utils/share_text.dart) | - | 分享平台分流器。Web 端匯出 `share_text_web`，Native 端匯出 `share_text_io` | - |
 | [`share_text_io.dart`](../../lib/src/utils/share_text_io.dart) | - | 使用 `share_plus` 開啟手機系統原生分享面板。 | - |
