@@ -53,7 +53,14 @@ class _NetworkTabState extends State<NetworkTab> {
             _refresh();
           },
         ),
-        _buildFilterChips(),
+        _FilterChips(
+          selectedMethods: _methods,
+          selectedStatusGroups: _statusGroups,
+          onMethodSelected: (method, selected) =>
+              _toggle(_methods, method, selected),
+          onStatusGroupSelected: (group, selected) =>
+              _toggle(_statusGroups, group, selected),
+        ),
         const Divider(height: 1),
         Expanded(
           child: entries.isEmpty
@@ -73,48 +80,13 @@ class _NetworkTabState extends State<NetworkTab> {
     );
   }
 
-  Widget _buildFilterChips() {
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        children: [
-          for (final method in httpMethods)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: FilterChip(
-                label: Text(method),
-                selected: _methods.contains(method),
-                onSelected: (selected) => setState(() {
-                  if (selected) {
-                    _methods.add(method);
-                  } else {
-                    _methods.remove(method);
-                  }
-                }),
-              ),
-            ),
-          const SizedBox(width: 8),
-          for (final group in statusLabels.keys)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: FilterChip(
-                label: Text(statusLabels[group]!),
-                selected: _statusGroups.contains(group),
-                onSelected: (selected) => setState(() {
-                  if (selected) {
-                    _statusGroups.add(group);
-                  } else {
-                    _statusGroups.remove(group);
-                  }
-                }),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+  void _toggle<T>(Set<T> set, T value, bool selected) => setState(() {
+    if (selected) {
+      set.add(value);
+    } else {
+      set.remove(value);
+    }
+  });
 
   Widget _buildEntryTile(NetworkEntry entry) {
     final statusColor = statusColorFor(entry.statusCode, entry.error != null);
@@ -204,6 +176,55 @@ class _SearchBar extends StatelessWidget {
             icon: const Icon(Icons.delete),
             onPressed: onClearAll,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Horizontal chips filtering by HTTP method and status group.
+class _FilterChips extends StatelessWidget {
+  final Set<String> selectedMethods;
+  final Set<NetworkStatusGroup> selectedStatusGroups;
+  final void Function(String method, bool selected) onMethodSelected;
+  final void Function(NetworkStatusGroup group, bool selected)
+  onStatusGroupSelected;
+
+  const _FilterChips({
+    required this.selectedMethods,
+    required this.selectedStatusGroups,
+    required this.onMethodSelected,
+    required this.onStatusGroupSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        children: [
+          for (final method in httpMethods)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: FilterChip(
+                label: Text(method),
+                selected: selectedMethods.contains(method),
+                onSelected: (selected) => onMethodSelected(method, selected),
+              ),
+            ),
+          const SizedBox(width: 8),
+          for (final group in statusLabels.keys)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: FilterChip(
+                label: Text(statusLabels[group]!),
+                selected: selectedStatusGroups.contains(group),
+                onSelected: (selected) =>
+                    onStatusGroupSelected(group, selected),
+              ),
+            ),
         ],
       ),
     );
