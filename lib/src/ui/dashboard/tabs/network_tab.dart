@@ -36,15 +36,15 @@ class _NetworkTabState extends State<NetworkTab> {
 
   @override
   Widget build(BuildContext context) {
-    final all = widget.inspector.networkEntries;
-    final entries = applyNetworkFilter(all, _filter);
+    final networkEntries = widget.inspector.networkEntries;
+    final entries = applyNetworkFilter(networkEntries, _filter);
 
     return Column(
       children: [
         _SearchBar(
           controller: _searchController,
           keyword: _keyword,
-          total: all.length,
+          total: networkEntries.length,
           shown: entries.length,
           onKeywordChanged: (value) => setState(() => _keyword = value),
           onRefresh: _refresh,
@@ -66,14 +66,18 @@ class _NetworkTabState extends State<NetworkTab> {
           child: entries.isEmpty
               ? Center(
                   child: Text(
-                    all.isEmpty ? 'No network requests' : 'No matches',
+                    networkEntries.isEmpty
+                        ? 'No network requests'
+                        : 'No matches',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 )
               : ListView.builder(
                   itemCount: entries.length,
-                  itemBuilder: (context, index) =>
-                      _buildEntryTile(entries[index]),
+                  itemBuilder: (context, index) => _EntryTile(
+                    entry: entries[index],
+                    redactSensitiveData: widget.inspector.redactSensitiveData,
+                  ),
                 ),
         ),
       ],
@@ -88,39 +92,21 @@ class _NetworkTabState extends State<NetworkTab> {
     }
   });
 
-  Widget _buildEntryTile(NetworkEntry entry) {
-    final statusColor = statusColorFor(entry.statusCode, entry.error != null);
-    final statusText = entry.isComplete
-        ? '${entry.statusCode ?? entry.error ?? '-'}'
-        : 'Pending';
-    final totalSize = entry.requestSizeBytes + entry.responseSizeBytes;
 
-    return ListTile(
-      dense: true,
-      leading: _MethodBadge(method: entry.method, color: statusColor),
-      title: Text(entry.url, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        '$statusText · ${entry.duration?.inMilliseconds ?? '-'} ms · '
-        '${formatBytes(totalSize)} · ${timeOf(entry.timestamp)}',
-        style: TextStyle(color: entry.error != null ? statusColor : null),
-      ),
-      trailing: const Icon(Icons.chevron_right, size: 18),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => NetworkDetailView(
-            entry: entry,
-            redactSensitiveData: widget.inspector.redactSensitiveData,
-          ),
-        ),
-      ),
-    );
-  }
 
   void _refresh() => setState(() {});
 }
 
 /// Search field with refresh and clear-all actions for the Network tab.
 class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final String keyword;
+  final int total;
+  final int shown;
+  final ValueChanged<String> onKeywordChanged;
+  final VoidCallback onRefresh;
+  final VoidCallback onClearAll;
+
   const _SearchBar({
     required this.controller,
     required this.keyword,
@@ -130,14 +116,6 @@ class _SearchBar extends StatelessWidget {
     required this.onRefresh,
     required this.onClearAll,
   });
-
-  final TextEditingController controller;
-  final String keyword;
-  final int total;
-  final int shown;
-  final ValueChanged<String> onKeywordChanged;
-  final VoidCallback onRefresh;
-  final VoidCallback onClearAll;
 
   @override
   Widget build(BuildContext context) {
@@ -226,6 +204,43 @@ class _FilterChips extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// A single network request row that opens [NetworkDetailView] on tap.
+class _EntryTile extends StatelessWidget {
+  const _EntryTile({required this.entry, required this.redactSensitiveData});
+
+  final NetworkEntry entry;
+  final bool redactSensitiveData;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = statusColorFor(entry.statusCode, entry.error != null);
+    final statusText = entry.isComplete
+        ? '${entry.statusCode ?? entry.error ?? '-'}'
+        : 'Pending';
+    final totalSize = entry.requestSizeBytes + entry.responseSizeBytes;
+
+    return ListTile(
+      dense: true,
+      leading: _MethodBadge(method: entry.method, color: statusColor),
+      title: Text(entry.url, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        '$statusText · ${entry.duration?.inMilliseconds ?? '-'} ms · '
+        '${formatBytes(totalSize)} · ${timeOf(entry.timestamp)}',
+        style: TextStyle(color: entry.error != null ? statusColor : null),
+      ),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => NetworkDetailView(
+            entry: entry,
+            redactSensitiveData: redactSensitiveData,
+          ),
+        ),
       ),
     );
   }
