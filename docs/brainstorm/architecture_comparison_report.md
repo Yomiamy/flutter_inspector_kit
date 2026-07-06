@@ -14,6 +14,13 @@
 * **超級上帝類別 (God Class)**：`FlutterInspector` 類別同時管理核心 Registry、初始化、全域例外鉤子（error hooks）、UI FAB 懸浮按鈕的 attach/detach 與 Dashboard 彈窗的打開。這嚴重違反了 **單一職責原則 (SRP)**。
 * **UI 與業務邏輯緊密耦合**：`NetworkTab` 等 UI 元件直接在 `build` 方法中呼叫 `applyNetworkFilter` 做資料過濾與狀態更新，並且依賴 `setState` 刷新整個視圖。當資料量變大時，容易造成嚴重卡頓。
   > ✅ **2026-07-05 部分處理**：`NetworkTab` 已拆為 `_SearchBar` / `_FilterChips` / `_EntryTile` / `_MethodBadge` 四個 widget class，function widget 清零；純函數（`timeOf` 等）與常數（`httpMethods`、`statusLabels`）集中至 `network_utils.dart`。`build` 內呼叫 `applyNetworkFilter` 的耦合**保留**——buffer 上限 500 筆、過濾為微秒級，「資料量變大卡頓」的疑慮經評估不成立。
+  >
+  > ✅ **2026-07-06 重構推廣**：將此重構模式（Helper method → 獨立 widget class、重複分支收斂、純函數/常數提煉）擴展至整個 `lib/src/ui/dashboard/tabs/` 下的其他 Tab 檔案。
+  >   * **ConsoleTab**：移除 `_buildRow`、`_logRow`、`_networkRow`、`_navigatorRow`、`_databaseRow` 5 個 helper methods，改為 `_EntryRowDispatcher` 加上 `_LogEntryRow` 等 4 個獨立 entry row widget classes；移除本地 `_getColorForLevel`，改用新建立的 `LogLevelColor` extension（[log_level_color_extension.dart](file:///Users/yomiry/StudioWorkspace/flutter_inspector/lib/src/extensions/log_level_color_extension.dart)）；手寫的 source FilterChips 以 `TimelineSource.values` 迴圈收斂。
+  >   * **NavigatorTab**：將 `_buildActiveStack` 改寫為獨立 Widget `_ActiveStackView`，將 ListTile 內部的 inline Current badge 抽成私有的 `_CurrentBadge` Widget。
+  >   * **DatabaseTab & TableRowsView**：將兩者的 `_buildBody` 分別解耦為 `_DatabaseTabBody` 與 `_TableRowsBody`，並將 cell details bottom sheet 與 status bar 抽離成 `_CellDetailsBottomSheet` 與 `_StatusBar` Widget。
+* **跨檔案代碼拷貝**：`LogDetailView` 和 `NetworkDetailView` 各自實現了完全相同的卡片與鍵值佈局；`TableRowsView` 和 `DatabaseTab` 也重複手寫了相同的錯誤重試卡片佈局。
+  > ✅ **2026-07-06 落地狀態**：在 `lib/src/ui/widgets/` 下建立共用 widgets [detail_section.dart](file:///Users/yomiry/StudioWorkspace/flutter_inspector/lib/src/ui/widgets/detail_section.dart)（含 `DetailSection` 與 `DetailKeyValueRow`）以及 [error_card.dart](file:///Users/yomiry/StudioWorkspace/flutter_inspector/lib/src/ui/widgets/error_card.dart)（`ErrorCard`），徹底消除了這些跨檔案的 UI 拷貝。
 * **命名不一致**：`models/` 下的概念混亂。`database_entry.dart`、`network_entry.dart` 等「Entry」物件在系統中同時扮演了 Dto、Domain Entity 與 UI Model 的三重身形，沒有做到邏輯層的隔離。
 
 ---
