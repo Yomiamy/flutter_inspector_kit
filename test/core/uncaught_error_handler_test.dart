@@ -107,8 +107,13 @@ void main() {
     FlutterError.onError!(buildDetails(StateError('boom')));
     expect(hostFlutterCalled, isTrue);
 
-    PlatformDispatcher.instance.onError!(StateError('boom'), StackTrace.current);
+    final handled = PlatformDispatcher.instance.onError!(
+      StateError('boom'),
+      StackTrace.current,
+    );
     expect(hostPlatformCalled, isTrue);
+    // onLog 丟例外時，host 回傳的 handled 語意不得被改變（重構核心不變式）。
+    expect(handled, isTrue);
 
     final widget = ErrorWidget.builder(buildDetails(StateError('boom')));
     expect(widget.runtimeType, originalBuilder(buildDetails(StateError('boom'))).runtimeType);
