@@ -17,6 +17,7 @@ import '../ui/dashboard/dashboard_modal.dart';
 import 'inspector_overlay_manager.dart';
 
 import 'inspector_registry.dart';
+import 'uncaught_error_handler.dart';
 
 /// The core entry point for the Flutter Inspector.
 class FlutterInspector {
@@ -43,6 +44,7 @@ class FlutterInspector {
       onFabTap: (context) => openDashboard(context),
     );
     _registry = InspectorRegistry(bufferSize: bufferSize);
+    _uncaughtErrorHandler = UncaughtErrorHandler(onLog: log);
     if (captureUncaughtErrors) setupErrorHandlers();
     _navigatorObserver = FlutterInspectorNavigatorObserver(this);
     _operationLogSource = OperationLogSource(_registry.database);
@@ -121,9 +123,7 @@ class FlutterInspector {
   /// or a screenshot unless the host explicitly opts out.
   final bool redactSensitiveData;
 
-  FlutterExceptionHandler? _oldFlutterErrorHandler;
-  bool Function(Object, StackTrace)? _oldPlatformDispatcherOnError;
-  bool _uncaughtErrorHandlersAttached = false;
+  late final UncaughtErrorHandler _uncaughtErrorHandler;
 
   NetworkNotifier? _notifier;
 
@@ -223,79 +223,7 @@ class FlutterInspector {
   /// a manual [setupErrorHandlers] call are combined.
   @visibleForTesting
   void setupErrorHandlers() {
-    if (_uncaughtErrorHandlersAttached) return;
-    _uncaughtErrorHandlersAttached = true;
-
-    // 1) FlutterError.onError — chain.
-    // The logging call is guarded so a failure while recording can never break
-    // the chain to the host handler — the error is always forwarded downstream.
-    _oldFlutterErrorHandler = FlutterError.onError;
-    FlutterError.onError = (details) {
-      try {
-        _logFlutterError(details, source: 'flutterError');
-      } catch (e, s) {
-        debugPrintStack(stackTrace: s, label: 'inspector log failed: $e');
-      }
-      if (_oldFlutterErrorHandler != null) {
-        _oldFlutterErrorHandler!(details);
-      } else {
-        FlutterError.presentError(details);
-      }
-    };
-
-    // 2) PlatformDispatcher.instance.onError — chain.
-    // The logging call is guarded so a failure while recording can never alter
-    // the boolean the host handler returns (its "handled" semantics are kept).
-    _oldPlatformDispatcherOnError = PlatformDispatcher.instance.onError;
-    PlatformDispatcher.instance.onError = (e, st) {
-      try {
-        log(
-          e.toString(),
-          level: LogLevel.error,
-          stackTrace: st.toString(),
-          data: {
-            'source': 'platformDispatcher',
-            'exceptionType': e.runtimeType.toString(),
-          },
-        );
-      } catch (err, s) {
-        debugPrintStack(stackTrace: s, label: 'inspector log failed: $err');
-      }
-      final old = _oldPlatformDispatcherOnError;
-      return old != null ? old(e, st) : false;
-    };
-
-    // 3) ErrorWidget.builder — wrap.
-    final original = ErrorWidget.builder;
-    ErrorWidget.builder = (details) {
-      try {
-        _logFlutterError(details, source: 'errorWidget');
-      } catch (e, s) {
-        debugPrintStack(
-          stackTrace: s,
-          label: 'inspector errorWidget log failed: $e',
-        );
-      }
-      return original(details);
-    };
-  }
-
-  void _logFlutterError(FlutterErrorDetails details, {required String source}) {
-    final data = <String, dynamic>{
-      'source': source,
-      'exceptionType': details.exception.runtimeType.toString(),
-    };
-    final library = details.library;
-    if (library != null) data['library'] = library;
-    final context = details.context;
-    if (context != null) data['context'] = context.toString();
-
-    log(
-      details.exceptionAsString(),
-      level: LogLevel.error,
-      stackTrace: details.stack?.toString(),
-      data: data,
-    );
+    _uncaughtErrorHandler.attach();
   }
 
   /// Records a network request or response, returning the stored entry.
