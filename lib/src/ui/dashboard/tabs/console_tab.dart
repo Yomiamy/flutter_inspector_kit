@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_entry.dart';
 import '../../../models/log_entry.dart';
-import '../../../models/log_level.dart';
 import '../../../models/navigator_entry.dart';
 import '../../../models/network_entry.dart';
 import '../../../models/timestamped_entry.dart';
+import '../../../extensions/log_level_color_extension.dart';
 import 'console/log_detail_view.dart';
 import 'network/network_detail_view.dart';
 
@@ -38,6 +38,13 @@ class _ConsoleTabState extends State<ConsoleTab> {
     TimelineSource.db,
   };
 
+  static const Map<TimelineSource, String> _sourceLabels = {
+    TimelineSource.log: 'Log',
+    TimelineSource.network: 'Network',
+    TimelineSource.nav: 'Nav',
+    TimelineSource.db: 'DB',
+  };
+
   void _refresh() => setState(() {});
 
   /// Whether the filter currently equals "All" (every source selected).
@@ -47,20 +54,6 @@ class _ConsoleTabState extends State<ConsoleTab> {
 
   void _selectOnly(TimelineSource source) =>
       setState(() => _selected = {source});
-
-  Color _getColorForLevel(LogLevel level) {
-    switch (level) {
-      case LogLevel.verbose:
-      case LogLevel.debug:
-        return Colors.blueGrey;
-      case LogLevel.info:
-        return Colors.blue;
-      case LogLevel.warning:
-        return Colors.orange;
-      case LogLevel.error:
-        return Colors.red;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,31 +74,14 @@ class _ConsoleTabState extends State<ConsoleTab> {
                       selected: _isAll,
                       onSelected: (_) => _selectAll(),
                     ),
-                    const SizedBox(width: 8),
-                    FilterChip(
-                      label: const Text('Log'),
-                      selected: !_isAll && _selected.contains(TimelineSource.log),
-                      onSelected: (_) => _selectOnly(TimelineSource.log),
-                    ),
-                    const SizedBox(width: 8),
-                    FilterChip(
-                      label: const Text('Network'),
-                      selected: !_isAll &&
-                          _selected.contains(TimelineSource.network),
-                      onSelected: (_) => _selectOnly(TimelineSource.network),
-                    ),
-                    const SizedBox(width: 8),
-                    FilterChip(
-                      label: const Text('Nav'),
-                      selected: !_isAll && _selected.contains(TimelineSource.nav),
-                      onSelected: (_) => _selectOnly(TimelineSource.nav),
-                    ),
-                    const SizedBox(width: 8),
-                    FilterChip(
-                      label: const Text('DB'),
-                      selected: !_isAll && _selected.contains(TimelineSource.db),
-                      onSelected: (_) => _selectOnly(TimelineSource.db),
-                    ),
+                    for (final source in TimelineSource.values) ...[
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        label: Text(_sourceLabels[source] ?? ''),
+                        selected: !_isAll && _selected.contains(source),
+                        onSelected: (_) => _selectOnly(source),
+                      ),
+                    ],
                     const SizedBox(width: 8),
                   ],
                 ),
@@ -127,76 +103,125 @@ class _ConsoleTabState extends State<ConsoleTab> {
         Expanded(
           child: ListView.builder(
             itemCount: entries.length,
-            itemBuilder: (context, index) => _buildRow(entries[index]),
+            itemBuilder: (context, index) => _EntryRowDispatcher(
+              entry: entries[index],
+              redactSensitiveData: widget.inspector.redactSensitiveData,
+            ),
           ),
         ),
       ],
     );
   }
+}
 
-  /// Dispatches a [TimestampedEntry] to the matching row visual by runtime type.
-  Widget _buildRow(TimestampedEntry entry) {
+/// Dispatches a [TimestampedEntry] to the matching row visual by runtime type.
+class _EntryRowDispatcher extends StatelessWidget {
+  const _EntryRowDispatcher({
+    required this.entry,
+    required this.redactSensitiveData,
+  });
+
+  final TimestampedEntry entry;
+  final bool redactSensitiveData;
+
+  @override
+  Widget build(BuildContext context) {
     switch (entry) {
       case final LogEntry e:
-        return _logRow(e);
+        return _LogEntryRow(entry: e);
       case final NetworkEntry e:
-        return _networkRow(e);
+        return _NetworkEntryRow(
+          entry: e,
+          redactSensitiveData: redactSensitiveData,
+        );
       case final NavigatorEntry e:
-        return _navigatorRow(e);
+        return _NavigatorEntryRow(entry: e);
       case final DatabaseEntry e:
-        return _databaseRow(e);
+        return _DatabaseEntryRow(entry: e);
       default:
         return const SizedBox.shrink();
     }
   }
+}
 
-  Widget _logRow(LogEntry e) {
-    final canTap =
-        (e.stackTrace?.isNotEmpty ?? false) || (e.data?.isNotEmpty ?? false);
+class _LogEntryRow extends StatelessWidget {
+  const _LogEntryRow({required this.entry});
+
+  final LogEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final canTap = (entry.stackTrace?.isNotEmpty ?? false) ||
+        (entry.data?.isNotEmpty ?? false);
     return ListTile(
       title: Text(
-        e.message,
-        style: TextStyle(color: _getColorForLevel(e.level)),
+        entry.message,
+        style: TextStyle(color: entry.level.color),
       ),
-      subtitle: Text(e.displayTime),
+      subtitle: Text(entry.displayTime),
       trailing: canTap ? const Icon(Icons.chevron_right, size: 18) : null,
       onTap: canTap
           ? () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => LogDetailView(entry: e),
+                  builder: (_) => LogDetailView(entry: entry),
                 ),
               )
           : null,
     );
   }
+}
 
-  Widget _networkRow(NetworkEntry e) {
+class _NetworkEntryRow extends StatelessWidget {
+  const _NetworkEntryRow({
+    required this.entry,
+    required this.redactSensitiveData,
+  });
+
+  final NetworkEntry entry;
+  final bool redactSensitiveData;
+
+  @override
+  Widget build(BuildContext context) {
     return ListTile(
-      title: Text('${e.method} ${e.statusCode ?? '-'} ${e.url}'),
-      subtitle: Text(e.displayTime),
+      title: Text('${entry.method} ${entry.statusCode ?? '-'} ${entry.url}'),
+      subtitle: Text(entry.displayTime),
       trailing: const Icon(Icons.chevron_right, size: 18),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => NetworkDetailView(
-            entry: e,
-            redactSensitiveData: widget.inspector.redactSensitiveData,
+            entry: entry,
+            redactSensitiveData: redactSensitiveData,
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _navigatorRow(NavigatorEntry e) {
+class _NavigatorEntryRow extends StatelessWidget {
+  const _NavigatorEntryRow({required this.entry});
+
+  final NavigatorEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
     return ListTile(
-      title: Text('${e.action.name} ${e.displayName}'),
-      subtitle: Text(e.displayTime),
+      title: Text('${entry.action.name} ${entry.displayName}'),
+      subtitle: Text(entry.displayTime),
     );
   }
+}
 
-  Widget _databaseRow(DatabaseEntry e) {
+class _DatabaseEntryRow extends StatelessWidget {
+  const _DatabaseEntryRow({required this.entry});
+
+  final DatabaseEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
     return ListTile(
-      title: Text('${e.operation.name} ${e.tableName}'),
-      subtitle: Text(e.displayTime),
+      title: Text('${entry.operation.name} ${entry.tableName}'),
+      subtitle: Text(entry.displayTime),
     );
   }
 }

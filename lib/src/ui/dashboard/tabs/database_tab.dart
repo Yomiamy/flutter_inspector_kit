@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_browser_source.dart';
 import '../../../sources/operation_log_source.dart';
+import '../../widgets/error_card.dart';
 import 'database/table_rows_view.dart';
 
 /// Tab for displaying database tables and operations.
@@ -110,47 +111,52 @@ class _DatabaseTabState extends State<DatabaseTab> {
           ),
         ),
         const Divider(height: 1),
-        Expanded(child: _buildBody(isOpLog)),
+        Expanded(
+          child: _DatabaseTabBody(
+            loading: _loading,
+            errorMessage: _errorMessage,
+            tables: _tables,
+            isOpLog: isOpLog,
+            selectedSource: _selectedSource,
+            onRetry: _loadTables,
+          ),
+        ),
       ],
     );
   }
+}
 
-  Widget _buildBody(bool isOpLog) {
-    if (_loading) {
+class _DatabaseTabBody extends StatelessWidget {
+  const _DatabaseTabBody({
+    required this.loading,
+    required this.errorMessage,
+    required this.tables,
+    required this.isOpLog,
+    required this.selectedSource,
+    required this.onRetry,
+  });
+
+  final bool loading;
+  final String? errorMessage;
+  final List<DatabaseTableInfo> tables;
+  final bool isOpLog;
+  final DatabaseBrowserSource selectedSource;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error, color: Colors.red, size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    _errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadTables,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+    if (errorMessage != null) {
+      return ErrorCard(
+        message: errorMessage!,
+        onRetry: onRetry,
       );
     }
 
-    if (_tables.isEmpty) {
+    if (tables.isEmpty) {
       final emptyText = isOpLog
           ? 'No database activity'
           : 'No tables in this source';
@@ -160,9 +166,9 @@ class _DatabaseTabState extends State<DatabaseTab> {
     }
 
     return ListView.builder(
-      itemCount: _tables.length,
+      itemCount: tables.length,
       itemBuilder: (context, index) {
-        final table = _tables[index];
+        final table = tables[index];
         final rowCountText = table.rowCount != null
             ? '${table.rowCount} rows'
             : 'n/a';
@@ -186,7 +192,7 @@ class _DatabaseTabState extends State<DatabaseTab> {
               context,
               MaterialPageRoute(
                 builder: (context) => TableRowsView(
-                  source: _selectedSource,
+                  source: selectedSource,
                   tableName: table.name,
                 ),
               ),
