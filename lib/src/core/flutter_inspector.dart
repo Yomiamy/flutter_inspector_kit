@@ -15,7 +15,6 @@ import '../notifications/network_notifier.dart';
 import '../observers/navigator_observer.dart';
 import '../ui/dashboard/dashboard_modal.dart';
 import 'inspector_overlay_manager.dart';
-
 import 'inspector_registry.dart';
 import 'uncaught_error_handler.dart';
 
@@ -51,6 +50,9 @@ class FlutterInspector {
     if (databaseSources != null) {
       _customDatabaseSources.addAll(databaseSources);
     }
+    _overlayManager = InspectorOverlayManager(
+      onFabTap: (context) => openDashboard(context),
+    );
     if (showNetworkNotification) {
       _notifier =
           notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
@@ -187,6 +189,7 @@ class FlutterInspector {
   void registerDatabaseSource(DatabaseBrowserSource source) {
     _customDatabaseSources.add(source);
   }
+
 
   /// Mounts the FAB overlay onto the screen.
   void attach({required BuildContext context, bool visible = true}) {
