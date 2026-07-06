@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../../../models/network_entry.dart';
 import '../../../../utils/network_formatters.dart';
 import '../../../../utils/share_text.dart';
+import '../../../widgets/detail_section.dart';
 import '../../../widgets/key_value_table.dart';
 
 /// Actions exposed in the detail view's share menu.
@@ -55,15 +56,13 @@ class NetworkDetailView extends StatelessWidget {
         children: [
           _generalSection(context),
           if (entry.queryParameters.isNotEmpty)
-            _section(
-              context,
-              'Query Parameters',
-              KeyValueTable(data: entry.queryParameters),
+            DetailSection(
+              title: 'Query Parameters',
+              child: KeyValueTable(data: entry.queryParameters),
             ),
-          _section(
-            context,
-            'Request Headers',
-            KeyValueTable(data: entry.requestHeaders),
+          DetailSection(
+            title: 'Request Headers',
+            child: KeyValueTable(data: entry.requestHeaders),
           ),
           if (_hasBody(entry.requestBody))
             _bodySection(
@@ -72,10 +71,9 @@ class NetworkDetailView extends StatelessWidget {
               entry.requestBody!,
               entry.isRequestJson,
             ),
-          _section(
-            context,
-            'Response Headers',
-            KeyValueTable(data: entry.responseHeaders),
+          DetailSection(
+            title: 'Response Headers',
+            child: KeyValueTable(data: entry.responseHeaders),
           ),
           if (_hasBody(entry.responseBody))
             _bodySection(
@@ -96,18 +94,16 @@ class NetworkDetailView extends StatelessWidget {
 
   Widget _generalSection(BuildContext context) {
     final statusColor = statusColorFor(entry.statusCode, entry.error != null);
-    return _section(
-      context,
-      'General',
-      Column(
+    return DetailSection(
+      title: 'General',
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _kv(context, 'Method', entry.method),
-          _kv(context, 'URL', entry.url),
-          _kvWidget(
-            context,
-            'Status',
-            SelectableText(
+          DetailKeyValueRow.text('Method', entry.method),
+          DetailKeyValueRow.text('URL', entry.url),
+          DetailKeyValueRow(
+            label: 'Status',
+            valueWidget: SelectableText(
               entry.isComplete ? '${entry.statusCode ?? '-'}' : 'Pending',
               style: TextStyle(
                 color: statusColor,
@@ -115,13 +111,12 @@ class NetworkDetailView extends StatelessWidget {
               ),
             ),
           ),
-          _kv(
-            context,
+          DetailKeyValueRow.text(
             'Duration',
             '${entry.duration?.inMilliseconds ?? '-'} ms',
           ),
-          _kv(context, 'Request size', formatBytes(entry.requestSizeBytes)),
-          _kv(context, 'Response size', formatBytes(entry.responseSizeBytes)),
+          DetailKeyValueRow.text('Request size', formatBytes(entry.requestSizeBytes)),
+          DetailKeyValueRow.text('Response size', formatBytes(entry.responseSizeBytes)),
           if (entry.isTruncated)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -133,7 +128,7 @@ class NetworkDetailView extends StatelessWidget {
                 ),
               ),
             ),
-          _kv(context, 'Time', entry.timestamp.toIso8601String()),
+          DetailKeyValueRow.text('Time', entry.timestamp.toIso8601String()),
         ],
       ),
     );
@@ -146,10 +141,9 @@ class NetworkDetailView extends StatelessWidget {
     bool isJson,
   ) {
     final rendered = isJson ? prettyJson(body) : body;
-    return _section(
-      context,
-      title,
-      Container(
+    return DetailSection(
+      title: title,
+      child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -165,32 +159,28 @@ class NetworkDetailView extends StatelessWidget {
   }
 
   Widget _exceptionDetailsSection(BuildContext context) {
-    return _section(
-      context,
-      'Exception Details',
-      Column(
+    return DetailSection(
+      title: 'Exception Details',
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (entry.errorType != null) ...[
             if (entry.statusCode == null)
-              _kv(
-                context,
+              DetailKeyValueRow.text(
                 'Kind',
                 '傳輸層失敗 (transport failure — request did not reach server)',
               )
             else
-              _kv(
-                context,
+              DetailKeyValueRow.text(
                 'Kind',
                 'Server 錯誤回應 (server responded with error)',
               ),
-            _kv(context, 'Error Type', entry.errorType!.name),
+            DetailKeyValueRow.text('Error Type', entry.errorType!.name),
           ],
           if (entry.error != null)
-            _kvWidget(
-              context,
-              'Error',
-              SelectableText(
+            DetailKeyValueRow(
+              label: 'Error',
+              valueWidget: SelectableText(
                 entry.error!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
@@ -221,57 +211,6 @@ class NetworkDetailView extends StatelessWidget {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _section(BuildContext context, String title, Widget child) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _kv(
-    BuildContext context,
-    String key,
-    String value,
-  ) {
-    return _kvWidget(context, key, SelectableText(value));
-  }
-
-  Widget _kvWidget(
-    BuildContext context,
-    String key,
-    Widget valueWidget,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$key:',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: valueWidget),
         ],
       ),
     );
