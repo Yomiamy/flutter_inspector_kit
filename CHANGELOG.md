@@ -1,3 +1,10 @@
+## 1.3.1
+
+### Changed
+* **Code quality & performance optimization**: Refactored major dashboard tabs (Console, Network, Navigator, Database) to eliminate large helper methods and decompose them into lightweight, specialized, and reusable private Widget classes, improving rendering efficiency.
+* **UI widgets consolidation**: Extracted shared `DetailSection` (with `DetailKeyValueRow`) and `ErrorCard` widgets to eliminate cross-file duplicate code.
+* **Centralized log level colors**: Moved log level color mapping from ConsoleTab's helper methods into a unified `LogLevelColor` extension.
+
 ## 1.3.0
 
 ### Added
