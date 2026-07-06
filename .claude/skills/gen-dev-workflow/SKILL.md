@@ -80,6 +80,8 @@ description: |
     │  → 逐任務選 model：機械性→快/便宜｜整合→標準     │
     │     ｜設計判斷/跨層→最強（見 Model 策略章節）    │
     │  → agy 實作任務，Claude 兩階段驗收            │
+    │  🪶 Ponytail：派發模板必附〈規則塊〉，驗收把  │
+    │     計畫外抽象/依賴/防禦分支當品質不佳退回    │
     │  ⏸ 每個任務（或每批並行）完成後暫停：            │
     │      展示變更檔案 + 測試結果摘要                  │
     │      問「確認繼續下一個任務嗎？」                  │
@@ -92,6 +94,9 @@ description: |
     │  → 呼叫 reviewer agent（不委派 agy，親自判斷）  │
     │  → 已 opt-in → 多 angle 對抗式審查（Workflow    │
     │    平行 verifier 找 bug，reviewer 收斂判斷）     │
+    │  🪶 Ponytail：第五 lens「過度工程/可簡化」找    │
+    │     計畫外抽象；僅 plan 外加料 / 刪即更小 diff  │
+    │     兩種情況阻擋退回，與安全衝突時安全勝出      │
     │  ⏸ 暫停：展示審查報告，問「確認繼續嗎？」         │
     │  ┌─ 使用者確認（通過）                      ─┐   │
     │  └─ 不通過 / 使用者要求修正                   │   │
@@ -595,17 +600,23 @@ const results = await pipeline(
 
 ### 適用點 3：STAGE 3 多 angle 對抗式審查
 
-**reviewer 仍是主導者、最終判斷者**（不違反「審查報告 reviewer 親自判斷」）。Workflow 的 verifier 只是平行找 bug 的助手：每個 verifier 帶**不同 lens**（correctness / security / 回歸風險 / 測試覆蓋），對抗式地嘗試挑出問題，reviewer 收斂所有 verdict 後親自寫審查報告。
+**reviewer 仍是主導者、最終判斷者**（不違反「審查報告 reviewer 親自判斷」）。Workflow 的 verifier 只是平行找 bug 的助手：每個 verifier 帶**不同 lens**（correctness / security / 回歸風險 / 測試覆蓋 / 過度工程），對抗式地嘗試挑出問題，reviewer 收斂所有 verdict 後親自寫審查報告。
 
 ```js
 const LENSES = ['correctness', 'security', '回歸風險', '測試覆蓋']
-const findings = (await parallel(LENSES.map(lens => () =>
-  agent(`以 ${lens} 視角審查 <branch> 的 diff，盡力挑出真實問題`, {label: `review:${lens}`, schema: FINDING_SCHEMA})
-))).filter(Boolean).flatMap(r => r.findings)
+const findings = (await parallel([
+  ...LENSES.map(lens => () =>
+    agent(`以 ${lens} 視角審查 <branch> 的 diff，盡力挑出真實問題`, {label: `review:${lens}`, schema: FINDING_SCHEMA})),
+  // 第五 lens：找「不該存在的東西」。verifier 子進程看不到 ponytail hook，判準必須明文內嵌。
+  () => agent(`以「過度工程/可簡化」視角審查 <branch> 的 diff 對照已確認的 plan：挑出計畫沒要求卻新增的抽象（單一實作的 interface、單一產品的 factory、永不變的 config、留給未來的 scaffolding、可用既有 helper/stdlib 取代的自製輪子）。每條 finding 必附刪除方案（刪哪些行、刪後 diff 是否更小、既有測試是否仍過）。絕不把信任邊界輸入驗證、防資料遺失、security、a11y 列為可簡化項。`,
+    {label: 'review:過度工程', schema: FINDING_SCHEMA}),
+])).filter(Boolean).flatMap(r => r.findings)
 // 回到主對話：reviewer 親自收斂 findings、去重、判定真偽 → 寫審查報告 → 暫停展示（不委派 agy）
 ```
 
 > 不變式：審查報告由 reviewer（Opus, xHigh effort）親自產出，**不委派 agy**。多 angle 只是提高召回率的輸入，不取代 reviewer 的最終判斷。退回 STAGE 2 的條件與層級不變。
+>
+> 「過度工程/可簡化」lens 的 finding 屬獨立類別：僅「plan 未要求的新抽象」或「刪除即嚴格更小 diff 且測試仍過」兩種情況可列 Important 並觸發退回 STAGE 2；其餘列為非阻擋建議。與 correctness/security 衝突時後者勝出。（reviewer 收斂判準詳見 `reviewer.md`。）
 
 ---
 
