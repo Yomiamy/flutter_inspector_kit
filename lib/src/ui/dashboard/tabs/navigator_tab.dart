@@ -22,45 +22,6 @@ class _NavigatorTabState extends State<NavigatorTab> {
 
   void _refresh() => setState(() {});
 
-  Widget _buildActiveStack(BuildContext context, List<NavigatorEntry> entries) {
-    final stack = NavigatorStackResolver().resolve(entries);
-    if (stack.isEmpty) {
-      return const Center(child: Text('Empty stack history'));
-    }
-    return ListView.builder(
-      itemCount: stack.length,
-      itemBuilder: (context, index) {
-        final entry = stack[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ListTile(
-            leading: index == 0
-                ? const Icon(Icons.visibility, color: Colors.blue)
-                : null,
-            title: Text(entry.displayName),
-            subtitle: Text(entry.routeName ?? '(no route name)'),
-            trailing: index == 0
-                ? Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withAlpha(50),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'Current',
-                      style: TextStyle(fontSize: 10, color: Colors.blue),
-                    ),
-                  )
-                : null,
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final entries = widget.inspector.navigatorEntries;
@@ -110,9 +71,59 @@ class _NavigatorTabState extends State<NavigatorTab> {
                     );
                   },
                 )
-              : _buildActiveStack(context, entries),
+              : _ActiveStackView(entries: entries),
         ),
       ],
+    );
+  }
+}
+
+class _ActiveStackView extends StatelessWidget {
+  const _ActiveStackView({required this.entries});
+
+  final List<NavigatorEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final stack = NavigatorStackResolver().resolve(entries);
+    if (stack.isEmpty) {
+      return const Center(child: Text('Empty stack history'));
+    }
+    return ListView.builder(
+      itemCount: stack.length,
+      itemBuilder: (context, index) {
+        final entry = stack[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ListTile(
+            leading: index == 0
+                ? const Icon(Icons.visibility, color: Colors.blue)
+                : null,
+            title: Text(entry.displayName),
+            subtitle: Text(entry.routeName ?? '(no route name)'),
+            trailing: index == 0 ? const _CurrentBadge() : null,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CurrentBadge extends StatelessWidget {
+  const _CurrentBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.blue.withAlpha(50),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Text(
+        'Current',
+        style: TextStyle(fontSize: 10, color: Colors.blue),
+      ),
     );
   }
 }
