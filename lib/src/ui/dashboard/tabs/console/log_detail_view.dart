@@ -6,6 +6,7 @@ import '../../../../utils/log_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
 import '../../../widgets/key_value_table.dart';
+import '../../../theme/inspector_theme.dart';
 
 /// Actions exposed in the detail view's share menu.
 enum _ShareAction { text, share }
@@ -33,19 +34,17 @@ class LogDetailView extends StatelessWidget {
                 value: _ShareAction.text,
                 child: Text('Copy as text'),
               ),
-              PopupMenuItem(
-                value: _ShareAction.share,
-                child: Text('Share…'),
-              ),
+              PopupMenuItem(value: _ShareAction.share, child: Text('Share…')),
             ],
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: InspectorTheme.paddingMd,
         children: [
           _generalSection(context),
-          if (entry.stackTrace?.isNotEmpty ?? false) _stackTraceSection(context),
+          if (entry.stackTrace?.isNotEmpty ?? false)
+            _stackTraceSection(context),
           _dataSection(context),
         ],
       ),
@@ -60,7 +59,10 @@ class LogDetailView extends StatelessWidget {
         children: [
           DetailKeyValueRow.text('Message', entry.message),
           DetailKeyValueRow.text('Level', entry.level.name),
-          DetailKeyValueRow.text('Timestamp', entry.timestamp.toIso8601String()),
+          DetailKeyValueRow.text(
+            'Timestamp',
+            entry.timestamp.toIso8601String(),
+          ),
         ],
       ),
     );
@@ -71,14 +73,14 @@ class LogDetailView extends StatelessWidget {
       title: 'Stack Trace',
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(8),
+        padding: InspectorTheme.paddingSm,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(4),
         ),
         child: SelectableText(
           entry.stackTrace!,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+          style: InspectorTheme.monospaceStyle,
         ),
       ),
     );
@@ -102,9 +104,7 @@ class LogDetailView extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     switch (action) {
       case _ShareAction.text:
-        await Clipboard.setData(
-          ClipboardData(text: buildLogPlainText(entry)),
-        );
+        await Clipboard.setData(ClipboardData(text: buildLogPlainText(entry)));
         messenger.showSnackBar(
           const SnackBar(content: Text('Details copied to clipboard')),
         );

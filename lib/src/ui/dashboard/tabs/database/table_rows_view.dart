@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../models/database_browser_source.dart';
 import '../../../../utils/table_sort.dart';
+import '../../../theme/inspector_theme.dart';
 import '../../../widgets/error_card.dart';
 
 /// A detailed full-page grid browser for a single database table.
@@ -162,9 +163,7 @@ class _TableRowsViewState extends State<TableRowsView> {
 }
 
 class _CellDetailsBottomSheet extends StatelessWidget {
-  const _CellDetailsBottomSheet({
-    required this.cell,
-  });
+  const _CellDetailsBottomSheet({required this.cell});
 
   final Object? cell;
 
@@ -173,7 +172,7 @@ class _CellDetailsBottomSheet extends StatelessWidget {
     final fullValue = cell?.toString() ?? 'NULL';
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: InspectorTheme.paddingLg,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -184,8 +183,8 @@ class _CellDetailsBottomSheet extends StatelessWidget {
                 Text(
                   'Cell Details',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -199,15 +198,14 @@ class _CellDetailsBottomSheet extends StatelessWidget {
                 child: SelectableText(
                   fullValue,
                   style: cell == null
-                      ? const TextStyle(
+                      ? InspectorTheme.mutedStyle.copyWith(
                           fontStyle: FontStyle.italic,
-                          color: Colors.grey,
                         )
                       : null,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: InspectorTheme.spacingLg),
             ElevatedButton.icon(
               icon: const Icon(Icons.copy),
               label: const Text('Copy Value'),
@@ -216,9 +214,7 @@ class _CellDetailsBottomSheet extends StatelessWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Value copied to clipboard'),
-                    ),
+                    const SnackBar(content: Text('Value copied to clipboard')),
                   );
                 }
               },
@@ -248,7 +244,7 @@ class _StatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: InspectorTheme.paddingLgHorizontalSmVertical,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
@@ -270,10 +266,7 @@ class _StatusBar extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
-              TextButton(
-                onPressed: onLoadMore,
-                child: const Text('Load More'),
-              ),
+              TextButton(onPressed: onLoadMore, child: const Text('Load More')),
         ],
       ),
     );
@@ -316,10 +309,7 @@ class _TableRowsBody extends StatelessWidget {
     }
 
     if (errorMessage != null && rows.isEmpty) {
-      return ErrorCard(
-        message: errorMessage!,
-        onRetry: onRetry,
-      );
+      return ErrorCard(message: errorMessage!, onRetry: onRetry);
     }
 
     return Column(
@@ -340,7 +330,9 @@ class _TableRowsBody extends StatelessWidget {
                         controller: horizontalController,
                         scrollDirection: Axis.horizontal,
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
+                          padding: const EdgeInsets.only(
+                            bottom: InspectorTheme.spacingLg,
+                          ),
                           child: DataTable(
                             sortColumnIndex: sortColumnIndex,
                             sortAscending: sortAscending,
@@ -359,9 +351,8 @@ class _TableRowsBody extends StatelessWidget {
                                     Text(
                                       preview,
                                       style: isNull
-                                          ? const TextStyle(
+                                          ? InspectorTheme.mutedStyle.copyWith(
                                               fontStyle: FontStyle.italic,
-                                              color: Colors.grey,
                                             )
                                           : null,
                                     ),

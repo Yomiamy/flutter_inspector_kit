@@ -7,6 +7,7 @@ import '../../../models/navigator_entry.dart';
 import '../../../models/network_entry.dart';
 import '../../../models/timestamped_entry.dart';
 import '../../../extensions/log_level_color_extension.dart';
+import '../../theme/inspector_theme.dart';
 import 'console/log_detail_view.dart';
 import 'network/network_detail_view.dart';
 
@@ -68,21 +69,21 @@ class _ConsoleTabState extends State<ConsoleTab> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    const SizedBox(width: 8),
+                    const SizedBox(width: InspectorTheme.spacingSm),
                     FilterChip(
                       label: const Text('All'),
                       selected: _isAll,
                       onSelected: (_) => _selectAll(),
                     ),
                     for (final source in TimelineSource.values) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: InspectorTheme.spacingSm),
                       FilterChip(
                         label: Text(_sourceLabels[source] ?? ''),
                         selected: !_isAll && _selected.contains(source),
                         onSelected: (_) => _selectOnly(source),
                       ),
                     ],
-                    const SizedBox(width: 8),
+                    const SizedBox(width: InspectorTheme.spacingSm),
                   ],
                 ),
               ),
@@ -151,21 +152,17 @@ class _LogEntryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canTap = (entry.stackTrace?.isNotEmpty ?? false) ||
+    final canTap =
+        (entry.stackTrace?.isNotEmpty ?? false) ||
         (entry.data?.isNotEmpty ?? false);
     return ListTile(
-      title: Text(
-        entry.message,
-        style: TextStyle(color: entry.level.color),
-      ),
+      title: Text(entry.message, style: TextStyle(color: entry.level.color)),
       subtitle: Text(entry.displayTime),
       trailing: canTap ? const Icon(Icons.chevron_right, size: 18) : null,
       onTap: canTap
           ? () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => LogDetailView(entry: entry),
-                ),
-              )
+              MaterialPageRoute(builder: (_) => LogDetailView(entry: entry)),
+            )
           : null,
     );
   }

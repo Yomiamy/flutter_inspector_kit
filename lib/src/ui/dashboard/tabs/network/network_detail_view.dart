@@ -7,6 +7,7 @@ import '../../../../utils/network_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
 import '../../../widgets/key_value_table.dart';
+import '../../../theme/inspector_theme.dart';
 
 /// Actions exposed in the detail view's share menu.
 enum _ShareAction { curl, text, share }
@@ -52,7 +53,7 @@ class NetworkDetailView extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: InspectorTheme.paddingMd,
         children: [
           _generalSection(context),
           if (entry.queryParameters.isNotEmpty)
@@ -93,7 +94,10 @@ class NetworkDetailView extends StatelessWidget {
   }
 
   Widget _generalSection(BuildContext context) {
-    final statusColor = statusColorFor(entry.statusCode, entry.error != null);
+    final statusColor = InspectorTheme.statusColor(
+      entry.statusCode,
+      hasError: entry.error != null,
+    );
     return DetailSection(
       title: 'General',
       child: Column(
@@ -105,21 +109,24 @@ class NetworkDetailView extends StatelessWidget {
             label: 'Status',
             valueWidget: SelectableText(
               entry.isComplete ? '${entry.statusCode ?? '-'}' : 'Pending',
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: statusColor, fontWeight: FontWeight.w600),
             ),
           ),
           DetailKeyValueRow.text(
             'Duration',
             '${entry.duration?.inMilliseconds ?? '-'} ms',
           ),
-          DetailKeyValueRow.text('Request size', formatBytes(entry.requestSizeBytes)),
-          DetailKeyValueRow.text('Response size', formatBytes(entry.responseSizeBytes)),
+          DetailKeyValueRow.text(
+            'Request size',
+            formatBytes(entry.requestSizeBytes),
+          ),
+          DetailKeyValueRow.text(
+            'Response size',
+            formatBytes(entry.responseSizeBytes),
+          ),
           if (entry.isTruncated)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: InspectorTheme.spacingXs),
               child: Text(
                 '⚠ Body truncated — size reflects the truncated value',
                 style: TextStyle(
@@ -145,15 +152,12 @@ class NetworkDetailView extends StatelessWidget {
       title: title,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(8),
+        padding: InspectorTheme.paddingSm,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(4),
         ),
-        child: SelectableText(
-          rendered,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-        ),
+        child: SelectableText(rendered, style: InspectorTheme.monospaceStyle),
       ),
     );
   }
@@ -187,27 +191,24 @@ class NetworkDetailView extends StatelessWidget {
             ),
           if (entry.errorStackTrace != null &&
               entry.errorStackTrace!.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: InspectorTheme.spacingMd),
             Text(
               'Stack Trace',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: InspectorTheme.spacingSm),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(8),
+              padding: InspectorTheme.paddingSm,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(4),
               ),
               child: SelectableText(
                 entry.errorStackTrace!,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                ),
+                style: InspectorTheme.monospaceStyle,
               ),
             ),
           ],
@@ -262,17 +263,6 @@ class NetworkDetailView extends StatelessWidget {
   }
 }
 
-/// Returns a color representing the HTTP status semantics.
-Color statusColorFor(int? statusCode, bool hasError) {
-  if (hasError && statusCode == null) return Colors.red;
-  if (statusCode == null) return Colors.grey;
-  if (statusCode >= 500) return Colors.red;
-  if (statusCode >= 400) return Colors.orange;
-  if (statusCode >= 300) return Colors.blue;
-  if (statusCode >= 200) return Colors.green;
-  return Colors.grey;
-}
-
 // ---------------------------------------------------------------------------
 // Resend action – a small StatefulWidget so only it holds loading state.
 // ---------------------------------------------------------------------------
@@ -322,7 +312,9 @@ class _ResendActionState extends State<_ResendAction> {
     final dio = widget.entry.sourceDio?.target;
     if (dio == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Resend failed: source Dio not available')),
+        const SnackBar(
+          content: Text('Resend failed: source Dio not available'),
+        ),
       );
       return;
     }
@@ -339,23 +331,15 @@ class _ResendActionState extends State<_ResendAction> {
           extra: <String, dynamic>{'_inspector_is_replay': true},
         ),
       );
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Request resent')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Request resent')));
     } on DioException catch (e) {
       if (e.type == DioExceptionType.badResponse) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Request resent')),
-        );
+        messenger.showSnackBar(const SnackBar(content: Text('Request resent')));
       } else {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Resend failed')),
-        );
+        messenger.showSnackBar(const SnackBar(content: Text('Resend failed')));
       }
     } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Resend failed')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Resend failed')));
     } finally {
       if (mounted) setState(() => _inFlight = false);
     }
