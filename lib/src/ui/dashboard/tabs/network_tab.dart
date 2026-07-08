@@ -4,6 +4,7 @@ import '../../../core/flutter_inspector.dart';
 import '../../../models/network_entry.dart';
 import '../../../utils/network_formatters.dart';
 import '../../../utils/network_utils.dart';
+import '../../theme/inspector_theme.dart';
 import 'network/network_detail_view.dart';
 
 /// Tab for displaying network requests with keyword search and filtering.
@@ -175,21 +176,21 @@ class _FilterChips extends StatelessWidget {
       height: 44,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: InspectorTheme.paddingSmHorizontal,
         children: [
           for (final method in httpMethods)
             Padding(
-              padding: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.only(right: InspectorTheme.spacingSm),
               child: FilterChip(
                 label: Text(method),
                 selected: selectedMethods.contains(method),
                 onSelected: (selected) => onMethodSelected(method, selected),
               ),
             ),
-          const SizedBox(width: 8),
+          const SizedBox(width: InspectorTheme.spacingSm),
           for (final group in statusLabels.keys)
             Padding(
-              padding: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.only(right: InspectorTheme.spacingSm),
               child: FilterChip(
                 label: Text(statusLabels[group]!),
                 selected: selectedStatusGroups.contains(group),
@@ -212,7 +213,10 @@ class _EntryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = statusColorFor(entry.statusCode, entry.error != null);
+    final statusColor = InspectorTheme.statusColor(
+      entry.statusCode,
+      hasError: entry.error != null,
+    );
     final statusText = entry.isComplete
         ? '${entry.statusCode ?? entry.error ?? '-'}'
         : 'Pending';
@@ -251,7 +255,7 @@ class _MethodBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 56,
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: InspectorTheme.spacingXs),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),

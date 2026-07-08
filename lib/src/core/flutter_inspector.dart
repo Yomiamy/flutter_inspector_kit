@@ -14,7 +14,8 @@ import '../models/timestamped_entry.dart';
 import '../notifications/network_notifier.dart';
 import '../observers/navigator_observer.dart';
 import '../ui/dashboard/dashboard_modal.dart';
-import '../ui/widgets/inspector_fab.dart';
+import 'inspector_overlay_manager.dart';
+
 import 'inspector_registry.dart';
 
 /// The core entry point for the Flutter Inspector.
@@ -38,6 +39,9 @@ class FlutterInspector {
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
   }) {
+    _overlayManager = InspectorOverlayManager(
+      onFabTap: (context) => openDashboard(context),
+    );
     _registry = InspectorRegistry(bufferSize: bufferSize);
     if (captureUncaughtErrors) setupErrorHandlers();
     _navigatorObserver = FlutterInspectorNavigatorObserver(this);
@@ -127,6 +131,7 @@ class FlutterInspector {
   late final FlutterInspectorNavigatorObserver _navigatorObserver;
   late final OperationLogSource _operationLogSource;
   final List<DatabaseBrowserSource> _customDatabaseSources = [];
+  late final InspectorOverlayManager _overlayManager;
 
   /// The observer to be added to MaterialApp's navigatorObservers.
   FlutterInspectorNavigatorObserver get navigatorObserver => _navigatorObserver;
@@ -183,24 +188,14 @@ class FlutterInspector {
     _customDatabaseSources.add(source);
   }
 
-  OverlayEntry? _overlayEntry;
-
   /// Mounts the FAB overlay onto the screen.
   void attach({required BuildContext context, bool visible = true}) {
-    if (_overlayEntry != null) return;
-    final overlay = Overlay.maybeOf(context);
-    if (overlay == null) return;
-    _overlayEntry = OverlayEntry(
-      builder: (context) =>
-          InspectorFab(onTap: () => openDashboard(context), visible: visible),
-    );
-    overlay.insert(_overlayEntry!);
+    _overlayManager.attach(context: context, visible: visible);
   }
 
   /// Removes the FAB overlay.
   void detach() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
+    _overlayManager.detach();
   }
 
   /// Records a log message.

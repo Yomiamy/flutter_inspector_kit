@@ -7,6 +7,7 @@ import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
+import 'package:flutter_inspector_kit/src/ui/theme/inspector_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------
@@ -21,8 +22,7 @@ class _StubAdapter implements HttpClientAdapter {
     RequestOptions options,
     Stream<List<int>>? requestStream,
     Future<void>? cancelFuture,
-  ) =>
-      responder(options);
+  ) => responder(options);
 
   @override
   void close({bool force = false}) {}
@@ -51,9 +51,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      MaterialApp(home: NetworkDetailView(entry: entry)),
-    );
+    await tester.pumpWidget(MaterialApp(home: NetworkDetailView(entry: entry)));
   }
 
   // -------------------------------------------------------------------------
@@ -105,165 +103,168 @@ void main() {
     });
 
     testWidgets(
-        'opt-out: redactSensitiveData false leaves Authorization unmasked in cURL',
-        (tester) async {
-      String? clipboardText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            clipboardText = (call.arguments as Map)['text'] as String?;
-          }
-          return null;
-        },
-      );
+      'opt-out: redactSensitiveData false leaves Authorization unmasked in cURL',
+      (tester) async {
+        String? clipboardText;
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'Clipboard.setData') {
+              clipboardText = (call.arguments as Map)['text'] as String?;
+            }
+            return null;
+          },
+        );
 
-      final entry = NetworkEntry(
-        method: 'POST',
-        url: 'https://api.test/users?page=2',
-        statusCode: 201,
-        duration: const Duration(milliseconds: 120),
-        requestHeaders: {
-          'Authorization': 'Bearer secret-token-123',
-          'Content-Type': 'application/json',
-        },
-        requestBody: '{"name":"x"}',
-        responseHeaders: {'content-type': 'application/json'},
-        responseBody: '{"id":1}',
-        isComplete: true,
-        timestamp: t,
-      );
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://api.test/users?page=2',
+          statusCode: 201,
+          duration: const Duration(milliseconds: 120),
+          requestHeaders: {
+            'Authorization': 'Bearer secret-token-123',
+            'Content-Type': 'application/json',
+          },
+          requestBody: '{"name":"x"}',
+          responseHeaders: {'content-type': 'application/json'},
+          responseBody: '{"id":1}',
+          isComplete: true,
+          timestamp: t,
+        );
 
-      tester.view.physicalSize = const Size(1200, 4000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+        tester.view.physicalSize = const Size(1200, 4000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: NetworkDetailView(entry: entry, redactSensitiveData: false),
-        ),
-      );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: NetworkDetailView(entry: entry, redactSensitiveData: false),
+          ),
+        );
 
-      await tester.tap(find.byIcon(Icons.share));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Copy as cURL'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.share));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Copy as cURL'));
+        await tester.pumpAndSettle();
 
-      expect(clipboardText, isNotNull);
-      expect(clipboardText, contains('secret-token-123'));
-      expect(clipboardText, isNot(contains('••••')));
-    });
-
-    testWidgets(
-        'default: redactSensitiveData omitted masks Authorization in cURL',
-        (tester) async {
-      String? clipboardText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            clipboardText = (call.arguments as Map)['text'] as String?;
-          }
-          return null;
-        },
-      );
-
-      final entry = NetworkEntry(
-        method: 'POST',
-        url: 'https://api.test/users?page=2',
-        statusCode: 201,
-        duration: const Duration(milliseconds: 120),
-        requestHeaders: {
-          'Authorization': 'Bearer secret-token-123',
-          'Content-Type': 'application/json',
-        },
-        requestBody: '{"name":"x"}',
-        responseHeaders: {'content-type': 'application/json'},
-        responseBody: '{"id":1}',
-        isComplete: true,
-        timestamp: t,
-      );
-
-      tester.view.physicalSize = const Size(1200, 4000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        MaterialApp(home: NetworkDetailView(entry: entry)),
-      );
-
-      await tester.tap(find.byIcon(Icons.share));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Copy as cURL'));
-      await tester.pumpAndSettle();
-
-      expect(clipboardText, isNotNull);
-      expect(clipboardText, contains('••••'));
-      expect(clipboardText, isNot(contains('secret-token-123')));
-    });
+        expect(clipboardText, isNotNull);
+        expect(clipboardText, contains('secret-token-123'));
+        expect(clipboardText, isNot(contains('••••')));
+      },
+    );
 
     testWidgets(
-        'default: redactSensitiveData omitted masks Authorization and Cookie '
-        'in text',
-        (tester) async {
-      String? clipboardText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            clipboardText = (call.arguments as Map)['text'] as String?;
-          }
-          return null;
-        },
-      );
+      'default: redactSensitiveData omitted masks Authorization in cURL',
+      (tester) async {
+        String? clipboardText;
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'Clipboard.setData') {
+              clipboardText = (call.arguments as Map)['text'] as String?;
+            }
+            return null;
+          },
+        );
 
-      final entry = NetworkEntry(
-        method: 'POST',
-        url: 'https://api.test/users?page=2',
-        statusCode: 201,
-        duration: const Duration(milliseconds: 120),
-        requestHeaders: {
-          'Authorization': 'Bearer secret-token-123',
-          'Cookie': 'session=abc-secret',
-          'Content-Type': 'application/json',
-        },
-        requestBody: '{"name":"x"}',
-        responseHeaders: {'content-type': 'application/json'},
-        responseBody: '{"id":1}',
-        isComplete: true,
-        timestamp: t,
-      );
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://api.test/users?page=2',
+          statusCode: 201,
+          duration: const Duration(milliseconds: 120),
+          requestHeaders: {
+            'Authorization': 'Bearer secret-token-123',
+            'Content-Type': 'application/json',
+          },
+          requestBody: '{"name":"x"}',
+          responseHeaders: {'content-type': 'application/json'},
+          responseBody: '{"id":1}',
+          isComplete: true,
+          timestamp: t,
+        );
 
-      tester.view.physicalSize = const Size(1200, 4000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+        tester.view.physicalSize = const Size(1200, 4000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(home: NetworkDetailView(entry: entry)),
-      );
+        await tester.pumpWidget(
+          MaterialApp(home: NetworkDetailView(entry: entry)),
+        );
 
-      await tester.tap(find.byIcon(Icons.share));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Copy as text'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.share));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Copy as cURL'));
+        await tester.pumpAndSettle();
 
-      expect(clipboardText, isNotNull);
-      expect(clipboardText, contains('••••'));
-      expect(clipboardText, isNot(contains('secret-token-123')));
-      expect(clipboardText, isNot(contains('session=abc-secret')));
-    });
+        expect(clipboardText, isNotNull);
+        expect(clipboardText, contains('••••'));
+        expect(clipboardText, isNot(contains('secret-token-123')));
+      },
+    );
+
+    testWidgets(
+      'default: redactSensitiveData omitted masks Authorization and Cookie '
+      'in text',
+      (tester) async {
+        String? clipboardText;
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'Clipboard.setData') {
+              clipboardText = (call.arguments as Map)['text'] as String?;
+            }
+            return null;
+          },
+        );
+
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://api.test/users?page=2',
+          statusCode: 201,
+          duration: const Duration(milliseconds: 120),
+          requestHeaders: {
+            'Authorization': 'Bearer secret-token-123',
+            'Cookie': 'session=abc-secret',
+            'Content-Type': 'application/json',
+          },
+          requestBody: '{"name":"x"}',
+          responseHeaders: {'content-type': 'application/json'},
+          responseBody: '{"id":1}',
+          isComplete: true,
+          timestamp: t,
+        );
+
+        tester.view.physicalSize = const Size(1200, 4000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          MaterialApp(home: NetworkDetailView(entry: entry)),
+        );
+
+        await tester.tap(find.byIcon(Icons.share));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Copy as text'));
+        await tester.pumpAndSettle();
+
+        expect(clipboardText, isNotNull);
+        expect(clipboardText, contains('••••'));
+        expect(clipboardText, isNot(contains('secret-token-123')));
+        expect(clipboardText, isNot(contains('session=abc-secret')));
+      },
+    );
   });
 
   group('statusColorFor', () {
     test('semantics by range', () {
-      expect(statusColorFor(200, false), Colors.green);
-      expect(statusColorFor(301, false), Colors.blue);
-      expect(statusColorFor(404, false), Colors.orange);
-      expect(statusColorFor(500, false), Colors.red);
-      expect(statusColorFor(null, true), Colors.red);
+      expect(InspectorTheme.statusColor(200, hasError: false), Colors.green);
+      expect(InspectorTheme.statusColor(301, hasError: false), Colors.blue);
+      expect(InspectorTheme.statusColor(404, hasError: false), Colors.orange);
+      expect(InspectorTheme.statusColor(500, hasError: false), Colors.red);
+      expect(InspectorTheme.statusColor(null, hasError: true), Colors.red);
     });
   });
 
@@ -275,10 +276,12 @@ void main() {
     // Test 1: no sourceDio → disabled
     testWidgets('disabled when sourceDio is null', (tester) async {
       await pumpView(tester, sample()); // sample() has no sourceDio
-      final button = tester.widget<IconButton>(find.ancestor(
-        of: find.byTooltip('Cannot resend: source Dio not available'),
-        matching: find.byType(IconButton),
-      ));
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byTooltip('Cannot resend: source Dio not available'),
+          matching: find.byType(IconButton),
+        ),
+      );
       expect(button.onPressed, isNull);
     });
 
@@ -293,16 +296,19 @@ void main() {
         timestamp: t,
       );
       await pumpView(tester, entry);
-      final button = tester.widget<IconButton>(find.ancestor(
-        of: find.byTooltip('Resend'),
-        matching: find.byType(IconButton),
-      ));
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byTooltip('Resend'),
+          matching: find.byType(IconButton),
+        ),
+      );
       expect(button.onPressed, isNull);
     });
 
     // Test 3: successful resend → entry recorded + snackbar
-    testWidgets('resend success records replay entry and shows snackbar',
-        (tester) async {
+    testWidgets('resend success records replay entry and shows snackbar', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
       final dio = Dio()
         ..httpClientAdapter = _StubAdapter(
@@ -314,8 +320,9 @@ void main() {
             },
           ),
         );
-      dio.interceptors
-          .add(FlutterInspectorDioInterceptor(inspector, sourceDio: dio));
+      dio.interceptors.add(
+        FlutterInspectorDioInterceptor(inspector, sourceDio: dio),
+      );
 
       final entry = NetworkEntry(
         method: 'POST',
@@ -335,8 +342,9 @@ void main() {
       // Interceptor should have logged exactly one replay entry. The count
       // guards the no-duplicate-record invariant: if the UI catch ever added
       // a second logNetwork call, this would fail.
-      final replays =
-          inspector.networkEntries.where((e) => e.isReplay).toList();
+      final replays = inspector.networkEntries
+          .where((e) => e.isReplay)
+          .toList();
       expect(replays.length, 1);
       expect(identical(replays.first.sourceDio?.target, dio), isTrue);
 
@@ -345,43 +353,48 @@ void main() {
     });
 
     // Test 4: badResponse (500) resend → error entry recorded + "Request resent" snackbar
-    testWidgets('resend badResponse (500) records error entry and shows request resent',
-        (tester) async {
-      final inspector = FlutterInspector();
-      final dio = Dio()
-        ..httpClientAdapter = _StubAdapter(
-          (_) async => ResponseBody.fromString('err', 500),
+    testWidgets(
+      'resend badResponse (500) records error entry and shows request resent',
+      (tester) async {
+        final inspector = FlutterInspector();
+        final dio = Dio()
+          ..httpClientAdapter = _StubAdapter(
+            (_) async => ResponseBody.fromString('err', 500),
+          );
+        dio.interceptors.add(
+          FlutterInspectorDioInterceptor(inspector, sourceDio: dio),
         );
-      dio.interceptors
-          .add(FlutterInspectorDioInterceptor(inspector, sourceDio: dio));
 
-      final entry = NetworkEntry(
-        method: 'POST',
-        url: 'https://api.test/users',
-        requestHeaders: {'Content-Type': 'application/json'},
-        requestBody: '{"name":"fail"}',
-        statusCode: 200,
-        isComplete: true,
-        sourceDio: dio,
-        timestamp: t,
-      );
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://api.test/users',
+          requestHeaders: {'Content-Type': 'application/json'},
+          requestBody: '{"name":"fail"}',
+          statusCode: 200,
+          isComplete: true,
+          sourceDio: dio,
+          timestamp: t,
+        );
 
-      await pumpView(tester, entry);
-      await tester.tap(find.byTooltip('Resend'));
-      await tester.pumpAndSettle();
+        await pumpView(tester, entry);
+        await tester.tap(find.byTooltip('Resend'));
+        await tester.pumpAndSettle();
 
-      final replays =
-          inspector.networkEntries.where((e) => e.isReplay).toList();
-      expect(replays.length, 1);
-      expect(replays.first.error, isNotNull);
+        final replays = inspector.networkEntries
+            .where((e) => e.isReplay)
+            .toList();
+        expect(replays.length, 1);
+        expect(replays.first.error, isNotNull);
 
-      // badResponse is treated as successful transmission.
-      expect(find.text('Request resent'), findsOneWidget);
-    });
+        // badResponse is treated as successful transmission.
+        expect(find.text('Request resent'), findsOneWidget);
+      },
+    );
 
     // Test 4b: connection failure resend → "Resend failed" snackbar
-    testWidgets('resend connection failure shows resend failed',
-        (tester) async {
+    testWidgets('resend connection failure shows resend failed', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
       final dio = Dio()
         ..httpClientAdapter = _StubAdapter(
@@ -391,8 +404,9 @@ void main() {
             error: 'Connection failed',
           ),
         );
-      dio.interceptors
-          .add(FlutterInspectorDioInterceptor(inspector, sourceDio: dio));
+      dio.interceptors.add(
+        FlutterInspectorDioInterceptor(inspector, sourceDio: dio),
+      );
 
       final entry = NetworkEntry(
         method: 'POST',
@@ -426,10 +440,12 @@ void main() {
       );
 
       await pumpView(tester, entry);
-      final button = tester.widget<IconButton>(find.ancestor(
-        of: find.byTooltip('Cannot resend: request body truncated'),
-        matching: find.byType(IconButton),
-      ));
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byTooltip('Cannot resend: request body truncated'),
+          matching: find.byType(IconButton),
+        ),
+      );
       expect(button.onPressed, isNull);
     });
 
@@ -439,8 +455,9 @@ void main() {
       final inspector = FlutterInspector();
       final dio = Dio()
         ..httpClientAdapter = _StubAdapter((_) => completer.future);
-      dio.interceptors
-          .add(FlutterInspectorDioInterceptor(inspector, sourceDio: dio));
+      dio.interceptors.add(
+        FlutterInspectorDioInterceptor(inspector, sourceDio: dio),
+      );
 
       final entry = NetworkEntry(
         method: 'GET',
@@ -458,10 +475,12 @@ void main() {
       await tester.pump(); // process the tap, don't settle
 
       // While in-flight the button must be disabled.
-      final button = tester.widget<IconButton>(find.ancestor(
-        of: find.byTooltip('Resend'),
-        matching: find.byType(IconButton),
-      ));
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byTooltip('Resend'),
+          matching: find.byType(IconButton),
+        ),
+      );
       expect(button.onPressed, isNull);
 
       // Release the future so pumpAndSettle can finish cleanly.
@@ -479,7 +498,9 @@ void main() {
   });
 
   group('Exception Details section', () {
-    testWidgets('transport layer failure renders kind and error type', (tester) async {
+    testWidgets('transport layer failure renders kind and error type', (
+      tester,
+    ) async {
       final entry = NetworkEntry(
         method: 'GET',
         url: 'https://api.test',
@@ -493,7 +514,10 @@ void main() {
       await pumpView(tester, entry);
 
       expect(find.text('Exception Details'), findsOneWidget);
-      expect(find.text('傳輸層失敗 (transport failure — request did not reach server)'), findsOneWidget);
+      expect(
+        find.text('傳輸層失敗 (transport failure — request did not reach server)'),
+        findsOneWidget,
+      );
       expect(find.text('connectionError'), findsOneWidget);
       expect(find.text('Connection failed'), findsOneWidget);
 
@@ -501,36 +525,44 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(Row),
-          matching: find.byWidgetPredicate((widget) => widget is SelectableText && widget.data == '-'),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is SelectableText && widget.data == '-',
+          ),
         ),
         findsOneWidget,
       );
     });
 
-    testWidgets('server error failure renders kind and is displayed with response sections', (tester) async {
-      final entry = NetworkEntry(
-        method: 'POST',
-        url: 'https://api.test',
-        statusCode: 500,
-        errorType: DioExceptionType.badResponse,
-        error: 'Internal Server Error',
-        responseHeaders: {'content-type': 'application/json'},
-        responseBody: 'oops',
-        isComplete: true,
-        timestamp: t,
-      );
+    testWidgets(
+      'server error failure renders kind and is displayed with response sections',
+      (tester) async {
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://api.test',
+          statusCode: 500,
+          errorType: DioExceptionType.badResponse,
+          error: 'Internal Server Error',
+          responseHeaders: {'content-type': 'application/json'},
+          responseBody: 'oops',
+          isComplete: true,
+          timestamp: t,
+        );
 
-      await pumpView(tester, entry);
+        await pumpView(tester, entry);
 
-      expect(find.text('Exception Details'), findsOneWidget);
-      expect(find.text('Server 錯誤回應 (server responded with error)'), findsOneWidget);
-      expect(find.text('badResponse'), findsOneWidget);
-      expect(find.text('Internal Server Error'), findsOneWidget);
+        expect(find.text('Exception Details'), findsOneWidget);
+        expect(
+          find.text('Server 錯誤回應 (server responded with error)'),
+          findsOneWidget,
+        );
+        expect(find.text('badResponse'), findsOneWidget);
+        expect(find.text('Internal Server Error'), findsOneWidget);
 
-      // Verify response headers and body are also rendered
-      expect(find.text('Response Headers'), findsOneWidget);
-      expect(find.text('Response Body'), findsOneWidget);
-    });
+        // Verify response headers and body are also rendered
+        expect(find.text('Response Headers'), findsOneWidget);
+        expect(find.text('Response Body'), findsOneWidget);
+      },
+    );
 
     testWidgets('renders selectable and copyable stack trace', (tester) async {
       final entry = NetworkEntry(
@@ -548,12 +580,16 @@ void main() {
         (widget) => widget is SelectableText && widget.data == '#0 foo\n#1 bar',
       );
       expect(selectableTextFinder, findsOneWidget);
-      
-      final selectableText = tester.widget<SelectableText>(selectableTextFinder);
+
+      final selectableText = tester.widget<SelectableText>(
+        selectableTextFinder,
+      );
       expect(selectableText.style?.fontFamily, 'monospace');
     });
 
-    testWidgets('does not render Exception Details for success request', (tester) async {
+    testWidgets('does not render Exception Details for success request', (
+      tester,
+    ) async {
       final entry = NetworkEntry(
         method: 'GET',
         url: 'https://api.test',

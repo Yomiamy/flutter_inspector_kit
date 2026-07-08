@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_browser_source.dart';
 import '../../../sources/operation_log_source.dart';
+import '../../theme/inspector_theme.dart';
 import '../../widgets/error_card.dart';
 import 'database/table_rows_view.dart';
 
@@ -71,7 +72,7 @@ class _DatabaseTabState extends State<DatabaseTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: InspectorTheme.paddingLgHorizontalSmVertical,
           child: Row(
             children: [
               if (sources.length > 1)
@@ -93,10 +94,7 @@ class _DatabaseTabState extends State<DatabaseTab> {
                   }).toList(),
                 )
               else
-                Text(
-                  _selectedSource.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                Text(_selectedSource.name, style: InspectorTheme.boldStyle),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -150,19 +148,14 @@ class _DatabaseTabBody extends StatelessWidget {
     }
 
     if (errorMessage != null) {
-      return ErrorCard(
-        message: errorMessage!,
-        onRetry: onRetry,
-      );
+      return ErrorCard(message: errorMessage!, onRetry: onRetry);
     }
 
     if (tables.isEmpty) {
       final emptyText = isOpLog
           ? 'No database activity'
           : 'No tables in this source';
-      return Center(
-        child: Text(emptyText, style: const TextStyle(color: Colors.grey)),
-      );
+      return Center(child: Text(emptyText, style: InspectorTheme.mutedStyle));
     }
 
     return ListView.builder(
@@ -179,12 +172,9 @@ class _DatabaseTabBody extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                rowCountText,
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, color: Colors.grey),
+              Text(rowCountText, style: InspectorTheme.mutedSmallStyle),
+              const SizedBox(width: InspectorTheme.spacingXs),
+              const Icon(Icons.chevron_right, color: InspectorTheme.textMuted),
             ],
           ),
           onTap: () {

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../theme/inspector_theme.dart';
+
 /// A standard card container for sections in detail views.
 class DetailSection extends StatelessWidget {
-  const DetailSection({
-    required this.title,
-    required this.child,
-    super.key,
-  });
+  const DetailSection({required this.title, required this.child, super.key});
 
   final String title;
   final Widget child;
@@ -14,14 +12,14 @@ class DetailSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: InspectorTheme.spacingMd),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: InspectorTheme.paddingMd,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
+            const SizedBox(height: InspectorTheme.spacingSm),
             child,
           ],
         ),
@@ -38,15 +36,8 @@ class DetailKeyValueRow extends StatelessWidget {
     super.key,
   });
 
-  DetailKeyValueRow.text(
-    String label,
-    String value, {
-    Key? key,
-  }) : this(
-          label: label,
-          valueWidget: SelectableText(value),
-          key: key,
-        );
+  DetailKeyValueRow.text(String label, String value, {Key? key})
+    : this(label: label, valueWidget: SelectableText(value), key: key);
 
   final String label;
   final Widget valueWidget;
@@ -62,13 +53,12 @@ class DetailKeyValueRow extends StatelessWidget {
             width: 120,
             child: Text(
               '$label:',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: InspectorTheme.spacingSm),
           Expanded(child: valueWidget),
         ],
       ),

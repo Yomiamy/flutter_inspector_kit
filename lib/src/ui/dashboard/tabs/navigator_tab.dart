@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../inspectors/navigator_stack_resolver.dart';
 import '../../../models/navigator_entry.dart';
+import '../../theme/inspector_theme.dart';
 
 /// Which sub-view of the Navigator tab is currently displayed.
 enum StackViewMode { activeStack, eventHistory }
@@ -94,10 +95,10 @@ class _ActiveStackView extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = stack[index];
         return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: InspectorTheme.paddingLgHorizontalSmVertical,
           child: ListTile(
             leading: index == 0
-                ? const Icon(Icons.visibility, color: Colors.blue)
+                ? const Icon(Icons.visibility, color: InspectorTheme.infoColor)
                 : null,
             title: Text(entry.displayName),
             subtitle: Text(entry.routeName ?? '(no route name)'),
@@ -115,14 +116,17 @@ class _CurrentBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: InspectorTheme.spacingSm,
+        vertical: 2,
+      ),
       decoration: BoxDecoration(
-        color: Colors.blue.withAlpha(50),
+        color: InspectorTheme.infoColor.withAlpha(50),
         borderRadius: BorderRadius.circular(4),
       ),
       child: const Text(
         'Current',
-        style: TextStyle(fontSize: 10, color: Colors.blue),
+        style: TextStyle(fontSize: 10, color: InspectorTheme.infoColor),
       ),
     );
   }
@@ -142,7 +146,7 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.only(left: InspectorTheme.spacingSm),
       child: ChoiceChip(
         label: Text(label),
         selected: selected,
