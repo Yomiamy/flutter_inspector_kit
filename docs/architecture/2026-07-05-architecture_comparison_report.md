@@ -12,6 +12,7 @@
 
 ### 🔴 垃圾/平庸的部分 (Bad Taste & Flaws)
 * **超級上帝類別 (God Class)**：`FlutterInspector` 類別同時管理核心 Registry、初始化、全域例外鉤子（error hooks）、UI FAB 懸浮按鈕的 attach/detach 與 Dashboard 彈窗的打開。這嚴重違反了 **單一職責原則 (SRP)**。
+  > ✅ **2026-07-08 已解決**：error hooks 抽至 `UncaughtErrorHandler`、FAB overlay 抽至 `InspectorOverlayManager`（兩者均以 callback 注入，不反向依賴），`FlutterInspector` 收斂為乾淨 Facade。詳見階段二落地狀態。
 * **UI 與業務邏輯緊密耦合**：`NetworkTab` 等 UI 元件直接在 `build` 方法中呼叫 `applyNetworkFilter` 做資料過濾與狀態更新，並且依賴 `setState` 刷新整個視圖。當資料量變大時，容易造成嚴重卡頓。
   > ✅ **2026-07-05 部分處理**：`NetworkTab` 已拆為 `_SearchBar` / `_FilterChips` / `_EntryTile` / `_MethodBadge` 四個 widget class，function widget 清零；純函數（`timeOf` 等）與常數（`httpMethods`、`statusLabels`）集中至 `network_utils.dart`。`build` 內呼叫 `applyNetworkFilter` 的耦合**保留**——buffer 上限 500 筆、過濾為微秒級，「資料量變大卡頓」的疑慮經評估不成立。
   >
@@ -106,12 +107,26 @@ graph TD
   2. **FAB Overlay 解耦**：建立 `src/ui/inspector_overlay_manager.dart`，負責 `attach` 與 `detach` 的 `OverlayEntry` 邏輯。
   3. 重構後的 `FlutterInspector` 將只作為一個乾淨的 **Facade API**，只負責對外曝露配置與 Registry 接口，代碼量可從 350 行縮減至 100 行以內。
 
+> [!NOTE]
+> **階段二落地狀態（2026-07-08 · PR #71 / branch `chore/202607/69-decouple-god-class`）——已完成，實作比原計畫更解耦**
+>
+> * ✅ **錯誤攔截解耦**：[uncaught_error_handler.dart](file:///Users/yomiry/StudioWorkspace/flutter_inspector/lib/src/core/uncaught_error_handler.dart) 已建立，三掛點 chain 邏輯與 `_logFlutterError` 全數移入。**未採用 `bind(this)` 反向依賴**——改以 `LogCallback` typedef 建構子注入（`UncaughtErrorHandler(onLog: log)`）並提供 `.attach()`；handler 完全不認識 `FlutterInspector`，比原計畫的雙向耦合更乾淨。`FlutterInspector.setupErrorHandlers()` 僅是薄轉發。
+> * ✅ **FAB Overlay 解耦**：[inspector_overlay_manager.dart](file:///Users/yomiry/StudioWorkspace/flutter_inspector/lib/src/core/inspector_overlay_manager.dart) 已建立，`attach`/`detach` 的 `OverlayEntry` 生命週期移入，同樣以 `onFabTap` callback 注入而非反向依賴。**最終落點是 `src/core/` 而非計畫寫的 `src/ui/`**（先建於 ui 再移入 core，理由：它是被 core Facade 直接持有的協作者，非 UI widget）。
+> * ✅ **Facade 瘦身**：`FlutterInspector` 已縮至約 270 行（含大量 dartdoc），核心邏輯剩建構子接線 + getter/委派方法，符合「乾淨 Facade API」目標。
+> * 🔧 **附帶修復**：同 PR 一併修掉 late init crash（建構子欄位初始化順序）與 overlay manager teardown 的安全性問題，並補上 `onLog` 拋錯時 handled 語意仍保留的測試。
+
 ### 階段三：消滅邊界情況 (Good Taste Polish)
 
 * **集合操作安全**：當前專案未嚴格執行「嚴禁 `firstWhere`，必須使用 `firstWhereOrNull`」。
   * 檢查 `lib/src/` 中是否有直接使用 `.firstWhere` 的危險操作。
 * **樣式硬編碼**：
   * 當前專案的 UI 有許多硬編碼顏色與邊距。建議仿照對照組專案的 `foundation/style`，在 `lib/src/ui/theme/` 中建立一個簡單的 `InspectorTheme`（或 `InspectorColors`），統一管理字型大小、顏色、邊距，避免 UI 代碼中散落各種 const。
+
+> [!NOTE]
+> **階段三落地狀態（2026-07-08 · branch `chore/202607/good-taste-polish` / PR #70）——兩項皆完成**
+>
+> * ✅ **集合操作安全**：`lib/src/` 已無任何裸 `.firstWhere`（`grep -rn "\.firstWhere(" lib/src/` 排除 `firstWhereOrNull` 後為空）。
+> * ✅ **樣式硬編碼**：[inspector_theme.dart](file:///Users/yomiry/StudioWorkspace/flutter_inspector/lib/src/ui/theme/inspector_theme.dart) 已建立，集中管理 spacing（`spacingXs`…`spacingXl`）、padding 常數群、語意色（`errorColor`/`warningColor`/`infoColor`/`successColor`/`textMuted`）、文字樣式（`monospaceStyle`/`boldStyle`/`mutedStyle`），並收斂 HTTP status → color 的 `statusColor()` 邏輯。各 tab / detail view / 共用 widget 的散落 const 已改引用此類別。
 
 ---
 
