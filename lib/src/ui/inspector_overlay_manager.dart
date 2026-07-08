@@ -28,7 +28,9 @@ class InspectorOverlayManager {
 
   /// Removes the FAB overlay.
   void detach() {
-    _overlayEntry?.remove();
+    if (_overlayEntry?.mounted ?? false) {
+      _overlayEntry!.remove();
+    }
     _overlayEntry = null;
   }
 }

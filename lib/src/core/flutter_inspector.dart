@@ -50,9 +50,6 @@ class FlutterInspector {
     if (databaseSources != null) {
       _customDatabaseSources.addAll(databaseSources);
     }
-    _overlayManager = InspectorOverlayManager(
-      onFabTap: (context) => openDashboard(context),
-    );
     if (showNetworkNotification) {
       _notifier =
           notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
