@@ -7,14 +7,19 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ## 📦 Features
 
-- 🪵 **Console**: capture logs across five severity levels, with optional structured data and stack traces
-- 🧵 **Merged timeline**: the Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips
-- 📡 **Network**: intercept HTTP traffic via Dio, inspect structured request/response details, search/filter, share as cURL
-- 🛡️ **Sensitive-data redaction**: secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path
-- 🧭 **Navigator**: track route pushes, pops, and replacements automatically, with an "Active Stack" view that derives and visualizes the current route stack
-- 🗄️ **Database**: record insert / update / delete / query operations with affected-row counts and payloads
-- 👆 **Magical tap & floating button**: open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB
-- 🔔 **Live notification (opt-in)**: a system notification that summarises the latest API call and the running total
+| Feature | Description | Use Case Example |
+|---|---|---|
+| 🪵 **Console** | Capture logs across five severity levels (`verbose` / `debug` / `info` / `warning` / `error`), with optional structured data and stack traces | QA says "tapping checkout does nothing" — open Console, spot a red error entry in the timeline; tap in to see the structured error detail, response body, and full stack trace to understand what went wrong |
+| 🧵 **Merged Timeline** | Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips | Continuing the checkout case — switch the source chip to "All" and scroll back along the timeline to inspect the request that got 401: check what token was in the `Authorization` header, what params were sent, and compare with backend expectations to pinpoint why the server rejected it — all without switching tabs or manually comparing timestamps |
+| 📡 **Network** | Intercept HTTP traffic via Dio; inspect structured request/response details; search/filter by URL, method, or status; share as cURL | A page shows up completely blank — open the Network tab to find the API returned an error, so there's no data to display; tap in to inspect request params and response body, then copy as a runnable cURL command and paste it into a bug ticket for the backend team to reproduce |
+| 🔄 **Network Replay** | Resend a captured request using the original Dio instance (same headers, base URL, interceptors); replayed entries are auto-labeled | Re-trigger a failed API call on-device to verify a server-side hotfix without restarting the app or rebuilding the user flow |
+| 🚨 **Structured Network Errors** | Failed requests show an **Exception Details** section distinguishing transport-layer failures (device offline / DNS / timeout) from server-side errors (4xx/5xx), with copyable stack traces | Instantly tell whether "Failed" means the device lost connectivity or the server returned 500 — no more guessing during QA |
+| 🛡️ **Sensitive-Data Redaction** | Secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path | Safely share network logs with teammates or attach them to Jira tickets without leaking tokens or session cookies |
+| 🧭 **Navigator** | Track route pushes, pops, and replacements automatically; toggle between **Event History** (raw log) and **Active Stack** (live route-stack visualization) | Verify deep-link routing, confirm back-stack correctness, or diagnose "why did the user land on this screen?" during a QA walkthrough |
+| 🗄️ **Database** | Record insert / update / delete / query operations with affected-row counts and payloads; browse real tables via pluggable `DatabaseBrowserSource` (SQLite / ObjectBox adapters provided) | Verify that a "Save" action actually wrote the expected rows; browse local SQLite tables on-device without pulling the `.db` file |
+| 🛑 **Uncaught Error Capture** *(opt-in)* | Automatically turn uncaught errors into `error`-level Console logs via three Flutter hooks (build/layout/paint, async, `ErrorWidget`); chains existing handlers — never swallows errors | An unawaited `Future` throws deep inside a third-party package — no `try/catch` anywhere near it. Uncaught error capture logs it automatically with a full stack trace, so it shows up in Console without any manual instrumentation |
+| 🔔 **Live Notification** *(opt-in)* | A system notification summarising the latest API call and the running total; tap to jump straight to the Network tab | Monitor API traffic in real-time while navigating the app — no need to keep the dashboard open; also useful for verifying whether the number of API calls per operation is reasonable (e.g., a single page load triggering dozens of calls hints at redundant requests) |
+| 👆 **Magical Tap & Floating Button** | Open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB | Embed in a release build as a hidden diagnostic entry point — when QA or users hit an issue, trigger the inspector on the spot for initial error triage without rebuilding a debug version or tracing through source code |
 
 ## 📱 Screenshots
 
