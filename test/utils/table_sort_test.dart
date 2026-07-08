@@ -1,4 +1,4 @@
-import 'package:flutter_inspector_kit/src/utils/table_sort.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/database/table_rows_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
