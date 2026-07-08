@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import 'widgets/inspector_fab.dart';
+import '../ui/widgets/inspector_fab.dart';
 
 /// Manages the overlay lifecycle of the Inspector FAB.
 // ponytail: <天花板> 僅支援單一 FAB 實體, <升級路徑> 若需支援多重視窗或多實體，需改為 map 管理 OverlayEntry 並綁定 Route/Window。

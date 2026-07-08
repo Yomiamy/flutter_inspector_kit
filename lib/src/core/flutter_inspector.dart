@@ -14,8 +14,8 @@ import '../models/timestamped_entry.dart';
 import '../notifications/network_notifier.dart';
 import '../observers/navigator_observer.dart';
 import '../ui/dashboard/dashboard_modal.dart';
-import '../ui/inspector_overlay_manager.dart';
-import '../ui/widgets/inspector_fab.dart';
+import 'inspector_overlay_manager.dart';
+
 import 'inspector_registry.dart';
 
 /// The core entry point for the Flutter Inspector.

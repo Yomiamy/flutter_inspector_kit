@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_inspector_kit/src/ui/inspector_overlay_manager.dart';
+import 'package:flutter_inspector_kit/src/core/inspector_overlay_manager.dart';
 import 'package:flutter_inspector_kit/src/ui/widgets/inspector_fab.dart';
 import 'package:flutter_test/flutter_test.dart';
 
