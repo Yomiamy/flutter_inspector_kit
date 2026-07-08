@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-08（校正 #4 結構化網路錯誤狀態為 ✅ 已完成／v1.3.0；新增 pub.dev `inspector` 套件整合評估；檔名日期前綴同步更新）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-08（校正 #4 結構化網路錯誤狀態為 ✅ 已完成／v1.3.0；檔名日期前綴同步更新）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -25,7 +25,7 @@
 | #3 | 一鍵診斷報告 | ⬜ | 未實作（查無 `buildDiagnosticReport`） |
 | #7 | 錯誤聚合摘要 | ⬜ | 未實作（查無 `ErrorSummary`） |
 
-**Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking）— ✅ 正確地皆未實作，守住「不走向微核心」。**pub.dev `inspector`（UI 視覺除錯工具）** 經評估亦不適合整合，見下方專節。
+**Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking）— ✅ 正確地皆未實作，守住「不走向微核心」。
 
 **進度結論**：8 項裡 **5 項完成**（#1、#4、#6、#8，以及 v1.1.0 實質完成的 **#2 時序軸主體**），**1 項半成品**（#5 console 搜尋/過濾），**2 項未動**（#3、#7）。下一刀應收尾 **#5 console 搜尋/過濾**——這是 console 排查化僅剩的缺口，其後即可進 #3 一鍵診斷報告。
 
@@ -159,29 +159,6 @@
 
 4. **API Mocking / 動態回應改寫**
    - *拒絕*：同上一份 brainstorm 的判斷——在 debug overlay 裡注入 mock 規則會讓工具代碼翻倍，且極易因 debug 庫 bug 中斷宿主的正式網路流。**嚴重違反「Never break userspace」**。交給外部 proxy。**砍**。
-
----
-
-## 🔍 外部套件評估：pub.dev `inspector`（UI 視覺除錯工具）是否適合整合
-
-核心結論一句話：這是兩個不同的產品維度——`inspector` 回答「這個像素/這塊 widget 長什麼樣」，`flutter_inspector_kit` 回答「這裡為什麼出錯」。用同一把「排查」的尺去量，五項子功能全部落在尺外。
-
-1. **顏色選擇器（Eyedropper）**
-   - *拒絕*：這是視覺除錯，不是錯誤排查——它不產生 stack trace，也不會跟任何 error 關聯，跟已拒絕的 Profiler 是同一類「另一個產品維度」。Flutter 官方 DevTools 的 Widget Inspector 早已內建 pixel color 檢視，零額外依賴即可用，重造是低配輪子。且套件本身 26% 是 native C++/CMake、標記 WIP、作者自陳「可能 break app」，為了一個顏色吸管背上 native build 風險，違反「Never break userspace」。**砍**。
-
-2. **Widget 尺寸 / Padding / BorderRadius 檢視**
-   - *拒絕*：量測 layout 是視覺還原度校對（pixel-perfect 對稿），不是追 crash/log/network/nav 的因果鏈，同屬「另一個產品維度」。DevTools 的 Layout Explorer 已完整可視化 size/padding/constraints，且是 IDE 級整合、零維護成本，重造即是重複造輪子。套件的 WIP 狀態與 native 依賴風險，與現有 anti-feature #1（低配輪子）、#2（不必要複雜度）判準完全一致。**砍**。
-
-3. **TextStyle 檢視**
-   - *拒絕*：「這個字為什麼長這樣」跟「這個 app 為什麼錯了」是兩個問題，不在排查主線上。DevTools 點選 widget 即可看到完整 TextStyle 屬性面板，官方已解決且免維護。若只想擷取這一小塊功能，要嘛整包吞下不穩定的 native 依賴，要嘛自行重寫——重寫等於重新實作 DevTools 已有功能，兩條路都不划算。**砍**。
-
-4. **放大鏡（Zoom / Magnifying glass）**
-   - *拒絕*：跟 eyedropper、padding 檢視同屬「QA 看像素」而非「開發者看因果鏈」，與核心定位「看見錯誤、關聯原因、帶走證據」無關。DevTools Widget Inspector 加上作業系統原生放大鏡（macOS/iOS/Android 皆內建）已完全覆蓋此需求。套件本身 WIP + native 依賴的風險比 anti-feature #1（單純重造官方輪子）更深一層——是「用不穩定 native 依賴重造系統已有功能」。就算只想擷取這單一功能，也沒有理由為系統操作就能做到的事引入額外風險。**砍**。
-
-5. **整體架構 / 依賴風險**
-   - *拒絕*：三問全數不通過——(1) 產品維度錯誤，這是 UI 視覺除錯而非錯誤排查；(2) DevTools 官方已完整覆蓋 size/padding/border/style 檢視，重造沒有必要；(3) 會破壞現有架構：套件標記 WIP、作者自陳可能 break app，卻要放進一個名為「排查工具」的產品裡；帶 26% native C++/CMake 依賴，直接推高現有零 native 依賴架構的編譯複雜度與平台相容負擔；且慣用掛法是全局包一層 `MaterialApp.builder`，比現有 inspectors 依賴被動掛鉤（interceptor/observer）的侵入性高出一截，架構風格不對齊。**砍**。
-
-**總結**：`inspector` 套件的五項子功能沒有一項通過三個鐵律問題——全數屬於視覺除錯而非錯誤排查的產品維度、全數已被 Flutter 官方 DevTools（或系統原生功能）完整覆蓋、且套件本身 WIP、帶 native C++/CMake 依賴、慣用侵入式全局包裹的掛載方式，與 `flutter_inspector_kit` 現有的零 native 依賴、被動掛鉤（interceptor/observer）架構風格不對齊。**不適合整合進 `flutter_inspector_kit`**，無論整包導入或抽取單一功能皆不成立；這不是灰色地帶的取捨，而是與既有 anti-features（#1 低配輪子、#2 不必要複雜度）判準完全一致、甚至風險更高的明確反面案例。
 
 ---
 
