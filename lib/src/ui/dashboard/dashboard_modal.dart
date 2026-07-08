@@ -76,6 +76,7 @@ class _DashboardTabBar extends StatelessWidget {
   const _DashboardTabBar({
     required this.hasCustomTab,
     this.customTabTitle,
+    super.key,
   });
 
   final bool hasCustomTab;
