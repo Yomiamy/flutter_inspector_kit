@@ -212,8 +212,9 @@ class _CellDetailsBottomSheet extends StatelessWidget {
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: fullValue));
                 if (context.mounted) {
+                  final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Value copied to clipboard')),
                   );
                 }
