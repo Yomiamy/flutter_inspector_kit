@@ -2,7 +2,7 @@
 
 - **日期**：2026-06-25
 - **狀態**：STAGE 0a — 待確認（含 2 項必須拍板的開放問題）
-- **來源**：`docs/brainstorm/2026-07-01-features-brainstorm.md` 的 #6（網路請求重放 Replay / Resend），現況「⬜ 未實作」
+- **來源**：`docs/brainstorm/2026-07-08-features-brainstorm.md` 的 #6（網路請求重放 Replay / Resend），現況「⬜ 未實作」
 - **類型**：功能新增（Network 詳情頁新增動作）
 
 ---

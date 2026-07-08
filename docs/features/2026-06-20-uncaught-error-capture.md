@@ -2,7 +2,7 @@
 
 - **日期**：2026-06-20
 - **狀態**：STAGE 0a — 待確認
-- **來源**：`docs/brainstorm/2026-07-01-features-brainstorm.md` 的 #1（全局未捕捉例外捕捉）+ #5 的 LogDetailView 部分（ConsoleTab 排查化中「error 詳情可展開」這一半）
+- **來源**：`docs/brainstorm/2026-07-08-features-brainstorm.md` 的 #1（全局未捕捉例外捕捉）+ #5 的 LogDetailView 部分（ConsoleTab 排查化中「error 詳情可展開」這一半）
 - **類型**：功能新增（可選、預設關閉）+ Console UI 強化
 
 ---
