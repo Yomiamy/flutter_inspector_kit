@@ -3,23 +3,26 @@ import 'package:flutter/widgets.dart';
 
 import '../models/log_level.dart';
 
+/// Signature for the function used to log an error.
+typedef LogCallback = void Function(
+  String message, {
+  LogLevel level,
+  String? stackTrace,
+  Map<String, dynamic>? data,
+});
+
 /// Handles attaching error hooks and forwarding to a log function.
 class UncaughtErrorHandler {
-  /// Creates a new UncaughtErrorHandler instance.
-  UncaughtErrorHandler({required this.onLog});
 
   /// The function called to log an error.
-  final void Function(
-    String message, {
-    LogLevel level,
-    String? stackTrace,
-    Map<String, dynamic>? data,
-  }) onLog;
+  final LogCallback onLog;
 
   FlutterExceptionHandler? _oldFlutterErrorHandler;
   bool Function(Object, StackTrace)? _oldPlatformDispatcherOnError;
   bool _attached = false;
 
+  /// Creates a new UncaughtErrorHandler instance.
+  UncaughtErrorHandler({required this.onLog});
   /// Attaches the three standard Flutter error hooks, chaining/wrapping any
   /// existing host handler so errors are always forwarded downstream.
   ///
