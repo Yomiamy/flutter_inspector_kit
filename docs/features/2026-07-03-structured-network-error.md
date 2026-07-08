@@ -2,7 +2,7 @@
 
 > **建立日期**：2026-07-03
 > **狀態**：規格草案（待確認）
-> **對應 brainstorm**：`docs/brainstorm/2026-07-01-features-brainstorm.md` #4（🟡 部分完成）
+> **對應 brainstorm**：`docs/brainstorm/2026-07-08-features-brainstorm.md` #4（✅ 已完成，v1.3.0）
 > **Effort 評級**：low–medium ｜ **排查價值**：⭐⭐⭐⭐
 
 > 本文件只描述 **What & Why**（要什麼、為什麼要），不含實作步驟與程式碼。實作計畫另立於 `docs/plans/`。

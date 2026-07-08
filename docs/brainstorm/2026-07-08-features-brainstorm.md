@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-01（PR #51 完成 #8 當前路由堆疊可視化，檔名日期前綴同步更新）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-08（校正 #4 結構化網路錯誤狀態為 ✅ 已完成／v1.3.0；新增 pub.dev `inspector` 套件整合評估；檔名日期前綴同步更新）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -9,10 +9,10 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-07-01 · 含 v1.1.0 與 PR #51）
+## 📊 完成度總覽（截至 2026-07-08 · 含 v1.3.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
-> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。
+> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0（`feat(network): ...` 三連 commit）完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅——本文件先前標記其「未完成」已過時，2026-07-08 核對 codebase 後校正。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
@@ -20,14 +20,14 @@
 | #6 | 網路請求重放 | ✅ | PR #36 / v1.0.0 已完成：支援 per-Dio 原樣重送、`isReplay` 標記、狀態回饋與防連點保護 |
 | #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `ChoiceChip` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
 | #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄） |
-| #4 | Dio 結構化錯誤捕捉 | 🟡 | 已抓 statusCode/headers/body；**缺** `errorType`/`errorStackTrace` 結構化分類與 Exception Details section |
-| #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾（`utils/` 下仍無 log_search） |
+| #4 | Dio 結構化錯誤捕捉 | ✅ | v1.3.0：`NetworkEntry.errorType`(`DioExceptionType`)/`errorStackTrace` 欄位、`response==null` 傳輸層失敗 vs `!=null` server 錯誤的分類判斷、`NetworkDetailView` 的 Exception Details section、純文字匯出皆已落地 |
+| #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾——現有 `FilterChip` 是 timeline **來源**過濾（All/Log/Network/Nav/DB），非 LogLevel 過濾，`entriesAtLevel()` 仍未被使用 |
 | #3 | 一鍵診斷報告 | ⬜ | 未實作（查無 `buildDiagnosticReport`） |
 | #7 | 錯誤聚合摘要 | ⬜ | 未實作（查無 `ErrorSummary`） |
 
-**Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking）— ✅ 正確地皆未實作，守住「不走向微核心」。
+**Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking）— ✅ 正確地皆未實作，守住「不走向微核心」。**pub.dev `inspector`（UI 視覺除錯工具）** 經評估亦不適合整合，見下方專節。
 
-**進度結論**：8 項裡 **4 項完成**（#1、#6、#8，以及 v1.1.0 實質完成的 **#2 時序軸主體**），**2 項半成品**（#4 結構化錯誤、#5 console 搜尋/過濾），**2 項未動**（#3、#7）。下一刀應收尾 **#4 結構化分類** 與 **#5 console 搜尋/過濾**——這兩項是 console 排查化僅剩的缺口。
+**進度結論**：8 項裡 **5 項完成**（#1、#4、#6、#8，以及 v1.1.0 實質完成的 **#2 時序軸主體**），**1 項半成品**（#5 console 搜尋/過濾），**2 項未動**（#3、#7）。下一刀應收尾 **#5 console 搜尋/過濾**——這是 console 排查化僅剩的缺口，其後即可進 #3 一鍵診斷報告。
 
 ---
 
@@ -96,7 +96,7 @@
 * **重用**：`network_formatters.dart` 的 `buildPlainText`/`buildCurl` 序列化模式、`share_text.dart` 平台自適應分享、各 buffer 的 newest-first snapshot getter。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 
-### 4. Dio 錯誤的結構化捕捉（Structured Network Error）— 🟡 部分完成
+### 4. Dio 錯誤的結構化捕捉（Structured Network Error）— ✅ 已完成
 * **痛點**：`onError()` 只存 `err.toString()`，把 `DioException` 的結構資訊大部分丟了：**根因類型**（connectionTimeout / DNS / SSL / parse / cancel）與 `err.stackTrace`。注意：`statusCode` 已顯示在 `NetworkDetailView` 的 General section，4xx/5xx 錯誤是可辨識的；**真正的盲區是 `statusCode == null` 的傳輸層失敗**（斷網、DNS 失敗、SSL 握手錯誤、request cancel 等），目前這些一律只顯示一坨 toString() 字串，無法從 UI 分辨根因。
 * **好品味設計**：
   - `dio_interceptor.onError` 改為擷取結構化欄位：`err.type`（分類）、`err.stackTrace`、`err.response?.statusCode`、保住 `err.response?.data`（伺服器的錯誤說明）。
@@ -104,7 +104,7 @@
   - `NetworkDetailView` 新增「Exception Details」section 分層展示。
 * **重用**：擴充 `NetworkEntry.error`（或加 `errorType` / `errorStackTrace` 欄位，保持 `@immutable`）、`DioExceptionType` enum、既有 detail view 的 card 分層。
 * **Effort**：low–medium ｜ **排查價值**：⭐⭐⭐⭐
-* **🟡 實作現況**：`onError` 已擷取 `statusCode` / `responseHeaders` / `responseBody`（不再只存 `toString()`）。**未完成**：`NetworkEntry` 仍無 `errorType`(DioExceptionType) 與 `errorStackTrace` 欄位，`error` 仍是 `err.toString()`；「`response==null` → 傳輸層失敗 vs server 回錯」的結構化分類與 `NetworkDetailView` 的「Exception Details」section 尚未做。
+* **✅ 實作現況（v1.3.0 · PR：`feat(network): capture DioException type and stack trace in interceptor` 等三連 commit）**：`dio_interceptor.onError` 已擷取 `err.type` 存入 `NetworkEntry.errorType`(`DioExceptionType`) 與 `err.stackTrace` 存入 `errorStackTrace`，連同既有的 `statusCode`/`responseHeaders`/`responseBody`。`NetworkDetailView` 新增「Exception Details」section，依 `entry.statusCode == null` 明確分流顯示「傳輸層失敗 (transport failure — request did not reach server)」或「Server 錯誤回應 (server responded with error)」，消滅了原先「Failed 到底是斷網還是後端壞了」的猜謎；純文字匯出（`network_formatters.dart`）亦包含 `Error Type` 與 stack trace。設計完全依照原規劃落地，無偏離。
 
 ### 5. ConsoleTab 排查化：stackTrace 詳情 + error 過濾 — 🟡 部分完成
 * **痛點**：error log 的 `stackTrace` 與 `data` 在 UI 完全看不到，列表項點了沒反應，500 條 log 無搜尋無過濾，error 跟 info 混成一片。
@@ -162,16 +162,39 @@
 
 ---
 
+## 🔍 外部套件評估：pub.dev `inspector`（UI 視覺除錯工具）是否適合整合
+
+核心結論一句話：這是兩個不同的產品維度——`inspector` 回答「這個像素/這塊 widget 長什麼樣」，`flutter_inspector_kit` 回答「這裡為什麼出錯」。用同一把「排查」的尺去量，五項子功能全部落在尺外。
+
+1. **顏色選擇器（Eyedropper）**
+   - *拒絕*：這是視覺除錯，不是錯誤排查——它不產生 stack trace，也不會跟任何 error 關聯，跟已拒絕的 Profiler 是同一類「另一個產品維度」。Flutter 官方 DevTools 的 Widget Inspector 早已內建 pixel color 檢視，零額外依賴即可用，重造是低配輪子。且套件本身 26% 是 native C++/CMake、標記 WIP、作者自陳「可能 break app」，為了一個顏色吸管背上 native build 風險，違反「Never break userspace」。**砍**。
+
+2. **Widget 尺寸 / Padding / BorderRadius 檢視**
+   - *拒絕*：量測 layout 是視覺還原度校對（pixel-perfect 對稿），不是追 crash/log/network/nav 的因果鏈，同屬「另一個產品維度」。DevTools 的 Layout Explorer 已完整可視化 size/padding/constraints，且是 IDE 級整合、零維護成本，重造即是重複造輪子。套件的 WIP 狀態與 native 依賴風險，與現有 anti-feature #1（低配輪子）、#2（不必要複雜度）判準完全一致。**砍**。
+
+3. **TextStyle 檢視**
+   - *拒絕*：「這個字為什麼長這樣」跟「這個 app 為什麼錯了」是兩個問題，不在排查主線上。DevTools 點選 widget 即可看到完整 TextStyle 屬性面板，官方已解決且免維護。若只想擷取這一小塊功能，要嘛整包吞下不穩定的 native 依賴，要嘛自行重寫——重寫等於重新實作 DevTools 已有功能，兩條路都不划算。**砍**。
+
+4. **放大鏡（Zoom / Magnifying glass）**
+   - *拒絕*：跟 eyedropper、padding 檢視同屬「QA 看像素」而非「開發者看因果鏈」，與核心定位「看見錯誤、關聯原因、帶走證據」無關。DevTools Widget Inspector 加上作業系統原生放大鏡（macOS/iOS/Android 皆內建）已完全覆蓋此需求。套件本身 WIP + native 依賴的風險比 anti-feature #1（單純重造官方輪子）更深一層——是「用不穩定 native 依賴重造系統已有功能」。就算只想擷取這單一功能，也沒有理由為系統操作就能做到的事引入額外風險。**砍**。
+
+5. **整體架構 / 依賴風險**
+   - *拒絕*：三問全數不通過——(1) 產品維度錯誤，這是 UI 視覺除錯而非錯誤排查；(2) DevTools 官方已完整覆蓋 size/padding/border/style 檢視，重造沒有必要；(3) 會破壞現有架構：套件標記 WIP、作者自陳可能 break app，卻要放進一個名為「排查工具」的產品裡；帶 26% native C++/CMake 依賴，直接推高現有零 native 依賴架構的編譯複雜度與平台相容負擔；且慣用掛法是全局包一層 `MaterialApp.builder`，比現有 inspectors 依賴被動掛鉤（interceptor/observer）的侵入性高出一截，架構風格不對齊。**砍**。
+
+**總結**：`inspector` 套件的五項子功能沒有一項通過三個鐵律問題——全數屬於視覺除錯而非錯誤排查的產品維度、全數已被 Flutter 官方 DevTools（或系統原生功能）完整覆蓋、且套件本身 WIP、帶 native C++/CMake 依賴、慣用侵入式全局包裹的掛載方式，與 `flutter_inspector_kit` 現有的零 native 依賴、被動掛鉤（interceptor/observer）架構風格不對齊。**不適合整合進 `flutter_inspector_kit`**，無論整包導入或抽取單一功能皆不成立；這不是灰色地帶的取捨，而是與既有 anti-features（#1 低配輪子、#2 不必要複雜度）判準完全一致、甚至風險更高的明確反面案例。
+
+---
+
 ## 📅 下一步實作路徑（依排查價值排序）
 
 排序原則：**先補盲區（看得見錯誤）→ 再建關聯（看得懂錯誤）→ 最後打包（帶得走證據）**。
 
-1. **第一階段 · 點亮盲區**（🟡 進行中）：實作 **#1 全局未捕捉例外捕捉**（可選 default-off）✅ + **#4 Dio 結構化錯誤捕捉** 🟡（結構化分類欄位待補）。此後 inspector 才真正「看得見」錯誤。
-2. **第二階段 · ConsoleTab 排查化**（🟡 進行中）：實作 **#5**（stackTrace 詳情 ✅ + error 搜尋/過濾 ⬜ 待補），讓捕捉到的錯誤可被秒速定位與檢視。
+1. **第一階段 · 點亮盲區**（✅ 已完成）：**#1 全局未捕捉例外捕捉** ✅ + **#4 Dio 結構化錯誤捕捉** ✅（v1.3.0 落地）。inspector 現在真正「看得見」錯誤。
+2. **第二階段 · ConsoleTab 排查化**（🟡 進行中 · 僅剩缺口）：實作 **#5**（stackTrace 詳情 ✅ + error 搜尋/過濾 ⬜ 待補：搜尋欄、LogLevel FilterChip、errors-only 快捷），讓捕捉到的錯誤可被秒速定位與檢視。
 3. **第三階段 · 建立關聯**（🟡 主體已完成）：**#2 做法 B（Timeline 混合視圖）已於 v1.1.0 落地** ✅（`mergedTimeline` + `TimestampedEntry`）；僅剩 **做法 A**（detail view 的 ±5s 同時段側欄 ⬜）尚未做，可視回饋決定是否補上。
 4. **第四階段 · 帶走證據**（⬜ 未開始）：實作 **#3 一鍵診斷報告**（device info；路由堆疊快照可直接複用已完成的 #8 `NavigatorStackResolver`）。QA 提 bug 的剛需在此閉環。
 5. 第五階段 · 加分項（✅ 部分完成）：#6 Replay 已於 v1.0.0 完成實作、**#8 路由堆疊可視化已於 PR #51 完成**；後續可視回饋實作 #7 錯誤聚合摘要。
 
-> **收尾建議（截至 2026-06-29）**：console 排查鏈只剩兩個明確缺口——**#4 的結構化錯誤分類** 與 **#5 的搜尋/過濾**。兩者寫入路徑不重疊（#4 動 interceptor + model、#5 動 console UI），可並行收掉，console 排查化即閉環。其後再進第四階段 #3 診斷報告。
+> **收尾建議（2026-07-08 更新）**：**#4 結構化錯誤分類已於 v1.3.0 完成**，第一階段閉環。console 排查鏈現在只剩**一個**明確缺口——**#5 的搜尋/過濾**（LogLevel FilterChip + errors-only + 搜尋欄）。做完 #5，console 排查化即完全閉環，可接續進第四階段 #3 診斷報告。
 
-> 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（#1 動 core、#4 動 interceptor、#5 動 console UI、#3 動 utils + dashboard），適合並行推進。
+> 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（#1/#4 已完成、#5 動 console UI、#3 動 utils + dashboard），適合並行推進。
