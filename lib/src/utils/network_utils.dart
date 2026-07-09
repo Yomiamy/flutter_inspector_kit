@@ -1,5 +1,7 @@
-import '../models/network_entry.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
+import '../models/network_entry.dart';
 /// Formats [t] as a zero-padded `HH:mm:ss` local-time string.
 String timeOf(DateTime t) =>
     '${t.hour.toString().padLeft(2, '0')}:'
@@ -110,4 +112,128 @@ List<NetworkEntry> applyNetworkFilter(
 ) {
   if (filter.isEmpty) return entries;
   return entries.where(filter.matches).toList(growable: false);
+}
+
+/// An aggregated group of network errors sharing the same
+/// [statusCode] and [errorType].
+@immutable
+class NetworkErrorGroup {
+  const NetworkErrorGroup({
+    required this.statusCode,
+    required this.errorType,
+    required this.count,
+    required this.firstSeen,
+    required this.lastSeen,
+    required this.label,
+  });
+
+  /// HTTP status code (null for transport-layer failures).
+  final int? statusCode;
+
+  /// Dio error classification (null for server-error responses).
+  final DioExceptionType? errorType;
+
+  /// Number of matching entries in the buffer.
+  final int count;
+
+  /// Timestamp of the earliest matching entry.
+  final DateTime firstSeen;
+
+  /// Timestamp of the most recent matching entry.
+  final DateTime lastSeen;
+
+  /// Human-readable label (e.g. "502 Bad Gateway", "Connection Timeout").
+  final String label;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NetworkErrorGroup &&
+          statusCode == other.statusCode &&
+          errorType == other.errorType;
+
+  @override
+  int get hashCode => Object.hash(statusCode, errorType);
+}
+
+/// Returns a human-readable label for a [DioExceptionType].
+String errorTypeLabel(DioExceptionType type) {
+  return switch (type) {
+    DioExceptionType.connectionTimeout => 'Connection Timeout',
+    DioExceptionType.sendTimeout => 'Send Timeout',
+    DioExceptionType.receiveTimeout => 'Receive Timeout',
+    DioExceptionType.badCertificate => 'Bad Certificate',
+    DioExceptionType.badResponse => 'Bad Response',
+    DioExceptionType.cancel => 'Cancelled',
+    DioExceptionType.connectionError => 'Connection Error',
+    DioExceptionType.unknown => 'Unknown Error',
+    _ => 'Other Error',
+  };
+}
+
+/// Groups error entries by (statusCode, errorType), returning
+/// groups sorted by count descending.
+List<NetworkErrorGroup> aggregateNetworkErrors(List<NetworkEntry> entries) {
+  final Map<String, _ErrorGroupBuilder> builders = {};
+
+  for (final entry in entries) {
+    // 1. Filter out error entries: error != null OR statusCode >= 400
+    final isError = entry.error != null || (entry.statusCode != null && entry.statusCode! >= 400);
+    if (!isError) continue;
+
+    // 2. Group by (statusCode, errorType)
+    final String key = '${entry.statusCode}_${entry.errorType}';
+    final builder = builders.putIfAbsent(key, () => _ErrorGroupBuilder(
+      statusCode: entry.statusCode,
+      errorType: entry.errorType,
+    ));
+
+    builder.count++;
+    if (builder.firstSeen == null || entry.timestamp.isBefore(builder.firstSeen!)) {
+      builder.firstSeen = entry.timestamp;
+    }
+    if (builder.lastSeen == null || entry.timestamp.isAfter(builder.lastSeen!)) {
+      builder.lastSeen = entry.timestamp;
+    }
+  }
+
+  // 3 & 4. Build groups and sort descending by count
+  final groups = builders.values.map((b) => b.build()).toList();
+  groups.sort((a, b) => b.count.compareTo(a.count));
+
+  return groups;
+}
+
+class _ErrorGroupBuilder {
+  _ErrorGroupBuilder({
+    this.statusCode,
+    this.errorType,
+  });
+
+  final int? statusCode;
+  final DioExceptionType? errorType;
+  
+  int count = 0;
+  DateTime? firstSeen;
+  DateTime? lastSeen;
+
+  NetworkErrorGroup build() {
+    String label;
+    if (statusCode != null) {
+      label = statusCode.toString();
+    } else if (errorType != null) {
+      label = errorTypeLabel(errorType!);
+    } else {
+      label = 'Unknown Error';
+    }
+
+    return NetworkErrorGroup(
+      statusCode: statusCode,
+      errorType: errorType,
+      count: count,
+      firstSeen: firstSeen!,
+      lastSeen: lastSeen!,
+      label: label,
+    );
+  }
 }

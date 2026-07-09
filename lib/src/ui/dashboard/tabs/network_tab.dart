@@ -21,6 +21,8 @@ class _NetworkTabState extends State<NetworkTab> {
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _methods = <String>{};
   final Set<NetworkStatusGroup> _statusGroups = <NetworkStatusGroup>{};
+  NetworkErrorGroup? _selectedErrorGroup;
+  bool _errorSummaryExpanded = true;
 
   NetworkFilter get _filter => NetworkFilter(
     keyword: _searchController.text,
@@ -37,7 +39,15 @@ class _NetworkTabState extends State<NetworkTab> {
   @override
   Widget build(BuildContext context) {
     final networkEntries = widget.inspector.networkEntries;
-    final entries = applyNetworkFilter(networkEntries, _filter);
+    var entries = applyNetworkFilter(networkEntries, _filter);
+
+    if (_selectedErrorGroup != null) {
+      entries = entries
+          .where((e) =>
+              e.statusCode == _selectedErrorGroup!.statusCode &&
+              e.errorType == _selectedErrorGroup!.errorType)
+          .toList(growable: false);
+    }
 
     return Column(
       children: [
@@ -49,8 +59,21 @@ class _NetworkTabState extends State<NetworkTab> {
           onRefresh: _refresh,
           onClearAll: () {
             widget.inspector.clearNetwork();
+            _selectedErrorGroup = null;
             _refresh();
           },
+        ),
+        _ErrorSummaryBanner(
+          entries: networkEntries,
+          selectedGroup: _selectedErrorGroup,
+          expanded: _errorSummaryExpanded,
+          onGroupTap: (group) => setState(() {
+            _selectedErrorGroup =
+                _selectedErrorGroup == group ? null : group;
+          }),
+          onExpandToggle: () => setState(() {
+            _errorSummaryExpanded = !_errorSummaryExpanded;
+          }),
         ),
         _FilterChips(
           selectedMethods: _methods,
@@ -268,6 +291,179 @@ class _MethodBadge extends StatelessWidget {
           color: color,
           fontSize: 11,
           fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+/// Banner displaying aggregated network errors.
+class _ErrorSummaryBanner extends StatelessWidget {
+  const _ErrorSummaryBanner({
+    required this.entries,
+    required this.selectedGroup,
+    required this.expanded,
+    required this.onGroupTap,
+    required this.onExpandToggle,
+  });
+
+  final List<NetworkEntry> entries;
+  final NetworkErrorGroup? selectedGroup;
+  final bool expanded;
+  final ValueChanged<NetworkErrorGroup> onGroupTap;
+  final VoidCallback onExpandToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final groups = aggregateNetworkErrors(entries);
+    if (groups.isEmpty) return const SizedBox.shrink();
+
+    if (!expanded) {
+      return InkWell(
+        onTap: onExpandToggle,
+        child: Padding(
+          padding: InspectorTheme.paddingSm,
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  size: 16, color: Colors.orange),
+              const SizedBox(width: InspectorTheme.spacingSm),
+              Text(
+                '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
+                '(${groups.length} types)',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Spacer(),
+              const Icon(Icons.expand_more, size: 16),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              InspectorTheme.spacingMd, InspectorTheme.spacingSm, InspectorTheme.spacingMd, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Error Summary',
+                  style: Theme.of(context).textTheme.labelSmall),
+              InkWell(
+                onTap: onExpandToggle,
+                child: const Icon(Icons.expand_less, size: 16),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 72,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: InspectorTheme.paddingSmHorizontal,
+            itemCount: groups.length,
+            itemBuilder: (context, index) {
+              final group = groups[index];
+              return _ErrorGroupCard(
+                group: group,
+                selected: group == selectedGroup,
+                onTap: () => onGroupTap(group),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ErrorGroupCard extends StatelessWidget {
+  const _ErrorGroupCard({
+    required this.group,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final NetworkErrorGroup group;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = InspectorTheme.statusColor(group.statusCode, hasError: true);
+    
+    return Padding(
+      padding: const EdgeInsets.only(right: InspectorTheme.spacingSm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 140,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: selected ? color : Theme.of(context).dividerColor,
+              width: selected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            color: selected ? color.withValues(alpha: 0.1) : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(7),
+                    bottomLeft: Radius.circular(7),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              group.label,
+                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: color,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            '×${group.count}',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${timeOf(group.firstSeen)} - ${timeOf(group.lastSeen)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 10,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
