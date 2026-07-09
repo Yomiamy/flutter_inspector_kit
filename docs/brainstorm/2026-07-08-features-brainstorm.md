@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-08（校正 #4 結構化網路錯誤狀態為 ✅ 已完成／v1.3.0；檔名日期前綴同步更新）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-10（版本標記校正至 v1.3.1；v1.3.1 為純 refactor release，不改任何排查功能狀態）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -9,10 +9,10 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-07-08 · 含 v1.3.0）
+## 📊 完成度總覽（截至 2026-07-10 · 含 v1.3.1）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
-> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0（`feat(network): ...` 三連 commit）完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅——本文件先前標記其「未完成」已過時，2026-07-08 核對 codebase 後校正。
+> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0（`feat(network): ...` 三連 commit）完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅——本文件先前標記其「未完成」已過時，2026-07-08 核對 codebase 後校正。**v1.3.1（PR #73）為純 refactor release**（抽取 `DetailSection`/`ErrorCard`/`LogLevelColor` extension 等共用元件），**不改任何排查功能狀態**——下表所有 ✅/🟡/⬜ 維持不變。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
@@ -52,7 +52,7 @@
 | 看見「未捕捉」的例外 | **無**任何 `FlutterError.onError` / `runZonedGuarded` / `PlatformDispatcher.onError` / `ErrorWidget.builder` | 🔴 盲區 |
 | 看見網路失敗的根因 | Dio `onError` 只存 `err.toString()`，丟掉 `err.type`/`err.stackTrace`/`err.response` | 🟡 失真 |
 | 關聯「錯誤前後發生了什麼」 | 4 個 buffer（log/network/nav/db）共用 `timestamp` 卻**完全孤立**，無跨層時序 | 🔴 斷裂 |
-| 帶走排查證據 | 只能匯出**單筆** network（cURL/分享）；log 無任何匯出；無診斷報告打包 | 🔴 殘缺 |
+| 帶走排查證據 | 只能匯出**單筆** network（cURL/分享）；~~log 無任何匯出~~（已過時：`LogDetailView` 現已有純文字/系統分享，見 `log_formatters.dart`）；無診斷報告打包 | 🔴 殘缺 |
 | 過濾定位 error log | `LogInspector.entriesAtLevel()` 已存在，`ConsoleTab` **從不使用**，無搜尋無過濾 | 🔴 垃圾 |
 
 > 結論：排查鏈條上的六個環節，**四個是紅燈**。這不是優化問題，是這個「debug 工具」在錯誤排查這條主線上幾乎沒鋪設。
