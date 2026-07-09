@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/flutter_inspector.dart';
-import 'dashboard_tab_bar.dart';
 import 'tabs/console_tab.dart';
 import 'tabs/database_tab.dart';
 import 'tabs/navigator_tab.dart';
@@ -53,7 +52,7 @@ class DashboardModal extends StatelessWidget {
           ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(kTextTabBarHeight),
-            child: DashboardTabBar(
+            child: _DashboardTabBar(
               hasCustomTab: hasCustomTab,
               customTabTitle: inspector.customTabTitle,
             ),
@@ -69,6 +68,31 @@ class DashboardModal extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DashboardTabBar extends StatelessWidget {
+  const _DashboardTabBar({
+    required this.hasCustomTab,
+    this.customTabTitle,
+  });
+
+  final bool hasCustomTab;
+  final String? customTabTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return TabBar(
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      tabs: [
+        const Tab(text: 'Console'),
+        const Tab(text: 'Network'),
+        const Tab(text: 'Navigator'),
+        const Tab(text: 'Database'),
+        if (hasCustomTab) Tab(text: customTabTitle ?? 'Custom'),
+      ],
     );
   }
 }

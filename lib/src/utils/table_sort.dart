@@ -25,6 +25,7 @@ List<List<Object?>> sortRows(
     final a = rowA[columnIndex];
     final b = rowB[columnIndex];
 
+    // Special rule: Nulls always sort to the end, regardless of direction.
     if (a == null && b == null) return 0;
     if (a == null) return 1;
     if (b == null) return -1;
