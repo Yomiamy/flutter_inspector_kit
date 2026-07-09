@@ -85,6 +85,7 @@ class _DashboardTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return TabBar(
       isScrollable: true,
+      tabAlignment: TabAlignment.start,
       tabs: [
         const Tab(text: 'Console'),
         const Tab(text: 'Network'),
