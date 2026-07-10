@@ -39,20 +39,21 @@ class _NetworkTabState extends State<NetworkTab> {
   @override
   Widget build(BuildContext context) {
     final networkEntries = widget.inspector.networkEntries;
+    // filteredEntries: keyword/method/status filter only — feeds the error
+    // summary banner so every group card stays visible after one is selected.
     final filteredEntries = applyNetworkFilter(networkEntries, _filter);
-    var entries = filteredEntries;
-
-    if (_selectedErrorGroup != null) {
-      final group = _selectedErrorGroup!;
-      entries = entries
-          .where((e) =>
-              e.error != null ||
-              (e.statusCode != null && e.statusCode! >= 400))
-          .where((e) => group.statusCode != null
-              ? e.statusCode == group.statusCode
-              : e.errorType == group.errorType)
-          .toList(growable: false);
-    }
+    // entries: narrowed further by the selected error group — feeds the list.
+    final group = _selectedErrorGroup;
+    final entries = group == null
+        ? filteredEntries
+        : filteredEntries
+            .where((e) =>
+                e.error != null ||
+                (e.statusCode != null && e.statusCode! >= 400))
+            .where((e) => group.statusCode != null
+                ? e.statusCode == group.statusCode
+                : e.errorType == group.errorType)
+            .toList(growable: false);
 
     return Column(
       children: [
