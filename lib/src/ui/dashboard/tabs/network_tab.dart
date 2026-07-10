@@ -202,7 +202,7 @@ class _FilterChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 44,
+      height: InspectorTheme.sizeControlHeight,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: InspectorTheme.paddingSmHorizontal,
@@ -283,7 +283,7 @@ class _MethodBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 56,
+      width: InspectorTheme.sizeBadgeWidth,
       padding: const EdgeInsets.symmetric(vertical: InspectorTheme.spacingXs),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
@@ -312,8 +312,6 @@ class _ErrorSummaryBanner extends StatelessWidget {
     required this.onGroupTap,
     required this.onExpandToggle,
   });
-
-  static const double _bannerHeight = 72;
 
   final List<NetworkEntry> entries;
   final NetworkErrorGroup? selectedGroup;
@@ -369,7 +367,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: _bannerHeight,
+          height: InspectorTheme.sizeBannerHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: InspectorTheme.paddingSmHorizontal,
@@ -396,9 +394,9 @@ class _ErrorGroupCard extends StatelessWidget {
     required this.onTap,
   });
 
-  static const double _cardWidth = 140;
-  static const double _cardBorderRadius = 8;
-  static const double _colorBarBorderRadius = 7;
+  // Special case: inner bar radius is the card radius (radiusMd=8) minus the
+  // 1px border, so the color bar's rounded corner sits flush inside the frame.
+  static const double _colorBarBorderRadius = InspectorTheme.radiusMd - 1;
 
   final NetworkErrorGroup group;
   final bool selected;
@@ -412,15 +410,15 @@ class _ErrorGroupCard extends StatelessWidget {
       padding: const EdgeInsets.only(right: InspectorTheme.spacingSm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(_cardBorderRadius),
+        borderRadius: BorderRadius.circular(InspectorTheme.radiusMd),
         child: Container(
-          width: _cardWidth,
+          width: InspectorTheme.sizeValueColumn,
           decoration: BoxDecoration(
             border: Border.all(
               color: selected ? color : Theme.of(context).dividerColor,
               width: selected ? 2 : 1,
             ),
-            borderRadius: BorderRadius.circular(_cardBorderRadius),
+            borderRadius: BorderRadius.circular(InspectorTheme.radiusMd),
             color: selected ? color.withValues(alpha: 0.1) : null,
           ),
           child: Row(

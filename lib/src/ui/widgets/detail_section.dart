@@ -50,7 +50,7 @@ class DetailKeyValueRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: InspectorTheme.sizeLabelColumn,
             child: Text(
               '$label:',
               style: Theme.of(

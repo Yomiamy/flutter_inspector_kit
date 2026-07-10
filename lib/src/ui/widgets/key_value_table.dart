@@ -47,9 +47,11 @@ class KeyValueTable extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 140),
+                  constraints: const BoxConstraints(
+                    maxWidth: InspectorTheme.sizeValueColumn,
+                  ),
                   child: SizedBox(
-                    width: 140,
+                    width: InspectorTheme.sizeValueColumn,
                     child: SelectableText('${e.key}:', style: keyStyle),
                   ),
                 ),

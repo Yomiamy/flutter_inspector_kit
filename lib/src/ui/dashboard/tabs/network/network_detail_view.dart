@@ -300,8 +300,8 @@ class _ResendActionState extends State<_ResendAction> {
       onPressed: _disabled ? null : () => _resend(context),
       icon: _inFlight
           ? const SizedBox(
-              width: 18,
-              height: 18,
+              width: InspectorTheme.sizeIconSm,
+              height: InspectorTheme.sizeIconSm,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.replay),

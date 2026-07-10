@@ -262,8 +262,8 @@ class _StatusBar extends StatelessWidget {
           if (hasMore)
             if (loading)
               const SizedBox(
-                width: 20,
-                height: 20,
+                width: InspectorTheme.sizeIconMd,
+                height: InspectorTheme.sizeIconMd,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else

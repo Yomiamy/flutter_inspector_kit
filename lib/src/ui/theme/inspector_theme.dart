@@ -8,8 +8,23 @@ class InspectorTheme {
   static const double spacingLg = 16.0;
   static const double spacingXl = 24.0;
 
-  // Border radii
+  // Border radii — shared corner scale. Values are fixed; pages reuse the
+  // same units for consistency. Add a new entry only for a genuine special
+  // case rather than inlining a literal.
   static const double radiusSm = 4.0;
+  static const double radiusMd = 8.0;
+
+  // Component sizes — fixed width/height units shared across pages so layout
+  // dimensions have a single source of truth. The same unit may serve
+  // different roles per page; the comment lists current uses, not a contract.
+  // Split a value out into a page-local constant only for a genuine one-off.
+  static const double sizeIconSm = 18.0; // small inline spinner / action icon
+  static const double sizeIconMd = 20.0; // cell / status spinner
+  static const double sizeControlHeight = 44.0; // chip rows, tab strips
+  static const double sizeBadgeWidth = 56.0; // method badge
+  static const double sizeBannerHeight = 72.0; // error summary banner
+  static const double sizeLabelColumn = 120.0; // detail-section label column
+  static const double sizeValueColumn = 140.0; // key-value key column, card width
 
   // Paddings
   static const EdgeInsets paddingXs = EdgeInsets.all(spacingXs);
