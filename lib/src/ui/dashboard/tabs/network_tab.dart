@@ -202,24 +202,24 @@ class _FilterChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: InspectorTheme.sizeControlHeight,
+      height: InspectorTheme.size44,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: InspectorTheme.paddingSmHorizontal,
+        padding: InspectorTheme.paddingH8,
         children: [
           for (final method in httpMethods)
             Padding(
-              padding: const EdgeInsets.only(right: InspectorTheme.spacingSm),
+              padding: const EdgeInsets.only(right: InspectorTheme.spacing8),
               child: FilterChip(
                 label: Text(method),
                 selected: selectedMethods.contains(method),
                 onSelected: (selected) => onMethodSelected(method, selected),
               ),
             ),
-          const SizedBox(width: InspectorTheme.spacingSm),
+          const SizedBox(width: InspectorTheme.spacing8),
           for (final group in statusLabels.keys)
             Padding(
-              padding: const EdgeInsets.only(right: InspectorTheme.spacingSm),
+              padding: const EdgeInsets.only(right: InspectorTheme.spacing8),
               child: FilterChip(
                 label: Text(statusLabels[group]!),
                 selected: selectedStatusGroups.contains(group),
@@ -283,11 +283,11 @@ class _MethodBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: InspectorTheme.sizeBadgeWidth,
-      padding: const EdgeInsets.symmetric(vertical: InspectorTheme.spacingXs),
+      width: InspectorTheme.size56,
+      padding: const EdgeInsets.symmetric(vertical: InspectorTheme.spacing4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
+        borderRadius: BorderRadius.circular(InspectorTheme.radius4),
         border: Border.all(color: color),
       ),
       child: Text(
@@ -328,12 +328,12 @@ class _ErrorSummaryBanner extends StatelessWidget {
       return InkWell(
         onTap: onExpandToggle,
         child: Padding(
-          padding: InspectorTheme.paddingSm,
+          padding: InspectorTheme.paddingAll8,
           child: Row(
             children: [
               const Icon(Icons.warning_amber_rounded,
                   size: 16, color: Colors.orange),
-              const SizedBox(width: InspectorTheme.spacingSm),
+              const SizedBox(width: InspectorTheme.spacing8),
               Text(
                 '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
                 '(${groups.length} types)',
@@ -353,7 +353,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-              InspectorTheme.spacingMd, InspectorTheme.spacingSm, InspectorTheme.spacingMd, 0),
+              InspectorTheme.spacing12, InspectorTheme.spacing8, InspectorTheme.spacing12, 0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -367,10 +367,10 @@ class _ErrorSummaryBanner extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: InspectorTheme.sizeBannerHeight,
+          height: InspectorTheme.size72,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: InspectorTheme.paddingSmHorizontal,
+            padding: InspectorTheme.paddingH8,
             itemCount: groups.length,
             itemBuilder: (context, index) {
               final group = groups[index];
@@ -396,7 +396,7 @@ class _ErrorGroupCard extends StatelessWidget {
 
   // Special case: inner bar radius is the card radius (radiusMd=8) minus the
   // 1px border, so the color bar's rounded corner sits flush inside the frame.
-  static const double _colorBarBorderRadius = InspectorTheme.radiusMd - 1;
+  static const double _colorBarBorderRadius = InspectorTheme.radius8 - 1;
 
   final NetworkErrorGroup group;
   final bool selected;
@@ -407,24 +407,24 @@ class _ErrorGroupCard extends StatelessWidget {
     final color = InspectorTheme.statusColor(group.statusCode, hasError: true);
 
     return Padding(
-      padding: const EdgeInsets.only(right: InspectorTheme.spacingSm),
+      padding: const EdgeInsets.only(right: InspectorTheme.spacing8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(InspectorTheme.radiusMd),
+        borderRadius: BorderRadius.circular(InspectorTheme.radius8),
         child: Container(
-          width: InspectorTheme.sizeValueColumn,
+          width: InspectorTheme.size140,
           decoration: BoxDecoration(
             border: Border.all(
               color: selected ? color : Theme.of(context).dividerColor,
               width: selected ? 2 : 1,
             ),
-            borderRadius: BorderRadius.circular(InspectorTheme.radiusMd),
+            borderRadius: BorderRadius.circular(InspectorTheme.radius8),
             color: selected ? color.withValues(alpha: 0.1) : null,
           ),
           child: Row(
             children: [
               Container(
-                width: InspectorTheme.spacingXs,
+                width: InspectorTheme.spacing4,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: const BorderRadius.only(

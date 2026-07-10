@@ -53,7 +53,7 @@ class NetworkDetailView extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: InspectorTheme.paddingMd,
+        padding: InspectorTheme.paddingAll12,
         children: [
           _generalSection(context),
           if (entry.queryParameters.isNotEmpty)
@@ -126,7 +126,7 @@ class NetworkDetailView extends StatelessWidget {
           ),
           if (entry.isTruncated)
             Padding(
-              padding: const EdgeInsets.only(top: InspectorTheme.spacingXs),
+              padding: const EdgeInsets.only(top: InspectorTheme.spacing4),
               child: Text(
                 '⚠ Body truncated — size reflects the truncated value',
                 style: TextStyle(
@@ -152,10 +152,10 @@ class NetworkDetailView extends StatelessWidget {
       title: title,
       child: Container(
         width: double.infinity,
-        padding: InspectorTheme.paddingSm,
+        padding: InspectorTheme.paddingAll8,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
+          borderRadius: BorderRadius.circular(InspectorTheme.radius4),
         ),
         child: SelectableText(rendered, style: InspectorTheme.monospaceStyle),
       ),
@@ -191,20 +191,20 @@ class NetworkDetailView extends StatelessWidget {
             ),
           if (entry.errorStackTrace != null &&
               entry.errorStackTrace!.isNotEmpty) ...[
-            const SizedBox(height: InspectorTheme.spacingMd),
+            const SizedBox(height: InspectorTheme.spacing12),
             Text(
               'Stack Trace',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: InspectorTheme.spacingSm),
+            const SizedBox(height: InspectorTheme.spacing8),
             Container(
               width: double.infinity,
-              padding: InspectorTheme.paddingSm,
+              padding: InspectorTheme.paddingAll8,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
+                borderRadius: BorderRadius.circular(InspectorTheme.radius4),
               ),
               child: SelectableText(
                 entry.errorStackTrace!,
@@ -300,8 +300,8 @@ class _ResendActionState extends State<_ResendAction> {
       onPressed: _disabled ? null : () => _resend(context),
       icon: _inFlight
           ? const SizedBox(
-              width: InspectorTheme.sizeIconSm,
-              height: InspectorTheme.sizeIconSm,
+              width: InspectorTheme.size18,
+              height: InspectorTheme.size18,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.replay),

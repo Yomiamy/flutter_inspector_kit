@@ -172,7 +172,7 @@ class _CellDetailsBottomSheet extends StatelessWidget {
     final fullValue = cell?.toString() ?? 'NULL';
     return SafeArea(
       child: Padding(
-        padding: InspectorTheme.paddingLg,
+        padding: InspectorTheme.paddingAll16,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -205,7 +205,7 @@ class _CellDetailsBottomSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: InspectorTheme.spacingLg),
+            const SizedBox(height: InspectorTheme.spacing16),
             ElevatedButton.icon(
               icon: const Icon(Icons.copy),
               label: const Text('Copy Value'),
@@ -245,7 +245,7 @@ class _StatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: InspectorTheme.paddingLgHorizontalSmVertical,
+      padding: InspectorTheme.paddingH16V8,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
@@ -262,8 +262,8 @@ class _StatusBar extends StatelessWidget {
           if (hasMore)
             if (loading)
               const SizedBox(
-                width: InspectorTheme.sizeIconMd,
-                height: InspectorTheme.sizeIconMd,
+                width: InspectorTheme.size20,
+                height: InspectorTheme.size20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
@@ -332,7 +332,7 @@ class _TableRowsBody extends StatelessWidget {
                         scrollDirection: Axis.horizontal,
                         child: Padding(
                           padding: const EdgeInsets.only(
-                            bottom: InspectorTheme.spacingLg,
+                            bottom: InspectorTheme.spacing16,
                           ),
                           child: DataTable(
                             sortColumnIndex: sortColumnIndex,

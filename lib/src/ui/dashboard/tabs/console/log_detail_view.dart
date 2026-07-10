@@ -40,7 +40,7 @@ class LogDetailView extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: InspectorTheme.paddingMd,
+        padding: InspectorTheme.paddingAll12,
         children: [
           _generalSection(context),
           if (entry.stackTrace?.isNotEmpty ?? false)
@@ -73,10 +73,10 @@ class LogDetailView extends StatelessWidget {
       title: 'Stack Trace',
       child: Container(
         width: double.infinity,
-        padding: InspectorTheme.paddingSm,
+        padding: InspectorTheme.paddingAll8,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
+          borderRadius: BorderRadius.circular(InspectorTheme.radius4),
         ),
         child: SelectableText(
           entry.stackTrace!,

@@ -72,7 +72,7 @@ class _DatabaseTabState extends State<DatabaseTab> {
     return Column(
       children: [
         Padding(
-          padding: InspectorTheme.paddingLgHorizontalSmVertical,
+          padding: InspectorTheme.paddingH16V8,
           child: Row(
             children: [
               if (sources.length > 1)
@@ -173,8 +173,8 @@ class _DatabaseTabBody extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(rowCountText, style: InspectorTheme.mutedSmallStyle),
-              const SizedBox(width: InspectorTheme.spacingXs),
-              const Icon(Icons.chevron_right, color: InspectorTheme.textMuted),
+              const SizedBox(width: InspectorTheme.spacing4),
+              const Icon(Icons.chevron_right, color: InspectorTheme.color9E9E9E),
             ],
           ),
           onTap: () {

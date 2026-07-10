@@ -1,81 +1,60 @@
 import 'package:flutter/material.dart';
 
+/// Design tokens for the inspector UI.
+///
+/// Naming convention: the numeric value goes straight into the name
+/// (`spacing8`, `radius4`, `size20`, `colorF44336`) so a token needs no
+/// lookup table to read — the name *is* the value. Roles/semantics live in
+/// the trailing comment, not the name, since the same unit often serves
+/// different purposes across pages.
 class InspectorTheme {
-  // Spacing (SizedBox heights/widths)
-  static const double spacingXs = 4.0;
-  static const double spacingSm = 8.0;
-  static const double spacingMd = 12.0;
-  static const double spacingLg = 16.0;
-  static const double spacingXl = 24.0;
+  // Spacing (SizedBox heights/widths, gaps)
+  static const double spacing4 = 4.0;
+  static const double spacing8 = 8.0;
+  static const double spacing12 = 12.0;
+  static const double spacing16 = 16.0;
 
-  // Border radii — shared corner scale. Values are fixed; pages reuse the
-  // same units for consistency. Add a new entry only for a genuine special
-  // case rather than inlining a literal.
-  static const double radiusSm = 4.0;
-  static const double radiusMd = 8.0;
+  // Border radii (shared corner scale)
+  static const double radius4 = 4.0;
+  static const double radius8 = 8.0;
 
   // Component sizes — fixed width/height units shared across pages so layout
   // dimensions have a single source of truth. The same unit may serve
-  // different roles per page; the comment lists current uses, not a contract.
-  // Split a value out into a page-local constant only for a genuine one-off.
-  static const double sizeIconSm = 18.0; // small inline spinner / action icon
-  static const double sizeIconMd = 20.0; // cell / status spinner
-  static const double sizeControlHeight = 44.0; // chip rows, tab strips
-  static const double sizeBadgeWidth = 56.0; // method badge
-  static const double sizeBannerHeight = 72.0; // error summary banner
-  static const double sizeLabelColumn = 120.0; // detail-section label column
-  static const double sizeValueColumn = 140.0; // key-value key column, card width
+  // different roles per page; comments list current uses, not a contract.
+  static const double size18 = 18.0; // small inline spinner / action icon
+  static const double size20 = 20.0; // cell / status spinner
+  static const double size44 = 44.0; // chip rows, tab strips
+  static const double size56 = 56.0; // method badge width
+  static const double size72 = 72.0; // error summary banner height
+  static const double size120 = 120.0; // detail-section label column
+  static const double size140 = 140.0; // key-value key column, card width
 
-  // Paddings
-  static const EdgeInsets paddingXs = EdgeInsets.all(spacingXs);
-  static const EdgeInsets paddingSm = EdgeInsets.all(spacingSm);
-  static const EdgeInsets paddingMd = EdgeInsets.all(spacingMd);
-  static const EdgeInsets paddingLg = EdgeInsets.all(spacingLg);
-  static const EdgeInsets paddingXl = EdgeInsets.all(spacingXl);
-
-  static const EdgeInsets paddingSmHorizontal = EdgeInsets.symmetric(
-    horizontal: spacingSm,
-  );
-  static const EdgeInsets paddingMdHorizontal = EdgeInsets.symmetric(
-    horizontal: spacingMd,
-  );
-  static const EdgeInsets paddingLgHorizontal = EdgeInsets.symmetric(
-    horizontal: spacingLg,
+  // Paddings — named <axis><value>: A=all, H=horizontal, V=vertical.
+  static const EdgeInsets paddingAll8 = EdgeInsets.all(spacing8);
+  static const EdgeInsets paddingAll12 = EdgeInsets.all(spacing12);
+  static const EdgeInsets paddingAll16 = EdgeInsets.all(spacing16);
+  static const EdgeInsets paddingH8 = EdgeInsets.symmetric(horizontal: spacing8);
+  static const EdgeInsets paddingH16V8 = EdgeInsets.symmetric(
+    horizontal: spacing16,
+    vertical: spacing8,
   );
 
-  static const EdgeInsets paddingSmVertical = EdgeInsets.symmetric(
-    vertical: spacingSm,
-  );
-  static const EdgeInsets paddingLgHorizontalSmVertical = EdgeInsets.symmetric(
-    horizontal: spacingLg,
-    vertical: spacingSm,
-  );
-  static const EdgeInsets paddingLgHorizontalMdVertical = EdgeInsets.symmetric(
-    horizontal: spacingLg,
-    vertical: spacingMd,
-  );
-  static const EdgeInsets paddingMdHorizontalSmVertical = EdgeInsets.symmetric(
-    horizontal: spacingMd,
-    vertical: spacingSm,
-  );
-
-  // Colors
-  static const Color textMuted = Colors.grey;
-  static const Color errorColor = Colors.red;
-  static const Color warningColor = Colors.orange;
-  static const Color infoColor = Colors.blue;
-  static const Color successColor = Colors.green;
-  static const Color dividerColor = Colors.grey;
+  // Colors — hex value in the name; role in the comment.
+  static const Color color9E9E9E = Color(0xFF9E9E9E); // grey — muted text
+  static const Color colorF44336 = Color(0xFFF44336); // red — error
+  static const Color colorFF9800 = Color(0xFFFF9800); // orange — warning
+  static const Color color2196F3 = Color(0xFF2196F3); // blue — info
+  static const Color color4CAF50 = Color(0xFF4CAF50); // green — success
 
   // Status Colors (mapped from HTTP status codes)
   static Color statusColor(int? statusCode, {bool hasError = false}) {
-    if (hasError && statusCode == null) return errorColor;
-    if (statusCode == null) return textMuted;
-    if (statusCode >= 500) return errorColor;
-    if (statusCode >= 400) return warningColor;
-    if (statusCode >= 300) return infoColor;
-    if (statusCode >= 200) return successColor;
-    return textMuted;
+    if (hasError && statusCode == null) return colorF44336;
+    if (statusCode == null) return color9E9E9E;
+    if (statusCode >= 500) return colorF44336;
+    if (statusCode >= 400) return colorFF9800;
+    if (statusCode >= 300) return color2196F3;
+    if (statusCode >= 200) return color4CAF50;
+    return color9E9E9E;
   }
 
   // Text Styles
@@ -84,9 +63,9 @@ class InspectorTheme {
     fontSize: 12,
   );
   static const TextStyle boldStyle = TextStyle(fontWeight: FontWeight.bold);
-  static const TextStyle mutedStyle = TextStyle(color: textMuted);
+  static const TextStyle mutedStyle = TextStyle(color: color9E9E9E);
   static const TextStyle mutedSmallStyle = TextStyle(
-    color: textMuted,
+    color: color9E9E9E,
     fontSize: 12,
   );
 }

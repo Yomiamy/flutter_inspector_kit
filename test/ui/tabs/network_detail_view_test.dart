@@ -260,11 +260,16 @@ void main() {
 
   group('statusColorFor', () {
     test('semantics by range', () {
-      expect(InspectorTheme.statusColor(200, hasError: false), Colors.green);
-      expect(InspectorTheme.statusColor(301, hasError: false), Colors.blue);
-      expect(InspectorTheme.statusColor(404, hasError: false), Colors.orange);
-      expect(InspectorTheme.statusColor(500, hasError: false), Colors.red);
-      expect(InspectorTheme.statusColor(null, hasError: true), Colors.red);
+      expect(InspectorTheme.statusColor(200, hasError: false),
+          InspectorTheme.color4CAF50);
+      expect(InspectorTheme.statusColor(301, hasError: false),
+          InspectorTheme.color2196F3);
+      expect(InspectorTheme.statusColor(404, hasError: false),
+          InspectorTheme.colorFF9800);
+      expect(InspectorTheme.statusColor(500, hasError: false),
+          InspectorTheme.colorF44336);
+      expect(InspectorTheme.statusColor(null, hasError: true),
+          InspectorTheme.colorF44336);
     });
   });
 

@@ -95,10 +95,10 @@ class _ActiveStackView extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = stack[index];
         return Card(
-          margin: InspectorTheme.paddingLgHorizontalSmVertical,
+          margin: InspectorTheme.paddingH16V8,
           child: ListTile(
             leading: index == 0
-                ? const Icon(Icons.visibility, color: InspectorTheme.infoColor)
+                ? const Icon(Icons.visibility, color: InspectorTheme.color2196F3)
                 : null,
             title: Text(entry.displayName),
             subtitle: Text(entry.routeName ?? '(no route name)'),
@@ -117,16 +117,16 @@ class _CurrentBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: InspectorTheme.spacingSm,
+        horizontal: InspectorTheme.spacing8,
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: InspectorTheme.infoColor.withAlpha(50),
-        borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
+        color: InspectorTheme.color2196F3.withAlpha(50),
+        borderRadius: BorderRadius.circular(InspectorTheme.radius4),
       ),
       child: const Text(
         'Current',
-        style: TextStyle(fontSize: 10, color: InspectorTheme.infoColor),
+        style: TextStyle(fontSize: 10, color: InspectorTheme.color2196F3),
       ),
     );
   }
@@ -146,7 +146,7 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: InspectorTheme.spacingSm),
+      padding: const EdgeInsets.only(left: InspectorTheme.spacing8),
       child: ChoiceChip(
         label: Text(label),
         selected: selected,
