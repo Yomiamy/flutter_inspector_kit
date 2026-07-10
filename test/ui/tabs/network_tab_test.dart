@@ -118,6 +118,9 @@ void main() {
 
       // "Error Summary" is visible because it's expanded by default
       expect(find.text('Error Summary'), findsOneWidget);
+      // find.text does an exact match, so this only hits the group card's
+      // label — the row subtitle is a composed string ("502 · - ms · ...")
+      // that never equals the bare "502".
       expect(find.text('502'), findsOneWidget); // The label
       expect(find.text('×1'), findsOneWidget); // The count
     });
