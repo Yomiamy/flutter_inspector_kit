@@ -14,6 +14,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 📡 **Network** | Intercept HTTP traffic via Dio; inspect structured request/response details; search/filter by URL, method, or status; share as cURL | A page shows up completely blank — open the Network tab to find the API returned an error, so there's no data to display; tap in to inspect request params and response body, then copy as a runnable cURL command and paste it into a bug ticket for the backend team to reproduce |
 | 🔄 **Network Replay** | Resend a captured request using the original Dio instance (same headers, base URL, interceptors); replayed entries are auto-labeled | Re-trigger a failed API call on-device to verify a server-side hotfix without restarting the app or rebuilding the user flow |
 | 🚨 **Structured Network Errors** | Failed requests show an **Exception Details** section distinguishing transport-layer failures (device offline / DNS / timeout) from server-side errors (4xx/5xx), with copyable stack traces | Instantly tell whether "Failed" means the device lost connectivity or the server returned 500 — no more guessing during QA |
+| 📊 **Error Aggregation Summary** | Network tab shows a collapsible banner that groups failed/errored requests by status code (or error type for transport failures), with per-group counts and time range; tap a group to filter the call list down to just that error | A page is flooded with dozens of failed calls — glance at the summary banner to see "12× 401", "3× timeout", tap the 401 group to isolate exactly those calls instead of scrolling through the full list |
 | 🛡️ **Sensitive-Data Redaction** | Secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path | Safely share network logs with teammates or attach them to Jira tickets without leaking tokens or session cookies |
 | 🧭 **Navigator** | Track route pushes, pops, and replacements automatically; toggle between **Event History** (raw log) and **Active Stack** (live route-stack visualization) | Verify deep-link routing, confirm back-stack correctness, or diagnose "why did the user land on this screen?" during a QA walkthrough |
 | 🗄️ **Database** | Record insert / update / delete / query operations with affected-row counts and payloads; browse real tables via pluggable `DatabaseBrowserSource` (SQLite / ObjectBox adapters provided) | Verify that a "Save" action actually wrote the expected rows; browse local SQLite tables on-device without pulling the `.db` file |
@@ -41,7 +42,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.3.1
+  flutter_inspector_kit: ^1.4.0
 ```
 
 Then run `flutter pub get`.
@@ -143,6 +144,7 @@ inspector.logNetwork(completedEntry, replaces: pending);
 ### Inside the Network tab
 
 - **Search & filter**: filter the call list by URL, method, or status code (case-insensitive); method and status (`2xx`/`3xx`/`4xx`/`5xx`/`Failed`) chips narrow it further.
+- **Error summary banner**: a collapsible banner above the call list groups failed/errored requests by status code (or error type for transport failures — offline/timeout/DNS), showing a per-group count and first/last-seen time range. Tap a group card to filter the list down to just that error; tap again to clear the filter.
 - **Call details**: tap any call for a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON-pretty bodies. Truncated bodies are clearly marked. Failed requests display an **Exception Details** section distinguishing between transport-layer failures and server-side errors, with a copyable stack trace.
 - **Sharing**: copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (native via `share_plus`, web via the browser Web Share API — falls back to the clipboard when unavailable).
 - **Replay / Resend**: for requests captured with a `sourceDio` provided to the interceptor, you can trigger a "Resend" action in the detail view to replay the request locally using the same Dio client (carrying the same headers, base URL, and interceptors). Replayed requests automatically show up as new entries with a dedicated "Replay" label.

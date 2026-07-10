@@ -1,3 +1,11 @@
+## 1.4.0
+
+### Added
+* **Network error aggregation summary**: the Network tab now shows a collapsible banner above the call list that groups failed/errored requests by status code (falling back to error type for transport failures where `statusCode` is `null`), with a per-group count and first/last-seen time range. Tapping a group card filters the call list down to just that error; tapping again clears the filter. The banner aggregates from the same keyword/method/status-filtered list shown below it, so counts always match what's visible.
+
+### Fixed
+* **Scrollable TabBar alignment on Material 3**: the dashboard's tab bar now sets `tabAlignment: TabAlignment.start`, fixing tabs rendering centered/misaligned in scrollable mode under Material 3.
+
 ## 1.3.1
 
 ### Changed
