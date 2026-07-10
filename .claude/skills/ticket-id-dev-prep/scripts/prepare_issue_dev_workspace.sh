@@ -23,7 +23,7 @@ Required:
 
 Optional:
   --base            Base ref to branch from. Default: origin/main
-  --worktree-parent Parent directory for the new worktree. Default: parent of current repo
+  --worktree-parent Parent directory for the new worktree. Default: .claude/worktrees inside current repo
   --skip-fetch      Skip fetching remote refs before creation
   --skip-local-config-sync
                     Do not copy local-only development config files into the new worktree
@@ -207,7 +207,7 @@ REPO_NAME="$(basename "${REPO_ROOT}")"
 REPO_PARENT="$(dirname "${REPO_ROOT}")"
 
 if [[ -z "${WORKTREE_PARENT}" ]]; then
-  WORKTREE_PARENT="${REPO_PARENT}"
+  WORKTREE_PARENT="${REPO_ROOT}/.claude/worktrees"
 fi
 
 TICKET_ID_LOWER="$(printf '%s' "${TICKET_ID}" | tr '[:upper:]' '[:lower:]')"
