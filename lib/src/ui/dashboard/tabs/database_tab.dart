@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_browser_source.dart';
 import '../../../sources/operation_log_source.dart';
-import '../../theme/inspector_theme.dart';
+import '../../theme/theme.dart';
 import '../../widgets/error_card.dart';
 import 'database/table_rows_view.dart';
 

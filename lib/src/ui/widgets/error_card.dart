@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/inspector_theme.dart';
+import '../theme/theme.dart';
 
 /// A standard card widget for displaying error messages with a retry button.
 class ErrorCard extends StatelessWidget {

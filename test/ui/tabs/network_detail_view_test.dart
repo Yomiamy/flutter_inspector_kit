@@ -7,7 +7,7 @@ import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
-import 'package:flutter_inspector_kit/src/ui/theme/inspector_theme.dart';
+import 'package:flutter_inspector_kit/src/ui/theme/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../inspectors/navigator_stack_resolver.dart';
 import '../../../models/navigator_entry.dart';
-import '../../theme/inspector_theme.dart';
+import '../../theme/theme.dart';
 
 /// Which sub-view of the Navigator tab is currently displayed.
 enum StackViewMode { activeStack, eventHistory }

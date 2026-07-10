@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../models/database_browser_source.dart';
 import '../../../../utils/table_sort.dart';
-import '../../../theme/inspector_theme.dart';
+import '../../../theme/theme.dart';
 import '../../../widgets/error_card.dart';
 
 /// A detailed full-page grid browser for a single database table.

@@ -7,7 +7,7 @@ import '../../../models/navigator_entry.dart';
 import '../../../models/network_entry.dart';
 import '../../../models/timestamped_entry.dart';
 import '../../../extensions/log_level_color_extension.dart';
-import '../../theme/inspector_theme.dart';
+import '../../theme/theme.dart';
 import 'console/log_detail_view.dart';
 import 'network/network_detail_view.dart';
 

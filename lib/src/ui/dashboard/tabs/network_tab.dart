@@ -4,7 +4,7 @@ import '../../../core/flutter_inspector.dart';
 import '../../../models/network_entry.dart';
 import '../../../utils/network_formatters.dart';
 import '../../../utils/network_utils.dart';
-import '../../theme/inspector_theme.dart';
+import '../../theme/theme.dart';
 import 'network/network_detail_view.dart';
 
 /// Tab for displaying network requests with keyword search and filtering.

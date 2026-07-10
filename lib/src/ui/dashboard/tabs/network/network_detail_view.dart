@@ -7,7 +7,7 @@ import '../../../../utils/network_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
 import '../../../widgets/key_value_table.dart';
-import '../../../theme/inspector_theme.dart';
+import '../../../theme/theme.dart';
 
 /// Actions exposed in the detail view's share menu.
 enum _ShareAction { curl, text, share }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/inspector_theme.dart';
+import '../theme/theme.dart';
 
 /// A standard card container for sections in detail views.
 class DetailSection extends StatelessWidget {

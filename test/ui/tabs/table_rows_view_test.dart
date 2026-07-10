@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/database/table_rows_view.dart';
-import 'package:flutter_inspector_kit/src/ui/theme/inspector_theme.dart';
+import 'package:flutter_inspector_kit/src/ui/theme/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class MockDatabaseBrowserSource extends DatabaseBrowserSource {

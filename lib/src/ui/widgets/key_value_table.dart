@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/inspector_theme.dart';
+import '../theme/theme.dart';
 
 /// Renders a map as a compact two-column key-value table. Shows a muted
 /// placeholder when [data] is null or empty.
