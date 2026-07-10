@@ -45,7 +45,7 @@ class DetailKeyValueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: ThemeSpacing.spacing2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -42,7 +42,9 @@ class KeyValueTable extends StatelessWidget {
       children: [
         for (final e in entries)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
+            padding: const EdgeInsets.symmetric(
+              vertical: ThemeSpacing.spacing2,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

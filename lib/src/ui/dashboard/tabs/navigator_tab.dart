@@ -118,7 +118,7 @@ class _CurrentBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: ThemeSpacing.spacing8,
-        vertical: 2,
+        vertical: ThemeSpacing.spacing2,
       ),
       decoration: BoxDecoration(
         color: ThemeColor.color2196F3.withAlpha(50),
@@ -126,7 +126,10 @@ class _CurrentBadge extends StatelessWidget {
       ),
       child: const Text(
         'Current',
-        style: TextStyle(fontSize: 10, color: ThemeColor.color2196F3),
+        style: TextStyle(
+          fontSize: ThemeFontSize.fontSize10,
+          color: ThemeColor.color2196F3,
+        ),
       ),
     );
   }

@@ -23,13 +23,13 @@ class ErrorCard extends StatelessWidget {
                 const Icon(
                   Icons.error,
                   color: ThemeColor.colorF44336,
-                  size: 48,
+                  size: ThemeSize.size48,
                 ),
                 const SizedBox(height: ThemeSpacing.spacing16),
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: ThemeTextStyle.boldStyle,
                 ),
                 const SizedBox(height: ThemeSpacing.spacing16),
                 ElevatedButton(onPressed: onRetry, child: const Text('Retry')),

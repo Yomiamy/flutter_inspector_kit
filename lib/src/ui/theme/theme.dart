@@ -1,6 +1,6 @@
 /// Barrel for the inspector's design tokens. Import this one file to get
 /// every token class ([ThemeSpacing], [ThemeRadius], [ThemeSize],
-/// [ThemePadding], [ThemeColor], [ThemeTextStyle]).
+/// [ThemePadding], [ThemeColor], [ThemeTextStyle], [ThemeFontSize]).
 library;
 
 export 'theme_color.dart';

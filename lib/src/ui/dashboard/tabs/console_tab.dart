@@ -158,7 +158,9 @@ class _LogEntryRow extends StatelessWidget {
     return ListTile(
       title: Text(entry.message, style: TextStyle(color: entry.level.color)),
       subtitle: Text(entry.displayTime),
-      trailing: canTap ? const Icon(Icons.chevron_right, size: 18) : null,
+      trailing: canTap
+          ? const Icon(Icons.chevron_right, size: ThemeSize.size18)
+          : null,
       onTap: canTap
           ? () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => LogDetailView(entry: entry)),
@@ -182,7 +184,7 @@ class _NetworkEntryRow extends StatelessWidget {
     return ListTile(
       title: Text('${entry.method} ${entry.statusCode ?? '-'} ${entry.url}'),
       subtitle: Text(entry.displayTime),
-      trailing: const Icon(Icons.chevron_right, size: 18),
+      trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => NetworkDetailView(

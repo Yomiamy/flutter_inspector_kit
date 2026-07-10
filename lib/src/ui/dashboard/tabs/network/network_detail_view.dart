@@ -130,8 +130,8 @@ class NetworkDetailView extends StatelessWidget {
               child: Text(
                 '⚠ Body truncated — size reflects the truncated value',
                 style: TextStyle(
+                  fontSize: ThemeFontSize.fontSize12,
                   color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
                 ),
               ),
             ),

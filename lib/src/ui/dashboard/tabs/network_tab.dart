@@ -144,7 +144,8 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
+      padding: const EdgeInsets.fromLTRB(ThemeSpacing.spacing8,
+          ThemeSpacing.spacing8, ThemeSpacing.spacing4, ThemeSpacing.spacing4),
       child: Row(
         children: [
           Expanded(
@@ -153,11 +154,11 @@ class _SearchBar extends StatelessWidget {
               decoration: InputDecoration(
                 isDense: true,
                 hintText: 'Search url / method / status',
-                prefixIcon: const Icon(Icons.search, size: 20),
+                prefixIcon: const Icon(Icons.search, size: ThemeSize.size20),
                 suffixIcon: controller.text.isEmpty
                     ? null
                     : IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
+                        icon: const Icon(Icons.clear, size: ThemeSize.size18),
                         onPressed: () {
                           controller.clear();
                           onKeywordChanged('');
@@ -260,7 +261,7 @@ class _EntryTile extends StatelessWidget {
         '${formatBytes(totalSize)} · ${timeOf(entry.timestamp)}',
         style: TextStyle(color: entry.error != null ? statusColor : null),
       ),
-      trailing: const Icon(Icons.chevron_right, size: 18),
+      trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => NetworkDetailView(
@@ -294,8 +295,8 @@ class _MethodBadge extends StatelessWidget {
         method.toUpperCase(),
         textAlign: TextAlign.center,
         style: TextStyle(
+          fontSize: ThemeFontSize.fontSize11,
           color: color,
-          fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -332,7 +333,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
           child: Row(
             children: [
               const Icon(Icons.warning_amber_rounded,
-                  size: 16, color: Colors.orange),
+                  size: ThemeSize.size16, color: ThemeColor.colorFF9800),
               const SizedBox(width: ThemeSpacing.spacing8),
               Text(
                 '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
@@ -340,7 +341,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const Spacer(),
-              const Icon(Icons.expand_more, size: 16),
+              const Icon(Icons.expand_more, size: ThemeSize.size16),
             ],
           ),
         ),
@@ -361,7 +362,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
                   style: Theme.of(context).textTheme.labelSmall),
               InkWell(
                 onTap: onExpandToggle,
-                child: const Icon(Icons.expand_less, size: 16),
+                child: const Icon(Icons.expand_less, size: ThemeSize.size16),
               ),
             ],
           ),
@@ -435,7 +436,7 @@ class _ErrorGroupCard extends StatelessWidget {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: ThemePadding.paddingAll8,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -459,11 +460,11 @@ class _ErrorGroupCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: ThemeSpacing.spacing4),
                       Text(
                         '${timeOf(group.firstSeen)} - ${timeOf(group.lastSeen)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontSize: 10,
+                          fontSize: ThemeFontSize.fontSize10,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
