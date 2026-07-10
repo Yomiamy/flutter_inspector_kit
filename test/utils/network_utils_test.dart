@@ -181,10 +181,16 @@ void main() {
       expect(groups[0].count, 2);
     });
 
-    test('isReplay=true 的錯誤仍被計入 (無特殊欄位，只要有statusCode/error即計入)', () {
-      // 假設 isReplay 未來會影響，但目前 entry 模型無特殊欄位，確保一般邏輯支援即可。
-      final entries = [mkEntry(statusCode: 502)];
-      expect(aggregateNetworkErrors(entries), hasLength(1));
+    test('statusCode 與 errorType 同時存在時仍以 statusCode 分組（不重複拆組）', () {
+      final entries = [
+        mkEntry(statusCode: 502, errorType: DioExceptionType.badResponse),
+        mkEntry(statusCode: 502),
+      ];
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups, hasLength(1));
+      expect(groups.first.statusCode, 502);
+      expect(groups.first.errorType, isNull);
+      expect(groups.first.count, 2);
     });
 
     test('firstSeen/lastSeen 正確', () {

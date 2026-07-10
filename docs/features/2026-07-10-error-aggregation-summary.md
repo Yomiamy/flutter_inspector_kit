@@ -1,6 +1,6 @@
 # 功能規格：錯誤聚合摘要（Error Aggregation Summary）
 
-> **來源**：[brainstorm #7](../../brainstorm/2026-07-08-features-brainstorm.md)（`docs/brainstorm/2026-07-08-features-brainstorm.md` 第 131–135 行）
+> **來源**：[brainstorm #7](../brainstorm/2026-07-08-features-brainstorm.md)（`docs/brainstorm/2026-07-08-features-brainstorm.md` 第 131–135 行）
 > **日期**：2026-07-10
 > **狀態**：Draft — 待使用者確認
 
@@ -155,7 +155,7 @@ NetworkTab Column:
 
 ## 相關文件
 
-- Brainstorm 原始描述：[2026-07-08-features-brainstorm.md#7](../../brainstorm/2026-07-08-features-brainstorm.md)
+- Brainstorm 原始描述：[2026-07-08-features-brainstorm.md#7](../brainstorm/2026-07-08-features-brainstorm.md)
 - 可複用的 filter 模式：[network_utils.dart](../../lib/src/utils/network_utils.dart)
 - 可複用的 UI 元件：[detail_section.dart](../../lib/src/ui/widgets/detail_section.dart)
 - 既有 tab 佈局參考：[network_tab.dart](../../lib/src/ui/dashboard/tabs/network_tab.dart)

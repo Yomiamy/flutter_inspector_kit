@@ -39,13 +39,18 @@ class _NetworkTabState extends State<NetworkTab> {
   @override
   Widget build(BuildContext context) {
     final networkEntries = widget.inspector.networkEntries;
-    var entries = applyNetworkFilter(networkEntries, _filter);
+    final filteredEntries = applyNetworkFilter(networkEntries, _filter);
+    var entries = filteredEntries;
 
     if (_selectedErrorGroup != null) {
+      final group = _selectedErrorGroup!;
       entries = entries
           .where((e) =>
-              e.statusCode == _selectedErrorGroup!.statusCode &&
-              e.errorType == _selectedErrorGroup!.errorType)
+              e.error != null ||
+              (e.statusCode != null && e.statusCode! >= 400))
+          .where((e) => group.statusCode != null
+              ? e.statusCode == group.statusCode
+              : e.errorType == group.errorType)
           .toList(growable: false);
     }
 
@@ -64,7 +69,7 @@ class _NetworkTabState extends State<NetworkTab> {
           },
         ),
         _ErrorSummaryBanner(
-          entries: networkEntries,
+          entries: filteredEntries,
           selectedGroup: _selectedErrorGroup,
           expanded: _errorSummaryExpanded,
           onGroupTap: (group) => setState(() {
@@ -307,6 +312,8 @@ class _ErrorSummaryBanner extends StatelessWidget {
     required this.onExpandToggle,
   });
 
+  static const double _bannerHeight = 72;
+
   final List<NetworkEntry> entries;
   final NetworkErrorGroup? selectedGroup;
   final bool expanded;
@@ -361,7 +368,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 72,
+          height: _bannerHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: InspectorTheme.paddingSmHorizontal,
@@ -388,6 +395,11 @@ class _ErrorGroupCard extends StatelessWidget {
     required this.onTap,
   });
 
+  static const double _cardWidth = 140;
+  static const double _cardBorderRadius = 8;
+  static const double _colorBarWidth = 4;
+  static const double _colorBarBorderRadius = 7;
+
   final NetworkErrorGroup group;
   final bool selected;
   final VoidCallback onTap;
@@ -395,31 +407,31 @@ class _ErrorGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = InspectorTheme.statusColor(group.statusCode, hasError: true);
-    
+
     return Padding(
       padding: const EdgeInsets.only(right: InspectorTheme.spacingSm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(_cardBorderRadius),
         child: Container(
-          width: 140,
+          width: _cardWidth,
           decoration: BoxDecoration(
             border: Border.all(
               color: selected ? color : Theme.of(context).dividerColor,
               width: selected ? 2 : 1,
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(_cardBorderRadius),
             color: selected ? color.withValues(alpha: 0.1) : null,
           ),
           child: Row(
             children: [
               Container(
-                width: 4,
+                width: _colorBarWidth,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(7),
-                    bottomLeft: Radius.circular(7),
+                    topLeft: Radius.circular(_colorBarBorderRadius),
+                    bottomLeft: Radius.circular(_colorBarBorderRadius),
                   ),
                 ),
               ),

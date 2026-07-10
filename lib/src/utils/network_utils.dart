@@ -142,7 +142,7 @@ class NetworkErrorGroup {
   /// Timestamp of the most recent matching entry.
   final DateTime lastSeen;
 
-  /// Human-readable label (e.g. "502 Bad Gateway", "Connection Timeout").
+  /// Human-readable label (e.g. "502", "Connection Timeout").
   final String label;
 
   @override
@@ -171,21 +171,27 @@ String errorTypeLabel(DioExceptionType type) {
   };
 }
 
-/// Groups error entries by (statusCode, errorType), returning
-/// groups sorted by count descending.
+/// Groups error entries by statusCode (server errors) or errorType
+/// (transport failures, when statusCode is null), returning groups
+/// sorted by count descending.
 List<NetworkErrorGroup> aggregateNetworkErrors(List<NetworkEntry> entries) {
-  final Map<String, _ErrorGroupBuilder> builders = {};
+  final Map<(int?, DioExceptionType?), _ErrorGroupBuilder> builders = {};
 
   for (final entry in entries) {
-    // 1. Filter out error entries: error != null OR statusCode >= 400
+    // 1. Filter out non-error entries: only requests with an error or a
+    // >=400 status code count. Pending requests (both null) are excluded.
     final isError = entry.error != null || (entry.statusCode != null && entry.statusCode! >= 400);
     if (!isError) continue;
 
-    // 2. Group by (statusCode, errorType)
-    final String key = '${entry.statusCode}_${entry.errorType}';
+    // 2. Group by statusCode when present; only transport failures
+    // (statusCode == null) fall back to errorType. This keeps all 502s
+    // in one card even if errorType also happens to be set.
+    final key = entry.statusCode != null
+        ? (entry.statusCode, null)
+        : (null, entry.errorType);
     final builder = builders.putIfAbsent(key, () => _ErrorGroupBuilder(
       statusCode: entry.statusCode,
-      errorType: entry.errorType,
+      errorType: entry.statusCode != null ? null : entry.errorType,
     ));
 
     builder.count++;

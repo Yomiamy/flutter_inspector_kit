@@ -1,6 +1,6 @@
 # 實作計畫：錯誤聚合摘要（Error Aggregation Summary）
 
-> **功能規格**：[docs/features/2026-07-10-error-aggregation-summary.md](../../features/2026-07-10-error-aggregation-summary.md)
+> **功能規格**：[docs/features/2026-07-10-error-aggregation-summary.md](../features/2026-07-10-error-aggregation-summary.md)
 > **日期**：2026-07-10
 > **狀態**：Draft — 待使用者確認
 
