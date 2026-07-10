@@ -172,7 +172,7 @@ class _CellDetailsBottomSheet extends StatelessWidget {
     final fullValue = cell?.toString() ?? 'NULL';
     return SafeArea(
       child: Padding(
-        padding: InspectorTheme.paddingAll16,
+        padding: ThemePadding.paddingAll16,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -198,14 +198,14 @@ class _CellDetailsBottomSheet extends StatelessWidget {
                 child: SelectableText(
                   fullValue,
                   style: cell == null
-                      ? InspectorTheme.mutedStyle.copyWith(
+                      ? ThemeTextStyle.mutedStyle.copyWith(
                           fontStyle: FontStyle.italic,
                         )
                       : null,
                 ),
               ),
             ),
-            const SizedBox(height: InspectorTheme.spacing16),
+            const SizedBox(height: ThemeSpacing.spacing16),
             ElevatedButton.icon(
               icon: const Icon(Icons.copy),
               label: const Text('Copy Value'),
@@ -245,7 +245,7 @@ class _StatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: InspectorTheme.paddingH16V8,
+      padding: ThemePadding.paddingH16V8,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
@@ -262,8 +262,8 @@ class _StatusBar extends StatelessWidget {
           if (hasMore)
             if (loading)
               const SizedBox(
-                width: InspectorTheme.size20,
-                height: InspectorTheme.size20,
+                width: ThemeSize.size20,
+                height: ThemeSize.size20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
@@ -332,7 +332,7 @@ class _TableRowsBody extends StatelessWidget {
                         scrollDirection: Axis.horizontal,
                         child: Padding(
                           padding: const EdgeInsets.only(
-                            bottom: InspectorTheme.spacing16,
+                            bottom: ThemeSpacing.spacing16,
                           ),
                           child: DataTable(
                             sortColumnIndex: sortColumnIndex,
@@ -352,7 +352,7 @@ class _TableRowsBody extends StatelessWidget {
                                     Text(
                                       preview,
                                       style: isNull
-                                          ? InspectorTheme.mutedStyle.copyWith(
+                                          ? ThemeTextStyle.mutedStyle.copyWith(
                                               fontStyle: FontStyle.italic,
                                             )
                                           : null,

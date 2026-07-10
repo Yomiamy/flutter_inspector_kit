@@ -13,25 +13,25 @@ class ErrorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: InspectorTheme.paddingAll16,
+        padding: ThemePadding.paddingAll16,
         child: Card(
           child: Padding(
-            padding: InspectorTheme.paddingAll16,
+            padding: ThemePadding.paddingAll16,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
                   Icons.error,
-                  color: InspectorTheme.colorF44336,
+                  color: ThemeColor.colorF44336,
                   size: 48,
                 ),
-                const SizedBox(height: InspectorTheme.spacing16),
+                const SizedBox(height: ThemeSpacing.spacing16),
                 Text(
                   message,
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: InspectorTheme.spacing16),
+                const SizedBox(height: ThemeSpacing.spacing16),
                 ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
               ],
             ),

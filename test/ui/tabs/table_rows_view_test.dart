@@ -88,7 +88,7 @@ void main() {
             widget is Text &&
             widget.data == 'NULL' &&
             widget.style?.fontStyle == FontStyle.italic &&
-            widget.style?.color == InspectorTheme.color9E9E9E,
+            widget.style?.color == ThemeColor.color9E9E9E,
       );
       expect(nullTextFinder, findsOneWidget);
 

@@ -69,21 +69,21 @@ class _ConsoleTabState extends State<ConsoleTab> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    const SizedBox(width: InspectorTheme.spacing8),
+                    const SizedBox(width: ThemeSpacing.spacing8),
                     FilterChip(
                       label: const Text('All'),
                       selected: _isAll,
                       onSelected: (_) => _selectAll(),
                     ),
                     for (final source in TimelineSource.values) ...[
-                      const SizedBox(width: InspectorTheme.spacing8),
+                      const SizedBox(width: ThemeSpacing.spacing8),
                       FilterChip(
                         label: Text(_sourceLabels[source] ?? ''),
                         selected: !_isAll && _selected.contains(source),
                         onSelected: (_) => _selectOnly(source),
                       ),
                     ],
-                    const SizedBox(width: InspectorTheme.spacing8),
+                    const SizedBox(width: ThemeSpacing.spacing8),
                   ],
                 ),
               ),

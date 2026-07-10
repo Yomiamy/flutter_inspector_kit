@@ -12,14 +12,14 @@ class DetailSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: InspectorTheme.spacing12),
+      margin: const EdgeInsets.only(bottom: ThemeSpacing.spacing12),
       child: Padding(
-        padding: InspectorTheme.paddingAll12,
+        padding: ThemePadding.paddingAll12,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: InspectorTheme.spacing8),
+            const SizedBox(height: ThemeSpacing.spacing8),
             child,
           ],
         ),
@@ -50,7 +50,7 @@ class DetailKeyValueRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: InspectorTheme.size120,
+            width: ThemeSize.size120,
             child: Text(
               '$label:',
               style: Theme.of(
@@ -58,7 +58,7 @@ class DetailKeyValueRow extends StatelessWidget {
               ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(width: InspectorTheme.spacing8),
+          const SizedBox(width: ThemeSpacing.spacing8),
           Expanded(child: valueWidget),
         ],
       ),
