@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/database/table_rows_view.dart';
+import 'package:flutter_inspector_kit/src/ui/theme/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class MockDatabaseBrowserSource extends DatabaseBrowserSource {
@@ -87,7 +88,7 @@ void main() {
             widget is Text &&
             widget.data == 'NULL' &&
             widget.style?.fontStyle == FontStyle.italic &&
-            widget.style?.color == Colors.grey,
+            widget.style?.color == ThemeColor.color9E9E9E,
       );
       expect(nullTextFinder, findsOneWidget);
 

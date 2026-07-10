@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/utils/network_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,6 +77,148 @@ void main() {
         const NetworkFilter(keyword: 'api.test', methods: {'POST'}),
       );
       expect(result.single.url, 'https://api.test/login');
+    });
+  });
+
+  group('aggregateNetworkErrors', () {
+    NetworkEntry mkEntry({
+      int? statusCode,
+      String? error,
+      DioExceptionType? errorType,
+      DateTime? time,
+      bool isComplete = true,
+    }) {
+      return NetworkEntry(
+        method: 'GET',
+        url: 'http://test',
+        statusCode: statusCode,
+        error: error,
+        errorType: errorType,
+        isComplete: isComplete,
+        timestamp: time ?? DateTime(2026),
+      );
+    }
+
+    test('空 entries 回傳空 list', () {
+      expect(aggregateNetworkErrors([]), isEmpty);
+    });
+
+    test('全部成功請求 → 無 error group', () {
+      final entries = List.generate(5, (_) => mkEntry(statusCode: 200));
+      expect(aggregateNetworkErrors(entries), isEmpty);
+    });
+
+    test('單一 502 error → 1 組, count=1', () {
+      final entries = [mkEntry(statusCode: 502, error: 'Bad Gateway')];
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups, hasLength(1));
+      expect(groups.first.statusCode, 502);
+      expect(groups.first.count, 1);
+    });
+
+    test('相同 502 × 3 → 1 組, count=3', () {
+      final entries = List.generate(3, (_) => mkEntry(statusCode: 502));
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups, hasLength(1));
+      expect(groups.first.count, 3);
+    });
+
+    test('502 × 2 + 404 × 1 → 2 組，按 count 降序', () {
+      final entries = [
+        mkEntry(statusCode: 502),
+        mkEntry(statusCode: 404),
+        mkEntry(statusCode: 502),
+      ];
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups, hasLength(2));
+      expect(groups[0].statusCode, 502);
+      expect(groups[0].count, 2);
+      expect(groups[1].statusCode, 404);
+      expect(groups[1].count, 1);
+    });
+
+    test('transport error (statusCode=null) 以 errorType 分組', () {
+      final entries = [
+        mkEntry(error: 'err', errorType: DioExceptionType.connectionTimeout),
+        mkEntry(error: 'err', errorType: DioExceptionType.cancel),
+        mkEntry(error: 'err', errorType: DioExceptionType.connectionTimeout),
+      ];
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups, hasLength(2));
+      expect(groups[0].errorType, DioExceptionType.connectionTimeout);
+      expect(groups[0].count, 2);
+      expect(groups[1].errorType, DioExceptionType.cancel);
+      expect(groups[1].count, 1);
+    });
+
+    test('混合 server error + transport error', () {
+      final entries = [
+        mkEntry(statusCode: 502),
+        mkEntry(error: 'err', errorType: DioExceptionType.receiveTimeout),
+        mkEntry(statusCode: 502),
+        mkEntry(error: 'err', errorType: DioExceptionType.receiveTimeout),
+        mkEntry(error: 'err', errorType: DioExceptionType.receiveTimeout),
+      ];
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups, hasLength(2));
+      expect(groups[0].errorType, DioExceptionType.receiveTimeout);
+      expect(groups[0].count, 3);
+      expect(groups[1].statusCode, 502);
+      expect(groups[1].count, 2);
+    });
+
+    test('成功請求不被計入', () {
+      final entries = [
+        mkEntry(statusCode: 200),
+        mkEntry(statusCode: 502),
+        mkEntry(statusCode: 200),
+        mkEntry(statusCode: 502),
+        mkEntry(statusCode: 200),
+      ];
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups, hasLength(1));
+      expect(groups[0].statusCode, 502);
+      expect(groups[0].count, 2);
+    });
+
+    test('statusCode 與 errorType 同時存在時仍以 statusCode 分組（不重複拆組）', () {
+      final entries = [
+        mkEntry(statusCode: 502, errorType: DioExceptionType.badResponse),
+        mkEntry(statusCode: 502),
+      ];
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups, hasLength(1));
+      expect(groups.first.statusCode, 502);
+      expect(groups.first.errorType, isNull);
+      expect(groups.first.count, 2);
+    });
+
+    test('firstSeen/lastSeen 正確', () {
+      final t1 = DateTime(2026, 1, 1, 10, 0, 0);
+      final t2 = DateTime(2026, 1, 1, 10, 0, 10);
+      final t3 = DateTime(2026, 1, 1, 10, 0, 5);
+      final entries = [
+        mkEntry(statusCode: 502, time: t2),
+        mkEntry(statusCode: 502, time: t1),
+        mkEntry(statusCode: 502, time: t3),
+      ];
+      final groups = aggregateNetworkErrors(entries);
+      expect(groups.first.firstSeen, t1);
+      expect(groups.first.lastSeen, t2);
+    });
+  });
+
+  group('errorTypeLabel', () {
+    test('映射正確', () {
+      expect(errorTypeLabel(DioExceptionType.connectionTimeout), 'Connection Timeout');
+      expect(errorTypeLabel(DioExceptionType.sendTimeout), 'Send Timeout');
+      expect(errorTypeLabel(DioExceptionType.receiveTimeout), 'Receive Timeout');
+      expect(errorTypeLabel(DioExceptionType.badCertificate), 'Bad Certificate');
+      expect(errorTypeLabel(DioExceptionType.badResponse), 'Bad Response');
+      expect(errorTypeLabel(DioExceptionType.cancel), 'Cancelled');
+      expect(errorTypeLabel(DioExceptionType.connectionError), 'Connection Error');
+      expect(errorTypeLabel(DioExceptionType.unknown), 'Unknown Error');
+      // 可以測 _ default 如果有 enum 其他值，但 Dio 基本上就這些。
     });
   });
 }

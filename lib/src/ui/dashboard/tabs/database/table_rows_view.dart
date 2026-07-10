@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../models/database_browser_source.dart';
 import '../../../../utils/table_sort.dart';
-import '../../../theme/inspector_theme.dart';
+import '../../../theme/theme.dart';
 import '../../../widgets/error_card.dart';
 
 /// A detailed full-page grid browser for a single database table.
@@ -172,7 +172,7 @@ class _CellDetailsBottomSheet extends StatelessWidget {
     final fullValue = cell?.toString() ?? 'NULL';
     return SafeArea(
       child: Padding(
-        padding: InspectorTheme.paddingLg,
+        padding: ThemePadding.paddingAll16,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -198,14 +198,14 @@ class _CellDetailsBottomSheet extends StatelessWidget {
                 child: SelectableText(
                   fullValue,
                   style: cell == null
-                      ? InspectorTheme.mutedStyle.copyWith(
+                      ? ThemeTextStyle.mutedStyle.copyWith(
                           fontStyle: FontStyle.italic,
                         )
                       : null,
                 ),
               ),
             ),
-            const SizedBox(height: InspectorTheme.spacingLg),
+            const SizedBox(height: ThemeSpacing.spacing16),
             ElevatedButton.icon(
               icon: const Icon(Icons.copy),
               label: const Text('Copy Value'),
@@ -245,7 +245,7 @@ class _StatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: InspectorTheme.paddingLgHorizontalSmVertical,
+      padding: ThemePadding.paddingH16V8,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
@@ -262,8 +262,8 @@ class _StatusBar extends StatelessWidget {
           if (hasMore)
             if (loading)
               const SizedBox(
-                width: 20,
-                height: 20,
+                width: ThemeSize.size20,
+                height: ThemeSize.size20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
@@ -332,7 +332,7 @@ class _TableRowsBody extends StatelessWidget {
                         scrollDirection: Axis.horizontal,
                         child: Padding(
                           padding: const EdgeInsets.only(
-                            bottom: InspectorTheme.spacingLg,
+                            bottom: ThemeSpacing.spacing16,
                           ),
                           child: DataTable(
                             sortColumnIndex: sortColumnIndex,
@@ -352,7 +352,7 @@ class _TableRowsBody extends StatelessWidget {
                                     Text(
                                       preview,
                                       style: isNull
-                                          ? InspectorTheme.mutedStyle.copyWith(
+                                          ? ThemeTextStyle.mutedStyle.copyWith(
                                               fontStyle: FontStyle.italic,
                                             )
                                           : null,

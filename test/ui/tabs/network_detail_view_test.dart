@@ -7,7 +7,7 @@ import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
-import 'package:flutter_inspector_kit/src/ui/theme/inspector_theme.dart';
+import 'package:flutter_inspector_kit/src/ui/theme/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------
@@ -260,11 +260,16 @@ void main() {
 
   group('statusColorFor', () {
     test('semantics by range', () {
-      expect(InspectorTheme.statusColor(200, hasError: false), Colors.green);
-      expect(InspectorTheme.statusColor(301, hasError: false), Colors.blue);
-      expect(InspectorTheme.statusColor(404, hasError: false), Colors.orange);
-      expect(InspectorTheme.statusColor(500, hasError: false), Colors.red);
-      expect(InspectorTheme.statusColor(null, hasError: true), Colors.red);
+      expect(ThemeColor.statusColor(200, hasError: false),
+          ThemeColor.color4CAF50);
+      expect(ThemeColor.statusColor(301, hasError: false),
+          ThemeColor.color2196F3);
+      expect(ThemeColor.statusColor(404, hasError: false),
+          ThemeColor.colorFF9800);
+      expect(ThemeColor.statusColor(500, hasError: false),
+          ThemeColor.colorF44336);
+      expect(ThemeColor.statusColor(null, hasError: true),
+          ThemeColor.colorF44336);
     });
   });
 

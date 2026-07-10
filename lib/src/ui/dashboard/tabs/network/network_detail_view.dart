@@ -7,7 +7,7 @@ import '../../../../utils/network_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
 import '../../../widgets/key_value_table.dart';
-import '../../../theme/inspector_theme.dart';
+import '../../../theme/theme.dart';
 
 /// Actions exposed in the detail view's share menu.
 enum _ShareAction { curl, text, share }
@@ -53,7 +53,7 @@ class NetworkDetailView extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: InspectorTheme.paddingMd,
+        padding: ThemePadding.paddingAll12,
         children: [
           _generalSection(context),
           if (entry.queryParameters.isNotEmpty)
@@ -94,7 +94,7 @@ class NetworkDetailView extends StatelessWidget {
   }
 
   Widget _generalSection(BuildContext context) {
-    final statusColor = InspectorTheme.statusColor(
+    final statusColor = ThemeColor.statusColor(
       entry.statusCode,
       hasError: entry.error != null,
     );
@@ -126,12 +126,12 @@ class NetworkDetailView extends StatelessWidget {
           ),
           if (entry.isTruncated)
             Padding(
-              padding: const EdgeInsets.only(top: InspectorTheme.spacingXs),
+              padding: const EdgeInsets.only(top: ThemeSpacing.spacing4),
               child: Text(
                 '⚠ Body truncated — size reflects the truncated value',
                 style: TextStyle(
+                  fontSize: ThemeFontSize.fontSize12,
                   color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
                 ),
               ),
             ),
@@ -152,12 +152,12 @@ class NetworkDetailView extends StatelessWidget {
       title: title,
       child: Container(
         width: double.infinity,
-        padding: InspectorTheme.paddingSm,
+        padding: ThemePadding.paddingAll8,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(ThemeRadius.radius4),
         ),
-        child: SelectableText(rendered, style: InspectorTheme.monospaceStyle),
+        child: SelectableText(rendered, style: ThemeTextStyle.monospaceStyle),
       ),
     );
   }
@@ -191,24 +191,24 @@ class NetworkDetailView extends StatelessWidget {
             ),
           if (entry.errorStackTrace != null &&
               entry.errorStackTrace!.isNotEmpty) ...[
-            const SizedBox(height: InspectorTheme.spacingMd),
+            const SizedBox(height: ThemeSpacing.spacing12),
             Text(
               'Stack Trace',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: InspectorTheme.spacingSm),
+            const SizedBox(height: ThemeSpacing.spacing8),
             Container(
               width: double.infinity,
-              padding: InspectorTheme.paddingSm,
+              padding: ThemePadding.paddingAll8,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(ThemeRadius.radius4),
               ),
               child: SelectableText(
                 entry.errorStackTrace!,
-                style: InspectorTheme.monospaceStyle,
+                style: ThemeTextStyle.monospaceStyle,
               ),
             ),
           ],
@@ -300,8 +300,8 @@ class _ResendActionState extends State<_ResendAction> {
       onPressed: _disabled ? null : () => _resend(context),
       icon: _inFlight
           ? const SizedBox(
-              width: 18,
-              height: 18,
+              width: ThemeSize.size18,
+              height: ThemeSize.size18,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.replay),

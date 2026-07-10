@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_browser_source.dart';
 import '../../../sources/operation_log_source.dart';
-import '../../theme/inspector_theme.dart';
+import '../../theme/theme.dart';
 import '../../widgets/error_card.dart';
 import 'database/table_rows_view.dart';
 
@@ -72,7 +72,7 @@ class _DatabaseTabState extends State<DatabaseTab> {
     return Column(
       children: [
         Padding(
-          padding: InspectorTheme.paddingLgHorizontalSmVertical,
+          padding: ThemePadding.paddingH16V8,
           child: Row(
             children: [
               if (sources.length > 1)
@@ -94,7 +94,7 @@ class _DatabaseTabState extends State<DatabaseTab> {
                   }).toList(),
                 )
               else
-                Text(_selectedSource.name, style: InspectorTheme.boldStyle),
+                Text(_selectedSource.name, style: ThemeTextStyle.boldStyle),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -155,7 +155,7 @@ class _DatabaseTabBody extends StatelessWidget {
       final emptyText = isOpLog
           ? 'No database activity'
           : 'No tables in this source';
-      return Center(child: Text(emptyText, style: InspectorTheme.mutedStyle));
+      return Center(child: Text(emptyText, style: ThemeTextStyle.mutedStyle));
     }
 
     return ListView.builder(
@@ -172,9 +172,9 @@ class _DatabaseTabBody extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(rowCountText, style: InspectorTheme.mutedSmallStyle),
-              const SizedBox(width: InspectorTheme.spacingXs),
-              const Icon(Icons.chevron_right, color: InspectorTheme.textMuted),
+              Text(rowCountText, style: ThemeTextStyle.mutedSmallStyle),
+              const SizedBox(width: ThemeSpacing.spacing4),
+              const Icon(Icons.chevron_right, color: ThemeColor.color9E9E9E),
             ],
           ),
           onTap: () {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/inspector_theme.dart';
+import '../theme/theme.dart';
 
 /// Renders a map as a compact two-column key-value table. Shows a muted
 /// placeholder when [data] is null or empty.
@@ -22,7 +22,7 @@ class KeyValueTable extends StatelessWidget {
     final entries = data?.entries.toList() ?? const [];
     if (entries.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: InspectorTheme.spacingXs),
+        padding: const EdgeInsets.symmetric(vertical: ThemeSpacing.spacing4),
         child: Text(
           emptyLabel,
           style: TextStyle(
@@ -42,18 +42,22 @@ class KeyValueTable extends StatelessWidget {
       children: [
         for (final e in entries)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
+            padding: const EdgeInsets.symmetric(
+              vertical: ThemeSpacing.spacing2,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 140),
+                  constraints: const BoxConstraints(
+                    maxWidth: ThemeSize.size140,
+                  ),
                   child: SizedBox(
-                    width: 140,
+                    width: ThemeSize.size140,
                     child: SelectableText('${e.key}:', style: keyStyle),
                   ),
                 ),
-                const SizedBox(width: InspectorTheme.spacingSm),
+                const SizedBox(width: ThemeSpacing.spacing8),
                 Expanded(child: SelectableText('${e.value}')),
               ],
             ),

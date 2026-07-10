@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/inspector_theme.dart';
+import '../theme/theme.dart';
 
 /// A standard card container for sections in detail views.
 class DetailSection extends StatelessWidget {
@@ -12,14 +12,14 @@ class DetailSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: InspectorTheme.spacingMd),
+      margin: const EdgeInsets.only(bottom: ThemeSpacing.spacing12),
       child: Padding(
-        padding: InspectorTheme.paddingMd,
+        padding: ThemePadding.paddingAll12,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: InspectorTheme.spacingSm),
+            const SizedBox(height: ThemeSpacing.spacing8),
             child,
           ],
         ),
@@ -45,12 +45,12 @@ class DetailKeyValueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: ThemeSpacing.spacing2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: ThemeSize.size120,
             child: Text(
               '$label:',
               style: Theme.of(
@@ -58,7 +58,7 @@ class DetailKeyValueRow extends StatelessWidget {
               ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(width: InspectorTheme.spacingSm),
+          const SizedBox(width: ThemeSpacing.spacing8),
           Expanded(child: valueWidget),
         ],
       ),

@@ -6,7 +6,7 @@ import '../../../../utils/log_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
 import '../../../widgets/key_value_table.dart';
-import '../../../theme/inspector_theme.dart';
+import '../../../theme/theme.dart';
 
 /// Actions exposed in the detail view's share menu.
 enum _ShareAction { text, share }
@@ -40,7 +40,7 @@ class LogDetailView extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: InspectorTheme.paddingMd,
+        padding: ThemePadding.paddingAll12,
         children: [
           _generalSection(context),
           if (entry.stackTrace?.isNotEmpty ?? false)
@@ -73,14 +73,14 @@ class LogDetailView extends StatelessWidget {
       title: 'Stack Trace',
       child: Container(
         width: double.infinity,
-        padding: InspectorTheme.paddingSm,
+        padding: ThemePadding.paddingAll8,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(ThemeRadius.radius4),
         ),
         child: SelectableText(
           entry.stackTrace!,
-          style: InspectorTheme.monospaceStyle,
+          style: ThemeTextStyle.monospaceStyle,
         ),
       ),
     );
