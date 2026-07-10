@@ -122,7 +122,7 @@ class _CurrentBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: InspectorTheme.infoColor.withAlpha(50),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
       ),
       child: const Text(
         'Current',

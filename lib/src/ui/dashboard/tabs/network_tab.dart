@@ -287,7 +287,7 @@ class _MethodBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: InspectorTheme.spacingXs),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
         border: Border.all(color: color),
       ),
       child: Text(
@@ -398,7 +398,6 @@ class _ErrorGroupCard extends StatelessWidget {
 
   static const double _cardWidth = 140;
   static const double _cardBorderRadius = 8;
-  static const double _colorBarWidth = 4;
   static const double _colorBarBorderRadius = 7;
 
   final NetworkErrorGroup group;
@@ -427,7 +426,7 @@ class _ErrorGroupCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: _colorBarWidth,
+                width: InspectorTheme.spacingXs,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: const BorderRadius.only(

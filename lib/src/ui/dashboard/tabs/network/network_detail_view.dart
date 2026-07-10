@@ -155,7 +155,7 @@ class NetworkDetailView extends StatelessWidget {
         padding: InspectorTheme.paddingSm,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
         ),
         child: SelectableText(rendered, style: InspectorTheme.monospaceStyle),
       ),
@@ -204,7 +204,7 @@ class NetworkDetailView extends StatelessWidget {
               padding: InspectorTheme.paddingSm,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(InspectorTheme.radiusSm),
               ),
               child: SelectableText(
                 entry.errorStackTrace!,

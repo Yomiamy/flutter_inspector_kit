@@ -8,6 +8,9 @@ class InspectorTheme {
   static const double spacingLg = 16.0;
   static const double spacingXl = 24.0;
 
+  // Border radii
+  static const double radiusSm = 4.0;
+
   // Paddings
   static const EdgeInsets paddingXs = EdgeInsets.all(spacingXs);
   static const EdgeInsets paddingSm = EdgeInsets.all(spacingSm);
