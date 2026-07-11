@@ -2,7 +2,9 @@
 
 ## 總覽
 
-`gen-dev-workflow` 是一個**全自動開發流程編排器**，從使用者說「幫我做 X 功能」到 PR 建立，共 6 個 stage（0a → 0b → 1 → 2 → 3 → 4），外加兩個獨立入口的 STAGE 5（回覆 PR review）與 STAGE 6（PR 合併後清理 worktree）。核心機制是 **Claude 做總指揮 + `agy` CLI 做委派執行**。自 STAGE 1 起，整條流程搬進一個獨立 worktree 執行——worktree 才是真正的隔離邊界。
+`gen-dev-workflow` 是一個**全自動開發流程編排器**，從使用者說「幫我做 X 功能」到 PR 建立，共 6 個 stage（0a → 0b → 1 → 2 → 3 → 4），外加兩個獨立入口的 STAGE 5（回覆 PR review）與 STAGE 6（PR 合併後清理 worktree），以及小修正用的 **quick 模式**（單暫停點快速通道，不建 worktree）。核心機制是 **Claude 做總指揮 + `agy` CLI 做委派執行**。自 STAGE 1 起，整條流程搬進一個獨立 worktree 執行——worktree 才是真正的隔離邊界。
+
+Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.claude/agents/*.md`，用 `opus`/`sonnet` 別名、不綁版本 ID），SKILL.md 只寫角色名與**推論等級名**（最強推論 / 標準 / 輕量 / 快便宜）——model 換代時 frontmatter 免改（別名自動解析），SKILL.md 一字不動。
 
 ---
 
@@ -13,7 +15,7 @@
 | 項目 | 內容 |
 |------|------|
 | **Agent** | planner |
-| **Model** | Opus (xHigh effort)（最強推論） |
+| **Model** | 最強推論（planner frontmatter：`opus` + `xhigh`） |
 | **委派** | 無 agy 委派，Claude 親自執行 |
 | **並行** | 🟢 並行 2 條線：A. 專案 context 收集（讀檔 / git log）B. 相似功能代碼調查 |
 | **產出** | `docs/features/YYYY-MM-DD-<feature>.md`（使用者故事、驗收條件、範圍邊界） |
@@ -32,7 +34,7 @@
 | 項目 | 內容 |
 |------|------|
 | **Agent** | planner |
-| **Model** | Opus (xHigh effort) |
+| **Model** | 最強推論 |
 | **委派** | 無 agy 委派 |
 | **並行** | 無 |
 | **產出** | `docs/plans/YYYY-MM-DD-<feature>.md`（資料結構、檔案異動、任務拆分 + 複雜度標註） |
@@ -52,7 +54,7 @@
 | 項目 | 內容 |
 |------|------|
 | **Agent** | gen-gh-issue skill + brancher |
-| **Model** | Sonnet (Max effort)（純 IO，不需強推論） |
+| **Model** | 輕量（brancher frontmatter：`sonnet` + `high`）——純 IO，且建立前有暫停點人肉把關 |
 | **委派** | ✦ agy 執行 `gh issue create/view` + `git worktree add` + `flutter pub get` |
 | **並行** | 無 |
 | **產出** | GitHub Issue + Git 分支 + **獨立 worktree** |
@@ -75,26 +77,26 @@
 | 項目 | 內容 |
 |------|------|
 | **Agent** | implementer |
-| **Model** | 實作動態分級（見下表）｜驗收優先 Opus xHigh、否則 Sonnet Max |
-| **委派** | ✦ agy 負責代碼 + 測試 + commit；驗收委派 verifier（優先 Opus xHigh，否則 Sonnet Max） |
+| **Model** | 實作動態分級（見下表）｜驗收走 verifier agent（最強推論） |
+| **委派** | ✦ agy 負責代碼 + 測試 + commit；驗收委派 verifier agent（frontmatter 綁最強推論） |
 | **並行** | 🟢 條件式並行（≥2 獨立任務且寫入路徑不重疊） |
 | **產出** | 實作代碼 + 測試 + commits |
 | **暫停點** | ⏸ 每個任務/每批並行完成後展示變更 + 測試結果 → 等確認 |
 
 **Model 動態分級（STAGE 2 內部，僅指「委派給 agy 寫代碼」的 model）：**
 
-| 任務複雜度 | Model 選擇 | 範例 |
+| 任務複雜度 | 委派等級 | 範例 |
 |-----------|-----------|------|
-| 觸及 1–2 檔、規格完整、機械性 | 快/便宜 model（如 Haiku） | 新增 DTO 欄位、補 util function |
-| 觸及多檔、需整合協調 | 標準 model（如 Sonnet (Max effort)） | 跨 service 串接、改既有流程 |
-| 需設計判斷或廣泛 codebase 理解 | 最強 model（如 Opus (xHigh effort)） | 重構狀態機、新增跨層架構 |
+| 觸及 1–2 檔、規格完整、機械性 | 快/便宜（agy 內部 fast model） | 新增 DTO 欄位、補 util function |
+| 觸及多檔、需整合協調 | 標準 | 跨 service 串接、改既有流程 |
+| 需設計判斷或廣泛 codebase 理解 | 最強推論 | 重構狀態機、新增跨層架構 |
 
-> **驗收 model 與實作 model 分離**：上表是「agy 寫代碼」用的浮動 model；**驗收固定委派 verifier，優先 Opus (xHigh)、取不到再退 Sonnet (Max)**，不隨實作任務浮動。刻意讓驗收 model ≥ 實作 model，避免產代碼的便宜 model 自審（與 STAGE 3 同源交叉檢查的邏輯一致）。
+> **驗收與實作分離**：上表是「agy 寫代碼」用的浮動等級；**驗收固定委派 verifier agent**（frontmatter 綁最強推論，opus 取不到時由 CLI fallback 鏈自動落到可用最強），不隨實作任務浮動。刻意讓驗收等級 ≥ 實作等級，避免產代碼的便宜 model 自審（與 STAGE 3 同源交叉檢查的邏輯一致）。
 
 **執行工作：**
 1. 解析實作計畫，判斷並行/序列模式
 2. 逐任務（或並行批次）分派給 agy
-3. 委派 verifier（優先 Opus xHigh，否則 Sonnet Max）做兩階段驗收：spec compliance → code quality
+3. 委派 verifier agent（最強推論）做兩階段驗收：spec compliance → code quality
 4. 每個任務完成後暫停展示結果
 5. 失敗時進入 retry 迴圈（最多 2 次重派）
 
@@ -110,7 +112,7 @@
 | 項目 | 內容 |
 |------|------|
 | **Agent** | reviewer |
-| **Model** | Opus (xHigh effort)（根因判斷需最強推論） |
+| **Model** | 最強推論（reviewer frontmatter：`opus` + `xhigh`）——根因判斷 |
 | **委派** | **不委派 agy**（審查不可外包） |
 | **並行** | 無 |
 | **產出** | 審查報告 |
@@ -121,7 +123,7 @@
 2. 產出審查報告
 3. 不通過 → 退回 STAGE 2 修正 → 再回 STAGE 3（迴圈）
 
-**設計考量：** Opus (xHigh effort) 做審查是為了避免「自己審自己」（implementer 可能用 Sonnet (Max effort)/Haiku，reviewer 刻意用不同源的 Opus (xHigh effort) 來交叉驗證）。
+**設計考量：** 審查用最強推論是為了避免「自己審自己」（實作走標準或更便宜等級，reviewer 刻意用不同源的最強推論交叉驗證）。
 
 ---
 
@@ -130,7 +132,7 @@
 | 項目 | 內容 |
 |------|------|
 | **Agent** | publisher |
-| **Model** | Sonnet (Max effort) |
+| **Model** | 輕量（publisher frontmatter：`sonnet` + `high`）——重活已委派 agy，發布前有暫停點人肉把關 |
 | **委派** | ✦ agy 分析 Diff → 產 PR 草稿；Claude 校對 |
 | **並行** | 無 |
 | **產出** | GitHub PR |
@@ -149,7 +151,7 @@
 | 項目 | 內容 |
 |------|------|
 | **Agent** | responder → reviewer → publisher |
-| **Model** | Sonnet (High effort)（responder）→ Opus (xHigh effort)（reviewer）→ Sonnet (High effort)（publisher） |
+| **Model** | 輕量（responder）→ 最強推論（reviewer）→ 輕量（publisher） |
 | **委派** | 無 agy 委派 |
 | **並行** | 無 |
 | **觸發** | 使用者說「PR #42 有新的 review 意見」 |
@@ -166,7 +168,7 @@
 | 項目 | 內容 |
 |------|------|
 | **Agent** | worktree-close-cleanup skill |
-| **Model** | Sonnet (High effort) |
+| **Model** | —（skill 於主對話執行，無獨立綁定） |
 | **委派** | ✦ agy 執行 `git worktree remove` |
 | **並行** | 無 |
 | **產出** | 移除 STAGE 1 建立的 worktree（**對應 branch 一律保留、不刪除**） |
@@ -181,19 +183,47 @@
 
 ---
 
+### Quick 模式：小修正快速通道（獨立入口）
+
+| 項目 | 內容 |
+|------|------|
+| **觸發** | `/gen-dev-workflow quick <描述或 #issue>`、「快速修正 <描述>」 |
+| **適用** | 預期 diff 小（約 ≤3 檔）、無架構變動、無新依賴、不需規劃文件 |
+| **流程** | 建 branch（不建 worktree）→ 主對話直接實作（不委派 implementer/agy）→ reviewer 單 lens 快掃 → gen-pr 產草稿 → 發布 |
+| **暫停點** | 只有一個：PR 草稿確認前 |
+| **State** | 照寫 `<branch-slug>.json`（`mode: "quick"`），續接與 PR MERGED 自動刪檔複用既有機制 |
+
+**設計考量：**
+- 砍掉所有儀式（spec/plan 文件、issue 強制、worktree、逐任務暫停），唯一保留的品質閘門是 **reviewer 交叉審查**——「不讓同源 model 自審」是整條 workflow 不可砍的不變式。
+- 不建 worktree ⇒ 同一 repo 同時只能跑一個 quick；需要多並行走完整流程。
+- 中途發現超出小修正範圍（多檔設計判斷、新依賴、動架構）→ 停下，帶著已建 branch 升級轉入完整流程 STAGE 2，不硬撐。
+
+---
+
 ## Model 與委派策略總覽
+
+**推論等級表**（等級 → frontmatter 綁定，SKILL.md 唯一定義處）：
+
+| 等級 | 綁定 | agent |
+|------|------|-------|
+| 最強推論 | `opus` + `xhigh` | planner、reviewer、verifier |
+| 標準 | `sonnet` + `max` | implementer |
+| 輕量 | `sonnet` + `high` | brancher、responder、publisher |
+| 快/便宜 | agy 內部 fast model | STAGE 2 機械性任務 |
+
+等級規律：**effort 跟著「錯誤的爆炸半徑」走**——規劃與把關（錯了放大到全流程）用最強推論；唯一產代碼的 implementer 用標準；純 IO 或輸出前有暫停點人肉把關的角色用輕量。
 
 ```mermaid
 graph LR
-    subgraph "Model 分配"
-        A["STAGE 0a/0b<br/>Opus (xHigh effort)"] --> B["STAGE 1<br/>Sonnet (Max effort)"]
+    subgraph "推論等級分配"
+        A["STAGE 0a/0b<br/>最強推論"] --> B["STAGE 1<br/>輕量"]
         B --> C["STAGE 2<br/>動態分級"]
-        C --> D["STAGE 3<br/>Opus (xHigh effort)"]
-        D --> E["STAGE 4<br/>Sonnet (Max effort)"]
+        C --> D["STAGE 3<br/>最強推論"]
+        D --> E["STAGE 4<br/>輕量"]
     end
 
     subgraph "獨立入口"
-        E6["STAGE 6 清理 Worktree<br/>Sonnet (High effort)"]
+        E6["STAGE 6 清理 Worktree<br/>主對話執行"]
     end
 
     subgraph "agy 委派"
@@ -272,13 +302,14 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 |------|------|------|
 | **架構完整性** | 端到端覆蓋 | 從需求到 PR 全流程自動化，6 個 stage 涵蓋 SDLC 核心環節 |
 | **成本優化** | Model 動態分級 | 不是所有任務都用 Opus，機械性工作用便宜 model，真正降成本 |
-| **品質保障** | 雙層交叉檢查 | 兩道防線都刻意避免「自己審自己」：(1) STAGE 2 驗收委派獨立 verifier（優先 Opus xHigh、否則 Sonnet Max），與寫代碼的 agy（可能是便宜 model）不同源；(2) STAGE 3 reviewer 用 Opus xHigh，與 implementer 不同源。驗收 model 刻意 ≥ 實作 model，確保把關強度 |
+| **品質保障** | 雙層交叉檢查 | 兩道防線都刻意避免「自己審自己」：(1) STAGE 2 驗收委派獨立 verifier agent（最強推論），與寫代碼的 agy（可能是便宜 model）不同源；(2) STAGE 3 reviewer 用最強推論，與 implementer 不同源。驗收等級刻意 ≥ 實作等級，確保把關強度。quick 模式砍掉所有儀式時也保留這道閘門 |
+| **換代維護** | Policy over models | model/effort 綁在 agent frontmatter（`opus`/`sonnet` 別名，不綁版本 ID），SKILL.md 只寫角色名與推論等級名——model 換代零改動，調整某角色等級只改 agent 檔一行 |
 | **韌性** | Token Budget Gate 閉環 | 長流程不會因 context 爆炸而丟失進度，state 持久化是真正的救生圈 |
 | **可恢復性** | per-worktree state 檔 | session 中斷後可續接，`interrupted_by` 區分主動離開 vs 系統保護 |
 | **多流程並行** | worktree 隔離 + workflow-id | 同 repo 可同時跑多個 workflow，STAGE 1 起各自在專屬 worktree 內達成零鎖並行（工作目錄本身分開，比純切 branch 更徹底）；STAGE 0a/0b pending 階段靠 workflow-id 持久化補上唯一缺口 |
 | **並行效率** | 條件式並行 + 三規則契約 | 不盲目並行，有明確的衝突偵測和失敗處理策略 |
 | **人在迴路** | 關鍵暫停點 | 規格、計畫、分支、每個任務、審查、PR 都有確認點，不會脫韁 |
-| **靈活入口** | Quick Commands + jump mode | 可以從任意 stage 切入，不強迫跑完整流程 |
+| **靈活入口** | Quick Commands + jump mode + quick 模式 | 可以從任意 stage 切入，不強迫跑完整流程；小修正有專屬單暫停點快速通道 |
 | **退回機制** | STAGE 3 → STAGE 2 迴圈 | 審查不通過不是死路，有明確的退回路徑 |
 | **失敗處理** | 分級 retry + 人工兜底 | 重試有上限（2 次），超過就停下來問人，不無限迴圈 |
 
@@ -286,10 +317,10 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 
 | 面向 | 缺點 | 嚴重度 | 說明 |
 |------|------|--------|------|
-| **過度工程** | 小功能走全流程太重 | 🔴 高 | 一個 10 行的 bug fix 也要跑 0a → 0b → 1 → 2 → 3 → 4？六個 stage 加上多次暫停確認，可能花 30 分鐘在流程上，3 分鐘在寫 code 上。沒有「輕量模式」的逃生艙 |
+| **過度工程** | ~~小功能走全流程太重~~ | ✅ 已解決 | quick 模式已補上逃生艙：小修正走「branch → 直改 → reviewer 快掃 → PR」單暫停點通道。殘餘風險：「是否屬於小修正」的判斷仍靠 LLM 自律，quick 被拿來跑大功能時只有「中途升級轉完整流程」這條軟性防線 |
 | **暫停點過多** | Human-in-the-loop 頻率太高 | 🟡 中 | 正常路徑就有 6 個固定暫停點（STAGE 0a/0b/1/3/4 各一 + STAGE 2 每任務一次），外加條件式的「模糊需求」暫停。STAGE 2 任務多時暫停次數線性膨脹，使用者必須一直盯著等確認，「自動驅動」的承諾被密集確認打斷 |
 | **agy 依賴** | 外部 CLI 是單點故障 | 🟡 中 | 雖說有 fallback，但 `agy` 不在 PATH 時的 fallback 行為描述模糊——「功能仍可運作但不會委派」到底怎麼運作？哪些 stage 受影響？ |
-| **Model 假設** | 綁定 Anthropic 模型族 | 🟡 中 | 不只 Opus / Sonnet / Haiku 是 Claude 系列專有名稱，連 effort 等級（xHigh / Max / High / Medium）也是 Anthropic 專有參數——綁定比早期更深。如果使用者用 GPT-4 或 Gemini，整套 model + effort 分級策略全部不適用。文件沒有 model-agnostic 的 fallback |
+| **Model 假設** | 綁定 Anthropic 模型族 | 🟢 低 | 已大幅收斂：版本 ID 全數移除，model/effort 綁在 agent frontmatter（別名），SKILL.md 只寫推論等級名——同代升級與跨代換代都免改。殘餘綁定：`opus`/`sonnet` 別名與 effort 參數仍是 Claude Code 專有，若換到非 Anthropic 生態，需重寫的只剩每個 agent 檔的兩行 frontmatter，等級語意（最強推論/標準/輕量）可原樣搬移 |
 | **狀態檔脆弱** | JSON 手動管理無校驗 | 🟡 中 | per-worktree state 檔仍是 LLM 手寫 JSON，沒有 schema validation、沒有版本號、沒有 checksum。手動編輯或 stage 寫入半途中斷就會腐壞，下次續接時可能靜默出錯。（workflow-id 持久化 + per-worktree 隔離已解決「pending 檔無主孤兒」與「撞名」子問題，但 JSON 本身的完整性校驗仍缺） |
 | **並行複雜度** | 契約規則難以程式化驗證 | 🟡 中 | 「寫入路徑不重疊」「共享資源指定唯一 owner」靠 planner 在計畫中標好——但 planner 本身是 LLM，標錯怎麼辦？沒有靜態檢查機制 |
 | **Context 估算** | Token 用量無法精確測量 | 🟡 中 | Token Budget Gate 依賴「評估主對話 context 用量」，但 LLM 無法精確知道自己的 context 用了多少 token。60k / 100k / 150k 的閾值在實務上只能靠啟發式猜測 |
@@ -304,6 +335,8 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 
 **最值得保留的設計：** Token Budget Gate 閉環 + per-worktree state 檔的中斷續接。這是解決 LLM context 爆炸這個**真實問題**的務實方案。多 workflow 並行更是把「並行衝突」這個特殊情況用數據結構直接消滅——STAGE 1 起各流程各佔一個獨立 worktree，工作目錄本身分開，連 state 檔撞名都不可能，而不是加鎖去處理它——好品味。
 
-**最該修的問題：** 缺少輕量模式，而且流程只增不減。近期加了 STAGE 6、把 STAGE 2 驗收拆成獨立 verifier 委派、每個環節還要逐一指定 effort——階數與委派來回都變多，「重」的問題比當初更尖銳。一個 10 行 fix 不該跑 6 個 stage。加一個 `--quick` flag 讓小任務直接 STAGE 1 → 2 → 4 就好。
+**已修掉的問題：** (1) 缺少輕量模式——quick 模式已補上（單暫停點、不建 worktree、branch → 直改 → reviewer 快掃 → PR），10 行 fix 不再跑 6 個 stage。(2) model/effort 散落全文——已收斂為 agent frontmatter 綁定（別名）+ 推論等級表單一定義處，「每個環節逐一指定 effort」的維護稅消失，model 換代零改動。
+
+**最該修的問題（更新後）：** 暫停點密度。正常路徑 6 個固定暫停點、STAGE 2 逐任務再線性膨脹——「自動驅動」的承諾被密集確認打斷。下一步值得考慮讓使用者在啟動時選擇確認粒度（例如「只在規格、審查、PR 三處暫停」的信任模式）。
 
 **最危險的假設：** markdown 指令 = 程式碼保證。它不是。
