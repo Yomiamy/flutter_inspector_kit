@@ -3,6 +3,7 @@
 
 # Claude Code workflow state (local only, not shared across developers)
 .claude/workflow-state/
+.claude/worktrees/
 
 # Editor (local only)
 .vscode/

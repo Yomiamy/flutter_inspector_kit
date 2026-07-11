@@ -1,7 +1,8 @@
 ---
 name: publisher
 description: 用於建立 GitHub PR 並收尾開發工作。負責產生 PR 描述。最適合在 review 完成後的最終步驟。絕不刪除本地 branch。
-model: claude-sonnet-4-5
+model: sonnet
+effort: high
 tools: [Bash, Read, Write]
 ---
 

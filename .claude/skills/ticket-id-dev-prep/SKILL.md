@@ -116,13 +116,13 @@ brief 應涵蓋：
 範例：
 
 - branch：`fix/2351-password-fields-validator-error`
-- worktree：`../ai-chat-2351-password-fields-validator-error`
+- worktree：`.claude/worktrees/ai-chat-2351-password-fields-validator-error`
 
 附加規則：
 
 - branch 名稱中保留 issue id 的大小寫
 - worktree 目錄 suffix 使用小寫 issue id
-- 偏好在當前 repo 旁建立新的 worktree，除非使用者要求其他位置
+- 偏好在當前 repo 內的 .claude/worktrees 中建立新的 worktree，除非使用者要求其他位置
 - 若目標 branch 已存在於本地，停止並回報，而非默默重用
 - 若目標 worktree 路徑已存在，停止並回報，而非覆蓋任何東西
 
@@ -151,7 +151,7 @@ brief 應涵蓋：
 
 - 在任何 git 寫入前驗證必要輸入
 - base branch 預設為 `origin/main`
-- worktree parent 預設為當前 repo 的上層目錄
+- worktree parent 預設為當前 repo 內的 .claude/worktrees 目錄
 - 當 base ref 指向 `origin/*` 時 fetch 該 ref
 - 若目標 branch 已存在於本地則停止
 - 若目標 worktree 路徑已存在則停止
