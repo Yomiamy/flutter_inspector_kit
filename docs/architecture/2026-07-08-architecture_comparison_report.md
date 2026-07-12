@@ -120,13 +120,13 @@ graph TD
 * **集合操作安全**：當前專案未嚴格執行「嚴禁 `firstWhere`，必須使用 `firstWhereOrNull`」。
   * 檢查 `lib/src/` 中是否有直接使用 `.firstWhere` 的危險操作。
 * **樣式硬編碼**：
-  * 當前專案的 UI 有許多硬編碼顏色與邊距。建議仿照對照組專案的 `foundation/style`，在 `lib/src/ui/theme/` 中建立一個簡單的 `InspectorTheme`（或 `InspectorColors`），統一管理字型大小、顏色、邊距，避免 UI 代碼中散落各種 const。
+  * 當前專案的 UI 有許多硬編碼顏色與邊距。我們建議在 `lib/src/ui/theme/` 中建立設計代幣（design tokens），並將其拆分至 6 個獨立樣式類別（`ThemeColor`、`ThemePadding`、`ThemeRadius`、`ThemeSize`、`ThemeSpacing` 與 `ThemeTextStyle`），並透過一個 `theme.dart` barrel 檔案導出，以統一管理字型大小、顏色、邊距與圓角半徑，避免 UI 代碼中散落各種 const。
 
 > [!NOTE]
 > **階段三落地狀態（2026-07-08 · branch `chore/202607/good-taste-polish` / PR #70）——兩項皆完成**
 >
 > * ✅ **集合操作安全**：`lib/src/` 已無任何裸 `.firstWhere`（`grep -rn "\.firstWhere(" lib/src/` 排除 `firstWhereOrNull` 後為空）。
-> * ✅ **樣式硬編碼**：[inspector_theme.dart](file:///Users/yomiry/StudioWorkspace/flutter_inspector/lib/src/ui/theme/inspector_theme.dart) 已建立，集中管理 spacing（`spacingXs`…`spacingXl`）、padding 常數群、語意色（`errorColor`/`warningColor`/`infoColor`/`successColor`/`textMuted`）、文字樣式（`monospaceStyle`/`boldStyle`/`mutedStyle`），並收斂 HTTP status → color 的 `statusColor()` 邏輯。各 tab / detail view / 共用 widget 的散落 const 已改引用此類別。
+> * ✅ **樣式硬編碼**：已在 `lib/src/ui/theme/` 下建立 barrel 檔案 [theme.dart](file:///Users/yomiry/StudioWorkspace/flutter_inspector/lib/src/ui/theme/theme.dart)，將設計代幣（design tokens）細分實作至 6 個獨立的樣式類別（`ThemeColor`、`ThemePadding`、`ThemeRadius`、`ThemeSize`、`ThemeSpacing`、`ThemeTextStyle`），統一集中管理字型大小、顏色、邊距與圓角常數，各 tab / detail view / 共用 widget 的散落 const 已改為引用這些樣式類別。
 
 ---
 

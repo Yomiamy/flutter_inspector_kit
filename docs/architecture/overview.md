@@ -11,29 +11,29 @@
 本套件遵循「資料驅動」與「低侵入性」的設計原則，將架構劃分為四個主要層次：
 
 ```text
-  ┌────────────────────────────────────────────────────────┐
-  │                 表現層 (Presentation Layer)            │
-  │  [DashboardModal]  [InspectorFab]  [ConsoleTab (Merged)]│
-  └───────────────────────────┬────────────────────────────┘
-                              │ 讀取與操作
-                              ▼
-  ┌────────────────────────────────────────────────────────┐
-  │                 核心調試引擎 (Core Engine)             │
-  │   [FlutterInspector]  [InspectorRegistry]  [RingBuffer]│
-  └───────────────────────────┬────────────────────────────┘
-                              │ 持有與快取
-                              ▼
-  ┌────────────────────────────────────────────────────────┐
-  │                 領域模型層 (Domain Models)             │
-  │               [TimestampedEntry] (抽象介面)            │
-  │   [LogEntry]  [NetworkEntry]  [NavigatorEntry]  [DB]   │
-  └───────────────────────────▲────────────────────────────┘
-                              │ 結構化寫入
-                              │
-  ┌───────────────────────────┴────────────────────────────┐
-  │               資料擷取層 (Collectors / Interceptors)   │
-  │  [DioInterceptor]  [NavigatorObserver]  [ErrorHandlers]│
-  └────────────────────────────────────────────────────────┘
+  ┌────────────────────────────────────────────────────────────┐
+  │                 表現層 (Presentation Layer)                │
+  │  [DashboardModal]  [InspectorFab]  [ConsoleTab (Merged)]   │
+  └─────────────────────────────┬──────────────────────────────┘
+                                │ 讀取與操作
+                                ▼
+  ┌────────────────────────────────────────────────────────────┐
+  │                 核心調試引擎 (Core Engine)                 │
+  │   [FlutterInspector]  [InspectorRegistry]  [RingBuffer]    │
+  └─────────────────────────────┬──────────────────────────────┘
+                                │ 持有與快取
+                                ▼
+  ┌────────────────────────────────────────────────────────────┐
+  │                 領域模型層 (Domain Models)                 │
+  │               [TimestampedEntry] (抽象介面)                │
+  │   [LogEntry]  [NetworkEntry]  [NavigatorEntry]  [DB]       │
+  └─────────────────────────────▲──────────────────────────────┘
+                                │ 結構化寫入
+                                │
+  ┌─────────────────────────────┴──────────────────────────────┐
+  │            資料擷取層 (Collectors / Interceptors)          │
+  │ [DioInterceptor] [NavigatorObserver] [UncaughtErrorHandler]│
+  └────────────────────────────────────────────────────────────┘
 ```
 
 ### 1. 基礎核心層 (Core Engine)
@@ -49,7 +49,7 @@
 ### 3. 數據擷取層 (Collectors / Interceptors)
 - **`DioInterceptor`** 〔獨立 class · `lib/src/interceptors/dio_interceptor.dart`〕：攔截 Dio 請求與響應，處理 pending 狀態更新，並支持請求重發（Replay）。
 - **`NavigatorObserver`** 〔獨立 class · `lib/src/observers/navigator_observer.dart`〕：自動監聽路由變化，安全解析頁面 Widget 類型。
-- **`ErrorHandlers`** 〔非獨立 class · 由 `FlutterInspector.setupErrorHandlers()` 直接以 callback 設定〕：無侵入地鏈接 FlutterError、PlatformDispatcher 與 ErrorWidget 錯誤鉤子。該 method 將 closure 直接賦值給 Flutter 的全域鉤子（`FlutterError.onError`、`PlatformDispatcher.instance.onError`、`ErrorWidget.builder`），不存在獨立的 handler 類別。
+- **`UncaughtErrorHandler`** 〔獨立 class · `lib/src/core/uncaught_error_handler.dart`〕：獨立類別，透過建構子接收 `onLog` 回呼，並在呼叫 `attach()` 時安全地將錯誤鉤子鏈接（chain/wrap）至 `FlutterError.onError`、`PlatformDispatcher.instance.onError` 與 `ErrorWidget.builder` 以擷取未捕捉的例外。
 - **`OperationLogSource`** 〔獨立 class · `lib/src/sources/operation_log_source.dart`〕：將資料庫操作日誌轉換為虛擬表格，以配合資料庫瀏覽器展示。
 
 #### 設計模式標注：Adapter + Constructor Injection
