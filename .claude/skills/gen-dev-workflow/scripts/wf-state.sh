@@ -23,12 +23,15 @@ usage() {
   wf-state.sh get <檔>                    校驗後輸出 JSON
   wf-state.sh set <檔> k=v [k=v ...]      更新欄位（不可改 stage/awaiting_confirmation）
   wf-state.sh stage-done <檔> <stage>     標記 stage 完成，進入等待使用者確認
-  wf-state.sh task-done <檔> <n>          STAGE 2 任務完成（記入 completed_tasks，進入等待確認）
+      sequence 模式：<stage> 須等於目前 stage；quick/jump 不受限（自由標籤）
+  wf-state.sh task-done <檔> <n>          任務完成（記入 completed_tasks，進入等待確認）
+      sequence 模式：僅能在 STAGE 2 執行
   wf-state.sh confirm <檔>                使用者已確認（清除等待旗標，stage 不變）
   wf-state.sh advance <檔> <next> --confirmed
       推進 stage。等待確認中且未帶 --confirmed → 拒絕；sequence 模式非法轉移 → 拒絕
-  wf-state.sh upgrade <檔>
+  wf-state.sh upgrade <檔> [--confirmed]
       quick 升級為完整流程（mode→sequence、stage→2），單向：其他 mode 一律拒絕
+      等待確認中且未帶 --confirmed → 拒絕
 <檔> 可為路徑，或相對 $STATE_DIR 的檔名。
 EOF
   exit 1
@@ -38,13 +41,21 @@ resolve() { case "$1" in */*) echo "$1" ;; *) echo "$STATE_DIR/$1" ;; esac; }
 
 validate() {
   jq -e '
-    (.schema_version | type == "number") and
+    (.schema_version == 1) and
     (.workflow_id | type == "string") and
     (.stage | type == "string") and
-    (.mode | IN("sequence", "jump", "quick")) and
+    (.mode == "sequence" or .mode == "jump" or .mode == "quick") and
     (.completed_tasks | type == "array") and
+    (.completed_tasks | all(type == "number")) and
+    (.total_tasks == null or (.total_tasks | type == "number")) and
     (.awaiting_confirmation | type == "boolean")
   ' "$1" >/dev/null 2>&1 || die "state 檔校驗失敗：$1"
+}
+
+# claim_new <目標檔>  排他佔位：檔案已存在就失敗，避免「檢查存在→mv」中間有並發窗口
+claim_new() {
+  mkdir -p "$(dirname "$1")"
+  ( set -C; : >"$1" ) 2>/dev/null || die "已存在：$1（不覆蓋既有流程）"
 }
 
 # atomic_write <目標檔>  （stdin 收 JSON）
@@ -58,10 +69,12 @@ atomic_write() {
 }
 
 # jq 值解析：null / 數字 / 布林原樣，其餘當字串
+# 純數字但帶前導零（如 007）不是合法 JSON 數值，當字串處理
 jq_val() {
   case "$1" in
     null|true|false) echo "$1" ;;
-    ''|*[!0-9]*) jq -n --arg v "$1" '$v' ;;
+    0) echo "0" ;;
+    ''|*[!0-9]*|0*) jq -n --arg v "$1" '$v' ;;
     *) echo "$1" ;;
   esac
 }
@@ -103,13 +116,16 @@ case "$cmd" in
         *) die "init：未知參數 $1" ;;
       esac
     done
-    wf_id="wf-$(date +%s)-$(head -c2 /dev/urandom | xxd -p)"
+    [ "$mode" = "sequence" ] && [ "$stage" != "0a" ] && \
+      die "sequence 只能從 0a 初始化（非 0a 起始請用 --mode jump）"
+    wf_id="wf-$(date +%s)-$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
     if [ -n "$branch" ]; then
       f="$STATE_DIR/$(slugify "$branch").json"
     else
       f="$STATE_DIR/.pending-$wf_id.json"
     fi
-    [ -e "$f" ] && die "已存在：${f}（不覆蓋既有流程）"
+    claim_new "$f"
+    trap 'rm -f "$f"' EXIT   # atomic_write 失敗時清掉佔位檔，避免 0-byte 殘留卡死 branch 名
     json="$(jq -n \
       --argjson sv "$SCHEMA_VERSION" --arg id "$wf_id" --arg st "$stage" --arg m "$mode" \
       --argjson br "$( [ -n "$branch" ] && jq -n --arg b "$branch" '$b' || echo null )" \
@@ -118,6 +134,7 @@ case "$cmd" in
         interrupted_by:null, awaiting_confirmation:false}')"
     [ ${#sets[@]} -gt 0 ] && json="$(apply_sets "$json" "${sets[@]}")"
     echo "$json" | atomic_write "$f"
+    trap - EXIT
     echo "$f"
     ;;
 
@@ -134,8 +151,10 @@ case "$cmd" in
     [ -n "$branch" ] || die "promote 需要 --branch"
     validate "$src"
     f="$dest/$(slugify "$branch").json"
-    [ -e "$f" ] && die "已存在：$f"
+    claim_new "$f"
+    trap 'rm -f "$f"' EXIT   # 同 init：失敗不留 0-byte 佔位檔
     jq --arg b "$branch" '.branch = $b' "$src" | atomic_write "$f"
+    trap - EXIT
     rm "$src"
     echo "$f"
     ;;
@@ -154,6 +173,12 @@ case "$cmd" in
   stage-done)
     f="$(resolve "$1")"; stage="$2"
     validate "$f"
+    mode="$(jq -r '.mode' "$f")"; cur="$(jq -r '.stage' "$f")"
+    # sequence 有固定轉移表，stage-done 不得替 advance 代勞改 stage 值；
+    # quick/jump 的 stage 是自由標籤（如 review），不套用此限制
+    if [ "$mode" = "sequence" ] && [ "$stage" != "$cur" ]; then
+      die "sequence 模式 stage-done 參數須等於目前 stage（目前：${cur}），改 stage 請用 advance"
+    fi
     jq --arg s "$stage" '.stage = $s | .awaiting_confirmation = true' "$f" | atomic_write "$f"
     echo "stage $stage 完成 → 等待使用者確認（confirm 或 advance --confirmed 才能繼續）"
     ;;
@@ -161,6 +186,10 @@ case "$cmd" in
   task-done)
     f="$(resolve "$1")"; n="$2"
     validate "$f"
+    mode="$(jq -r '.mode' "$f")"; cur="$(jq -r '.stage' "$f")"
+    if [ "$mode" = "sequence" ] && [ "$cur" != "2" ]; then
+      die "sequence 模式 task-done 僅能在 STAGE 2 執行（目前 stage：${cur}）"
+    fi
     jq --argjson n "$n" \
       '.completed_tasks = ((.completed_tasks + [$n]) | unique) | .awaiting_confirmation = true' \
       "$f" | atomic_write "$f"
@@ -174,10 +203,16 @@ case "$cmd" in
     ;;
 
   upgrade)
-    f="$(resolve "$1")"
+    f="$(resolve "$1")"; shift || true
+    confirmed=false
+    [ "${1:-}" = "--confirmed" ] && confirmed=true
     validate "$f"
     mode="$(jq -r '.mode' "$f")"
     [ "$mode" = "quick" ] || die "只允許 quick → sequence 升級（目前 mode：${mode}）"
+    awaiting="$(jq -r '.awaiting_confirmation' "$f")"
+    if [ "$awaiting" = "true" ] && [ "$confirmed" != "true" ]; then
+      die "有暫停點等待使用者確認中。先在對話中暫停詢問，獲確認後帶 --confirmed 重跑"
+    fi
     jq '.mode = "sequence" | .stage = "2" | .awaiting_confirmation = false' "$f" | atomic_write "$f"
     echo "quick → sequence，從 STAGE 2 接續"
     ;;

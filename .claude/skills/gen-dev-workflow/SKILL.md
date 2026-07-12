@@ -280,7 +280,7 @@ quick <描述或 #issue>
 ```
 
 **規則：**
-- state 檔照寫：`wf-state.sh init --mode quick --branch <branch>` 建 `<branch-slug>.json`（存原 repo `.claude/workflow-state/`）——中斷後「繼續」照常續接，PR MERGED 照常自動刪檔。quick 不套用 stage 轉移表，但 schema 校驗與暫停點棘輪照常生效（唯一暫停點：PR 草稿確認前 `stage-done`，確認後 `confirm` 再發布）。
+- state 檔照寫：`wf-state.sh init --mode quick --branch <branch>` 建 `<branch-slug>.json`（存原 repo `.claude/workflow-state/`）——中斷後「繼續」照常續接，PR MERGED 照常自動刪檔。quick 不套用 stage 轉移表，但 schema 校驗與暫停點棘輪照常生效（唯一暫停點：PR 草稿確認前 `stage-done <檔> <目前-stage>`，確認後 `confirm` 再發布）。
 - 不建 worktree ⇒ 同一 repo **同時只能跑一個 quick**（需要多並行就走完整流程的 worktree 隔離）。
 - 中途發現超出小修正範圍（多檔設計判斷、新依賴、要動架構）→ 停下告知，`wf-state.sh upgrade <檔>`（單向 quick→sequence，stage 落在 2）帶著已建的 branch 升級轉入完整流程 STAGE 2，不硬撐。
 - Token Budget Gate 照常適用。
@@ -318,7 +318,7 @@ state 檔的**所有**建立、讀取、更新一律透過本 skill 的 `scripts
 | STAGE 2 單一任務完成 | `wf-state.sh task-done <檔> <n>` |
 | 使用者確認（stage 不變，如 STAGE 2 任務間） | `wf-state.sh confirm <檔>` |
 | 使用者確認並推進 stage | `wf-state.sh advance <檔> <next> --confirmed` |
-| quick 升級完整流程 | `wf-state.sh upgrade <檔>`（單向 quick→sequence，stage 落在 2） |
+| quick 升級完整流程 | `wf-state.sh upgrade <檔> [--confirmed]`（單向 quick→sequence，stage 落在 2；有暫停點等待確認時須帶 `--confirmed`） |
 | 續接時讀取 | `wf-state.sh get <檔>`（讀取即校驗，腐壞檔立即失敗而非靜默續接） |
 
 > 腳本路徑：`.claude/skills/gen-dev-workflow/scripts/wf-state.sh`（相對當前工作目錄的 repo root；`cd` 進 worktree 後用 worktree 內的同路徑 checkout）。
