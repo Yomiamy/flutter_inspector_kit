@@ -321,12 +321,12 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 | **暫停點過多** | Human-in-the-loop 頻率太高 | 🟡 中 | 正常路徑就有 6 個固定暫停點（STAGE 0a/0b/1/3/4 各一 + STAGE 2 每任務一次），外加條件式的「模糊需求」暫停。STAGE 2 任務多時暫停次數線性膨脹，使用者必須一直盯著等確認，「自動驅動」的承諾被密集確認打斷 |
 | **agy 依賴** | 外部 CLI 是單點故障 | 🟡 中 | 雖說有 fallback，但 `agy` 不在 PATH 時的 fallback 行為描述模糊——「功能仍可運作但不會委派」到底怎麼運作？哪些 stage 受影響？ |
 | **Model 假設** | 綁定 Anthropic 模型族 | 🟢 低 | 已大幅收斂：版本 ID 全數移除，model/effort 綁在 agent frontmatter（別名），SKILL.md 只寫推論等級名——同代升級與跨代換代都免改。殘餘綁定：`opus`/`sonnet` 別名與 effort 參數仍是 Claude Code 專有，若換到非 Anthropic 生態，需重寫的只剩每個 agent 檔的兩行 frontmatter，等級語意（最強推論/標準/輕量）可原樣搬移 |
-| **狀態檔脆弱** | JSON 手動管理無校驗 | 🟡 中 | per-worktree state 檔仍是 LLM 手寫 JSON，沒有 schema validation、沒有版本號、沒有 checksum。手動編輯或 stage 寫入半途中斷就會腐壞，下次續接時可能靜默出錯。（workflow-id 持久化 + per-worktree 隔離已解決「pending 檔無主孤兒」與「撞名」子問題，但 JSON 本身的完整性校驗仍缺） |
+| **狀態檔脆弱** | ~~JSON 手動管理無校驗~~ | ✅ 已解決 | `scripts/wf-state.sh` 成為 state 檔唯一存取入口：schema 校驗（含 `schema_version` 欄位）+ 原子寫入（tmp → jq 驗證 → mv），壞資料進不了磁碟、寫入半途中斷不留半套 state；`get` 讀取即校驗，腐壞檔立即失敗而非靜默續接 |
 | **並行複雜度** | 契約規則難以程式化驗證 | 🟡 中 | 「寫入路徑不重疊」「共享資源指定唯一 owner」靠 planner 在計畫中標好——但 planner 本身是 LLM，標錯怎麼辦？沒有靜態檢查機制 |
 | **Context 估算** | Token 用量無法精確測量 | 🟡 中 | Token Budget Gate 依賴「評估主對話 context 用量」，但 LLM 無法精確知道自己的 context 用了多少 token。60k / 100k / 150k 的閾值在實務上只能靠啟發式猜測 |
 | **缺乏回滾** | 沒有 undo/rollback 機制 | 🟡 中 | STAGE 2 如果 implementer 寫了爛 code 且已 commit，STAGE 3 退回 STAGE 2 只是「重做」，不會自動 `git revert`。壞 commit 會留在歷史中 |
 | **STAGE 5/6 脫節** | 獨立入口與主流程不連貫 | 🟡 低 | STAGE 5、6 都是「獨立入口」。STAGE 5 串聯 responder → reviewer → publisher，邏輯與主流程部分重疊卻又獨立，若修改引入新 bug 沒有機制退回 STAGE 2；STAGE 6 清理 worktree 也脫離主流程，靠使用者手動觸發、不自動偵測 PR 合併狀態，誤觸發（PR 未真正合併就清理）無自動防護，只靠使用者自律 |
-| **文件 vs 執行** | Skill 是文件，不是程式 | 🔴 高 | 整個 workflow 是 markdown 指令文件，靠 LLM「讀懂後遵守」。沒有程式碼強制執行流程、沒有 state machine 實作、沒有 guard clause。LLM 可能跳過暫停點、忘記寫 state、算錯 context 用量——一切靠「希望」|
+| **文件 vs 執行** | Skill 是文件，不是程式 | 🟡 中（原 🔴 高） | 可程式化的 guard 已從文件搬進 `scripts/wf-state.sh`：(1) state machine 實作——sequence 模式非法 stage 轉移直接 exit 1（合法路徑 0a→0b→1→2→3→4、3→2、4→done 寫死在轉移表；quick/jump 不套用轉移表，quick 升級走單向 `upgrade` 指令）；(2) 暫停點棘輪——`stage-done`/`task-done` 後未帶 `--confirmed` 的 `advance` 一律拒絕，跳過暫停點從「無聲遺忘」變成必須蓄意加旗標的可稽核動作；(3) `set` 白名單禁改 `stage`/確認旗標，防繞過。**殘餘風險**：LLM 仍可能根本不呼叫腳本（只能靠 SKILL.md 明文禁止手寫 JSON），context 用量估算依然無法程式化 |
 | **錯誤傳播** | 早期 stage 錯誤會放大 | 🟡 中 | 如果 STAGE 0a 的功能規格就有偏差，使用者確認了（可能沒仔細看），後面所有 stage 都在錯誤基礎上工作。flow 沒有後期發現早期問題的回溯機制 |
 
 ## 🐧 Linus 式總結
@@ -335,8 +335,8 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 
 **最值得保留的設計：** Token Budget Gate 閉環 + per-worktree state 檔的中斷續接。這是解決 LLM context 爆炸這個**真實問題**的務實方案。多 workflow 並行更是把「並行衝突」這個特殊情況用數據結構直接消滅——STAGE 1 起各流程各佔一個獨立 worktree，工作目錄本身分開，連 state 檔撞名都不可能，而不是加鎖去處理它——好品味。
 
-**已修掉的問題：** (1) 缺少輕量模式——quick 模式已補上（單暫停點、不建 worktree、branch → 直改 → reviewer 快掃 → PR），10 行 fix 不再跑 6 個 stage。(2) model/effort 散落全文——已收斂為 agent frontmatter 綁定（別名）+ 推論等級表單一定義處，「每個環節逐一指定 effort」的維護稅消失，model 換代零改動。
+**已修掉的問題：** (1) 缺少輕量模式——quick 模式已補上（單暫停點、不建 worktree、branch → 直改 → reviewer 快掃 → PR），10 行 fix 不再跑 6 個 stage。(2) model/effort 散落全文——已收斂為 agent frontmatter 綁定（別名）+ 推論等級表單一定義處，「每個環節逐一指定 effort」的維護稅消失，model 換代零改動。(3) 「文件 vs 執行」的可程式化部分——`scripts/wf-state.sh` 成為 state 唯一存取入口：schema 校驗 + 原子寫入殺掉手寫 JSON 腐壞，轉移表殺掉非法跳段，`--confirmed` 棘輪把「跳過暫停點」變成留下痕跡的蓄意動作；強制性跟著 `mode` 走（quick/jump 不套轉移表），quick 升級走單向 `upgrade`。
 
 **最該修的問題（更新後）：** 暫停點密度。正常路徑 6 個固定暫停點、STAGE 2 逐任務再線性膨脹——「自動驅動」的承諾被密集確認打斷。下一步值得考慮讓使用者在啟動時選擇確認粒度（例如「只在規格、審查、PR 三處暫停」的信任模式）。
 
-**最危險的假設：** markdown 指令 = 程式碼保證。它不是。
+**最危險的假設（更新後）：** 原本是「markdown 指令 = 程式碼保證」；guard 進了 `wf-state.sh` 之後，假設縮小為「LLM 會記得呼叫腳本」。這仍是自律，但違規面從『整條流程的每一條規則』縮到『一個入口點』——縮小攻擊面就是進步。context 用量估算依然只能靠啟發式，這條沒有程式解。
