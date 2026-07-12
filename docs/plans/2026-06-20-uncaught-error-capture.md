@@ -2,7 +2,7 @@
 
 - **日期**：2026-06-20
 - **功能規格**：`docs/features/2026-06-20-uncaught-error-capture.md`
-- **brainstorm 來源**：`docs/brainstorm/2026-07-08-features-brainstorm.md`（#1 + #5 的 LogDetailView 部分）
+- **brainstorm 來源**：`docs/brainstorm/2026-07-12-features-brainstorm.md`（#1 + #5 的 LogDetailView 部分）
 - **狀態**：STAGE 0b — 待確認
 - **已確認的決策（不可推翻）**：
   1. 保留 `runGuarded`（與 `captureUncaughtErrors` 用 flag 去重）。

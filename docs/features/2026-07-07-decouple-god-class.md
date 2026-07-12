@@ -1,6 +1,6 @@
 # 功能規格：解耦 FlutterInspector God Class（階段二）
 
-> 來源：`docs/architecture/2026-07-05-architecture_comparison_report.md` 階段二
+> 來源：`docs/architecture/2026-07-12-architecture_comparison_report.md` 階段二
 > workflow-id：`wf-1783358867-b952`
 
 ## What & Why
