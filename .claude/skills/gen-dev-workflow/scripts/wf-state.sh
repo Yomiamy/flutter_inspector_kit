@@ -53,7 +53,7 @@ atomic_write() {
   mkdir -p "$(dirname "$f")"
   tmp="$(mktemp "$(dirname "$f")/.wf-tmp.XXXXXX")"
   jq . >"$tmp" || { rm -f "$tmp"; die "非法 JSON，寫入中止"; }
-  validate "$tmp" || { rm -f "$tmp"; exit 1; }
+  ( validate "$tmp" ) || { rm -f "$tmp"; exit 1; }   # 子 shell 隔離 validate 的 die，確保 tmp 必被清掉
   mv "$tmp" "$f"
 }
 
@@ -82,7 +82,7 @@ apply_sets() { # $1=json, 之後 k=v...；回傳更新後 json
     k="${kv%%=*}"; v="${kv#*=}"
     case "$k" in
       spec|plan|branch|issue|pr|total_tasks|interrupted_by) ;;
-      *) die "不可透過 set 修改欄位：$k（stage 用 advance、確認用 confirm）" ;;
+      *) die "不可透過 set 修改欄位：${k}（stage 用 advance、確認用 confirm）" ;;
     esac
     json="$(echo "$json" | jq --arg k "$k" --argjson v "$(jq_val "$v")" '.[$k] = $v')"
   done
@@ -109,7 +109,7 @@ case "$cmd" in
     else
       f="$STATE_DIR/.pending-$wf_id.json"
     fi
-    [ -e "$f" ] && die "已存在：$f（不覆蓋既有流程）"
+    [ -e "$f" ] && die "已存在：${f}（不覆蓋既有流程）"
     json="$(jq -n \
       --argjson sv "$SCHEMA_VERSION" --arg id "$wf_id" --arg st "$stage" --arg m "$mode" \
       --argjson br "$( [ -n "$branch" ] && jq -n --arg b "$branch" '$b' || echo null )" \
@@ -147,7 +147,8 @@ case "$cmd" in
   set)
     f="$(resolve "$1")"; shift
     validate "$f"
-    apply_sets "$(cat "$f")" "$@" | atomic_write "$f"
+    json="$(apply_sets "$(cat "$f")" "$@")"   # 先算後寫：apply_sets die 時整個中止，不會建 tmp
+    echo "$json" | atomic_write "$f"
     ;;
 
   stage-done)
@@ -176,7 +177,7 @@ case "$cmd" in
     f="$(resolve "$1")"
     validate "$f"
     mode="$(jq -r '.mode' "$f")"
-    [ "$mode" = "quick" ] || die "只允許 quick → sequence 升級（目前 mode：$mode）"
+    [ "$mode" = "quick" ] || die "只允許 quick → sequence 升級（目前 mode：${mode}）"
     jq '.mode = "sequence" | .stage = "2" | .awaiting_confirmation = false' "$f" | atomic_write "$f"
     echo "quick → sequence，從 STAGE 2 接續"
     ;;
@@ -192,7 +193,7 @@ case "$cmd" in
       die "stage $cur 等待使用者確認中。先在對話中暫停詢問，獲確認後帶 --confirmed 重跑"
     fi
     if [ "$mode" = "sequence" ] && ! legal_transition "$cur" "$next"; then
-      die "非法 stage 轉移：$cur -> $next（sequence 模式合法路徑：0a→0b→1→2→3→4、3→2、4→done）"
+      die "非法 stage 轉移：$cur -> ${next}（sequence 模式合法路徑：0a→0b→1→2→3→4、3→2、4→done）"
     fi
     jq --arg s "$next" '.stage = $s | .awaiting_confirmation = false | .interrupted_by = null' \
       "$f" | atomic_write "$f"
