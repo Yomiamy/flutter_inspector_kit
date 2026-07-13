@@ -2,7 +2,7 @@
 
 - **日期**：2026-06-26
 - **狀態**：STAGE 0a — 待確認（設計已定稿，無待拍板的開放問題）
-- **來源**：`docs/brainstorm/2026-07-08-features-brainstorm.md` 的 #2（跨 Inspector 時序關聯，現況「⬜ 未實作，現僅有 nav/network 鏡射到 console log 的廉價替代」）與 #5（ConsoleTab 排查化）
+- **來源**：`docs/brainstorm/2026-07-12-features-brainstorm.md` 的 #2（跨 Inspector 時序關聯，現況「⬜ 未實作，現僅有 nav/network 鏡射到 console log 的廉價替代」）與 #5（ConsoleTab 排查化）
 - **類型**：既有功能升級（Console tab 的呈現模型重構 + 移除複製式鏡射）
 
 ---

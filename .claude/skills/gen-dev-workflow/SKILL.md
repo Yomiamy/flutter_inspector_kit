@@ -511,7 +511,9 @@ worktree 建立後改帶 branch slug，不再需要 workflow-id：
 2. 寫入本 workflow 的 state 檔：`wf-state.sh set <檔> interrupted_by=context_budget`
    ├─ 已建 branch → <branch-slug>.json（記錄 stage / mode / spec / plan / branch / completed_tasks）
    └─ 尚無 branch（STAGE 0a/0b）→ .pending-<wf-id>.json（務必含 workflow_id，否則新 session 認不回）
-3. 若有未 commit 的變更 → 先 commit（避免 session 切換後遺失）
+3. 若有未 commit 的變更 → 先 commit（避免 session 切換後遺失）。
+   若當前任務真的收不了尾（緩衝內做不完，被迫半途切）→ 打 WIP commit，message **必須帶交接筆記**：
+   做到哪、下一步打算做什麼、為什麼選這個作法——代碼會自己活在磁碟上，思路不寫下來就真的丟了
 4. 明確告知使用者，並把識別碼一起給出去（讓使用者知道續接的是哪個流程）：
    「[<wf-id 或 branch-slug>] context 已達 <用量>，為避免品質下降已保存進度至 STAGE <N>。
      請開新 session 後輸入『繼續』或 /gen-dev-workflow，會自動從 STAGE <N> 接續。」
