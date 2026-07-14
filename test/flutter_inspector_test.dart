@@ -1,4 +1,5 @@
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:flutter_inspector_kit/src/version.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -9,7 +10,7 @@ void main() {
     });
 
     test('exposes the package version', () {
-      expect(FlutterInspector.version, '1.1.0');
+      expect(FlutterInspector.version, packageVersion);
     });
   });
 }

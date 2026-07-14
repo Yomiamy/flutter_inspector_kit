@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../inspectors/log_inspector.dart';
 import '../inspectors/navigator_inspector.dart';
 import '../models/database_browser_source.dart';
 import '../models/database_entry.dart';
 import '../models/database_operation.dart';
+import '../models/diagnostic_info.dart';
 import '../models/log_entry.dart';
 import '../sources/operation_log_source.dart';
 import '../models/log_level.dart';
@@ -17,11 +19,12 @@ import '../ui/dashboard/dashboard_modal.dart';
 import 'inspector_overlay_manager.dart';
 import 'inspector_registry.dart';
 import 'uncaught_error_handler.dart';
+import '../version.dart';
 
 /// The core entry point for the Flutter Inspector.
 class FlutterInspector {
   /// Package version.
-  static const String version = '1.1.0';
+  static const String version = packageVersion;
 
   /// Creates a new FlutterInspector instance.
   ///
@@ -35,6 +38,7 @@ class FlutterInspector {
     this.navigatorKey,
     this.captureUncaughtErrors = false,
     this.redactSensitiveData = true,
+    this.diagnosticInfoSource,
     int bufferSize = 500,
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
@@ -122,6 +126,13 @@ class FlutterInspector {
   /// or a screenshot unless the host explicitly opts out.
   final bool redactSensitiveData;
 
+  /// Supplies device and app metadata for the diagnostic report header.
+  ///
+  /// Defaults to `null`, in which case the header degrades to `N/A`. This
+  /// package depends on no device-info plugin (and never on `dart:io`); hosts
+  /// that want a populated header implement [DiagnosticInfoSource] themselves.
+  final DiagnosticInfoSource? diagnosticInfoSource;
+
   late final UncaughtErrorHandler _uncaughtErrorHandler;
 
   NetworkNotifier? _notifier;
@@ -141,6 +152,12 @@ class FlutterInspector {
 
   /// Retrieves the current console logs.
   List<LogEntry> get logEntries => _registry.log.entries;
+
+  /// The log inspector, for level-filtered reads.
+  ///
+  /// [logEntries] covers the common case; the diagnostic report needs
+  /// [LogInspector.entriesAtLevel] as well, and [registry] is test-only.
+  LogInspector get logInspector => _registry.log;
 
   /// Clears all console logs.
   void clearLogs() => _registry.log.clear();
