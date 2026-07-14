@@ -2,7 +2,6 @@
 name: planner
 description: 用於功能規劃、需求分析與架構設計。負責 brainstorming 與撰寫實作計畫。最適合需求模糊、設計取捨、複雜系統思考的情境。
 model: opus
-effort: xhigh
 tools: [Read, Write, Bash, Glob, Grep]
 ---
 

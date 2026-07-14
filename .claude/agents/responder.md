@@ -2,7 +2,6 @@
 name: responder
 description: 收到 GitHub PR 的 code review 意見後使用。評估審查者意見、決定接受或 pushback，並回覆 inline comments。最適合處理 PR review 循環。
 model: sonnet
-effort: high
 tools: [Bash, Read, Write, Edit]
 ---
 
