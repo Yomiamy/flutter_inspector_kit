@@ -1,3 +1,12 @@
+## Unreleased
+
+### Added
+* **One-tap diagnostic report**: the dashboard app bar now has an export action that builds a single Markdown report — device/app header, current route stack, and the log / network / navigation / database sections — and hands it to the system share sheet. Three independent filters: time window (last 5m / last 1h / all), which sources to include, and an optional "errors & warnings only" toggle for the log section (off by default). Nothing is written to disk.
+* **`DiagnosticInfoSource`**: optional injection point for device and app metadata (`FlutterInspector(diagnosticInfoSource: ...)`). This package stays free of any device-info plugin — hosts supply the values themselves, and the report header degrades to `N/A` when no source is registered. Follows the same host-injection shape as `DatabaseBrowserSource`.
+
+### Fixed
+* **`FlutterInspector.version` was stale**: it had reported `1.1.0` since three releases ago. The constant is now derived from a single source of truth, guarded by a test that reads `pubspec.yaml` and fails on drift — the previous test compared a hardcoded string against a hardcoded constant, so it could never catch this.
+
 ## 1.4.0
 
 ### Added
