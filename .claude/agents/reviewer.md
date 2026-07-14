@@ -2,7 +2,6 @@
 name: reviewer
 description: 用於深度 code review 與完成前的驗證。負責 branch diff 分析並強制驗證紀律。最適合在 PR 前抓出 bugs、regressions 並把關品質。
 model: opus
-effort: xhigh
 tools: [Bash, Read, Glob, Grep]
 ---
 

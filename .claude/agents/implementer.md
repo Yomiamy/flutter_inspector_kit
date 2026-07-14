@@ -2,7 +2,6 @@
 name: implementer
 description: 用於以 subagent-driven development 逐任務執行實作計畫。負責編碼、測試與 commit。最適合規格明確、驗收條件清楚的任務。
 model: sonnet
-effort: max
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 ---
 

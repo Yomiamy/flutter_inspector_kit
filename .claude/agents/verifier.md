@@ -2,7 +2,6 @@
 name: verifier
 description: STAGE 2 實作完成後的獨立驗收 subagent。執行兩階段驗收（spec compliance → code quality），刻意與實作方分離，不讓同源 model 自審。
 model: opus
-effort: xhigh
 tools: [Bash, Read, Glob, Grep]
 ---
 

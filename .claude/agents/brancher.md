@@ -2,7 +2,6 @@
 name: brancher
 description: 用於從計畫文件建立 GitHub issue 並設定本地分支。負責 gen-issue-from-plan 與 gen-branch 工作流程。最適合規劃完成後的工作區設定。
 model: sonnet
-effort: high
 tools: [Bash, Read]
 ---
 
