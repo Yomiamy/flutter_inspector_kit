@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/flutter_inspector.dart';
+import '../../models/diagnostic_info.dart';
 import '../../models/timestamped_entry.dart';
 import '../../utils/diagnostic_report.dart';
 import '../../utils/share_text.dart';
@@ -52,27 +54,61 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
 
   Future<void> _export() async {
     setState(() => _busy = true);
-
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     final inspector = widget.inspector;
-    // The host's source is async; resolving it here keeps the builder pure.
-    final info = await inspector.diagnosticInfoSource?.collect();
 
-    final report = buildDiagnosticReport(
-      logInspector: inspector.logInspector,
-      networkEntries: inspector.networkEntries,
-      navigatorEntries: inspector.navigatorEntries,
-      databaseEntries: inspector.databaseEntries,
-      now: DateTime.now(),
-      info: info,
-      timeRange: _ranges[_rangeIndex].$2,
-      sections: _sections,
-      errorsOnly: _errorsOnly,
-      redact: inspector.redactSensitiveData,
-    );
+    try {
+      // The host's source is async, and third-party — it may well throw.
+      // Resolving it here also keeps the report builder pure and synchronous.
+      DiagnosticInfo? info;
+      try {
+        info = await inspector.diagnosticInfoSource?.collect();
+      } catch (_) {
+        // A broken host source degrades the header to N/A; it must never cost
+        // the user the report they just waited for.
+        info = null;
+      }
 
-    await shareText(report);
+      final report = buildDiagnosticReport(
+        logInspector: inspector.logInspector,
+        networkEntries: inspector.networkEntries,
+        navigatorEntries: inspector.navigatorEntries,
+        databaseEntries: inspector.databaseEntries,
+        now: DateTime.now(),
+        info: info,
+        timeRange: _ranges[_rangeIndex].$2,
+        sections: _sections,
+        errorsOnly: _errorsOnly,
+        redact: inspector.redactSensitiveData,
+      );
 
-    if (mounted) Navigator.of(context).pop();
+      try {
+        await shareText(report);
+      } catch (_) {
+        // Fallback to clipboard when the platform has no share sheet.
+        try {
+          await Clipboard.setData(ClipboardData(text: report));
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Share unavailable — copied to clipboard'),
+            ),
+          );
+        } catch (_) {
+          // Both paths out failed. Keep the sheet open so the user can retry
+          // rather than silently swallowing the report they just waited for.
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Export failed — please try again')),
+          );
+          return;
+        }
+      }
+
+      navigator.pop();
+    } finally {
+      // Without this the button stays disabled forever on any failure.
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override

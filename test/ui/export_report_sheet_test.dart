@@ -180,6 +180,79 @@ void main() {
       expect(shared.single, contains('| Device | Pixel 8 |'));
     });
 
+    testWidgets(
+      'when the share sheet is unavailable, the report falls back to the '
+      'clipboard instead of being lost',
+      (tester) async {
+        // Real trigger: web without navigator.share, or desktop.
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          _shareChannel,
+          (call) async => throw PlatformException(code: 'unavailable'),
+        );
+        String? clipboard;
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'Clipboard.setData') {
+              clipboard = (call.arguments as Map)['text'] as String?;
+            }
+            return null;
+          },
+        );
+
+        await pumpSheet(tester, FlutterInspector()..log('needle'));
+        await tester.tap(find.text('Share report'));
+        await tester.pumpAndSettle();
+
+        expect(clipboard, isNotNull);
+        expect(clipboard, contains('# Diagnostic Report'));
+        expect(clipboard, contains('needle'));
+        expect(find.text('Share unavailable — copied to clipboard'),
+            findsOneWidget);
+      },
+    );
+
+    testWidgets('a throwing DiagnosticInfoSource degrades to N/A, not a lost report',
+        (tester) async {
+      mockShareSheet(tester);
+
+      await pumpSheet(tester, FlutterInspector(diagnosticInfoSource: _BrokenSource()));
+      await tester.tap(find.text('Share report'));
+      await tester.pumpAndSettle();
+
+      expect(shared, hasLength(1));
+      expect(shared.single, contains('| Device | N/A |'));
+    });
+
+    testWidgets('a failed share does not brick the button', (tester) async {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        _shareChannel,
+        (call) async => throw PlatformException(code: 'unavailable'),
+      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          // Fail ONLY the clipboard — this channel also carries framework
+          // calls (SystemChrome), and blanket-throwing breaks the test harness
+          // itself rather than the code under test.
+          if (call.method == 'Clipboard.setData') {
+            throw PlatformException(code: 'nope');
+          }
+          return null;
+        },
+      );
+
+      await pumpSheet(tester, FlutterInspector());
+      await tester.tap(find.text('Share report'));
+      await tester.pumpAndSettle();
+
+      // Both ways out failed, so the sheet stays open — but the user must be
+      // able to retry: _busy has to have been reset.
+      expect(find.text('Export failed — please try again'), findsOneWidget);
+      final button = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(button.onPressed, isNotNull, reason: 'button bricked by _busy');
+    });
+
     testWidgets('sharing is disabled when no source is selected', (tester) async {
       await pumpSheet(tester, FlutterInspector());
 
@@ -215,4 +288,10 @@ class _FakeSource implements DiagnosticInfoSource {
   @override
   Future<DiagnosticInfo> collect() async =>
       const DiagnosticInfo(deviceModel: 'Pixel 8');
+}
+
+/// A host source that throws — third-party code, so this is not hypothetical.
+class _BrokenSource implements DiagnosticInfoSource {
+  @override
+  Future<DiagnosticInfo> collect() async => throw StateError('host blew up');
 }

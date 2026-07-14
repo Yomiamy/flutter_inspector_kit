@@ -41,6 +41,26 @@ String _report({
   );
 }
 
+/// Walks [markdown] the way CommonMark does: a fence line only *closes* a block
+/// if it is at least as long as the fence that opened it. Counting fence lines
+/// and checking parity would be wrong — a 3-backtick line sitting inside a
+/// 4-backtick block is just content.
+bool _fencesBalanced(String markdown) {
+  int? openLength;
+  for (final line in markdown.split('\n')) {
+    final match = RegExp(r'^\s{0,3}(`{3,})\s*$').firstMatch(line);
+    if (match == null) continue;
+
+    final length = match[1]!.length;
+    if (openLength == null) {
+      openLength = length;
+    } else if (length >= openLength) {
+      openLength = null;
+    }
+  }
+  return openLength == null;
+}
+
 void main() {
   group('header (AC-2, AC-3, AC-4, AC-5, AC-17)', () {
     test('prints the package version from the single source of truth', () {
@@ -264,18 +284,84 @@ void main() {
     );
   });
 
+  group('markdown integrity: payloads that contain their own fences', () {
+    // The whole point of this feature is pasting the report into a GitHub or
+    // Jira issue. A payload carrying its own ``` (LLM output, CMS content, a
+    // pasted snippet) must not be able to break out of its code block.
+
+    test('a log message containing a fenced block stays inside its block', () {
+      final report = _report(
+        logInspector: LogInspector()
+          ..add(LogEntry(
+            message: 'llm replied:\n```\nprint("hi");\n```\ndone',
+            timestamp: _minutesAgo(1),
+          )),
+        sections: {TimelineSource.log},
+      );
+
+      // The outer fence must outrun the payload's own 3-backtick run.
+      expect(report, contains('````'));
+      expect(report, contains('print("hi");'));
+    });
+
+    test('an unbalanced fence does not swallow the sections that follow', () {
+      final report = _report(
+        logInspector: LogInspector()
+          // A truncated LLM response: one lone opening fence, never closed.
+          ..add(LogEntry(
+            message: 'output was cut off:\n```\nvoid main() {}',
+            timestamp: _minutesAgo(1),
+          )),
+        db: [
+          DatabaseEntry(
+            operation: DatabaseOperation.insert,
+            tableName: 'users',
+            timestamp: _minutesAgo(1),
+          ),
+        ],
+        sections: {TimelineSource.log, TimelineSource.db},
+      );
+
+      // With a fixed 3-backtick fence, the payload's stray fence flips parity
+      // and everything after it is eaten — headings included.
+      expect(report, contains('## Database'));
+      expect(report, contains('users'));
+      expect(_fencesBalanced(report), isTrue, reason: 'a fence was left open');
+    });
+
+    test('inline backticks are harmless and need no wider fence', () {
+      final report = _report(
+        logInspector: LogInspector()
+          ..add(LogEntry(
+            message: 'the `id` field was null',
+            timestamp: _minutesAgo(1),
+          )),
+        sections: {TimelineSource.log},
+      );
+
+      expect(report, contains('the `id` field was null'));
+      expect(report, isNot(contains('````')));
+    });
+  });
+
   group('errors-only (AC-10, AC-11, AC-12, AC-13)', () {
+    // The warning is deliberately NEWER than the error. errors-only merges two
+    // entriesAtLevel() calls, each newest-first on its own; concatenating them
+    // yields [error, warning], which is only correctly ordered if the merge
+    // re-sorts. Put the error first and the sort becomes a no-op — the test
+    // would pass with the sort deleted, which is exactly the identity-assertion
+    // trap that let FlutterInspector.version rot for three releases.
     LogInspector mixedLevels() {
       return LogInspector()
         ..add(LogEntry(
           message: 'boom',
           level: LogLevel.error,
-          timestamp: _minutesAgo(1),
+          timestamp: _minutesAgo(5),
         ))
         ..add(LogEntry(
           message: 'careful',
           level: LogLevel.warning,
-          timestamp: _minutesAgo(2),
+          timestamp: _minutesAgo(1),
         ))
         ..add(LogEntry(
           message: 'just-fyi',
@@ -311,7 +397,10 @@ void main() {
     test('on: the surviving logs stay newest-first after the level merge', () {
       final report = _report(logInspector: mixedLevels(), errorsOnly: true);
 
-      expect(report.indexOf('boom'), lessThan(report.indexOf('careful')));
+      // 'careful' (warning, 1m ago) is newer than 'boom' (error, 5m ago), so a
+      // correct merge puts it first. Deleting the sort in the builder flips
+      // this — which is the point of the fixture.
+      expect(report.indexOf('careful'), lessThan(report.indexOf('boom')));
     });
 
     test('does not touch the network / nav / db sections', () {
