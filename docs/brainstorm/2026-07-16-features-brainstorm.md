@@ -52,10 +52,10 @@
 | 看見「未捕捉」的例外 | 已實作 `captureUncaughtErrors`，完整覆蓋 `FlutterError.onError`、`PlatformDispatcher` 與 `ErrorWidget.builder` | ✅ 已捕捉 |
 | 看見網路失敗的根因 | 成功擷取 `err.type` 與 `stackTrace`，能精準區分「傳輸層失敗」與「Server 錯誤回應」 | ✅ 已修復 |
 | 關聯「錯誤前後發生了什麼」 | `mergedTimeline` 將四個 buffer 歸併，跨層時序主體已成；但仍缺單筆 detail view 的 ±5s 聚焦側欄 | 🟡 尚欠聚焦 |
-| 帶走排查證據 | 已完成 `buildDiagnosticReport` 及 `ExportReportSheet`，支援時間範圍與來源區段的多維度完整匯出 | ✅ 已齊全 |
+| 帶走排查證據 | `buildDiagnosticReport` 及 `ExportReportSheet` 已落地，但匯出的 Logs section 只含 LogEntry，四層事件各自獨立無時序交叉——排查者無法從報告直接看出跨層因果 | 🟡 缺跨層時序 |
 | 過濾定位 error log | `LogInspector.entriesAtLevel()` 仍未被 UI 呼叫，ConsoleTab 依然缺乏搜尋欄與 LogLevel FilterChip | 🔴 依然不足 |
 
-> 結論：排查鏈條上的六個環節，如今**四個綠燈、一個黃燈、一個紅燈**。作為 Debug 工具的排查主線已經暢通，只剩下 ConsoleTab 篩選體驗（紅燈）這個最後的摩擦點。
+> 結論：排查鏈條上的六個環節，如今**三個綠燈、兩個黃燈、一個紅燈**。診斷報告的匯出骨架已齊全，但 Logs section 缺乏跨層混合時序（黃燈），加上 ConsoleTab 篩選體驗（紅燈），是接下來需要補上的兩個摩擦點。
 
 ---
 
@@ -96,6 +96,7 @@
 * **重用**：`network_formatters.dart` 的 `buildPlainText`/`buildCurl` 序列化模式、`share_text.dart` 平台自適應分享、各 buffer 的 newest-first snapshot getter。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 * **✅ 實作現況**：已於 `utils/diagnostic_report.dart` 實作 `buildDiagnosticReport`，並在 Dashboard AppBar 提供 `ExportReportSheet` 以匯出（包含時間範圍與錯誤篩選選項）。
+* **⚠️ 已知缺口（v1.5.0）**：匯出報告的 `## Logs` section 只包含 `LogEntry`，與 Network / Navigation / Database 各自獨立呈現——排查者無法從匯出報告直接看出跨層因果。**改善方向**：將 `## Logs` 改為 `## Timeline`，以 `mergedTimeline()` 的歸併排序邏輯將四層事件按 timestamp 混合為單行 tagged 格式（如 `[10:30:05] [NET] GET /api → 502`），獨立 section 保留完整細節。
 
 ### 4. Dio 錯誤的結構化捕捉（Structured Network Error）— ✅ 已完成
 * **痛點**：`onError()` 只存 `err.toString()`，把 `DioException` 的結構資訊大部分丟了：**根因類型**（connectionTimeout / DNS / SSL / parse / cancel）與 `err.stackTrace`。注意：`statusCode` 已顯示在 `NetworkDetailView` 的 General section，4xx/5xx 錯誤是可辨識的；**真正的盲區是 `statusCode == null` 的傳輸層失敗**（斷網、DNS 失敗、SSL 握手錯誤、request cancel 等），目前這些一律只顯示一坨 toString() 字串，無法從 UI 分辨根因。
