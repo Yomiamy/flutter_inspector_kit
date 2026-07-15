@@ -55,7 +55,7 @@ class FlutterInspector {
       _customDatabaseSources.addAll(databaseSources);
     }
     if (showNetworkNotification) {
-      _notifier =
+      final networkNotifier =
           notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
       // Wire onAdd only after init() resolves. init() never rejects (it catches
       // and swallows platform errors internally), so this callback always runs.
@@ -63,13 +63,13 @@ class FlutterInspector {
       // notifier — which is correct, since _available isn't true until init
       // succeeds, so showOrUpdate would no-op on them anyway. This just avoids
       // holding a callback that fires into an uninitialised notifier.
-      _notifier!.init().then((_) {
+      networkNotifier.init().then((_) {
         _registry.network.onAdd = (entry, total) {
-          _notifier!.showOrUpdate(entry, total);
+          networkNotifier.showOrUpdate(entry, total);
         };
         final entries = _registry.network.entries;
         if (entries.isNotEmpty) {
-          _notifier!.showOrUpdate(entries.first, entries.length);
+          networkNotifier.showOrUpdate(entries.first, entries.length);
         }
       });
     }
@@ -134,9 +134,6 @@ class FlutterInspector {
   final DiagnosticInfoSource? diagnosticInfoSource;
 
   late final UncaughtErrorHandler _uncaughtErrorHandler;
-
-  NetworkNotifier? _notifier;
-
   late final InspectorRegistry _registry;
   late final FlutterInspectorNavigatorObserver _navigatorObserver;
   late final OperationLogSource _operationLogSource;
