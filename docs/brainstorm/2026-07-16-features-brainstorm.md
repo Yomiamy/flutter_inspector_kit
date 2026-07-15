@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-10（版本標記校正至 v1.3.1；v1.3.1 為純 refactor release，不改任何排查功能狀態）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-16（標記版本至 v1.5.0，並更新已完成的診斷報告）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -9,25 +9,25 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-07-10 · 含 v1.3.1）
+## 📊 完成度總覽（截至 2026-07-16 · 含 v1.5.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
-> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0（`feat(network): ...` 三連 commit）完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅——本文件先前標記其「未完成」已過時，2026-07-08 核對 codebase 後校正。**v1.3.1（PR #73）為純 refactor release**（抽取 `DetailSection`/`ErrorCard`/`LogLevelColor` extension 等共用元件），**不改任何排查功能狀態**——下表所有 ✅/🟡/⬜ 維持不變。
+> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0 完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅，並修正了 **#7 錯誤聚合摘要** 的狀態為 ✅。最新檢視 codebase (v1.5.0) 發現 **#3 一鍵診斷報告** 也已完成（`buildDiagnosticReport` 及 `ExportReportSheet`），由 ⬜ 升級為 ✅。總計已完成 7 項。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
-| #1 | 全局未捕捉例外捕捉 | ✅ | PR #30：`captureUncaughtErrors`(default off) + 三掛點 chain，含去重 |
+| #1 | 全局未捕捉例外捕捉 | ✅ | PR #30：`captureUncaughtErrors`(default off) + 三掛點 chain，含去重（去重實質上未實作，onError 與 errorWidget.builder 仍會重複觸發） |
 | #6 | 網路請求重放 | ✅ | PR #36 / v1.0.0 已完成：支援 per-Dio 原樣重送、`isReplay` 標記、狀態回饋與防連點保護 |
 | #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `ChoiceChip` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
 | #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄） |
 | #4 | Dio 結構化錯誤捕捉 | ✅ | v1.3.0：`NetworkEntry.errorType`(`DioExceptionType`)/`errorStackTrace` 欄位、`response==null` 傳輸層失敗 vs `!=null` server 錯誤的分類判斷、`NetworkDetailView` 的 Exception Details section、純文字匯出皆已落地 |
 | #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾——現有 `FilterChip` 是 timeline **來源**過濾（All/Log/Network/Nav/DB），非 LogLevel 過濾，`entriesAtLevel()` 仍未被使用 |
-| #3 | 一鍵診斷報告 | ⬜ | 未實作（查無 `buildDiagnosticReport`） |
-| #7 | 錯誤聚合摘要 | ⬜ | 未實作（查無 `ErrorSummary`） |
+| #3 | 一鍵診斷報告 | ✅ | 已實作：提供 `buildDiagnosticReport` 產生 Markdown 報告，並在 Dashboard 實作 `ExportReportSheet` 匯出 |
+| #7 | 錯誤聚合摘要 | ✅ | v1.3.0 已實作：新增 NetworkErrorGroup 聚合模型與 _ErrorSummaryBanner / _ErrorGroupCard UI 元件 |
 
 **Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking）— ✅ 正確地皆未實作，守住「不走向微核心」。
 
-**進度結論**：8 項裡 **5 項完成**（#1、#4、#6、#8，以及 v1.1.0 實質完成的 **#2 時序軸主體**），**1 項半成品**（#5 console 搜尋/過濾），**2 項未動**（#3、#7）。下一刀應收尾 **#5 console 搜尋/過濾**——這是 console 排查化僅剩的缺口，其後即可進 #3 一鍵診斷報告。
+**進度結論**：8 項裡 7 項完成（#1、#3、#4、#6、#7、#8，以及 v1.1.0 實質完成的 #2 時序軸主體），1 項半成品（#5 console 搜尋/過濾）。
 
 ---
 
@@ -44,18 +44,18 @@
 
 ## 🔍 排查能力現況盤點
 
-> **這是 v1.1.0 之前的原始盤點快照**，保留以記錄各功能當初的動機。實際現況請以本文件頂部的「完成度總覽」為準——下表多列已因後續實作而改變（例如 #1 例外捕捉已完成、#2 時序軸主體已落地）。
+> **當前現況快照（v1.5.0）**：相較於初期有四個紅燈的盲區，經過多次迭代後，目前排查基礎建設已大幅補齊，僅剩 Console 的搜尋/過濾仍待優化。
 
-| 排查環節 | 現況 | 評級 |
+| 排查環節 | 現況 (v1.5.0) | 評級 |
 |---|---|---|
-| 看見「我主動 log 的」錯誤 | `inspector.log(..., level: error, stackTrace: ...)` 可記錄；`LogDetailView` 已可點擊展開並複製 stackTrace（截至 2026-07-01 核對） | ✅ 已可展示 |
-| 看見「未捕捉」的例外 | **無**任何 `FlutterError.onError` / `runZonedGuarded` / `PlatformDispatcher.onError` / `ErrorWidget.builder` | 🔴 盲區 |
-| 看見網路失敗的根因 | Dio `onError` 只存 `err.toString()`，丟掉 `err.type`/`err.stackTrace`/`err.response` | 🟡 失真 |
-| 關聯「錯誤前後發生了什麼」 | 4 個 buffer（log/network/nav/db）共用 `timestamp` 卻**完全孤立**，無跨層時序 | 🔴 斷裂 |
-| 帶走排查證據 | 只能匯出**單筆** network（cURL/分享）；~~log 無任何匯出~~（已過時：`LogDetailView` 現已有純文字/系統分享，見 `log_formatters.dart`）；無診斷報告打包 | 🔴 殘缺 |
-| 過濾定位 error log | `LogInspector.entriesAtLevel()` 已存在，`ConsoleTab` **從不使用**，無搜尋無過濾 | 🔴 垃圾 |
+| 看見「我主動 log 的」錯誤 | `inspector.log()` 正常記錄；`LogDetailView` 支援點擊展開、複製與分享 stackTrace | ✅ 完善 |
+| 看見「未捕捉」的例外 | 已實作 `captureUncaughtErrors`，完整覆蓋 `FlutterError.onError`、`PlatformDispatcher` 與 `ErrorWidget.builder` | ✅ 已捕捉 |
+| 看見網路失敗的根因 | 成功擷取 `err.type` 與 `stackTrace`，能精準區分「傳輸層失敗」與「Server 錯誤回應」 | ✅ 已修復 |
+| 關聯「錯誤前後發生了什麼」 | `mergedTimeline` 將四個 buffer 歸併，跨層時序主體已成；但仍缺單筆 detail view 的 ±5s 聚焦側欄 | 🟡 尚欠聚焦 |
+| 帶走排查證據 | 已完成 `buildDiagnosticReport` 及 `ExportReportSheet`，支援時間範圍與來源區段的多維度完整匯出 | ✅ 已齊全 |
+| 過濾定位 error log | `LogInspector.entriesAtLevel()` 仍未被 UI 呼叫，ConsoleTab 依然缺乏搜尋欄與 LogLevel FilterChip | 🔴 依然不足 |
 
-> 結論：排查鏈條上的六個環節，**四個是紅燈**。這不是優化問題，是這個「debug 工具」在錯誤排查這條主線上幾乎沒鋪設。
+> 結論：排查鏈條上的六個環節，如今**四個綠燈、一個黃燈、一個紅燈**。作為 Debug 工具的排查主線已經暢通，只剩下 ConsoleTab 篩選體驗（紅燈）這個最後的摩擦點。
 
 ---
 
@@ -74,7 +74,7 @@
 * **重用**：`inspector.log()` + `LogEntry.stackTrace`（終於有人用它了）+ `RingBuffer`。零新模型。
 * **品味守則**：chain 而非覆蓋既有 handler。捕捉後**必須**把錯誤往下游傳（`FlutterError.presentError` / 重拋），否則就違反「Never break userspace」——debug 工具不該吞掉宿主的崩潰。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐⭐
-* **✅ 實作現況**：PR #30 已完成。`FlutterInspector(captureUncaughtErrors: false)` 入口 + `setupErrorHandlers()` 三掛點（`FlutterError.onError` chain、`PlatformDispatcher.onError`、`ErrorWidget.builder`）皆落地，並補上同一例外的去重；`runGuarded` 已移除改用 `PlatformDispatcher.onError`。
+* **✅ 實作現況**：PR #30 已完成。`FlutterInspector(captureUncaughtErrors: false)` 入口 + `setupErrorHandlers()` 三掛點（`FlutterError.onError` chain、`PlatformDispatcher.onError`、`ErrorWidget.builder`）皆落地，並補上同一例外的去重（註：例外去重實際上並未在 UncaughtErrorHandler 中實施，同一個 build 崩潰仍會重複記錄二次）；`runGuarded` 已移除改用 `PlatformDispatcher.onError`。
 
 ### 2. 跨 Inspector 時序關聯（Correlated Timeline）— 🟡 部分完成（原 🔴 排查的靈魂）
 * **痛點**：錯誤幾乎都是跨層的——「點了某按鈕（nav）→ 發了某 API（network）→ 5xx → 印了某 error log」。但現在這四件事躺在四個孤立 buffer 裡，開發者得在四個 tab 之間用肉眼對時間戳，這是排查最大的摩擦。
@@ -87,7 +87,7 @@
 * **Effort**：A=low / B=medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 * **🟡 實作現況（v1.1.0 / PR #40 #42）**：**做法 B 已落地，且實作得比原構想更乾淨**——沒有引入 `TimelineEvent` union，而是讓四個 entry model 共同實作 `TimestampedEntry` 介面，由 `InspectorRegistry.mergedTimeline()` 把四個 `RingBuffer` 拍扁後依 `timestamp` 降序歸併排序，`ConsoleTab` 直接渲染（`ConsoleTab` 的 `build()` 內呼叫 `inspector.mergedTimeline(sources: _selected)`），按 entry runtime type 動態分派渲染、點 Network 列跳 `NetworkDetailView`。這同時消滅了 v1.1.0 前「鏡射到 console log 的廉價替代」（見本文件頂部與 overview 的歷史演進）。**未完成**：做法 A 的「±5s 同時段側欄」尚未做（現為整條混合時間軸，無以單筆為中心的時間窗聚焦）。
 
-### 3. 一鍵診斷報告（Diagnostic Report）— ⬜ 未實作（原 🔴 QA 提 bug 的剛需）
+### 3. 一鍵診斷報告（Diagnostic Report）— ✅ 已完成（原 🔴 QA 提 bug 的剛需）
 * **痛點**：QA 重現 bug 後，要手動切四個 tab、逐筆截圖/複製、再手打 device/OS/版本資訊。耗時且容易漏，回報品質參差。
 * **好品味設計**：
   - 新增 `buildDiagnosticReport(inspector, {timeRange, sections})`，輸出一份 **Markdown / JSON** 報告：device & app info 表頭 + 選定時間窗內的 log / network / nav / db 各區段。
@@ -95,6 +95,7 @@
   - device/app info 用官方維護的 `package_info_plus` + `device_info_plus`（**可選相依**，未安裝時該區段降級為「N/A」，絕不崩）。
 * **重用**：`network_formatters.dart` 的 `buildPlainText`/`buildCurl` 序列化模式、`share_text.dart` 平台自適應分享、各 buffer 的 newest-first snapshot getter。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐⭐
+* **✅ 實作現況**：已於 `utils/diagnostic_report.dart` 實作 `buildDiagnosticReport`，並在 Dashboard AppBar 提供 `ExportReportSheet` 以匯出（包含時間範圍與錯誤篩選選項）。
 
 ### 4. Dio 錯誤的結構化捕捉（Structured Network Error）— ✅ 已完成
 * **痛點**：`onError()` 只存 `err.toString()`，把 `DioException` 的結構資訊大部分丟了：**根因類型**（connectionTimeout / DNS / SSL / parse / cancel）與 `err.stackTrace`。注意：`statusCode` 已顯示在 `NetworkDetailView` 的 General section，4xx/5xx 錯誤是可辨識的；**真正的盲區是 `statusCode == null` 的傳輸層失敗**（斷網、DNS 失敗、SSL 握手錯誤、request cancel 等），目前這些一律只顯示一坨 toString() 字串，無法從 UI 分辨根因。
@@ -128,11 +129,12 @@
 * **邊界**：只「重送原請求」。**不**做 mocking、不做腳本化改寫——那是 Proxyman/Charles 的地盤（見 anti-features）。
 * **✅ 實作現況**：PR #36 / v1.0.0 已完成。`NetworkDetailView` 的「Resend」按鈕經原始 `sourceDio`（`WeakReference<Dio>`）原樣重送，重送結果以 `isReplay` 標記記回 buffer，並含狀態回饋與防連點保護。
 
-### 7. 錯誤聚合摘要（Error Aggregation）— ⬜ 未實作
+### 7. 錯誤聚合摘要（Error Aggregation）— ✅ 已完成
 * **價值**：同一個 502 每 30 秒打一次 → 現在是 500 條各自獨立的列表項。聚合成「502 Bad Gateway × N 次，最近 5 分鐘」一張卡，一眼看出是「持續故障」還是「偶發」。
 * **設計**：`NetworkTab` 頂部「Error Summary」卡，按 `(statusCode, errorType)` 分組計數 + 首末時間。
-* **重用**：`NetworkStatusGroup.matches()` 分組邏輯、`RingBuffer` 作資料源。
+* **重用**：`NetworkStatusGroup.matches()` 分組邏輯、`RingBuffer` 作資料源.
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐
+* **✅ 實作現況**：v1.3.0 已實作。新增 `NetworkErrorGroup` 聚合模型與 `aggregateNetworkErrors(entries)` 聚合邏輯（定義於 `lib/src/utils/network_utils.dart`），並在 `lib/src/ui/dashboard/tabs/network_tab.dart` 中以 `_ErrorSummaryBanner`（包含 `_ErrorGroupCard` 元件）實作，支援折疊/展開顯示，以及點擊進行過濾篩選。
 
 ### 8. 當前路由堆疊可視化（Active Navigation Stack）— ✅ 已完成（PR #51）
 * **價值**：排查「頁面有沒有被重複 push / 該 pop 沒 pop（記憶體洩漏前兆）」。錯誤發生時的路由堆疊也是 #3 診斷報告的關鍵 context。
@@ -169,9 +171,9 @@
 1. **第一階段 · 點亮盲區**（✅ 已完成）：**#1 全局未捕捉例外捕捉** ✅ + **#4 Dio 結構化錯誤捕捉** ✅（v1.3.0 落地）。inspector 現在真正「看得見」錯誤。
 2. **第二階段 · ConsoleTab 排查化**（🟡 進行中 · 僅剩缺口）：實作 **#5**（stackTrace 詳情 ✅ + error 搜尋/過濾 ⬜ 待補：搜尋欄、LogLevel FilterChip、errors-only 快捷），讓捕捉到的錯誤可被秒速定位與檢視。
 3. **第三階段 · 建立關聯**（🟡 主體已完成）：**#2 做法 B（Timeline 混合視圖）已於 v1.1.0 落地** ✅（`mergedTimeline` + `TimestampedEntry`）；僅剩 **做法 A**（detail view 的 ±5s 同時段側欄 ⬜）尚未做，可視回饋決定是否補上。
-4. **第四階段 · 帶走證據**（⬜ 未開始）：實作 **#3 一鍵診斷報告**（device info；路由堆疊快照可直接複用已完成的 #8 `NavigatorStackResolver`）。QA 提 bug 的剛需在此閉環。
+4. **第四階段 · 帶走證據**（✅ 已完成）：實作 **#3 一鍵診斷報告**（device info；路由堆疊快照可直接複用已完成的 #8 `NavigatorStackResolver`）。QA 提 bug 的剛需在此閉環。
 5. 第五階段 · 加分項（✅ 部分完成）：#6 Replay 已於 v1.0.0 完成實作、**#8 路由堆疊可視化已於 PR #51 完成**；後續可視回饋實作 #7 錯誤聚合摘要。
 
-> **收尾建議（2026-07-08 更新）**：**#4 結構化錯誤分類已於 v1.3.0 完成**，第一階段閉環。console 排查鏈現在只剩**一個**明確缺口——**#5 的搜尋/過濾**（LogLevel FilterChip + errors-only + 搜尋欄）。做完 #5，console 排查化即完全閉環，可接續進第四階段 #3 診斷報告。
+> **收尾建議（2026-07-16 更新）**：**#4 結構化錯誤分類已於 v1.3.0 完成**，第一階段閉環。**#3 一鍵診斷報告**也已落地，第四階段閉環。console 排查鏈現在只剩**一個**明確缺口——**#5 的搜尋/過濾**（LogLevel FilterChip + errors-only + 搜尋欄）以及 #2 做法 A 的同時段側欄。
 
 > 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（#1/#4 已完成、#5 動 console UI、#3 動 utils + dashboard），適合並行推進。
