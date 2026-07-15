@@ -534,6 +534,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+// Note: This example is mobile-only due to its dart:io Platform usage.
+// It will not compile on Web/WASM.
 class AppDiagnosticInfoSource implements DiagnosticInfoSource {
   @override
   Future<DiagnosticInfo> collect() async {

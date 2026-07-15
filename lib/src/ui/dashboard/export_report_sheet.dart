@@ -69,6 +69,7 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
         // the user the report they just waited for.
         info = null;
       }
+      if (!mounted) return;
 
       final report = buildDiagnosticReport(
         logInspector: inspector.logInspector,
@@ -86,15 +87,18 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
       try {
         await shareText(report);
       } catch (_) {
+        if (!mounted) return;
         // Fallback to clipboard when the platform has no share sheet.
         try {
           await Clipboard.setData(ClipboardData(text: report));
+          if (!mounted) return;
           messenger.showSnackBar(
             const SnackBar(
               content: Text('Share unavailable — copied to clipboard'),
             ),
           );
         } catch (_) {
+          if (!mounted) return;
           // Both paths out failed. Keep the sheet open so the user can retry
           // rather than silently swallowing the report they just waited for.
           messenger.showSnackBar(
@@ -104,6 +108,7 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
         }
       }
 
+      if (!mounted) return;
       navigator.pop();
     } finally {
       // Without this the button stays disabled forever on any failure.
@@ -143,21 +148,19 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
               ),
 
             const _SectionLabel('Time range'),
-            RadioGroup<int>(
-              groupValue: _rangeIndex,
-              onChanged: (index) =>
-                  setState(() => _rangeIndex = index ?? _rangeIndex),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < _ranges.length; i++)
-                    RadioListTile<int>(
-                      dense: true,
-                      title: Text(_ranges[i].$1),
-                      value: i,
-                    ),
-                ],
-              ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < _ranges.length; i++)
+                  RadioListTile<int>(
+                    dense: true,
+                    title: Text(_ranges[i].$1),
+                    value: i,
+                    groupValue: _rangeIndex,
+                    onChanged: (index) =>
+                        setState(() => _rangeIndex = index ?? _rangeIndex),
+                  ),
+              ],
             ),
 
             CheckboxListTile(

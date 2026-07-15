@@ -6,10 +6,13 @@ import '../models/log_entry.dart';
 import '../models/log_level.dart';
 import '../models/navigator_entry.dart';
 import '../models/network_entry.dart';
+import 'dart:convert';
+
 import '../models/timestamped_entry.dart';
 import '../version.dart';
 import 'log_formatters.dart';
 import 'network_formatters.dart';
+import 'redaction.dart';
 
 /// Builds a Markdown diagnostic report for a bug report or issue tracker.
 ///
@@ -48,7 +51,7 @@ String buildDiagnosticReport({
 }) {
   final cutoff = timeRange == null ? null : now.subtract(timeRange);
   bool inWindow(TimestampedEntry e) =>
-      cutoff == null || e.timestamp.isAfter(cutoff);
+      cutoff == null || !e.timestamp.isBefore(cutoff);
 
   final b = StringBuffer()
     ..writeln('# Diagnostic Report')
@@ -126,9 +129,15 @@ String buildDiagnosticReport({
       b,
       'Database',
       databaseEntries.where(inWindow),
-      (e) =>
-          '- `${e.displayTime}` ${e.operation.name} `${e.tableName}`'
-          '${e.affectedRows == null ? '' : ' (${e.affectedRows} rows)'}',
+      (e) {
+        var row = '- `${e.displayTime}` ${e.operation.name} `${e.tableName}`'
+            '${e.affectedRows == null ? '' : ' (${e.affectedRows} rows)'}';
+        if (e.data != null) {
+          final payload = redact ? redactHeaders(e.data!) : e.data!;
+          row += '\n${_fenced(const JsonEncoder.withIndent('  ').convert(payload))}';
+        }
+        return row;
+      },
     );
   }
 

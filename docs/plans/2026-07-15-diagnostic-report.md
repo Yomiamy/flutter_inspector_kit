@@ -13,7 +13,7 @@
 
 **調查結果（實際查證，非臆測）**：
 
-```
+```text
 lib/src/core/flutter_inspector.dart:24   static const String version = '1.1.0';
 pubspec.yaml:3                           version: 1.4.0
 test/flutter_inspector_test.dart:12      expect(FlutterInspector.version, '1.1.0');   ← 元凶
@@ -28,7 +28,7 @@ test/flutter_inspector_test.dart:12      expect(FlutterInspector.version, '1.1.0
 
 **採用 C**。這是唯一不加相依、又真的會擋住漂移的做法。
 
-```
+```dart
 lib/src/version.dart          const String packageVersion = '1.4.0';   ← 單一真相
 lib/src/core/flutter_inspector.dart
     static const String version = packageVersion;                       ← 公開 API 不變（AC-22）
@@ -170,7 +170,7 @@ final logs = errorsOnly
 | `lib/src/ui/dashboard/dashboard_modal.dart` | AppBar 目前空的 `actions:` 加一顆 export IconButton |
 | `test/flutter_inspector_test.dart` | 刪掉硬編碼 `'1.1.0'` 的假測試，改斷言 `== packageVersion` |
 | `test/core/flutter_inspector_test.dart` | 補 `diagnosticInfoSource` 預設 null / 可注入 |
-| `test/ui/dashboard_modal_test.dart` | 補 AppBar export action 存在 |
+| `test/ui/export_report_sheet_test.dart` | 補 AppBar export action 存在 |
 | `README.md` / `CHANGELOG.md` | 新公開 API（`DiagnosticInfoSource`）的用法與版本紀錄 |
 
 **`pubspec.yaml` 不動**（AC-6）——沒有共享檔案的寫入競爭。
@@ -242,14 +242,14 @@ final logs = errorsOnly
 
 ### T7 — 匯出 sheet + AppBar action
 - **複雜度**：`標準`
-- **寫入 scope**：`lib/src/ui/dashboard/export_report_sheet.dart`、`lib/src/ui/dashboard/dashboard_modal.dart`、`test/ui/export_report_sheet_test.dart`、`test/ui/dashboard_modal_test.dart`
+- **寫入 scope**：`lib/src/ui/dashboard/export_report_sheet.dart`、`lib/src/ui/dashboard/dashboard_modal.dart`、`test/ui/export_report_sheet_test.dart`
 - **AC**：AC-19、AC-20、AC-23
 - **步驟**：
   1. `dashboard_modal.dart` 的 AppBar `actions:`（目前是空的）加一顆 IconButton → `showModalBottomSheet`。
   2. `_ExportReportSheet`（StatefulWidget）：4 個 source `CheckboxListTile` + 3 選 1 時間範圍（值為 `Duration(minutes:5)` / `Duration(hours:1)` / `null`）+ 1 個 errors-only `CheckboxListTile`（**預設 false**）+ 確認鍵。
   3. 確認鍵：`final info = await inspector.diagnosticInfoSource?.collect();` → `buildDiagnosticReport(..., now: DateTime.now(), redact: inspector.redactSensitiveData, info: info)` → `await shareText(report)`。
   4. **`ConsoleTab` 一行都不准動**（AC-23）。
-- **驗收**：`flutter test test/ui/export_report_sheet_test.dart test/ui/dashboard_modal_test.dart test/ui/tabs/console_tab_test.dart`
+- **驗收**：`flutter test test/ui/export_report_sheet_test.dart test/ui/tabs/console_tab_test.dart`
 - **依賴**：T3、T6
 - **⚠️ 測 AC-20 的已知限制**：`shareText` 是 conditional-export 的頂層函式，**無法 spy**（既有的 `network_detail_view_test` / `log_detail_view_test` 也沒 spy 它，只 mock `Clipboard.setData` 的 method channel）。做法：比照既有慣例 mock **share_plus 的 method channel** 並斷言收到一次呼叫 + 捕獲的字串。**channel 名稱請從 `pubspec.lock` 釘住的 share_plus 13.x 原始碼實地確認，不要憑記憶填**。若 channel 名稱驗證不了，退而求其次：斷言 sheet 的確認鍵可按且 sheet 關閉（報告**內容**已由 T4~T6 的 unit test 全覆蓋）。
 

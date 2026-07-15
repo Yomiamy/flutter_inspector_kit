@@ -119,7 +119,7 @@ Dashboard AppBar 新增一個 **Export** action → 開啟選單（勾選區段 
 
 ### P-1：修正 `FlutterInspector.version` 的單一真相來源 🔴
 
-```
+```text
 lib/src/core/flutter_inspector.dart:24   →   static const String version = '1.1.0';
 pubspec.yaml:3                           →   version: 1.4.0
 ```

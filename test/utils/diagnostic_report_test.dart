@@ -294,6 +294,9 @@ void main() {
 
         // The event list itself IS time-windowed: only the pop is recent.
         expect(report, contains('### Navigation events'));
+        expect(report, isNot(contains('push `/detail`')));
+        expect(report, isNot(contains('push `/home`')));
+        expect(report, contains('pop `/detail`'));
       },
     );
   });
