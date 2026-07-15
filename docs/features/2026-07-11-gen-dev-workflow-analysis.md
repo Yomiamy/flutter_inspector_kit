@@ -4,7 +4,7 @@
 
 `gen-dev-workflow` 是一個**全自動開發流程編排器**，從使用者說「幫我做 X 功能」到 PR 建立，共 6 個 stage（0a → 0b → 1 → 2 → 3 → 4），外加兩個獨立入口的 STAGE 5（回覆 PR review）與 STAGE 6（PR 合併後清理 worktree），以及小修正用的 **quick 模式**（單暫停點快速通道，不建 worktree）。核心機制是 **Claude 做總指揮 + `agy` CLI 做委派執行**。自 STAGE 1 起，整條流程搬進一個獨立 worktree 執行——worktree 才是真正的隔離邊界。
 
-Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.claude/agents/*.md`，用 `opus`/`sonnet` 別名、不綁版本 ID），SKILL.md 只寫角色名與**推論等級名**（最強推論 / 標準 / 輕量 / 快便宜）——model 換代時 frontmatter 免改（別名自動解析），SKILL.md 一字不動。
+Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `opus`/`sonnet` 別名），而 **effort 參數已從 frontmatter 中全數移除**，改為在**派發任務時顯式帶入**。SKILL.md 定義了**推論等級表**（對應的 model 與 effort 參數），以此維持不同 stage 之間的差異化配置。
 
 ---
 
@@ -15,7 +15,7 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 | 項目 | 內容 |
 |------|------|
 | **Agent** | planner |
-| **Model** | 最強推論（planner frontmatter：`opus` + `xhigh`） |
+| **Model** | 最強推論（planner frontmatter：`model: opus`；派發時帶入 `effort: xhigh`） |
 | **委派** | 無 agy 委派，Claude 親自執行 |
 | **並行** | 🟢 並行 2 條線：A. 專案 context 收集（讀檔 / git log）B. 相似功能代碼調查 |
 | **產出** | `docs/features/YYYY-MM-DD-<feature>.md`（使用者故事、驗收條件、範圍邊界） |
@@ -34,7 +34,7 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 | 項目 | 內容 |
 |------|------|
 | **Agent** | planner |
-| **Model** | 最強推論 |
+| **Model** | 最強推論（planner frontmatter：`model: opus`；派發時帶入 `effort: xhigh`） |
 | **委派** | 無 agy 委派 |
 | **並行** | 無 |
 | **產出** | `docs/plans/YYYY-MM-DD-<feature>.md`（資料結構、檔案異動、任務拆分 + 複雜度標註） |
@@ -54,7 +54,7 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 | 項目 | 內容 |
 |------|------|
 | **Agent** | gen-gh-issue skill + brancher |
-| **Model** | 輕量（brancher frontmatter：`sonnet` + `high`）——純 IO，且建立前有暫停點人肉把關 |
+| **Model** | 輕量（brancher frontmatter：`model: sonnet`；派發時帶入 `effort: high`）——純 IO，且建立前有暫停點人肉把關 |
 | **委派** | ✦ agy 執行 `gh issue create/view` + `git worktree add` + `flutter pub get` |
 | **並行** | 無 |
 | **產出** | GitHub Issue + Git 分支 + **獨立 worktree** |
@@ -78,7 +78,7 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 |------|------|
 | **Agent** | implementer |
 | **Model** | 實作動態分級（見下表）｜驗收走 verifier agent（最強推論） |
-| **委派** | ✦ agy 負責代碼 + 測試 + commit；驗收委派 verifier agent（frontmatter 綁最強推論） |
+| **委派** | ✦ agy 負責代碼 + 測試 + commit；驗收委派 verifier agent（frontmatter：`model: opus`；且必須顯式帶入 `effort: xhigh`） |
 | **並行** | 🟢 條件式並行（≥2 獨立任務且寫入路徑不重疊） |
 | **產出** | 實作代碼 + 測試 + commits |
 | **暫停點** | ⏸ 每個任務/每批並行完成後展示變更 + 測試結果 → 等確認 |
@@ -91,7 +91,7 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 | 觸及多檔、需整合協調 | 標準 | 跨 service 串接、改既有流程 |
 | 需設計判斷或廣泛 codebase 理解 | 最強推論 | 重構狀態機、新增跨層架構 |
 
-> **驗收與實作分離**：上表是「agy 寫代碼」用的浮動等級；**驗收固定委派 verifier agent**（frontmatter 綁最強推論，opus 取不到時由 CLI fallback 鏈自動落到可用最強），不隨實作任務浮動。刻意讓驗收等級 ≥ 實作等級，避免產代碼的便宜 model 自審（與 STAGE 3 同源交叉檢查的邏輯一致）。
+> **驗收與實作分離**：上表是「agy 寫代碼」用的浮動等級；**驗收固定委派 verifier agent**（frontmatter：`model: opus`；且必須顯式帶入 `effort: xhigh`），不隨實作任務浮動。刻意讓驗收等級 ≥ 實作等級，避免產代碼的便宜 model 自審（與 STAGE 3 同源交叉檢查的邏輯一致）。
 
 **執行工作：**
 1. 解析實作計畫，判斷並行/序列模式
@@ -112,7 +112,7 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 | 項目 | 內容 |
 |------|------|
 | **Agent** | reviewer |
-| **Model** | 最強推論（reviewer frontmatter：`opus` + `xhigh`）——根因判斷 |
+| **Model** | 最強推論（reviewer frontmatter：`model: opus`；派發時帶入 `effort: xhigh`）——根因判斷 |
 | **委派** | **不委派 agy**（審查不可外包） |
 | **並行** | 無 |
 | **產出** | 審查報告 |
@@ -132,7 +132,7 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 | 項目 | 內容 |
 |------|------|
 | **Agent** | publisher |
-| **Model** | 輕量（publisher frontmatter：`sonnet` + `high`）——重活已委派 agy，發布前有暫停點人肉把關 |
+| **Model** | 輕量（publisher frontmatter：`model: sonnet`；派發時帶入 `effort: high`）——重活已委派 agy，發布前有暫停點人肉把關 |
 | **委派** | ✦ agy 分析 Diff → 產 PR 草稿；Claude 校對 |
 | **並行** | 無 |
 | **產出** | GitHub PR |
@@ -151,7 +151,7 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 | 項目 | 內容 |
 |------|------|
 | **Agent** | responder → reviewer → publisher |
-| **Model** | 輕量（responder）→ 最強推論（reviewer）→ 輕量（publisher） |
+| **Model** | 輕量（responder，帶 `effort: high`）→ 最強推論（reviewer，帶 `effort: xhigh`）→ 輕量（publisher，帶 `effort: high`） |
 | **委派** | 無 agy 委派 |
 | **並行** | 無 |
 | **觸發** | 使用者說「PR #42 有新的 review 意見」 |
@@ -202,16 +202,24 @@ Model/effort **不寫在 SKILL.md**，而是綁在各 agent 檔 frontmatter（`.
 
 ## Model 與委派策略總覽
 
-**推論等級表**（等級 → frontmatter 綁定，SKILL.md 唯一定義處）：
+Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），而 **effort 參數則在任務派發時顯式帶入**。
 
-| 等級 | 綁定 | agent |
-|------|------|-------|
-| 最強推論 | `opus` + `xhigh` | planner、reviewer、verifier |
-| 標準 | `sonnet` + `max` | implementer |
-| 輕量 | `sonnet` + `high` | brancher、responder、publisher |
-| 快/便宜 | agy 內部 fast model | STAGE 2 機械性任務 |
+### 推論等級表（等級 → 綁定）：
 
-等級規律：**effort 跟著「錯誤的爆炸半徑」走**——規劃與把關（錯了放大到全流程）用最強推論；唯一產代碼的 implementer 用標準；純 IO 或輸出前有暫停點人肉把關的角色用輕量。
+| 等級 | model（frontmatter 綁定，未變） | effort（呼叫時明確帶入） | 綁定的 agent |
+|------|-----------------|-------------|-------------|
+| 最強推論 | `model: opus` | `effort: xhigh` | planner、reviewer、verifier |
+| 標準 | `model: sonnet` | `effort: max` | implementer |
+| 輕量 | `model: sonnet` | `effort: high` | brancher、responder、publisher |
+| 快/便宜 | agy 內部 fast model（不在 Claude 側綁定） | — | STAGE 2 機械性任務 |
+
+### 綁定原則：
+- model 一律用**別名**（`opus`/`sonnet`），不綁版本 ID——CLI 自動解析到當代 model。這部分仍由 frontmatter 管理。
+- effort **派發時必須明確帶入**：`Task("<agent>", ..., effort: "<本表對應值>")`。若不帶參數，子 agent 將預設繼承主對話 session 目前的 effort，這會導致 stage 間的差異化失效。
+- Workflow `agent()` 呼叫：`agentType: '<agent 名>'` 仍沿用 frontmatter 的 model 綁定；effort 另用 `opts.effort` 依本表帶入。
+
+> 🔴 **已知風險：`effort: 'xhigh'` 導致 400 錯誤**
+> 曾有實測案例顯示，當 thinking 未開啟時，於 Opus 4.8 上呼叫 `effort: 'xhigh'` 可能會觸發 `400 output_config.effort 'xhigh' is not supported when thinking is disabled on this model`。若派發時遇到此錯誤，應暫時將該次呼叫的 effort 降為 `high` 以恢復可用性，切勿默默將全表降級。
 
 ```mermaid
 graph LR
@@ -303,7 +311,7 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 | **架構完整性** | 端到端覆蓋 | 從需求到 PR 全流程自動化，6 個 stage 涵蓋 SDLC 核心環節 |
 | **成本優化** | Model 動態分級 | 不是所有任務都用 Opus，機械性工作用便宜 model，真正降成本 |
 | **品質保障** | 雙層交叉檢查 | 兩道防線都刻意避免「自己審自己」：(1) STAGE 2 驗收委派獨立 verifier agent（最強推論），與寫代碼的 agy（可能是便宜 model）不同源；(2) STAGE 3 reviewer 用最強推論，與 implementer 不同源。驗收等級刻意 ≥ 實作等級，確保把關強度。quick 模式砍掉所有儀式時也保留這道閘門 |
-| **換代維護** | Policy over models | model/effort 綁在 agent frontmatter（`opus`/`sonnet` 別名，不綁版本 ID），SKILL.md 只寫角色名與推論等級名——model 換代零改動，調整某角色等級只改 agent 檔一行 |
+| **換代維護** | Policy over models | model 綁在 agent frontmatter（別名），effort 則在呼叫時顯式帶入。當 model 換代時，由於使用了別名，frontmatter 免改；調整某角色 effort 等級只需更改派發參數即可。 |
 | **韌性** | Token Budget Gate 閉環 | 長流程不會因 context 爆炸而丟失進度，state 持久化是真正的救生圈 |
 | **可恢復性** | per-worktree state 檔 | session 中斷後可續接，`interrupted_by` 區分主動離開 vs 系統保護 |
 | **多流程並行** | worktree 隔離 + workflow-id | 同 repo 可同時跑多個 workflow，STAGE 1 起各自在專屬 worktree 內達成零鎖並行（工作目錄本身分開，比純切 branch 更徹底）；STAGE 0a/0b pending 階段靠 workflow-id 持久化補上唯一缺口 |
@@ -335,7 +343,7 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 
 **最值得保留的設計：** Token Budget Gate 閉環 + per-worktree state 檔的中斷續接。這是解決 LLM context 爆炸這個**真實問題**的務實方案。多 workflow 並行更是把「並行衝突」這個特殊情況用數據結構直接消滅——STAGE 1 起各流程各佔一個獨立 worktree，工作目錄本身分開，連 state 檔撞名都不可能，而不是加鎖去處理它——好品味。
 
-**已修掉的問題：** (1) 缺少輕量模式——quick 模式已補上（單暫停點、不建 worktree、branch → 直改 → reviewer 快掃 → PR），10 行 fix 不再跑 6 個 stage。(2) model/effort 散落全文——已收斂為 agent frontmatter 綁定（別名）+ 推論等級表單一定義處，「每個環節逐一指定 effort」的維護稅消失，model 換代零改動。(3) 「文件 vs 執行」的可程式化部分——`scripts/wf-state.sh` 成為 state 唯一存取入口：schema 校驗 + 原子寫入殺掉手寫 JSON 腐壞，轉移表殺掉非法跳段，`--confirmed` 棘輪把「跳過暫停點」變成留下痕跡的蓄意動作；強制性跟著 `mode` 走（quick/jump 不套轉移表），quick 升級走單向 `upgrade`。
+**已修掉的問題：** (1) 缺少輕量模式——quick 模式已補上（單暫停點、不建 worktree、branch → 直改 → reviewer 快掃 → PR），10 行 fix 不再跑 6 個 stage。(2) 參數配置收斂——model 別名收斂於 frontmatter 綁定，effort 配置則收斂於推論等級表；雖呼叫時需明確指明 effort（因 frontmatter 不再提供此屬性），但透過統一定義降低了 model 換代的維護稅。
 
 **最該修的問題（更新後）：** 暫停點密度。正常路徑 6 個固定暫停點、STAGE 2 逐任務再線性膨脹——「自動驅動」的承諾被密集確認打斷。下一步值得考慮讓使用者在啟動時選擇確認粒度（例如「只在規格、審查、PR 三處暫停」的信任模式）。
 
