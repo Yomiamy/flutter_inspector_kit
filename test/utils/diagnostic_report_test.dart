@@ -67,6 +67,20 @@ void main() {
       expect(_report(), contains('flutter_inspector_kit $packageVersion'));
     });
 
+    test('anchors the generated time with the device timezone offset', () {
+      final report = _report();
+
+      // Not hardcoded — CI may run in any zone. Assert the shape, then that it
+      // matches the fixture clock's actual offset.
+      expect(report, matches(RegExp(r'\| Generated \|.*\(UTC[+-]\d{2}:\d{2}\) \|')));
+
+      final offset = _now.timeZoneOffset;
+      final sign = offset.isNegative ? '-' : '+';
+      final hh = offset.inHours.abs().toString().padLeft(2, '0');
+      final mm = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+      expect(report, contains('(UTC$sign$hh:$mm)'));
+    });
+
     test('degrades every device field to N/A when no info is injected', () {
       final report = _report();
 

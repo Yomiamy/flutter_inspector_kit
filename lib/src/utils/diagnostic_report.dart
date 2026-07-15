@@ -55,7 +55,7 @@ String buildDiagnosticReport({
     ..writeln()
     ..writeln('| Field | Value |')
     ..writeln('| --- | --- |')
-    ..writeln('| Generated | ${now.toIso8601String()} |')
+    ..writeln('| Generated | ${now.toIso8601String()} (${_formatOffset(now)}) |')
     ..writeln('| Package | flutter_inspector_kit $packageVersion |')
     ..writeln('| Redaction | ${redact ? 'enabled' : 'disabled'} |')
     ..writeln('| Time range | ${_formatRange(timeRange)} |')
@@ -185,4 +185,16 @@ String _formatRange(Duration? range) {
   if (range == null) return 'all';
   if (range.inHours >= 1) return 'last ${range.inHours}h';
   return 'last ${range.inMinutes}m';
+}
+
+/// The device timezone as `UTC±HH:MM`, anchoring every local timestamp in the
+/// report so a recipient in another zone can line events up. Dart omits the
+/// offset from a local `toIso8601String()`, and the per-event `displayTime`
+/// carries no zone either, so without this the whole report is unanchored.
+String _formatOffset(DateTime time) {
+  final offset = time.timeZoneOffset;
+  final sign = offset.isNegative ? '-' : '+';
+  final hh = offset.inHours.abs().toString().padLeft(2, '0');
+  final mm = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+  return 'UTC$sign$hh:$mm';
 }
