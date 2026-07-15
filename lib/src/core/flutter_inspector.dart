@@ -19,11 +19,12 @@ import '../ui/dashboard/dashboard_modal.dart';
 import 'inspector_overlay_manager.dart';
 import 'inspector_registry.dart';
 import 'uncaught_error_handler.dart';
+import '../version.dart';
 
 /// The core entry point for the Flutter Inspector.
 class FlutterInspector {
   /// Package version.
-  static const String version = '1.4.0';
+  static const String version = packageVersion;
 
   /// Optional widget for a 5th tab in the dashboard.
   final Widget? customTab;
