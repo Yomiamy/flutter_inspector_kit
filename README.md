@@ -15,6 +15,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🔄 **Network Replay** | Resend a captured request using the original Dio instance (same headers, base URL, interceptors); replayed entries are auto-labeled | Re-trigger a failed API call on-device to verify a server-side hotfix without restarting the app or rebuilding the user flow |
 | 🚨 **Structured Network Errors** | Failed requests show an **Exception Details** section distinguishing transport-layer failures (device offline / DNS / timeout) from server-side errors (4xx/5xx), with copyable stack traces | Instantly tell whether "Failed" means the device lost connectivity or the server returned 500 — no more guessing during QA |
 | 📊 **Error Aggregation Summary** | Network tab shows a collapsible banner that groups failed/errored requests by status code (or error type for transport failures), with per-group counts and time range; tap a group to filter the call list down to just that error | A page is flooded with dozens of failed calls — glance at the summary banner to see "12× 401", "3× timeout", tap the 401 group to isolate exactly those calls instead of scrolling through the full list |
+| 🩺 **Diagnostic Report** | Export a single Markdown report — device/app header, current route stack, and the logs / network / navigation / database sections — filtered by time window (5m / 1h / all), source, and an optional errors-only toggle; straight to the share sheet, nothing written to disk | QA reproduces a bug and, instead of screenshotting four tabs and hand-typing the OS version, taps Export once and pastes a complete report into the Jira ticket |
 | 🛡️ **Sensitive-Data Redaction** | Secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path | Safely share network logs with teammates or attach them to Jira tickets without leaking tokens or session cookies |
 | 🧭 **Navigator** | Track route pushes, pops, and replacements automatically; toggle between **Event History** (raw log) and **Active Stack** (live route-stack visualization) | Verify deep-link routing, confirm back-stack correctness, or diagnose "why did the user land on this screen?" during a QA walkthrough |
 | 🗄️ **Database** | Record insert / update / delete / query operations with affected-row counts and payloads; browse real tables via pluggable `DatabaseBrowserSource` (SQLite / ObjectBox adapters provided) | Verify that a "Save" action actually wrote the expected rows; browse local SQLite tables on-device without pulling the `.db` file |
@@ -505,6 +506,70 @@ final inspector = FlutterInspector(
 
 // Or dynamically
 inspector.registerDatabaseSource(SqfliteBrowserSource(db));
+```
+
+### Export a diagnostic report
+
+Open the dashboard and tap the **share icon** in the app bar. Pick which sources to
+include, a time window (last 5m / last 1h / all), and optionally "errors & warnings
+only", then hit **Share report** — a Markdown report goes straight to the system
+share sheet. Nothing is written to disk.
+
+The report inherits your `redactSensitiveData` setting, and its header states
+`Redaction: enabled` / `disabled` so whoever receives it knows what was masked.
+
+#### Populating the device / app header (optional)
+
+This package depends on **no** device-info plugin (and never touches `dart:io`, so it
+stays WASM-compatible). Without a source, the header degrades to `N/A` and the report
+is still produced in full.
+
+To fill it in, add `package_info_plus` and `device_info_plus` **to your own app**, then
+implement `DiagnosticInfoSource`:
+
+```dart
+import 'dart:io' show Platform;
+
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+// Note: This example is mobile-only due to its dart:io Platform usage.
+// It will not compile on Web/WASM.
+class AppDiagnosticInfoSource implements DiagnosticInfoSource {
+  @override
+  Future<DiagnosticInfo> collect() async {
+    final pkg = await PackageInfo.fromPlatform();
+    final deviceInfo = DeviceInfoPlugin();
+
+    String? deviceModel;
+    String? osVersion;
+
+    if (Platform.isIOS) {
+      final ios = await deviceInfo.iosInfo;
+      deviceModel = ios.utsname.machine;
+      osVersion = 'iOS ${ios.systemVersion}';
+    } else if (Platform.isAndroid) {
+      final android = await deviceInfo.androidInfo;
+      deviceModel = '${android.manufacturer} ${android.model}';
+      osVersion = 'Android ${android.version.release}';
+    }
+
+    return DiagnosticInfo(
+      appVersion: '${pkg.version}+${pkg.buildNumber}',
+      deviceModel: deviceModel,
+      osVersion: osVersion,
+    );
+  }
+}
+```
+
+Then pass it in:
+
+```dart
+final inspector = FlutterInspector(
+  diagnosticInfoSource: AppDiagnosticInfoSource(),
+);
 ```
 
 ## 🕹️ Example

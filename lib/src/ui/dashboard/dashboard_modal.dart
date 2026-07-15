@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/flutter_inspector.dart';
+import 'export_report_sheet.dart';
 import 'tabs/console_tab.dart';
 import 'tabs/database_tab.dart';
 import 'tabs/navigator_tab.dart';
@@ -50,6 +51,13 @@ class DashboardModal extends StatelessWidget {
             icon: const Icon(Icons.close),
             onPressed: () => Navigator.of(context).pop(),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.ios_share),
+              tooltip: 'Export diagnostic report',
+              onPressed: () => ExportReportSheet.show(context, inspector),
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(kTextTabBarHeight),
             child: _DashboardTabBar(

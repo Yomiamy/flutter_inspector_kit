@@ -1,6 +1,7 @@
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
 import 'package:flutter_inspector_kit/src/models/database_operation.dart';
+import 'package:flutter_inspector_kit/src/models/diagnostic_info.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -108,6 +109,26 @@ void main() {
       },
     );
   });
+
+  group('Diagnostic Info Source API', () {
+    test('diagnosticInfoSource defaults to null', () {
+      expect(FlutterInspector(bufferSize: 10).diagnosticInfoSource, isNull);
+    });
+
+    test('an injected source is retained and collectable', () async {
+      final source = _FakeDiagnosticInfoSource();
+      final inspector = FlutterInspector(
+        bufferSize: 10,
+        diagnosticInfoSource: source,
+      );
+
+      expect(inspector.diagnosticInfoSource, same(source));
+      expect(
+        await inspector.diagnosticInfoSource!.collect(),
+        const DiagnosticInfo(appVersion: '2.3.1+45', osVersion: 'iOS 17.4'),
+      );
+    });
+  });
 }
 
 class FakeDatabaseBrowserSource extends DatabaseBrowserSource {
@@ -125,4 +146,10 @@ class FakeDatabaseBrowserSource extends DatabaseBrowserSource {
   }) async {
     return const DatabaseTablePage(columns: [], rows: []);
   }
+}
+
+class _FakeDiagnosticInfoSource implements DiagnosticInfoSource {
+  @override
+  Future<DiagnosticInfo> collect() async =>
+      const DiagnosticInfo(appVersion: '2.3.1+45', osVersion: 'iOS 17.4');
 }
