@@ -19,61 +19,11 @@ import '../ui/dashboard/dashboard_modal.dart';
 import 'inspector_overlay_manager.dart';
 import 'inspector_registry.dart';
 import 'uncaught_error_handler.dart';
-import '../version.dart';
 
 /// The core entry point for the Flutter Inspector.
 class FlutterInspector {
   /// Package version.
-  static const String version = packageVersion;
-
-  /// Creates a new FlutterInspector instance.
-  ///
-  /// This should typically be instantiated once at app startup and retained
-  /// globally. It maintains its own internal buffers and state.
-  FlutterInspector({
-    this.customTab,
-    this.customTabTitle = 'Custom',
-    this.magicalTapCount = 5,
-    this.showNetworkNotification = false,
-    this.navigatorKey,
-    this.captureUncaughtErrors = false,
-    this.redactSensitiveData = true,
-    this.diagnosticInfoSource,
-    int bufferSize = 500,
-    NetworkNotifier? notifier,
-    List<DatabaseBrowserSource>? databaseSources,
-  }) {
-    _overlayManager = InspectorOverlayManager(
-      onFabTap: (context) => openDashboard(context),
-    );
-    _registry = InspectorRegistry(bufferSize: bufferSize);
-    _uncaughtErrorHandler = UncaughtErrorHandler(onLog: log);
-    if (captureUncaughtErrors) setupErrorHandlers();
-    _navigatorObserver = FlutterInspectorNavigatorObserver(this);
-    _operationLogSource = OperationLogSource(_registry.database);
-    if (databaseSources != null) {
-      _customDatabaseSources.addAll(databaseSources);
-    }
-    if (showNetworkNotification) {
-      final networkNotifier =
-          notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
-      // Wire onAdd only after init() resolves. init() never rejects (it catches
-      // and swallows platform errors internally), so this callback always runs.
-      // Requests that arrive before init completes are not forwarded to the
-      // notifier — which is correct, since _available isn't true until init
-      // succeeds, so showOrUpdate would no-op on them anyway. This just avoids
-      // holding a callback that fires into an uninitialised notifier.
-      networkNotifier.init().then((_) {
-        _registry.network.onAdd = (entry, total) {
-          networkNotifier.showOrUpdate(entry, total);
-        };
-        final entries = _registry.network.entries;
-        if (entries.isNotEmpty) {
-          networkNotifier.showOrUpdate(entries.first, entries.length);
-        }
-      });
-    }
-  }
+  static const String version = '1.4.0';
 
   /// Optional widget for a 5th tab in the dashboard.
   final Widget? customTab;
@@ -156,14 +106,8 @@ class FlutterInspector {
   /// [LogInspector.entriesAtLevel] as well, and [registry] is test-only.
   LogInspector get logInspector => _registry.log;
 
-  /// Clears all console logs.
-  void clearLogs() => _registry.log.clear();
-
   /// Retrieves the current network logs.
   List<NetworkEntry> get networkEntries => _registry.network.entries;
-
-  /// Clears all network logs.
-  void clearNetwork() => _registry.network.clear();
 
   /// The navigator inspector used by [navigatorObserver] to buffer events.
   NavigatorInspector get navigatorInspector => _registry.navigator;
@@ -171,36 +115,66 @@ class FlutterInspector {
   /// Retrieves the current navigator history.
   List<NavigatorEntry> get navigatorEntries => _registry.navigator.entries;
 
-  /// Clears all navigator history.
-  void clearNavigator() => _registry.navigator.clear();
-
   /// Retrieves the current database logs.
   List<DatabaseEntry> get databaseEntries => _registry.database.entries;
-
-  /// Clears all database logs.
-  void clearDatabase() => _registry.database.clear();
-
-  /// Cross-layer merged timeline: reads the four buffers filtered by [sources],
-  /// merged and sorted by timestamp descending (newest first). Defaults to all
-  /// sources. Thin forward to [InspectorRegistry.mergedTimeline].
-  List<TimestampedEntry> mergedTimeline({
-    Set<TimelineSource> sources = const {
-      TimelineSource.log,
-      TimelineSource.network,
-      TimelineSource.nav,
-      TimelineSource.db,
-    },
-  }) => _registry.mergedTimeline(sources: sources);
 
   /// Retrieves the registered database browser sources.
   List<DatabaseBrowserSource> get databaseSources =>
       List.unmodifiable([_operationLogSource, ..._customDatabaseSources]);
 
+  /// Creates a new FlutterInspector instance.
+  ///
+  /// This should typically be instantiated once at app startup and retained
+  /// globally. It maintains its own internal buffers and state.
+  FlutterInspector({
+    this.customTab,
+    this.customTabTitle = 'Custom',
+    this.magicalTapCount = 5,
+    this.showNetworkNotification = false,
+    this.navigatorKey,
+    this.captureUncaughtErrors = false,
+    this.redactSensitiveData = true,
+    this.diagnosticInfoSource,
+    int bufferSize = 500,
+    NetworkNotifier? notifier,
+    List<DatabaseBrowserSource>? databaseSources,
+  }) {
+    _overlayManager = InspectorOverlayManager(
+      onFabTap: (context) => openDashboard(context),
+    );
+    _registry = InspectorRegistry(bufferSize: bufferSize);
+    _uncaughtErrorHandler = UncaughtErrorHandler(onLog: log);
+    if (captureUncaughtErrors) setupErrorHandlers();
+    _navigatorObserver = FlutterInspectorNavigatorObserver(this);
+    _operationLogSource = OperationLogSource(_registry.database);
+    if (databaseSources != null) {
+      _customDatabaseSources.addAll(databaseSources);
+    }
+    if (showNetworkNotification) {
+      final networkNotifier =
+          notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
+      // Wire onAdd only after init() resolves. init() never rejects (it catches
+      // and swallows platform errors internally), so this callback always runs.
+      // Requests that arrive before init completes are not forwarded to the
+      // notifier — which is correct, since _available isn't true until init
+      // succeeds, so showOrUpdate would no-op on them anyway. This just avoids
+      // holding a callback that fires into an uninitialised notifier.
+      networkNotifier.init().then((_) {
+        _registry.network.onAdd = (entry, total) {
+          networkNotifier.showOrUpdate(entry, total);
+        };
+        final entries = _registry.network.entries;
+        if (entries.isNotEmpty) {
+          networkNotifier.showOrUpdate(entries.first, entries.length);
+        }
+      });
+    }
+  }
+
   /// Registers a database browser source.
   void registerDatabaseSource(DatabaseBrowserSource source) {
     _customDatabaseSources.add(source);
   }
-
 
   /// Mounts the FAB overlay onto the screen.
   void attach({required BuildContext context, bool visible = true}) {
@@ -266,6 +240,18 @@ class FlutterInspector {
     );
   }
 
+  /// Cross-layer merged timeline: reads the four buffers filtered by [sources],
+  /// merged and sorted by timestamp descending (newest first). Defaults to all
+  /// sources. Thin forward to [InspectorRegistry.mergedTimeline].
+  List<TimestampedEntry> mergedTimeline({
+    Set<TimelineSource> sources = const {
+      TimelineSource.log,
+      TimelineSource.network,
+      TimelineSource.nav,
+      TimelineSource.db,
+    },
+  }) => _registry.mergedTimeline(sources: sources);
+
   /// Opens the full-screen dashboard modal.
   ///
   /// [initialIndex] selects the starting tab: Console (0), Network (1),
@@ -281,4 +267,16 @@ class FlutterInspector {
     if (context == null) return;
     openDashboard(context, initialIndex: 1);
   }
+
+  /// Clears all console logs.
+  void clearLogs() => _registry.log.clear();
+
+  /// Clears all network logs.
+  void clearNetwork() => _registry.network.clear();
+
+  /// Clears all navigator history.
+  void clearNavigator() => _registry.navigator.clear();
+
+  /// Clears all database logs.
+  void clearDatabase() => _registry.database.clear();
 }

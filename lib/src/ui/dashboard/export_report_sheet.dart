@@ -10,9 +10,9 @@ import '../../utils/share_text.dart';
 /// Bottom sheet that composes a diagnostic report and hands it to the share
 /// sheet. Nothing is written to disk.
 class ExportReportSheet extends StatefulWidget {
-  const ExportReportSheet({required this.inspector, super.key});
-
   final FlutterInspector inspector;
+
+  const ExportReportSheet({required this.inspector, super.key});
 
   /// Opens the sheet.
   static Future<void> show(BuildContext context, FlutterInspector inspector) {
@@ -28,16 +28,6 @@ class ExportReportSheet extends StatefulWidget {
 }
 
 class _ExportReportSheetState extends State<ExportReportSheet> {
-  final Set<TimelineSource> _sections = TimelineSource.values.toSet();
-
-  /// Index into [_ranges]. The radios key off the index rather than the
-  /// `Duration?` itself, because `RadioGroup<Duration>` would conflate "All"
-  /// (a deliberate null) with "nothing selected" (also null).
-  int _rangeIndex = 0;
-
-  bool _errorsOnly = false;
-  bool _busy = false;
-
   /// `null` means all time — the same convention the report builder uses.
   static const _ranges = <(String, Duration?)>[
     ('Last 5m', Duration(minutes: 5)),
@@ -51,6 +41,14 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
     TimelineSource.nav: 'Navigation',
     TimelineSource.db: 'Database',
   };
+
+  final Set<TimelineSource> _sections = TimelineSource.values.toSet();
+  /// Index into [_ranges]. The radios key off the index rather than the
+  /// `Duration?` itself, because `RadioGroup<Duration>` would conflate "All"
+  /// (a deliberate null) with "nothing selected" (also null).
+  int _rangeIndex = 0;
+  bool _errorsOnly = false;
+  bool _busy = false;
 
   Future<void> _export() async {
     setState(() => _busy = true);
@@ -192,9 +190,10 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
 
   final String text;
+
+  const _SectionLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
