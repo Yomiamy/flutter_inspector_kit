@@ -659,10 +659,10 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 兩條唯讀調查（A. 專案 context 讀檔/git log｜B. 相似功能代碼調查），無依賴、不寫檔 → 天然安全的 `parallel()` barrier，收斂後才交給 planner 撰寫規格。
 
 ```js
-// meta 省略；agentType 用 Explore（唯讀搜尋）
+// meta 省略；agentType 用 Explore（唯讀搜尋）但強制指定 model 與 effort 覆蓋
 const [projCtx, similarCode] = await parallel([
-  () => agent('收集專案 context：讀 README / pubspec / 近期 git log，回報架構與慣例', {agentType: 'Explore', schema: CTX_SCHEMA}),
-  () => agent('調查與「<需求>」相似的既有實作，回報可參考的檔案與模式', {agentType: 'Explore', schema: CTX_SCHEMA}),
+  () => agent('收集專案 context：讀 README / pubspec / 近期 git log，回報架構與慣例', {agentType: 'Explore', model: 'sonnet', effort: 'high', schema: CTX_SCHEMA}),
+  () => agent('調查與「<需求>」相似的既有實作，回報可參考的檔案與模式', {agentType: 'Explore', model: 'sonnet', effort: 'high', schema: CTX_SCHEMA}),
 ])
 // 回到主對話：planner 收斂 projCtx + similarCode → 撰寫 docs/features/...md → 暫停確認（不在 Workflow 內）
 ```
