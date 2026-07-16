@@ -49,8 +49,7 @@ class _NetworkTabState extends State<NetworkTab> {
         : filteredEntries
               .where(
                 (e) =>
-                    e.error != null ||
-                    (e.statusCode != null && e.statusCode! >= 400),
+                    e.error != null || (e.statusCode ?? 0) >= 400,
               )
               .where(
                 (e) => group.statusCode != null
