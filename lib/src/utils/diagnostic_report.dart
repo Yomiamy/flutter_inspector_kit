@@ -131,8 +131,9 @@ String buildDiagnosticReport({
       var row =
           '- `${e.displayTime}` ${e.operation.name} `${e.tableName}`'
           '${e.affectedRows == null ? '' : ' (${e.affectedRows} rows)'}';
-      if (e.data != null) {
-        final payload = redact ? redactHeaders(e.data!) : e.data!;
+      final data = e.data;
+      if (data != null) {
+        final payload = redact ? redactHeaders(data) : data;
         row +=
             '\n${_fenced(const JsonEncoder.withIndent('  ').convert(payload))}';
       }

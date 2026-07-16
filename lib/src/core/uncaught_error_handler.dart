@@ -7,7 +7,7 @@ import '../models/log_level.dart';
 typedef LogCallback =
     void Function(
       String message, {
-      LogLevel level,
+      required LogLevel level,
       String? stackTrace,
       Map<String, dynamic>? data,
     });

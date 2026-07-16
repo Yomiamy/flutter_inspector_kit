@@ -181,8 +181,9 @@ List<NetworkErrorGroup> aggregateNetworkErrors(List<NetworkEntry> entries) {
   for (final entry in entries) {
     // 1. Filter out non-error entries: only requests with an error or a
     // >=400 status code count. Pending requests (both null) are excluded.
+    final statusCode = entry.statusCode;
     final isError =
-        entry.error != null || (entry.statusCode ?? 0) >= 400;
+        entry.error != null || (statusCode != null && statusCode >= 400);
     if (!isError) continue;
 
     // 2. Group by statusCode when present; only transport failures
@@ -200,12 +201,12 @@ List<NetworkErrorGroup> aggregateNetworkErrors(List<NetworkEntry> entries) {
     );
 
     builder.count++;
-    if (builder.firstSeen == null ||
-        entry.timestamp.isBefore(builder.firstSeen!)) {
+    final firstSeen = builder.firstSeen;
+    if (firstSeen == null || entry.timestamp.isBefore(firstSeen)) {
       builder.firstSeen = entry.timestamp;
     }
-    if (builder.lastSeen == null ||
-        entry.timestamp.isAfter(builder.lastSeen!)) {
+    final lastSeen = builder.lastSeen;
+    if (lastSeen == null || entry.timestamp.isAfter(lastSeen)) {
       builder.lastSeen = entry.timestamp;
     }
   }

@@ -54,7 +54,7 @@ class _NetworkTabState extends State<NetworkTab> {
               .where(
                 (e) => group.statusCode != null
                     ? e.statusCode == group.statusCode
-                    : e.errorType == group.errorType,
+                    : e.statusCode == null && e.errorType == group.errorType,
               )
               .toList(growable: false);
 
