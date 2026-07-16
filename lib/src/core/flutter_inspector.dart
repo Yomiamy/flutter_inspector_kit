@@ -151,24 +151,29 @@ class FlutterInspector {
     if (databaseSources != null) {
       _customDatabaseSources.addAll(databaseSources);
     }
+
     if (showNetworkNotification) {
-      final networkNotifier =
-          notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
-      // Wire onAdd only after init() resolves. init() never rejects (it catches
-      // and swallows platform errors internally), so this callback always runs.
-      // Requests that arrive before init completes are not forwarded to the
-      // notifier — which is correct, since _available isn't true until init
-      // succeeds, so showOrUpdate would no-op on them anyway. This just avoids
-      // holding a callback that fires into an uninitialised notifier.
-      networkNotifier.init().then((_) {
-        _registry.network.onAdd = (entry, total) {
-          networkNotifier.showOrUpdate(entry, total);
-        };
-        final entries = _registry.network.entries;
-        if (entries.isNotEmpty) {
-          networkNotifier.showOrUpdate(entries.first, entries.length);
-        }
-      });
+      _initNetworkNotifier(notifier: notifier);
+    }
+  }
+
+  Future<void> _initNetworkNotifier({NetworkNotifier? notifier}) async {
+    final networkNotifier =
+        notifier ?? NetworkNotifier(onTap: _openNetworkFromNotification);
+    await networkNotifier.init();
+    // Wire onAdd only after init() resolves. init() never rejects (it catches
+    // and swallows platform errors internally), so this callback always runs.
+    // Requests that arrive before init completes are not forwarded to the
+    // notifier — which is correct, since _available isn't true until init
+    // succeeds, so showOrUpdate would no-op on them anyway. This just avoids
+    // holding a callback that fires into an uninitialised notifier.
+    _registry.network.onAdd = (entry, total) {
+      networkNotifier.showOrUpdate(entry, total);
+    };
+    final entries = _registry.network.entries;
+
+    if (entries.isNotEmpty) {
+      networkNotifier.showOrUpdate(entries.first, entries.length);
     }
   }
 

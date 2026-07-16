@@ -32,8 +32,7 @@ class DiagnosticInfo {
   int get hashCode => Object.hash(appVersion, deviceModel, osVersion);
 
   @override
-  String toString() =>
-      'DiagnosticInfo($appVersion, $deviceModel, $osVersion)';
+  String toString() => 'DiagnosticInfo($appVersion, $deviceModel, $osVersion)';
 }
 
 /// Supplies device and app metadata for diagnostic reports.

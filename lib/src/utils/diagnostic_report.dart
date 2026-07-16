@@ -58,7 +58,9 @@ String buildDiagnosticReport({
     ..writeln()
     ..writeln('| Field | Value |')
     ..writeln('| --- | --- |')
-    ..writeln('| Generated | ${now.toIso8601String()} (${_formatOffset(now)}) |')
+    ..writeln(
+      '| Generated | ${now.toIso8601String()} (${_formatOffset(now)}) |',
+    )
     ..writeln('| Package | flutter_inspector_kit $packageVersion |')
     ..writeln('| Redaction | ${redact ? 'enabled' : 'disabled'} |')
     ..writeln('| Time range | ${_formatRange(timeRange)} |')
@@ -125,20 +127,18 @@ String buildDiagnosticReport({
   }
 
   if (sections.contains(TimelineSource.db)) {
-    _writeSection(
-      b,
-      'Database',
-      databaseEntries.where(inWindow),
-      (e) {
-        var row = '- `${e.displayTime}` ${e.operation.name} `${e.tableName}`'
-            '${e.affectedRows == null ? '' : ' (${e.affectedRows} rows)'}';
-        if (e.data != null) {
-          final payload = redact ? redactHeaders(e.data!) : e.data!;
-          row += '\n${_fenced(const JsonEncoder.withIndent('  ').convert(payload))}';
-        }
-        return row;
-      },
-    );
+    _writeSection(b, 'Database', databaseEntries.where(inWindow), (e) {
+      var row =
+          '- `${e.displayTime}` ${e.operation.name} `${e.tableName}`'
+          '${e.affectedRows == null ? '' : ' (${e.affectedRows} rows)'}';
+      final data = e.data;
+      if (data != null) {
+        final payload = redact ? redactHeaders(data) : data;
+        row +=
+            '\n${_fenced(const JsonEncoder.withIndent('  ').convert(payload))}';
+      }
+      return row;
+    });
   }
 
   return b.toString();
@@ -177,13 +177,15 @@ String _fenced(String body) {
   final text = body.trimRight();
   final longest = RegExp('`+')
       .allMatches(text)
-      .fold<int>(0, (max, m) => m[0]!.length > max ? m[0]!.length : max);
+      .fold<int>(
+        0,
+        (max, m) => (m[0]?.length ?? 0) > max ? (m[0]?.length ?? 0) : max,
+      );
   final fence = '`' * (longest < 3 ? 3 : longest + 1);
   return '$fence\n$text\n$fence\n';
 }
 
-String _orNA(String? value) =>
-    (value == null || value.isEmpty) ? 'N/A' : value;
+String _orNA(String? value) => (value == null || value.isEmpty) ? 'N/A' : value;
 
 String _routeLabel(NavigatorEntry e) {
   final name = e.routeName ?? e.widgetType?.toString() ?? '(unnamed)';

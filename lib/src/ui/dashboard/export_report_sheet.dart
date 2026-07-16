@@ -43,6 +43,7 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
   };
 
   final Set<TimelineSource> _sections = TimelineSource.values.toSet();
+
   /// Index into [_ranges]. The radios key off the index rather than the
   /// `Duration?` itself, because `RadioGroup<Duration>` would conflate "All"
   /// (a deliberate null) with "nothing selected" (also null).
@@ -134,7 +135,7 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
             for (final source in TimelineSource.values)
               CheckboxListTile(
                 dense: true,
-                title: Text(_sourceLabels[source]!),
+                title: Text(_sourceLabels[source] ?? ''),
                 value: _sections.contains(source),
                 onChanged: (checked) => setState(() {
                   if (checked ?? false) {
@@ -190,7 +191,6 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
 }
 
 class _SectionLabel extends StatelessWidget {
-
   final String text;
 
   const _SectionLabel(this.text);

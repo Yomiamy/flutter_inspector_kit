@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/network_entry.dart';
+
 /// Formats [t] as a zero-padded `HH:mm:ss` local-time string.
 String timeOf(DateTime t) =>
     '${t.hour.toString().padLeft(2, '0')}:'
@@ -180,7 +181,9 @@ List<NetworkErrorGroup> aggregateNetworkErrors(List<NetworkEntry> entries) {
   for (final entry in entries) {
     // 1. Filter out non-error entries: only requests with an error or a
     // >=400 status code count. Pending requests (both null) are excluded.
-    final isError = entry.error != null || (entry.statusCode != null && entry.statusCode! >= 400);
+    final statusCode = entry.statusCode;
+    final isError =
+        entry.error != null || (statusCode != null && statusCode >= 400);
     if (!isError) continue;
 
     // 2. Group by statusCode when present; only transport failures
@@ -189,16 +192,21 @@ List<NetworkErrorGroup> aggregateNetworkErrors(List<NetworkEntry> entries) {
     final key = entry.statusCode != null
         ? (entry.statusCode, null)
         : (null, entry.errorType);
-    final builder = builders.putIfAbsent(key, () => _ErrorGroupBuilder(
-      statusCode: entry.statusCode,
-      errorType: entry.statusCode != null ? null : entry.errorType,
-    ));
+    final builder = builders.putIfAbsent(
+      key,
+      () => _ErrorGroupBuilder(
+        statusCode: entry.statusCode,
+        errorType: entry.statusCode != null ? null : entry.errorType,
+      ),
+    );
 
     builder.count++;
-    if (builder.firstSeen == null || entry.timestamp.isBefore(builder.firstSeen!)) {
+    final firstSeen = builder.firstSeen;
+    if (firstSeen == null || entry.timestamp.isBefore(firstSeen)) {
       builder.firstSeen = entry.timestamp;
     }
-    if (builder.lastSeen == null || entry.timestamp.isAfter(builder.lastSeen!)) {
+    final lastSeen = builder.lastSeen;
+    if (lastSeen == null || entry.timestamp.isAfter(lastSeen)) {
       builder.lastSeen = entry.timestamp;
     }
   }
@@ -211,14 +219,11 @@ List<NetworkErrorGroup> aggregateNetworkErrors(List<NetworkEntry> entries) {
 }
 
 class _ErrorGroupBuilder {
-  _ErrorGroupBuilder({
-    this.statusCode,
-    this.errorType,
-  });
+  _ErrorGroupBuilder({this.statusCode, this.errorType});
 
   final int? statusCode;
   final DioExceptionType? errorType;
-  
+
   int count = 0;
   DateTime? firstSeen;
   DateTime? lastSeen;

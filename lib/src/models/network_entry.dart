@@ -201,8 +201,7 @@ class NetworkEntry implements TimestampedEntry {
 
   /// Whether either body was truncated to fit [kNetworkBodyMaxLength].
   bool get isTruncated =>
-      isRequestTruncated ||
-      (responseBody?.endsWith(kTruncatedMarker) ?? false);
+      isRequestTruncated || (responseBody?.endsWith(kTruncatedMarker) ?? false);
 
   /// Whether the request body was truncated to fit [kNetworkBodyMaxLength].
   bool get isRequestTruncated =>
