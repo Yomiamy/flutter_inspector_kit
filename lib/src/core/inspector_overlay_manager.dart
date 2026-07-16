@@ -15,10 +15,8 @@ class InspectorOverlayManager {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
     _overlayEntry = OverlayEntry(
-      builder: (context) => InspectorFab(
-        onTap: () => onFabTap(context),
-        visible: visible,
-      ),
+      builder: (context) =>
+          InspectorFab(onTap: () => onFabTap(context), visible: visible),
     );
     overlay.insert(_overlayEntry!);
   }

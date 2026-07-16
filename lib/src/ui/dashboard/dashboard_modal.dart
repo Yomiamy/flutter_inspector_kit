@@ -81,10 +81,7 @@ class DashboardModal extends StatelessWidget {
 }
 
 class _DashboardTabBar extends StatelessWidget {
-  const _DashboardTabBar({
-    required this.hasCustomTab,
-    this.customTabTitle,
-  });
+  const _DashboardTabBar({required this.hasCustomTab, this.customTabTitle});
 
   final bool hasCustomTab;
   final String? customTabTitle;

@@ -374,4 +374,3 @@ class _TableRowsBody extends StatelessWidget {
     );
   }
 }
-
