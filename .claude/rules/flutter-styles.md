@@ -189,6 +189,46 @@ class MySingleton {
 }
 ```
 
+### 2.8. 參數設計 (Parameter Design)
+
+遵循 Dart 官方規範 (Effective Dart) 與 Flutter 框架最佳實踐，拒絕教條式地「一律使用 Named Parameter」或「一律使用 Positional Parameter」，請依據**實用主義**來決定參數形式：
+
+1. **Widget Constructors (元件建構式)**：最核心、不可或缺的單一資料（如 `Text` 的文字、`Icon` 的圖示）使用 Positional Parameter，其餘所有的修飾、樣式與配置**必須**使用 Named Parameter。
+2. **Functions / Methods (一般函式與方法)**：
+   - 參數數量 **≥ 3 個** 時，強制使用 Named Parameter。
+   - 當參數中包含 **多個相同型別**（尤其是 `bool` 旗標），強制使用 Named Parameter，避免語意混淆。
+   - 若只有 1~2 個語意極度明確的參數，優先使用 Positional Parameter 保持簡潔。
+
+**Good:**
+```dart
+// Widget: 核心資料用 Positional，配置用 Named
+Text('Hello World', style: TextStyle(color: Colors.red));
+
+// Function: 語意明確的單一或雙參數用 Positional
+user.setName('Linus');
+math.max(10, 20);
+
+// Function: 超過 3 個參數，或多個布林值導致語意不明，使用 Named
+void updateProfile({required String id, required bool isActive, required bool isDeleted}) {
+  /*...*/
+}
+updateProfile(id: '123', isActive: true, isDeleted: false);
+```
+
+**Bad:**
+```dart
+// 錯誤：教條式一律使用 Named，導致廢話連篇 (視覺噪音)
+Text(text: 'Hello World'); 
+user.setName(name: 'Linus');
+math.max(a: 10, b: 20);
+
+// 錯誤：濫用 Positional，導致順序難記、布林值語意不明
+void updateProfile(String id, bool isActive, bool isDeleted) {
+  /*...*/
+}
+updateProfile('123', true, false); // 讀者無法分辨 true 和 false 的實際意義
+```
+
 ## 3. 導入 (Imports)
 
 ### 3.1. 組織導入 (Organizing Imports)
