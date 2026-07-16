@@ -160,7 +160,8 @@ class FlutterInspector {
       // notifier — which is correct, since _available isn't true until init
       // succeeds, so showOrUpdate would no-op on them anyway. This just avoids
       // holding a callback that fires into an uninitialised notifier.
-      networkNotifier.init().then((_) {
+      () async {
+        await networkNotifier.init();
         _registry.network.onAdd = (entry, total) {
           networkNotifier.showOrUpdate(entry, total);
         };
@@ -168,7 +169,7 @@ class FlutterInspector {
         if (entries.isNotEmpty) {
           networkNotifier.showOrUpdate(entries.first, entries.length);
         }
-      });
+      }();
     }
   }
 

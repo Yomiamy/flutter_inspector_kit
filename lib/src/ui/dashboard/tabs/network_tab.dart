@@ -47,13 +47,17 @@ class _NetworkTabState extends State<NetworkTab> {
     final entries = group == null
         ? filteredEntries
         : filteredEntries
-            .where((e) =>
-                e.error != null ||
-                (e.statusCode != null && e.statusCode! >= 400))
-            .where((e) => group.statusCode != null
-                ? e.statusCode == group.statusCode
-                : e.errorType == group.errorType)
-            .toList(growable: false);
+              .where(
+                (e) =>
+                    e.error != null ||
+                    (e.statusCode != null && e.statusCode! >= 400),
+              )
+              .where(
+                (e) => group.statusCode != null
+                    ? e.statusCode == group.statusCode
+                    : e.errorType == group.errorType,
+              )
+              .toList(growable: false);
 
     return Column(
       children: [
@@ -74,8 +78,7 @@ class _NetworkTabState extends State<NetworkTab> {
           selectedGroup: _selectedErrorGroup,
           expanded: _errorSummaryExpanded,
           onGroupTap: (group) => setState(() {
-            _selectedErrorGroup =
-                _selectedErrorGroup == group ? null : group;
+            _selectedErrorGroup = _selectedErrorGroup == group ? null : group;
           }),
           onExpandToggle: () => setState(() {
             _errorSummaryExpanded = !_errorSummaryExpanded;
@@ -144,8 +147,12 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(ThemeSpacing.spacing8,
-          ThemeSpacing.spacing8, ThemeSpacing.spacing4, ThemeSpacing.spacing4),
+      padding: const EdgeInsets.fromLTRB(
+        ThemeSpacing.spacing8,
+        ThemeSpacing.spacing8,
+        ThemeSpacing.spacing4,
+        ThemeSpacing.spacing4,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -222,7 +229,7 @@ class _FilterChips extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: ThemeSpacing.spacing8),
               child: FilterChip(
-                label: Text(statusLabels[group]!),
+                label: Text(statusLabels[group] ?? ''),
                 selected: selectedStatusGroups.contains(group),
                 onSelected: (selected) =>
                     onStatusGroupSelected(group, selected),
@@ -332,8 +339,11 @@ class _ErrorSummaryBanner extends StatelessWidget {
           padding: ThemePadding.paddingAll8,
           child: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded,
-                  size: ThemeSize.size16, color: ThemeColor.colorFF9800),
+              const Icon(
+                Icons.warning_amber_rounded,
+                size: ThemeSize.size16,
+                color: ThemeColor.colorFF9800,
+              ),
               const SizedBox(width: ThemeSpacing.spacing8),
               Text(
                 '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
@@ -354,12 +364,18 @@ class _ErrorSummaryBanner extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-              ThemeSpacing.spacing12, ThemeSpacing.spacing8, ThemeSpacing.spacing12, 0),
+            ThemeSpacing.spacing12,
+            ThemeSpacing.spacing8,
+            ThemeSpacing.spacing12,
+            0,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Error Summary',
-                  style: Theme.of(context).textTheme.labelSmall),
+              Text(
+                'Error Summary',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
               InkWell(
                 onTap: onExpandToggle,
                 child: const Icon(Icons.expand_less, size: ThemeSize.size16),
@@ -446,10 +462,11 @@ class _ErrorGroupCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               group.label,
-                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: color,
-                              ),
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                  ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
