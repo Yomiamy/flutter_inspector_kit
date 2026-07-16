@@ -664,14 +664,23 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 
 ### 退回路徑（失敗 retry 迴圈）
 
-並行單元失敗時，**不可無限重試**：
-```
+並行單元（或單一任務）失敗時，**不可無限重試**。
+針對實作/邏輯錯誤，採用「同 tier 重派失敗 2 次 → 升一級 tier 再試 1 次」的漸進升級策略（硬性限制最多升級一次）：
+
+```text
 失敗單元 → 分析原因
   ├─ context 不足  → 補 context，重派同 model（最多 1 次）
   ├─ 任務過大      → 拆成更小單元，重新並行/序列
   ├─ 計畫本身有誤  → 退回 planner（STAGE 0b），不在 STAGE 2 硬修
-  └─ 重派仍失敗 2 次 → 停止，回報使用者，等決策（不自動繼續）
+  └─ 邏輯/實作失敗（重試與升級機制）：
+       1. 同 tier (當下 model) 重派，最多失敗 2 次。
+       2. 失敗 2 次後，判斷是否已為最高 tier (Opus, xHigh effort)：
+          - 若是 → 停止，回報使用者，等決策（不自動繼續）。
+          - 若否 → 將該任務升級一級 tier（例：快/便宜 → 標準，或標準 → 最強），再試 1 次。
+       3. 升級後若仍失敗 → 停止，回報使用者，等決策（不自動繼續）。
 ```
+
+> **Tier Upgrade 紀錄：** 當觸發 tier 升級時，必須在進度回報行中明確註記（例如：`[任務 N 升級至 標準 model]`），讓使用者知悉該任務正動用更高成本嘗試解決。
 
 **與 STAGE 3 退回的關係：** STAGE 2 內部失敗在 STAGE 2 內 retry；STAGE 3 審查不通過才退回 STAGE 2 整體重做。兩者是不同層級的迴圈，不可混用。
 
@@ -692,10 +701,10 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 兩條唯讀調查（A. 專案 context 讀檔/git log｜B. 相似功能代碼調查），無依賴、不寫檔 → 天然安全的 `parallel()` barrier，收斂後才交給 planner 撰寫規格。
 
 ```js
-// meta 省略；agentType 用 Explore（唯讀搜尋）
+// meta 省略；agentType 用 Explore（唯讀搜尋）但強制指定 model 與 effort 覆蓋
 const [projCtx, similarCode] = await parallel([
-  () => agent('收集專案 context：讀 README / pubspec / 近期 git log，回報架構與慣例', {agentType: 'Explore', schema: CTX_SCHEMA}),
-  () => agent('調查與「<需求>」相似的既有實作，回報可參考的檔案與模式', {agentType: 'Explore', schema: CTX_SCHEMA}),
+  () => agent('收集專案 context：讀 README / pubspec / 近期 git log，回報架構與慣例', {agentType: 'Explore', model: 'sonnet', effort: 'high', schema: CTX_SCHEMA}),
+  () => agent('調查與「<需求>」相似的既有實作，回報可參考的檔案與模式', {agentType: 'Explore', model: 'sonnet', effort: 'high', schema: CTX_SCHEMA}),
 ])
 // 回到主對話：planner 收斂 projCtx + similarCode → 撰寫 docs/features/...md → 暫停確認（不在 Workflow 內）
 ```
