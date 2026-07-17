@@ -26,9 +26,12 @@ import 'redaction.dart';
 ///   be a special branch in every switch.
 /// * [sections] — which sources to include. Unselected sources are absent
 ///   entirely, not rendered empty.
-/// * [errorsOnly] — restrict the *log* section to error/warning. Off by
-///   default: a report whose whole point is "what happened around the error"
-///   is worth little once the leading info/debug breadcrumbs are stripped.
+/// * [errorsOnly] — restrict the whole Timeline stream to error signals:
+///   error/warning logs and failed network calls (`statusCode >= 400` or a
+///   transport `errorType`); nav/db events are dropped. Off by default: a
+///   report whose whole point is "what happened around the error" is worth
+///   little once the leading info/debug breadcrumbs are stripped. The
+///   independent Network/Navigation/Database detail sections are unaffected.
 ///
 /// [redact] should be the host's `FlutterInspector.redactSensitiveData`, so the
 /// report masks exactly what a single-entry share masks — no more, no less.
