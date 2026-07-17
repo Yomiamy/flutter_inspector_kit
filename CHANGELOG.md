@@ -1,3 +1,12 @@
+## 1.6.0
+
+### Changed
+* **Diagnostic report Timeline**: the exported report's separate "Logs" section is now a chronological mixed **Timeline** that interleaves log, network, navigation, and database entries by timestamp (newest first), surfacing cross-layer causality at a glance. The independent Network / Navigation / Database detail sections remain below it.
+* **"Errors & warnings only" now filters the whole Timeline**: previously the toggle restricted only the log section; it now keeps error-signal entries across the entire Timeline stream (logs plus failed/errored network calls), while the detail sections are unaffected.
+
+### Fixed
+* **Timeline one-liner hardening**: report one-liners are now guarded against CRLF injection and malformed-URL leaks.
+
 ## 1.5.0
 
 ### Added
