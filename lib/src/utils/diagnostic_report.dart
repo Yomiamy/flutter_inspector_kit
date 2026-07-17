@@ -68,23 +68,33 @@ String buildDiagnosticReport({
     ..writeln('| Device | ${_orNA(info?.deviceModel)} |')
     ..writeln('| OS | ${_orNA(info?.osVersion)} |');
 
-  if (sections.contains(TimelineSource.log)) {
-    // errorsOnly reuses entriesAtLevel(), which returns exactly one level, so
-    // the two levels are merged and re-sorted back into newest-first order.
-    final logs = errorsOnly
-        ? (<LogEntry>[
-            ...logInspector.entriesAtLevel(LogLevel.error),
-            ...logInspector.entriesAtLevel(LogLevel.warning),
-          ]..sort((a, b) => b.timestamp.compareTo(a.timestamp)))
-        : logInspector.entries;
+  // The mixed Timeline: entries from every selected source interleaved by time,
+  // newest first — the cross-layer causality the four detail sections below
+  // can't show. It reuses the shared TimestampedEntry.timestamp sort key and
+  // introduces no new model; it is a formatting projection of existing entries.
+  final timeline = <TimestampedEntry>[
+    if (sections.contains(TimelineSource.log)) ...logInspector.entries,
+    if (sections.contains(TimelineSource.network)) ...networkEntries,
+    if (sections.contains(TimelineSource.nav)) ...navigatorEntries,
+    if (sections.contains(TimelineSource.db)) ...databaseEntries,
+  ];
 
-    _writeSection(
-      b,
-      errorsOnly ? 'Logs (errors & warnings only)' : 'Logs',
-      logs.where(inWindow),
-      (e) => _fenced(buildLogPlainText(e)),
-    );
+  var stream = timeline.where(inWindow);
+  if (errorsOnly) {
+    // errorsOnly now filters the whole stream, not just logs: keep error/warning
+    // logs and failed network calls; nav/db carry no error signal, so drop them.
+    stream = stream.where(_isError);
   }
+
+  final visibleTimeline = stream.toList()
+    ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+  _writeSection(
+    b,
+    errorsOnly ? 'Timeline (errors & warnings only)' : 'Timeline',
+    visibleTimeline,
+    _timelineLine,
+  );
 
   if (sections.contains(TimelineSource.network)) {
     _writeSection(
@@ -183,6 +193,34 @@ String _fenced(String body) {
       );
   final fence = '`' * (longest < 3 ? 3 : longest + 1);
   return '$fence\n$text\n$fence\n';
+}
+
+/// Whether [e] carries an error signal, for the errors-only timeline filter.
+/// Only logs and network calls can; nav/db events are never "errors".
+bool _isError(TimestampedEntry e) {
+  if (e is LogEntry) {
+    return e.level == LogLevel.error || e.level == LogLevel.warning;
+  }
+  if (e is NetworkEntry) {
+    return (e.statusCode ?? 0) >= 400 || e.errorType != null;
+  }
+  return false;
+}
+
+/// Renders one timeline entry as a single-line Markdown list item. Nav/DB use
+/// inline formatting matching their detail sections; log/network delegate to
+/// their dedicated one-liner formatters.
+String _timelineLine(TimestampedEntry e) {
+  if (e is LogEntry) return '- ${buildLogOneLiner(e)}';
+  if (e is NetworkEntry) return '- ${buildNetworkOneLiner(e)}';
+  if (e is NavigatorEntry) {
+    return '- [${e.displayTime}] [NAV] ${e.action.name} ${_routeLabel(e)}';
+  }
+  if (e is DatabaseEntry) {
+    final rows = e.affectedRows == null ? '' : ' (${e.affectedRows} rows)';
+    return '- [${e.displayTime}] [DB] ${e.operation.name} `${e.tableName}`$rows';
+  }
+  return '- [${e.displayTime}] [UNKNOWN]';
 }
 
 String _orNA(String? value) => (value == null || value.isEmpty) ? 'N/A' : value;

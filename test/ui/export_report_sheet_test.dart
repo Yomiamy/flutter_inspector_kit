@@ -107,7 +107,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(shared.single, isNot(contains('## Network')));
-      expect(shared.single, contains('## Logs'));
+      expect(shared.single, contains('## Timeline'));
     });
 
     testWidgets('errors-only strips info logs from the shared report',

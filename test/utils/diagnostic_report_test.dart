@@ -187,7 +187,7 @@ void main() {
 
       expect(report, isNot(contains('## Network')));
       expect(report, isNot(contains('https://api.test/x')));
-      expect(report, contains('## Logs'));
+      expect(report, contains('## Timeline'));
     });
 
     test('a selected but empty source renders (none), not a blank block', () {
@@ -324,9 +324,11 @@ void main() {
   group('markdown integrity: payloads that contain their own fences', () {
     // The whole point of this feature is pasting the report into a GitHub or
     // Jira issue. A payload carrying its own ``` (LLM output, CMS content, a
-    // pasted snippet) must not be able to break out of its code block.
+    // pasted snippet) must not be able to break out and swallow what follows.
+    // The timeline renders logs as inline list items and flattens the message,
+    // so a payload fence can never sit at line-start to open a block at all.
 
-    test('a log message containing a fenced block stays inside its block', () {
+    test('a log message with its own fence cannot open a code block', () {
       final report = _report(
         logInspector: LogInspector()
           ..add(
@@ -338,9 +340,10 @@ void main() {
         sections: {TimelineSource.log},
       );
 
-      // The outer fence must outrun the payload's own 3-backtick run.
-      expect(report, contains('````'));
+      // Flattened onto the one-liner, the payload survives but its fence is
+      // mid-line — it never opens a block, so the document stays balanced.
       expect(report, contains('print("hi");'));
+      expect(_fencesBalanced(report), isTrue, reason: 'a fence was left open');
     });
 
     test('an unbalanced fence does not swallow the sections that follow', () {
@@ -363,8 +366,8 @@ void main() {
         sections: {TimelineSource.log, TimelineSource.db},
       );
 
-      // With a fixed 3-backtick fence, the payload's stray fence flips parity
-      // and everything after it is eaten — headings included.
+      // Flattening keeps the stray fence off line-start, so it can't flip block
+      // parity and eat the headings that follow.
       expect(report, contains('## Database'));
       expect(report, contains('users'));
       expect(_fencesBalanced(report), isTrue, reason: 'a fence was left open');
@@ -442,7 +445,7 @@ void main() {
       expect(report, contains('careful'));
       expect(report, isNot(contains('just-fyi')));
       expect(report, isNot(contains('noisy')));
-      expect(report, contains('Logs (errors & warnings only)'));
+      expect(report, contains('Timeline (errors & warnings only)'));
     });
 
     test('on: the surviving logs stay newest-first after the level merge', () {
@@ -454,7 +457,7 @@ void main() {
       expect(report.indexOf('careful'), lessThan(report.indexOf('boom')));
     });
 
-    test('does not touch the network / nav / db sections', () {
+    test('filters the timeline stream but leaves the detail sections intact', () {
       final report = _report(
         logInspector: mixedLevels(),
         network: [
@@ -475,9 +478,51 @@ void main() {
         errorsOnly: true,
       );
 
-      // A 200 is not an error, but errorsOnly is a *log-level* filter only.
+      // errorsOnly now filters the whole timeline stream: a 200 and a plain
+      // query carry no error signal, so neither reaches ## Timeline...
+      expect(report, isNot(contains('[NET] GET /ok')));
+      // ...but the independent ## Network / ## Database detail sections are
+      // untouched and still carry the full record.
       expect(report, contains('https://api.test/ok'));
       expect(report, contains('users'));
+    });
+  });
+
+  group('timeline section (AC-1, AC-6)', () {
+    test('replaces ## Logs with a ## Timeline that interleaves all sources', () {
+      final report = _report(
+        logInspector: LogInspector()
+          ..add(
+            LogEntry(message: 'App started', timestamp: _minutesAgo(3)),
+          ),
+        network: [
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/data',
+            statusCode: 502,
+            duration: const Duration(milliseconds: 40),
+            timestamp: _minutesAgo(1),
+          ),
+        ],
+        nav: [
+          NavigatorEntry(
+            action: NavigatorAction.push,
+            routeName: '/home',
+            timestamp: _minutesAgo(2),
+          ),
+        ],
+      );
+
+      expect(report, contains('## Timeline'));
+      expect(report, isNot(contains('## Logs')));
+
+      // Newest first: NET (1m) → NAV (2m) → LOG (3m).
+      final net = report.indexOf('[NET] GET /data → 502');
+      final nav = report.indexOf('[NAV] push `/home`');
+      final log = report.indexOf('[LOG/info] App started');
+      expect(net, greaterThanOrEqualTo(0));
+      expect(nav, greaterThan(net));
+      expect(log, greaterThan(nav));
     });
   });
 
