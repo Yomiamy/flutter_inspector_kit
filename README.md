@@ -43,7 +43,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.5.0
+  flutter_inspector_kit: ^1.6.0
 ```
 
 Then run `flutter pub get`.
@@ -514,6 +514,13 @@ Open the dashboard and tap the **share icon** in the app bar. Pick which sources
 include, a time window (last 5m / last 1h / all), and optionally "errors & warnings
 only", then hit **Share report** — a Markdown report goes straight to the system
 share sheet. Nothing is written to disk.
+
+The report leads with a single chronological **Timeline** that interleaves the log,
+network, navigation, and database entries you selected by timestamp (newest first),
+so cross-layer causality reads at a glance; the per-source Network / Navigation /
+Database detail sections follow below it. The "errors & warnings only" toggle filters
+this whole Timeline down to error signals (log errors/warnings plus failed network
+calls), leaving those detail sections untouched.
 
 The report inherits your `redactSensitiveData` setting, and its header states
 `Redaction: enabled` / `disabled` so whoever receives it knows what was masked.
