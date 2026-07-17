@@ -157,6 +157,7 @@ Anthropic 官方數據佐證了這個方向的可行性：
 > **前置條件**：無
 > **預估成本**：30 分鐘
 > **預估效益**：STAGE 0a token 消耗降低 50–60%
+> **狀態**：✅ 已於 `9d3de40` 落地（採最小改動：僅在 STAGE 0a `agent()` 呼叫層級加上 `model: 'sonnet', effort: 'high'` 覆蓋，未動任何 agent 定義檔）
 
 **異動檔案：**
 - `.agents/skills/gen-dev-workflow/SKILL.md` — 三處修改：
@@ -170,10 +171,10 @@ Anthropic 官方數據佐證了這個方向的可行性：
 3. Stage 層級基準分配表 STAGE 0a 行改為：`sonnet（收集）→ planner（收斂）`
 
 **驗收條件：**
-- [ ] STAGE 0a 的兩條收集線派發參數為 sonnet + effort: high
-- [ ] 不新增任何 agent 定義檔
-- [ ] planner 仍為 opus-level，只負責收斂與撰寫規格
-- [ ] 推論等級表與 Stage 基準分配表已同步更新
+- [x] STAGE 0a 的兩條收集線派發參數為 sonnet + effort: high（`9d3de40`）
+- [x] 不新增任何 agent 定義檔（僅參數覆蓋，`agentType: 'Explore'` 維持）
+- [x] planner 仍為 opus-level，只負責收斂與撰寫規格（未變動）
+- [ ] 推論等級表與 Stage 基準分配表已同步更新 — **未同步**：`9d3de40` 採最小改動只動 `agent()` 參數；Stage 基準分配表 `0a/0b` 行描述的是 planner 的收斂角色（仍為 Opus），未新增「偵察」行。若需表格層級文件一致性，列為後續 follow-up。
 
 ---
 
@@ -182,6 +183,7 @@ Anthropic 官方數據佐證了這個方向的可行性：
 > **前置條件**：無（可與 P0 平行進行）
 > **預估成本**：1 小時
 > **預估效益**：減少機械性任務失敗時的不必要人工介入
+> **狀態**：✅ 已於 `b73d08f` 落地（退回路徑加入「同 tier 失敗 2 次 → 升一級 tier 再試 1 次」，硬性限制最多升級一次，並要求進度行註記 tier 升級）
 
 **異動檔案：**
 - `.agents/skills/gen-dev-workflow/SKILL.md` — 「退回路徑」段落
