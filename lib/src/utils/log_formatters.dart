@@ -1,7 +1,38 @@
 import '../models/log_entry.dart';
+import '../models/timestamped_entry.dart';
 
 /// Pure formatting helpers for the Console inspector. No Flutter dependencies,
 /// so everything here is unit-testable in isolation.
+
+/// Projects [entry] onto a single dense line for the diagnostic report's
+/// `## Timeline` section: `[HH:mm:ss.mmm] [LOG/{level}] {message}`.
+///
+/// The message is flattened onto one line: a log body can carry its own ```
+/// fence (LLM output, a pasted snippet), and the timeline renders entries as
+/// plain list items, not fenced blocks — keeping the fence off line-start is
+/// what stops it opening a code block that swallows the rest of the report.
+///
+/// When a stack trace is present, up to its first three non-blank frames follow
+/// on their own `  │ ` lines, enough to place the failure without dragging the
+/// whole trace into an at-a-glance view.
+String buildLogOneLiner(LogEntry entry) {
+  final message = entry.message.replaceAll('\n', ' ');
+  final b = StringBuffer(
+    '[${entry.displayTime}] [LOG/${entry.level.name}] $message',
+  );
+
+  final stackTrace = entry.stackTrace;
+  if (stackTrace != null) {
+    final frames = stackTrace
+        .split('\n')
+        .where((l) => l.trim().isNotEmpty)
+        .take(3);
+    for (final frame in frames) {
+      b.write('\n  │ ${frame.trim()}');
+    }
+  }
+  return b.toString();
+}
 
 /// Builds a full plain-text export of [entry] covering general info,
 /// stack trace, and data sections.
