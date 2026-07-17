@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/inspectors/log_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/database_entry.dart';
 import 'package:flutter_inspector_kit/src/models/database_operation.dart';
@@ -9,6 +10,8 @@ import 'package:flutter_inspector_kit/src/models/navigator_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/models/timestamped_entry.dart';
 import 'package:flutter_inspector_kit/src/utils/diagnostic_report.dart';
+import 'package:flutter_inspector_kit/src/utils/log_formatters.dart';
+import 'package:flutter_inspector_kit/src/utils/network_formatters.dart';
 import 'package:flutter_inspector_kit/src/version.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -72,7 +75,10 @@ void main() {
 
       // Not hardcoded — CI may run in any zone. Assert the shape, then that it
       // matches the fixture clock's actual offset.
-      expect(report, matches(RegExp(r'\| Generated \|.*\(UTC[+-]\d{2}:\d{2}\) \|')));
+      expect(
+        report,
+        matches(RegExp(r'\| Generated \|.*\(UTC[+-]\d{2}:\d{2}\) \|')),
+      );
 
       final offset = _now.timeZoneOffset;
       final sign = offset.isNegative ? '-' : '+';
@@ -103,12 +109,17 @@ void main() {
       expect(report, contains('| OS | iOS 17.4 |'));
     });
 
-    test('a partially-populated source still degrades only the missing fields', () {
-      final report = _report(info: const DiagnosticInfo(osVersion: 'Android 14'));
+    test(
+      'a partially-populated source still degrades only the missing fields',
+      () {
+        final report = _report(
+          info: const DiagnosticInfo(osVersion: 'Android 14'),
+        );
 
-      expect(report, contains('| OS | Android 14 |'));
-      expect(report, contains('| App version | N/A |'));
-    });
+        expect(report, contains('| OS | Android 14 |'));
+        expect(report, contains('| App version | N/A |'));
+      },
+    );
 
     test('states the redaction status honestly', () {
       expect(_report(), contains('| Redaction | enabled |'));
@@ -176,7 +187,7 @@ void main() {
 
       expect(report, isNot(contains('## Network')));
       expect(report, isNot(contains('https://api.test/x')));
-      expect(report, contains('## Logs'));
+      expect(report, contains('## Timeline'));
     });
 
     test('a selected but empty source renders (none), not a blank block', () {
@@ -186,23 +197,26 @@ void main() {
       expect(report, contains('(none)'));
     });
 
-    test('an entry outside the time window leaves its section empty, not absent', () {
-      final report = _report(
-        db: [
-          DatabaseEntry(
-            operation: DatabaseOperation.insert,
-            tableName: 'users',
-            timestamp: _minutesAgo(180),
-          ),
-        ],
-        sections: {TimelineSource.db},
-        timeRange: const Duration(minutes: 5),
-      );
+    test(
+      'an entry outside the time window leaves its section empty, not absent',
+      () {
+        final report = _report(
+          db: [
+            DatabaseEntry(
+              operation: DatabaseOperation.insert,
+              tableName: 'users',
+              timestamp: _minutesAgo(180),
+            ),
+          ],
+          sections: {TimelineSource.db},
+          timeRange: const Duration(minutes: 5),
+        );
 
-      expect(report, contains('## Database'));
-      expect(report, contains('(none)'));
-      expect(report, isNot(contains('users')));
-    });
+        expect(report, contains('## Database'));
+        expect(report, contains('(none)'));
+        expect(report, isNot(contains('users')));
+      },
+    );
   });
 
   group('redaction red line (AC-15, AC-16, AC-18)', () {
@@ -216,15 +230,18 @@ void main() {
       timestamp: _minutesAgo(1),
     );
 
-    test('redact: true masks the secret header and never leaks the plaintext', () {
-      final report = _report(network: [secretRequest()]);
+    test(
+      'redact: true masks the secret header and never leaks the plaintext',
+      () {
+        final report = _report(network: [secretRequest()]);
 
-      expect(report, isNot(contains('super-secret-token')));
-      expect(report, isNot(contains('Bearer')));
-      expect(report, contains('••••'));
-      // Non-sensitive headers survive.
-      expect(report, contains('application/json'));
-    });
+        expect(report, isNot(contains('super-secret-token')));
+        expect(report, isNot(contains('Bearer')));
+        expect(report, contains('••••'));
+        // Non-sensitive headers survive.
+        expect(report, contains('application/json'));
+      },
+    );
 
     test('redact: false emits the plaintext, matching single-entry share', () {
       final report = _report(network: [secretRequest()], redact: false);
@@ -235,28 +252,31 @@ void main() {
   });
 
   group('current route stack (AC-7)', () {
-    test('renders the resolved stack top-first with the current route marked', () {
-      final report = _report(
-        nav: [
-          // newest-first, as FlutterInspector.navigatorEntries yields.
-          NavigatorEntry(
-            action: NavigatorAction.push,
-            routeName: '/checkout',
-            timestamp: _minutesAgo(1),
-          ),
-          NavigatorEntry(
-            action: NavigatorAction.push,
-            routeName: '/cart',
-            timestamp: _minutesAgo(2),
-          ),
-        ],
-        sections: {TimelineSource.nav},
-      );
+    test(
+      'renders the resolved stack top-first with the current route marked',
+      () {
+        final report = _report(
+          nav: [
+            // newest-first, as FlutterInspector.navigatorEntries yields.
+            NavigatorEntry(
+              action: NavigatorAction.push,
+              routeName: '/checkout',
+              timestamp: _minutesAgo(1),
+            ),
+            NavigatorEntry(
+              action: NavigatorAction.push,
+              routeName: '/cart',
+              timestamp: _minutesAgo(2),
+            ),
+          ],
+          sections: {TimelineSource.nav},
+        );
 
-      expect(report, contains('### Current route stack'));
-      expect(report, contains('1. `/checkout` ← current'));
-      expect(report, contains('2. `/cart`'));
-    });
+        expect(report, contains('### Current route stack'));
+        expect(report, contains('1. `/checkout` ← current'));
+        expect(report, contains('2. `/cart`'));
+      },
+    );
 
     test(
       'REGRESSION: the stack replays the full buffer, not the time-windowed list — '
@@ -304,31 +324,38 @@ void main() {
   group('markdown integrity: payloads that contain their own fences', () {
     // The whole point of this feature is pasting the report into a GitHub or
     // Jira issue. A payload carrying its own ``` (LLM output, CMS content, a
-    // pasted snippet) must not be able to break out of its code block.
+    // pasted snippet) must not be able to break out and swallow what follows.
+    // The timeline renders logs as inline list items and flattens the message,
+    // so a payload fence can never sit at line-start to open a block at all.
 
-    test('a log message containing a fenced block stays inside its block', () {
+    test('a log message with its own fence cannot open a code block', () {
       final report = _report(
         logInspector: LogInspector()
-          ..add(LogEntry(
-            message: 'llm replied:\n```\nprint("hi");\n```\ndone',
-            timestamp: _minutesAgo(1),
-          )),
+          ..add(
+            LogEntry(
+              message: 'llm replied:\n```\nprint("hi");\n```\ndone',
+              timestamp: _minutesAgo(1),
+            ),
+          ),
         sections: {TimelineSource.log},
       );
 
-      // The outer fence must outrun the payload's own 3-backtick run.
-      expect(report, contains('````'));
+      // Flattened onto the one-liner, the payload survives but its fence is
+      // mid-line — it never opens a block, so the document stays balanced.
       expect(report, contains('print("hi");'));
+      expect(_fencesBalanced(report), isTrue, reason: 'a fence was left open');
     });
 
     test('an unbalanced fence does not swallow the sections that follow', () {
       final report = _report(
         logInspector: LogInspector()
           // A truncated LLM response: one lone opening fence, never closed.
-          ..add(LogEntry(
-            message: 'output was cut off:\n```\nvoid main() {}',
-            timestamp: _minutesAgo(1),
-          )),
+          ..add(
+            LogEntry(
+              message: 'output was cut off:\n```\nvoid main() {}',
+              timestamp: _minutesAgo(1),
+            ),
+          ),
         db: [
           DatabaseEntry(
             operation: DatabaseOperation.insert,
@@ -339,8 +366,8 @@ void main() {
         sections: {TimelineSource.log, TimelineSource.db},
       );
 
-      // With a fixed 3-backtick fence, the payload's stray fence flips parity
-      // and everything after it is eaten — headings included.
+      // Flattening keeps the stray fence off line-start, so it can't flip block
+      // parity and eat the headings that follow.
       expect(report, contains('## Database'));
       expect(report, contains('users'));
       expect(_fencesBalanced(report), isTrue, reason: 'a fence was left open');
@@ -349,10 +376,12 @@ void main() {
     test('inline backticks are harmless and need no wider fence', () {
       final report = _report(
         logInspector: LogInspector()
-          ..add(LogEntry(
-            message: 'the `id` field was null',
-            timestamp: _minutesAgo(1),
-          )),
+          ..add(
+            LogEntry(
+              message: 'the `id` field was null',
+              timestamp: _minutesAgo(1),
+            ),
+          ),
         sections: {TimelineSource.log},
       );
 
@@ -370,26 +399,34 @@ void main() {
     // trap that let FlutterInspector.version rot for three releases.
     LogInspector mixedLevels() {
       return LogInspector()
-        ..add(LogEntry(
-          message: 'boom',
-          level: LogLevel.error,
-          timestamp: _minutesAgo(5),
-        ))
-        ..add(LogEntry(
-          message: 'careful',
-          level: LogLevel.warning,
-          timestamp: _minutesAgo(1),
-        ))
-        ..add(LogEntry(
-          message: 'just-fyi',
-          level: LogLevel.info,
-          timestamp: _minutesAgo(3),
-        ))
-        ..add(LogEntry(
-          message: 'noisy',
-          level: LogLevel.debug,
-          timestamp: _minutesAgo(4),
-        ));
+        ..add(
+          LogEntry(
+            message: 'boom',
+            level: LogLevel.error,
+            timestamp: _minutesAgo(5),
+          ),
+        )
+        ..add(
+          LogEntry(
+            message: 'careful',
+            level: LogLevel.warning,
+            timestamp: _minutesAgo(1),
+          ),
+        )
+        ..add(
+          LogEntry(
+            message: 'just-fyi',
+            level: LogLevel.info,
+            timestamp: _minutesAgo(3),
+          ),
+        )
+        ..add(
+          LogEntry(
+            message: 'noisy',
+            level: LogLevel.debug,
+            timestamp: _minutesAgo(4),
+          ),
+        );
     }
 
     test('off by default: every level is included', () {
@@ -408,7 +445,7 @@ void main() {
       expect(report, contains('careful'));
       expect(report, isNot(contains('just-fyi')));
       expect(report, isNot(contains('noisy')));
-      expect(report, contains('Logs (errors & warnings only)'));
+      expect(report, contains('Timeline (errors & warnings only)'));
     });
 
     test('on: the surviving logs stay newest-first after the level merge', () {
@@ -420,30 +457,228 @@ void main() {
       expect(report.indexOf('careful'), lessThan(report.indexOf('boom')));
     });
 
-    test('does not touch the network / nav / db sections', () {
-      final report = _report(
-        logInspector: mixedLevels(),
-        network: [
-          NetworkEntry(
-            method: 'GET',
-            url: 'https://api.test/ok',
-            statusCode: 200,
-            timestamp: _minutesAgo(1),
-          ),
-        ],
-        db: [
-          DatabaseEntry(
-            operation: DatabaseOperation.query,
-            tableName: 'users',
-            timestamp: _minutesAgo(1),
-          ),
-        ],
-        errorsOnly: true,
-      );
+    test(
+      'filters the timeline stream but leaves the detail sections intact',
+      () {
+        final report = _report(
+          logInspector: mixedLevels(),
+          network: [
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/ok',
+              statusCode: 200,
+              timestamp: _minutesAgo(1),
+            ),
+          ],
+          db: [
+            DatabaseEntry(
+              operation: DatabaseOperation.query,
+              tableName: 'users',
+              timestamp: _minutesAgo(1),
+            ),
+          ],
+          errorsOnly: true,
+        );
 
-      // A 200 is not an error, but errorsOnly is a *log-level* filter only.
-      expect(report, contains('https://api.test/ok'));
-      expect(report, contains('users'));
+        // errorsOnly now filters the whole timeline stream: a 200 and a plain
+        // query carry no error signal, so neither reaches ## Timeline...
+        expect(report, isNot(contains('[NET] GET /ok')));
+        // ...but the independent ## Network / ## Database detail sections are
+        // untouched and still carry the full record.
+        expect(report, contains('https://api.test/ok'));
+        expect(report, contains('users'));
+      },
+    );
+
+    test(
+      'keeps failed network calls in the timeline — both error branches',
+      () {
+        final report = _report(
+          network: [
+            // Server error: statusCode >= 400.
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/bad-gateway',
+              statusCode: 502,
+              timestamp: _minutesAgo(1),
+            ),
+            // Transport failure: no status, non-null errorType.
+            NetworkEntry(
+              method: 'POST',
+              url: 'https://api.test/timeout',
+              errorType: DioExceptionType.connectionTimeout,
+              timestamp: _minutesAgo(2),
+            ),
+            // Control: a 200 must stay excluded.
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/ok',
+              statusCode: 200,
+              timestamp: _minutesAgo(3),
+            ),
+          ],
+          errorsOnly: true,
+        );
+
+        expect(report, contains('[NET] GET /bad-gateway → 502'));
+        expect(report, contains('[NET] POST /timeout ✗ connectionTimeout'));
+        expect(report, isNot(contains('[NET] GET /ok')));
+      },
+    );
+  });
+
+  group('timeline section (AC-1, AC-6)', () {
+    test(
+      'replaces ## Logs with a ## Timeline that interleaves all sources',
+      () {
+        final report = _report(
+          logInspector: LogInspector()
+            ..add(LogEntry(message: 'App started', timestamp: _minutesAgo(3))),
+          network: [
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/data',
+              statusCode: 502,
+              duration: const Duration(milliseconds: 40),
+              timestamp: _minutesAgo(1),
+            ),
+          ],
+          nav: [
+            NavigatorEntry(
+              action: NavigatorAction.push,
+              routeName: '/home',
+              timestamp: _minutesAgo(2),
+            ),
+          ],
+        );
+
+        expect(report, contains('## Timeline'));
+        expect(report, isNot(contains('## Logs')));
+
+        // Newest first: NET (1m) → NAV (2m) → LOG (3m).
+        final net = report.indexOf('[NET] GET /data → 502');
+        final nav = report.indexOf('[NAV] push `/home`');
+        final log = report.indexOf('[LOG/info] App started');
+        expect(net, greaterThanOrEqualTo(0));
+        expect(nav, greaterThan(net));
+        expect(log, greaterThan(nav));
+      },
+    );
+  });
+
+  group('timeline one-liner formatters (AC-1)', () {
+    test('buildLogOneLiner projects [time] [LOG/level] message', () {
+      final entry = LogEntry(
+        message: 'Fetch failed',
+        level: LogLevel.error,
+        timestamp: DateTime(2026, 7, 16, 10, 30, 6),
+      );
+      expect(
+        buildLogOneLiner(entry),
+        '[10:30:06.000] [LOG/error] Fetch failed',
+      );
+    });
+
+    test('buildLogOneLiner appends up to 3 indented stack frames', () {
+      final entry = LogEntry(
+        message: 'Crash',
+        level: LogLevel.error,
+        stackTrace: '#0 a (f:1)\n#1 b (f:2)\n#2 c (f:3)\n#3 d (f:4)',
+        timestamp: DateTime(2026, 7, 16, 10, 30, 6),
+      );
+      final out = buildLogOneLiner(entry);
+
+      expect(
+        out,
+        startsWith('[10:30:06.000] [LOG/error] Crash\n  │ #0 a (f:1)'),
+      );
+      expect(out.split('\n').length, 4); // message + 3 frames, #3 dropped
+    });
+
+    test('buildLogOneLiner flattens message newlines so an embedded fence '
+        'can never sit at line-start', () {
+      final entry = LogEntry(
+        message: 'llm said:\n```\nprint("hi");\n```\ndone',
+        timestamp: DateTime(2026, 7, 16, 10, 30, 6),
+      );
+      final out = buildLogOneLiner(entry);
+
+      // No stackTrace, so the whole projection must be a single line.
+      expect(out.contains('\n'), isFalse);
+      expect(out, contains('print("hi");'));
+    });
+
+    test('buildLogOneLiner flattens CRLF and lone CR too — CommonMark treats '
+        'a lone \\r as a line ending', () {
+      final entry = LogEntry(
+        message: 'windows says:\r\n```\r\nprint("hi");\r```\rdone',
+        timestamp: DateTime(2026, 7, 16, 10, 30, 6),
+      );
+      final out = buildLogOneLiner(entry);
+
+      expect(out.contains('\n'), isFalse);
+      expect(out.contains('\r'), isFalse);
+      expect(out, contains('print("hi");'));
+    });
+
+    test('buildNetworkOneLiner shows method, path, status and duration', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/data',
+        statusCode: 200,
+        duration: const Duration(milliseconds: 1200),
+        timestamp: DateTime(2026, 7, 16, 10, 30, 5),
+      );
+      expect(
+        buildNetworkOneLiner(entry),
+        '[10:30:05.000] [NET] GET /data → 200 (1200ms)',
+      );
+    });
+
+    test('buildNetworkOneLiner shows ✗ errorType for a transport failure', () {
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test/api',
+        errorType: DioExceptionType.connectionTimeout,
+        timestamp: DateTime(2026, 7, 16, 10, 30, 5),
+      );
+      expect(
+        buildNetworkOneLiner(entry),
+        '[10:30:05.000] [NET] POST /api ✗ connectionTimeout',
+      );
+    });
+
+    test(
+      'buildNetworkOneLiner shows only the URL path, never query secrets',
+      () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/data?token=super-secret',
+          statusCode: 200,
+          timestamp: DateTime(2026, 7, 16, 10, 30, 5),
+        );
+        final out = buildNetworkOneLiner(entry);
+
+        expect(out, contains('/data'));
+        expect(out, isNot(contains('super-secret')));
+      },
+    );
+
+    test('buildNetworkOneLiner keeps query secrets out even when the URL is '
+        'malformed and Uri.tryParse fails', () {
+      // An unclosed IPv6 bracket makes Uri.tryParse return null; the raw-url
+      // fallback must still cut everything from the first ?/# separator.
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'http://[::1:8080/path?token=super-secret',
+        statusCode: 500,
+        timestamp: DateTime(2026, 7, 16, 10, 30, 5),
+      );
+      final out = buildNetworkOneLiner(entry);
+
+      expect(out, contains('/path'));
+      expect(out, isNot(contains('super-secret')));
+      expect(out.contains('\n'), isFalse);
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/network_entry.dart';
+import '../models/timestamped_entry.dart';
 import 'redaction.dart';
 
 /// Pure formatting helpers for the Network inspector. No Flutter dependencies,
@@ -66,6 +67,35 @@ String prettyJson(String? body) {
   } on FormatException {
     return body;
   }
+}
+
+/// Projects [entry] onto a single dense line for the diagnostic report's
+/// `## Timeline` section:
+/// `[HH:mm:ss.mmm] [NET] {method} {path} → {status} ({duration}ms)`, or
+/// `... {method} {path} ✗ {errorType}` for a transport failure (no status code).
+///
+/// Deliberately shows only the URL *path* — never the query string — so
+/// query-param secrets can't leak into the timeline. The full, redacted
+/// request/response stays in the `## Network` detail section.
+String buildNetworkOneLiner(NetworkEntry entry) {
+  // A malformed URL (Uri.tryParse == null, e.g. an unclosed IPv6 bracket) must
+  // not fall back to the raw string — that would drag the query, exactly what
+  // this projection exists to hide, into the timeline. Cut the fallback at the
+  // first query/fragment separator and flatten newlines instead.
+  final path =
+      Uri.tryParse(entry.url)?.path ??
+      entry.url.split(RegExp(r'[?#]')).first.replaceAll(RegExp(r'[\r\n]'), ' ');
+  final b = StringBuffer('[${entry.displayTime}] [NET] ${entry.method} $path ');
+
+  if (entry.statusCode == null && entry.errorType != null) {
+    b.write('✗ ${entry.errorType!.name}');
+  } else {
+    b.write('→ ${entry.statusCode ?? 'N/A'}');
+    if (entry.duration != null) {
+      b.write(' (${entry.duration!.inMilliseconds}ms)');
+    }
+  }
+  return b.toString();
 }
 
 /// Builds an executable `curl` command reproducing [entry]'s request.
