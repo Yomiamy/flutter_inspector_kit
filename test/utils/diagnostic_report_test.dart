@@ -457,73 +457,113 @@ void main() {
       expect(report.indexOf('careful'), lessThan(report.indexOf('boom')));
     });
 
-    test('filters the timeline stream but leaves the detail sections intact', () {
-      final report = _report(
-        logInspector: mixedLevels(),
-        network: [
-          NetworkEntry(
-            method: 'GET',
-            url: 'https://api.test/ok',
-            statusCode: 200,
-            timestamp: _minutesAgo(1),
-          ),
-        ],
-        db: [
-          DatabaseEntry(
-            operation: DatabaseOperation.query,
-            tableName: 'users',
-            timestamp: _minutesAgo(1),
-          ),
-        ],
-        errorsOnly: true,
-      );
+    test(
+      'filters the timeline stream but leaves the detail sections intact',
+      () {
+        final report = _report(
+          logInspector: mixedLevels(),
+          network: [
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/ok',
+              statusCode: 200,
+              timestamp: _minutesAgo(1),
+            ),
+          ],
+          db: [
+            DatabaseEntry(
+              operation: DatabaseOperation.query,
+              tableName: 'users',
+              timestamp: _minutesAgo(1),
+            ),
+          ],
+          errorsOnly: true,
+        );
 
-      // errorsOnly now filters the whole timeline stream: a 200 and a plain
-      // query carry no error signal, so neither reaches ## Timeline...
-      expect(report, isNot(contains('[NET] GET /ok')));
-      // ...but the independent ## Network / ## Database detail sections are
-      // untouched and still carry the full record.
-      expect(report, contains('https://api.test/ok'));
-      expect(report, contains('users'));
-    });
+        // errorsOnly now filters the whole timeline stream: a 200 and a plain
+        // query carry no error signal, so neither reaches ## Timeline...
+        expect(report, isNot(contains('[NET] GET /ok')));
+        // ...but the independent ## Network / ## Database detail sections are
+        // untouched and still carry the full record.
+        expect(report, contains('https://api.test/ok'));
+        expect(report, contains('users'));
+      },
+    );
+
+    test(
+      'keeps failed network calls in the timeline — both error branches',
+      () {
+        final report = _report(
+          network: [
+            // Server error: statusCode >= 400.
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/bad-gateway',
+              statusCode: 502,
+              timestamp: _minutesAgo(1),
+            ),
+            // Transport failure: no status, non-null errorType.
+            NetworkEntry(
+              method: 'POST',
+              url: 'https://api.test/timeout',
+              errorType: DioExceptionType.connectionTimeout,
+              timestamp: _minutesAgo(2),
+            ),
+            // Control: a 200 must stay excluded.
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/ok',
+              statusCode: 200,
+              timestamp: _minutesAgo(3),
+            ),
+          ],
+          errorsOnly: true,
+        );
+
+        expect(report, contains('[NET] GET /bad-gateway → 502'));
+        expect(report, contains('[NET] POST /timeout ✗ connectionTimeout'));
+        expect(report, isNot(contains('[NET] GET /ok')));
+      },
+    );
   });
 
   group('timeline section (AC-1, AC-6)', () {
-    test('replaces ## Logs with a ## Timeline that interleaves all sources', () {
-      final report = _report(
-        logInspector: LogInspector()
-          ..add(
-            LogEntry(message: 'App started', timestamp: _minutesAgo(3)),
-          ),
-        network: [
-          NetworkEntry(
-            method: 'GET',
-            url: 'https://api.test/data',
-            statusCode: 502,
-            duration: const Duration(milliseconds: 40),
-            timestamp: _minutesAgo(1),
-          ),
-        ],
-        nav: [
-          NavigatorEntry(
-            action: NavigatorAction.push,
-            routeName: '/home',
-            timestamp: _minutesAgo(2),
-          ),
-        ],
-      );
+    test(
+      'replaces ## Logs with a ## Timeline that interleaves all sources',
+      () {
+        final report = _report(
+          logInspector: LogInspector()
+            ..add(LogEntry(message: 'App started', timestamp: _minutesAgo(3))),
+          network: [
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/data',
+              statusCode: 502,
+              duration: const Duration(milliseconds: 40),
+              timestamp: _minutesAgo(1),
+            ),
+          ],
+          nav: [
+            NavigatorEntry(
+              action: NavigatorAction.push,
+              routeName: '/home',
+              timestamp: _minutesAgo(2),
+            ),
+          ],
+        );
 
-      expect(report, contains('## Timeline'));
-      expect(report, isNot(contains('## Logs')));
+        expect(report, contains('## Timeline'));
+        expect(report, isNot(contains('## Logs')));
 
-      // Newest first: NET (1m) → NAV (2m) → LOG (3m).
-      final net = report.indexOf('[NET] GET /data → 502');
-      final nav = report.indexOf('[NAV] push `/home`');
-      final log = report.indexOf('[LOG/info] App started');
-      expect(net, greaterThanOrEqualTo(0));
-      expect(nav, greaterThan(net));
-      expect(log, greaterThan(nav));
-    });
+        // Newest first: NET (1m) → NAV (2m) → LOG (3m).
+        final net = report.indexOf('[NET] GET /data → 502');
+        final nav = report.indexOf('[NAV] push `/home`');
+        final log = report.indexOf('[LOG/info] App started');
+        expect(net, greaterThanOrEqualTo(0));
+        expect(nav, greaterThan(net));
+        expect(log, greaterThan(nav));
+      },
+    );
   });
 
   group('timeline one-liner formatters (AC-1)', () {
@@ -565,6 +605,19 @@ void main() {
 
       // No stackTrace, so the whole projection must be a single line.
       expect(out.contains('\n'), isFalse);
+      expect(out, contains('print("hi");'));
+    });
+
+    test('buildLogOneLiner flattens CRLF and lone CR too — CommonMark treats '
+        'a lone \\r as a line ending', () {
+      final entry = LogEntry(
+        message: 'windows says:\r\n```\r\nprint("hi");\r```\rdone',
+        timestamp: DateTime(2026, 7, 16, 10, 30, 6),
+      );
+      final out = buildLogOneLiner(entry);
+
+      expect(out.contains('\n'), isFalse);
+      expect(out.contains('\r'), isFalse);
       expect(out, contains('print("hi");'));
     });
 
@@ -610,5 +663,22 @@ void main() {
         expect(out, isNot(contains('super-secret')));
       },
     );
+
+    test('buildNetworkOneLiner keeps query secrets out even when the URL is '
+        'malformed and Uri.tryParse fails', () {
+      // An unclosed IPv6 bracket makes Uri.tryParse return null; the raw-url
+      // fallback must still cut everything from the first ?/# separator.
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'http://[::1:8080/path?token=super-secret',
+        statusCode: 500,
+        timestamp: DateTime(2026, 7, 16, 10, 30, 5),
+      );
+      final out = buildNetworkOneLiner(entry);
+
+      expect(out, contains('/path'));
+      expect(out, isNot(contains('super-secret')));
+      expect(out.contains('\n'), isFalse);
+    });
   });
 }

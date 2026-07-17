@@ -78,7 +78,13 @@ String prettyJson(String? body) {
 /// query-param secrets can't leak into the timeline. The full, redacted
 /// request/response stays in the `## Network` detail section.
 String buildNetworkOneLiner(NetworkEntry entry) {
-  final path = Uri.tryParse(entry.url)?.path ?? entry.url;
+  // A malformed URL (Uri.tryParse == null, e.g. an unclosed IPv6 bracket) must
+  // not fall back to the raw string — that would drag the query, exactly what
+  // this projection exists to hide, into the timeline. Cut the fallback at the
+  // first query/fragment separator and flatten newlines instead.
+  final path =
+      Uri.tryParse(entry.url)?.path ??
+      entry.url.split(RegExp(r'[?#]')).first.replaceAll(RegExp(r'[\r\n]'), ' ');
   final b = StringBuffer('[${entry.displayTime}] [NET] ${entry.method} $path ');
 
   if (entry.statusCode == null && entry.errorType != null) {

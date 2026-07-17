@@ -16,7 +16,10 @@ import '../models/timestamped_entry.dart';
 /// on their own `  │ ` lines, enough to place the failure without dragging the
 /// whole trace into an at-a-glance view.
 String buildLogOneLiner(LogEntry entry) {
-  final message = entry.message.replaceAll('\n', ' ');
+  // \r\n?|\n covers CRLF, lone \r and lone \n — CommonMark treats a lone
+  // carriage return as a line ending too, so leaving it behind would let an
+  // embedded ``` fence back onto line-start.
+  final message = entry.message.replaceAll(RegExp(r'\r\n?|\n'), ' ');
   final b = StringBuffer(
     '[${entry.displayTime}] [LOG/${entry.level.name}] $message',
   );
