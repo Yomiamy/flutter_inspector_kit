@@ -18,14 +18,16 @@ No new data models will be introduced. It reuses the existing `TimestampedEntry`
 ### 3.2 Single-Line Format
 Each entry will be rendered as a dense, single-line tag to maximize information density. 
 
+Timestamps reuse the existing `displayTime` extension (`HH:mm:ss.mmm`, millisecond precision), matching the Nav/DB detail sections.
+
 | Type | Format | Example |
 |------|--------|---------|
-| **LogEntry** | `[HH:mm:ss] [LOG/{level}] {message}` | `[10:30:06] [LOG/error] Fetch failed` |
+| **LogEntry** | `[HH:mm:ss.mmm] [LOG/{level}] {message}` | `[10:30:06.000] [LOG/error] Fetch failed` |
 | **LogEntry** (with StackTrace) | *Message line* + 3 lines of indented stack trace | `  │ #0 UserRepo.fetch (repo.dart:42)` |
-| **NetworkEntry** | `[HH:mm:ss] [NET] {method} {path} → {status} ({duration}ms)` | `[10:30:05] [NET] GET /api/data → 502 (1200ms)` |
-| **NetworkEntry** (Error, no status) | `[HH:mm:ss] [NET] {method} {path} ✗ {errorType}` | `[10:30:05] [NET] POST /api ✗ connectionTimeout` |
-| **NavigatorEntry** | `[HH:mm:ss] [NAV] {action} {routeName}` | `[10:30:01] [NAV] push /home` |
-| **DatabaseEntry** | `[HH:mm:ss] [DB] {operation} {tableName} ({rows} rows)` | `[10:30:06] [DB] query users (3 rows)` |
+| **NetworkEntry** | `[HH:mm:ss.mmm] [NET] {method} {path} → {status} ({duration}ms)` | `[10:30:05.000] [NET] GET /api/data → 502 (1200ms)` |
+| **NetworkEntry** (Error, no status) | `[HH:mm:ss.mmm] [NET] {method} {path} ✗ {errorType}` | `[10:30:05.000] [NET] POST /api ✗ connectionTimeout` |
+| **NavigatorEntry** | `[HH:mm:ss.mmm] [NAV] {action} {routeName}` | `[10:30:01.000] [NAV] push /home` |
+| **DatabaseEntry** | `[HH:mm:ss.mmm] [DB] {operation} {tableName} ({rows} rows)` | `[10:30:06.000] [DB] query users (3 rows)` |
 
 ### 3.3 Semantic Updates
 1. **Section Renaming**: The report's `## Logs` header becomes `## Timeline`.
@@ -33,6 +35,7 @@ Each entry will be rendered as a dense, single-line tag to maximize information 
 3. **Detail Sections Unchanged**: The independent `## Network`, `## Navigation`, and `## Database` sections remain at the bottom of the report to preserve full request/response payloads.
 
 ## 4. Implementation Details
-* **`lib/src/utils/log_formatters.dart`**: Add one-liner formatters for each entry type.
+* **`lib/src/utils/log_formatters.dart`**: Add `buildLogOneLiner`.
+* **`lib/src/utils/network_formatters.dart`**: Add `buildNetworkOneLiner`.
 * **`lib/src/utils/diagnostic_report.dart`**: Refactor `_writeSection(..., 'Logs', ...)` into a new mixed timeline rendering logic.
 * **Tests**: Update `test/utils/diagnostic_report_test.dart` to assert the new single-line formats and chronological sorting.

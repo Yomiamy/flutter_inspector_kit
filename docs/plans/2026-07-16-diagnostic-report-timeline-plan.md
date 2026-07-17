@@ -2,6 +2,13 @@
 
 > **For Claude:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **⚠️ 落地校正註記（PR #87 實作後）**：本 plan 為規劃時的快照，下列細節以實際 codebase 為準，範例碼**不可照抄**：
+> 1. 時間戳為毫秒級 `[HH:mm:ss.mmm]`（復用 `TimestampedEntry.displayTime` extension），非本文範例的 `[HH:mm:ss]`。
+> 2. `NetworkEntry.errorType` 是 `DioExceptionType?` enum，非字串；且 `NetworkEntry` 無 `.test` 工廠、無 `id` 欄位。
+> 3. `LogInspector` 建構子為具名參數 `LogInspector(bufferSize: N)`，且只有 `add(LogEntry)`，無 `log()` 方法。
+> 4. `test/utils/diagnostic_report_test.dart` 為既有檔案（Modify，非 Create）。
+> 5. Timeline 渲染為 `- {oneLiner}` inline list item（非反引號包裹），並將 log 訊息換行（含 `\r`）壓平，杜絕訊息內 ``` fence 撐破 markdown。
+
 **Goal:** Replace the isolated `## Logs` section in the diagnostic report with a chronological, single-line `## Timeline` section that interleaves events from all four sources (Log, Network, Nav, DB).
 
 **Architecture:** Use the existing `TimestampedEntry` interface to merge the 4 source lists, sort them descendingly by `timestamp`, and map each to a concise single-line representation. Re-route the `errorsOnly` logic to filter the unified stream rather than just logs. Independent detail sections for Network, Nav, and DB remain intact.
