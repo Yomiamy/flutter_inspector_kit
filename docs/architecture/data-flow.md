@@ -2,7 +2,7 @@
 
 > 「好的程式碼沒有特殊情況。」 —— Linus Torvalds
 
-本文件詳細剖析本套件內四大核心功能的運作流程、狀態移轉與數據傳遞軌跡，並介紹了 `v1.1.0` 重構前後跨層混合時序軸（Merged Timeline）的資料流演進。
+本文件詳細剖析本套件內四大核心功能的運作流程、狀態移轉與數據傳遞軌跡，並新增了「診斷報告導出與分享」及「懸浮按鈕與 Overlay 生命週期管理」兩個核心流程。
 
 ---
 
@@ -11,7 +11,8 @@
 在網路請求的生命週期中，數據被低干涉地捕獲兩次：發出請求時（用於即時顯示 pending 狀態）與響應/失敗時（更新狀態碼、時長與 Body）。
 
 ### 數據流時序圖
-在 `v1.1.0` 中，網絡請求純淨寫入 `NetworkInspector` 的環形快取中，不產生任何日誌鏡射。
+
+網絡請求純淨寫入 `NetworkInspector` 的環形快取中，不產生任何日誌鏡射。
 
 ```text
   Dio Client (App)            DioInterceptor               FlutterInspector & Registry
@@ -45,36 +46,7 @@
 
 ## 2. 🧵 跨層混合時序軸的設計與歸併排序 (Merged Timeline)
 
-在 `v1.1.0` 重構後，我們徹底刪除了擷取層的 `_inspector.log(...)` 鏡射呼叫，從而實現了單一真相源（Single Source of Truth）。
-
-### 2.1 執行時序對比區塊圖 (Execution Timeline Comparison)
-
-這兩者在「事件發生」與「UI 渲染」兩個不同階段的執行時序有本質上的差異：
-
-#### 歷史方案 A：v1.1.0 之前的複製式鏡射 (Mirroring)
-在事件發生時，攔截器強行進行「雙寫（Double Write）」，將資料轉為字串拷貝，導致快取重疊與狀態不同步。
-
-```text
-  【 1. 事件發生 (e.g. 網絡完成) 】
-  ┌──────────────────────────────────────────────────┐
-  │  事件源 (Dio/Navigator/DB)                        │
-  └────────┬───────────────────────────────┬─────────┘
-           │                               │
-           ▼ (寫入結構化數據)              ▼ (複製為字串鏡射)
-  ┌────────────────────────────────┐ ┌──────────────────────────────┐
-  │  目標 Buffer (Network/Nav/DB)  │ │  Log RingBuffer              │
-  │  (原地更新為 Completed)         │ │  (寫入 LogEntry)              │
-  └────────────────────────────────┘ └──────────────┬───────────────┘
-                                                    │ (讀取日誌緩存)
-                                                    ▼
-                                     ┌──────────────────────────────┐
-                                     │  UI ConsoleTab               │
-                                     │  (僅能顯示純文字、無互動跳轉)│
-                                     └──────────────────────────────┘
-```
-
-#### 現行方案 B：v1.1.0 的 `Merged Timeline` 動態排序
-事件發生時純淨寫入（單一真相源），僅在 UI 渲染時按需進行歸併排序。
+在事件發生時，擷取器純淨寫入各自的 Buffer。在 UI 渲染時，依據需求動態排序呈現。
 
 ```text
   【 1. 事件發生 】
@@ -105,62 +77,8 @@
   └──────────────────────────────────────────────────┘
 ```
 
----
-
-### 2.2 核心指標與機制對照
-
-| 階段 | 歷史方案 A: 複製式鏡射 (v1.1.0 之前) | 現行方案 B: 歸併排序 (v1.1.0 之後) |
-| :--- | :--- | :--- |
-| **擷取期 (Capture)** | 寫入 Network RingBuffer，同時產生一條字串 `LogEntry` 寫入 Log RingBuffer。 | **只寫入 Network RingBuffer**，日誌快取維持 100% 純淨。 |
-| **狀態更新 (Update)** | Network 快取原地更新為 Completed，但 Log 快取內的字串依然是舊的 pending 快照。 | 各快取獨立，Network 原地更新。**不存在第二份真相**。 |
-| **讀取期 (Read)** | UI `ConsoleTab` 只需單純讀取 `LogInspector.entries`。 | UI `ConsoleTab` 通過 `FlutterInspector.mergedTimeline(sources)` 向 Registry 查詢。 |
-| **整合排序 (Sort)** | 無需排序（因為寫入時已按先後順序轉為 Log 字串）。 | **渲染時排序**：讀取四個 RingBuffer 拍扁（Flatten）成 `List<TimestampedEntry>`，並在記憶體中按 `timestamp` 進行降序 merge-sort。 |
-| **點擊查看 (Interaction)** | 點擊鏡射日誌只能看字串，無 Headers/Body，因為它只是個 `LogEntry`。 | 點擊 Network 類型的時序軸列，會利用 `is` 判型直接跳轉至完整的 `NetworkDetailView`，支持 cURL/Replay。 |
-
----
-
-### 2.3 Merged Timeline 歸併排序運作流程
-
-```text
-  ┌────────────────────────────────────────┐
-  │         ConsoleTab 進行 UI 渲染        │
-  └───────────────────┬────────────────────┘
-                      │ 呼叫
-                      ▼
-  ┌────────────────────────────────────────┐
-  │    FlutterInspector.mergedTimeline     │
-  └───────────────────┬────────────────────┘
-                      │ 轉發
-                      ▼
-  ┌────────────────────────────────────────┐
-  │   InspectorRegistry.mergedTimeline     │
-  └───────────────────┬────────────────────┘
-                      │
-                      ├─► 讀取 Log RingBuffer (TimelineSource.log)
-                      ├─► 讀取 Network RingBuffer (TimelineSource.network)
-                      ├─► 讀取 Navigator RingBuffer (TimelineSource.nav)
-                      └─► 讀取 Database RingBuffer (TimelineSource.db)
-                      │
-                      ▼
-  ┌────────────────────────────────────────┐
-  │          List.addAll 合併列表          │
-  └───────────────────┬────────────────────┘
-                      │
-                      ▼
-  ┌────────────────────────────────────────┐
-  │  list.sort 按 timestamp 降序 Memory 排序│
-  └───────────────────┬────────────────────┘
-                      │ 回傳 List<TimestampedEntry>
-                      ▼
-  ┌────────────────────────────────────────┐
-  │  UI層 ListView.builder (依 is 判型渲染) │
-  ├────────────────────────────────────────┤
-  │  → LogEntry: 渲染日誌行                 │
-  │  → NetworkEntry: 渲染網絡行 (支援點擊)  │
-  │  → NavigatorEntry: 渲染導航行           │
-  │  → DatabaseEntry: 渲染資料庫行           │
-  └────────────────────────────────────────┘
-```
+- **統一排序契約**：所有日誌、網絡、導航與資料庫 Entry 皆實作了 `TimestampedEntry` 介面，藉由單一 `timestamp` 進行記憶體中降序 `sort` 歸併。
+- **類型分派渲染**：時序軸行依 `entry is NetworkEntry` 等類型動態分派 UI 樣式。
 
 ---
 
@@ -196,7 +114,7 @@
   ┌───────────────────────┐      Route 是否有 builder？
   │ 獲取 page.child 的    │     ╱                      ╲
   │ runtimeType           │   (Yes)                   (No)
-  └──────────┬────────────┘   ╱                          ╲
+  └────────┬────────────┘   ╱                          ╲
              │       ┌───────────────┐          ┌──────────────────┐
              │       │ 安全呼叫      │          │ 降級使用路由名稱  │
              │       │ builder 獲取  │          │ settings.name    │
@@ -209,6 +127,9 @@
                                   │
                                   └─► 寫入 NavigatorInspector RingBuffer
 ```
+
+- **避免循環記錄**：會主動偵測路由名稱，若為控制台頁面（`flutter_inspector_dashboard`），則跳過記錄，防止時序軸產生無限自我堆疊。
+- **類型安全解析**：若 `settings` 是 `Page`，則獲取 `page.child` 的 `runtimeType`；否則若是能解析 builder 的特定 Route 則安全呼叫 builder 獲取元件類型；最終降級至 `settings.name`。
 
 ---
 
@@ -248,32 +169,94 @@
   └────────────────────────┘      └────────────────────────┘
 ```
 
-- **安全防護**：如上圖所示，即使寫入過程發生任何異常，控制權也會在 `finally` 中被交回給 `Forward` 或 `System`，Host 應用絕不會因為除錯套件的日誌記錄失敗而產生二次崩潰。
+- **安全防護機制**：寫入日誌的邏輯完全置於 `try-catch` 中。在 `finally` 中將控制權回傳至下游原始 Handler，即使除錯套件日誌寫入失敗，主 App 亦絕不崩潰。
 
 ---
 
-## 5. 資料庫操作虛擬化與瀏覽流程 (Database Virtualization)
+## 5. 診斷報告導出與分享流程 (Diagnostic Report Export & Share Flow)
 
-套件提供了可擴充的 `DatabaseBrowserSource` 介面，不僅支持真正的 App 資料庫（如 SQLite），還利用該介面設計了「操作日誌瀏覽器」。
+當用戶在儀表板觸發導出功能時，系統會開啟 `ExportReportSheet`，並執行以下流程以進行結構化 Markdown 報告的同步建構與平台自適應分享：
 
 ```text
-  App 執行 SQL 操作 ──► FlutterInspector ──► DatabaseInspector RingBuffer
-                                                    │
-                                                    ▼
-                                         OperationLogSource 虛擬化
-                                        ┌───────────┴───────────┐
-                                        │                       │
-                                        ▼                       ▼
-                                   虛擬資料表              虛擬資料行
-                                  (依 SQL 影響表名分群)   (格式化欄位與 timestamp)
-                                        │                       │
-                                        ▼                       ▼
-                                   DatabaseTab (UI) ◄─── 動態分頁載入 (Load More)
-                                   (支援排序與分頁)
+  [Dashboard Trigger]
+         │
+         ▼
+  [ExportReportSheet] ── (選取 Include/Time/Errors-only)
+         │
+         ▼ (點擊 Share Report 觸發)
+  [Async Metadata Collection] (try-catch 隔離)
+         │  ├─► 異步呼叫 DiagnosticInfoSource.collect()
+         │  └─► 出錯時 null-fallback 為 null (不影響導出)
+         ▼
+  [Sync Report Building] (UI-free, pure Dart)
+         │  ├─► 合併所有選取 entries 並按 timestamp 降序 merge-sort
+         │  ├─► 將每條 entry 格式化為 Markdown 行
+         │  └─► 對 logs/bodies 執行 _fenced (動態計算 backticks 以防 fenced block 提早結束)
+         ▼
+  [Conditional Text Sharing] (Conditional Export)
+         │
+         ├─► (Web) Web Share API (navigator.share) -> 降級寫入剪貼簿
+         │
+         └─► (Native) share_plus 呼叫系統 Share Sheet
+                 │
+                 ▼ (若 share_plus 丟出異常)
+           [Share Fallback Sequence]
+                 │
+                 ├─► 1. 異步寫入系統剪貼簿 (Clipboard.setData)
+                 ├─► 2. 顯示 SnackBar 通知: "Share unavailable — copied to clipboard"
+                 │
+                 └─► (若剪貼簿也失敗)
+                       └─► SnackBar: "Export failed — please try again"
+                       └─► 保持 Sheet 開啟，防止報告遺失，讓用戶重試
 ```
 
-### 資料分頁與排序 (TableRowsView & TableSort)
-1. **動態加載 (Load More)**：`TableRowsView` 採用 `limit` (預設 200) 與 `offset` 機制進行分頁加載。用戶滑動到底部時觸發 `Load More`，累加 `offset` 並向資料源重新請求數據。
-2. **表頭排序 (Sort)**：點擊表頭時，由 `table_sort.dart` 的 `sortRows` 執行記憶體排序：
-   - 排序原則：`Null` 值一律排在最後（不論正序/倒序）。
-   - 數值類型按數值大小比較，其餘類型轉為字串比較。
+1. **觸發與選項配置**：在 `ExportReportSheet` 中，用戶可以篩選包含的資料源（Logs, Network, Navigation, Database）、時間區間（5 分鐘、1 小時、所有時間）以及是否僅保留錯誤與警告。
+2. **異步元數據收集**：嘗試等待 `DiagnosticInfoSource.collect()` 收集裝置與應用元數據。此步驟以 `try-catch` 保護，如遇異常（如主應用的實作崩潰），則安全將 `DiagnosticInfo` 設為 `null`，以降級至 `N/A` 繼續進行，絕不中斷報告導出。
+3. **純淨的同步報告建構**：調用 `buildDiagnosticReport` 函數。該函數是純 Dart 的同步無狀態函數（UI-free, no `BuildContext`），執行以下操作：
+   - 合併選取之領域的 `TimestampedEntry` 資料，依 `timestamp` 降序進行歸併排序。
+   - 重建路由 stack（忽略時間窗口限制以求完整正確性）。
+   - 對於程式碼與 Response body 內容，執行 `_fenced` 函數：動態計算內容中最大連續 backticks 數量，以此動態決定 fenced block 的外層邊界（`longest < 3 ? 3 : longest + 1`），避免內部程式碼中的 Markdown 標記導致整個報告格式毀損。
+4. **條件匯出與分享**：調用平台自適應的 `shareText(report)`。
+5. **分享容錯序列 (Fallback Sequence)**：若 `shareText` 丟出錯誤（如在某些無原生分享面板的 Native 裝置上）：
+   - 首先嘗試調用 `Clipboard.setData` 將報告複製到剪貼簿。
+   - 成功複製後，彈出 SnackBar 提示：「Share unavailable — copied to clipboard」。
+   - 若寫入剪貼簿也失敗，則彈出 SnackBar 提示：「Export failed — please try again」，且**保持底層 Modal 開啟**不調用 `navigator.pop()`，讓用戶有機會重試或自行複製。
+
+---
+
+## 6. 懸浮按鈕與 Overlay 生命週期管理流程 (Overlay Entry FAB Lifecycle Flow)
+
+懸浮 FAB 按鈕的顯示與隱藏，由 `InspectorOverlayManager` 以完全解耦的方式集中管理：
+
+```text
+       FlutterInspector.attach() (或 hot-reload 初始化)
+                      │
+                      ▼
+        InspectorOverlayManager.attach()
+                      │
+             _overlayEntry != null ?
+               ╱              ╲
+            (Yes)            (No)
+             ╱                  ╲
+        [安全防護: 返回]   1. 尋找 Overlay.maybeOf(context) (若無則安全返回)
+                           2. 建立 OverlayEntry 實例 (封裝 InspectorFab)
+                           3. 註冊建構子回呼 onFabTap 指向外層 showDashboard()
+                           4. overlay.insert(_overlayEntry!) 載入畫面
+```
+
+```text
+       FlutterInspector.detach() (或主應用手動卸載)
+                      │
+                      ▼
+        InspectorOverlayManager.detach()
+                      │
+             _overlayEntry == null ?
+               ╱              ╲
+            (Yes)            (No)
+             ╱                  ╲
+        [安全防護: 返回]   1. 呼叫 _overlayEntry.remove() 自 Overlay 移除
+                           2. 將 _overlayEntry 設為 null (防記憶體洩漏與重複操作)
+```
+
+1. **冪等性載入 (`attach`)**：在 `attach()` 時，首先確認內部 `_overlayEntry` 欄位是否為空。若非空則立即返回以避免重複掛載（Idempotence）。尋找當前 context 下的 `Overlay` 元件。成功取得後，建構並將封裝了 `InspectorFab` 的 `OverlayEntry` 插入，其 onTap 事件會觸發注入的 `onFabTap` 回呼。
+2. **安全卸載 (`detach`)**：在 `detach()` 時，調用 `_overlayEntry?.remove()`，並將欄位重設為 `null`，防止記憶體洩漏並為下次載入做好準備。
