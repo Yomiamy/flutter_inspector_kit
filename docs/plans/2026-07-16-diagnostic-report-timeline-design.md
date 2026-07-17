@@ -16,14 +16,14 @@ Instead of just rendering `logInspector.entries`, the report builder will merge 
 No new data models will be introduced. It reuses the existing `TimestampedEntry` interface.
 
 ### 3.2 Single-Line Format
-Each entry will be rendered as a dense, single-line tag to maximize information density. 
+Each entry renders as a dense, single-line head to maximize information density. The only multi-line case is a log entry carrying a stack trace: its head stays one line and up to 3 indented continuation lines follow (message newlines themselves are flattened).
 
 Timestamps reuse the existing `displayTime` extension (`HH:mm:ss.mmm`, millisecond precision), matching the Nav/DB detail sections.
 
 | Type | Format | Example |
 |------|--------|---------|
 | **LogEntry** | `[HH:mm:ss.mmm] [LOG/{level}] {message}` | `[10:30:06.000] [LOG/error] Fetch failed` |
-| **LogEntry** (with StackTrace) | *Message line* + 3 lines of indented stack trace | `  │ #0 UserRepo.fetch (repo.dart:42)` |
+| **LogEntry** (with StackTrace) | *Message head* + up to 3 continuation lines, each indented 2 spaces and prefixed `│` | `│ #0 UserRepo.fetch (repo.dart:42)` |
 | **NetworkEntry** | `[HH:mm:ss.mmm] [NET] {method} {path} → {status} ({duration}ms)` | `[10:30:05.000] [NET] GET /api/data → 502 (1200ms)` |
 | **NetworkEntry** (Error, no status) | `[HH:mm:ss.mmm] [NET] {method} {path} ✗ {errorType}` | `[10:30:05.000] [NET] POST /api ✗ connectionTimeout` |
 | **NavigatorEntry** | `[HH:mm:ss.mmm] [NAV] {action} {routeName}` | `[10:30:01.000] [NAV] push /home` |
