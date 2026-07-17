@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-17（#9 診斷報告 Timeline 重設計已於 PR #87 完成並合入 main，由 ⬜ 升級為 ✅）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-18（新增 **#10 WebView Inline Debugging** 提案，見第三部分；2026-07-17：#9 診斷報告 Timeline 重設計已於 PR #87 完成並合入 main，由 ⬜ 升級為 ✅）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -12,7 +12,7 @@
 ## 📊 完成度總覽（截至 2026-07-17 · 含 v1.5.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
-> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0 完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅，並修正了 **#7 錯誤聚合摘要** 的狀態為 ✅。最新檢視 codebase (v1.5.0) 發現 **#3 一鍵診斷報告** 也已完成（`buildDiagnosticReport` 及 `ExportReportSheet`），由 ⬜ 升級為 ✅。**#9 診斷報告 Timeline 重設計** 已於 PR #87（2026-07-17 合入 main）完成，由 ⬜ 升級為 ✅——匯出報告的 `## Logs` 已改為按 `timestamp` 降序交錯四層事件的 `## Timeline` 混合串流。總計已完成 8 項。
+> **更新說明**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0 完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅，並修正了 **#7 錯誤聚合摘要** 的狀態為 ✅。最新檢視 codebase (v1.5.0) 發現 **#3 一鍵診斷報告** 也已完成（`buildDiagnosticReport` 及 `ExportReportSheet`），由 ⬜ 升級為 ✅。**#9 診斷報告 Timeline 重設計** 已於 PR #87（2026-07-17 合入 main）完成，由 ⬜ 升級為 ✅——匯出報告的 `## Logs` 已改為按 `timestamp` 降序交錯四層事件的 `## Timeline` 混合串流。總計已完成 8 項。**2026-07-18 新增 #10 WebView Inline Debugging 提案**（⬜ 未實作，見第三部分）。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
@@ -25,10 +25,11 @@
 | #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄 / LogLevel FilterChip / errors-only 過濾——現有 `FilterChip` 是 timeline **來源**過濾（All/Log/Network/Nav/DB），非 LogLevel 過濾，`entriesAtLevel()` 仍未被使用 |
 | #3 | 一鍵診斷報告 | ✅ | 已實作：提供 `buildDiagnosticReport` 產生 Markdown 報告，並在 Dashboard 實作 `ExportReportSheet` 匯出 |
 | #7 | 錯誤聚合摘要 | ✅ | v1.3.0 已實作：新增 NetworkErrorGroup 聚合模型與 _ErrorSummaryBanner / _ErrorGroupCard UI 元件 |
+| #10 | WebView Inline Debugging（觀測層） | ⬜ | 2026-07-18 新提案：JS payload + host-injection bridge，把 WebView 的 console/error/fetch 映射為既有 `LogEntry`/`NetworkEntry` 入列 Timeline——零新相依、零 schema 變更（見第三部分） |
 
 **Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking）— ✅ 正確地皆未實作，守住「不走向微核心」。
 
-**進度結論**：9 項裡 8 項完成（#1、#3、#4、#6、#7、#8、**#9**，以及 v1.1.0 實質完成的 #2 時序軸主體），僅剩 1 項半成品（#5 console 搜尋/過濾）。
+**進度結論**：9 項裡 8 項完成（#1、#3、#4、#6、#7、#8、**#9**，以及 v1.1.0 實質完成的 #2 時序軸主體），僅剩 1 項半成品（#5 console 搜尋/過濾）。2026-07-18 新增 **#10 WebView 觀測**（⬜ 新提案），清單增為 10 項。
 
 ---
 
@@ -55,8 +56,9 @@
 | 關聯「錯誤前後發生了什麼」 | `mergedTimeline` 將四個 buffer 歸併，跨層時序主體已成；但仍缺單筆 detail view 的 ±5s 聚焦側欄 | 🟡 尚欠聚焦 |
 | 帶走排查證據 | `buildDiagnosticReport`／`ExportReportSheet` 已落地，且 #9（PR #87）將 `## Logs` 換為 `## Timeline` 混合串流，四層事件按 `timestamp` 降序交錯——報告可直接看出跨層因果 | ✅ 完善 |
 | 過濾定位 error log | `LogInspector.entriesAtLevel()` 仍未被 UI 呼叫，ConsoleTab 依然缺乏搜尋欄與 LogLevel FilterChip | 🔴 依然不足 |
+| 看見 WebView 內的事件（console / JS error / fetch） | 零能力——`lib/` 無任何 webview 程式碼，宿主 app 嵌的 H5 頁對 inspector 完全隱形 | 🔴 全盲（#10 新提案） |
 
-> 結論：排查鏈條上的六個環節，如今**四個綠燈、一個黃燈、一個紅燈**。#9（PR #87）補上診斷報告的跨層混合時序後，僅剩單筆 detail view 的 ±5s 聚焦側欄（黃燈）與 ConsoleTab 篩選體驗（紅燈）兩個摩擦點。
+> 結論：排查鏈條上的六個環節，如今**四個綠燈、一個黃燈、一個紅燈**。#9（PR #87）補上診斷報告的跨層混合時序後，僅剩單筆 detail view 的 ±5s 聚焦側欄（黃燈）與 ConsoleTab 篩選體驗（紅燈）兩個摩擦點。**2026-07-18 盤入第七個環節：WebView 觀測——混合開發場景下的新盲區（🔴 全盲），由 #10 提案補上。**
 
 ---
 
@@ -174,6 +176,27 @@
 
 ---
 
+## 🕸️ 第三部分：新戰場——WebView 觀測層（新提案 · 2026-07-18）
+
+### 10. WebView Inline Debugging（WebView 觀測層）— ⬜ 新提案
+* **痛點**：宿主 app 一旦嵌了 WebView（H5 活動頁、支付頁、混合頁），inspector 就瞎了：頁內 `console.log`、JS error、`fetch` 全部隱形。開發者被迫外接 chrome://inspect（Android）或 Safari Web Inspector（iOS 16.4+ 還得逐 WebView opt-in），QA 裝置上完全無解。[flutter/flutter#32908](https://github.com/flutter/flutter/issues/32908) 在許願此能力；本 repo `lib/` 零 webview 程式碼——真盲區，非重複造輪。
+* **先拆穿一件事**：「WebView debug」是兩個等級——**A 觀測層**（console / JS error / fetch，JS 注入即可，vConsole / Eruda / iOS WebDebug 類 app 全是這套）與 **B 除錯器層**（breakpoint / step / DOM inspector / profiler，需要 CDP，inline 做不到也不該模擬）。本提案**只做 A**；B 進 anti-features（#5）。
+* **好品味設計（核心洞察）**：
+  > WebView 的 `console.log` **就是**一筆 `LogEntry`；WebView 的 `fetch` **就是**一筆 `NetworkEntry`。這是「多一個事件來源」，不是「多一個系統」——#2/#9 的 `TimestampedEntry` + `mergedTimeline()` 地基讓 Console tab、Network tab、#7 error aggregation、#3 匯出報告**全部免費得到 WebView 支援**。
+  - 映射**零 schema 變更**：`console.*` → `LogEntry`（`level` ← console method；provenance 塞既有 `data` Map：`{'origin': 'webview', 'pageUrl': ...}`，UI 要不要加小圖示是 presentation 層的事，資料層無感）；`window.onerror` / `unhandledrejection` → error 級 `LogEntry`（JS stack 入 `stackTrace`）；`fetch` / XHR → `NetworkEntry`（`errorType` / `sourceDio` 本為 nullable，填 null 即入列；副作用：**Replay 對 WebView 請求自然不可用**——正確的降級而非缺陷，UI 既有 null 檢查已處理）。
+  - 三個件、**零新相依**（host-injection 模式第三次複用，前兩次：`DiagnosticInfoSource`、`DatabaseBrowserSource`）：
+    1. `inspectorWebViewBridgeJs`（Dart 常數字串）——hook `console.*` / `window.onerror` / `unhandledrejection` / `fetch` / XHR，統一 JSON 訊息協定 postMessage 給 native，**JS 端截斷大 payload**（與 `RingBuffer` 同哲學：上限在源頭）
+    2. `WebViewBridgeAdapter`——decode → 轉 `LogEntry` / `NetworkEntry` → 進 registry，headers/body 過既有 redaction 管線，不開後門
+    3. README 雙套件接線範例（webview_flutter / flutter_inappwebview 各一段，宿主端約五行：建 JavaScriptChannel → onMessage 轉 adapter → 載入時注入）
+  - **Phase 0 零成本先行**：README 加「Eruda 快速接線」食譜（`runJavaScript` 一行載 CDN，立刻獲得頁內 debug 面板）——先服務需求並驗證熱度；頁內面板與 native timeline 無關聯，**不取代 bridge，只是墊檔**。
+* **競品缺口（2026-07 調查）**：[inappwebview_inspector](https://pub.dev/packages/inappwebview_inspector) 僅 console + JS REPL 且綁死 flutter_inappwebview；[vConsole](https://github.com/Tencent/vConsole) / [Eruda](https://github.com/liriliri/eruda) 面板畫在網頁裡、換頁即重置、與 native 世界隔絕。**「native 事件與 WebView fetch 同一條時間軸」沒有人做**——恰是頁內工具結構上做不到、又恰是本套件 Timeline 地基的自然延伸。
+* **重用**：`InspectorRegistry` 的 log/network buffer、`redaction.dart`、`LogLevel` 對應、`mergedTimeline()` / 報告全鏈路。
+* **品味守則**：adapter 是**翻譯器不是系統**——不持有 buffer、不做 UI、不引入第二份真相。不加第五個 source enum、不開 WebView 專屬 tab（見 anti-features #6）。
+* **風險（plan 階段逐一處理）**：① **注入時機**——`runJavaScript` 於頁面載入後執行會漏早期 log，吃到全部需 documentStart 注入（flutter_inappwebview 的 `UserScript` 完整支援；webview_flutter 抽象層較弱）——host 接線文檔明示各自能與不能，套件不吞；② **敏感資料**——WebView fetch 的 headers/body 必過 `redactSensitiveData` 管線，任何入口不得繞過 opt-out 行為；③ **bridge 流量**——大 response body 序列化過 channel 會卡 UI thread，JS 端截斷（如 body 上限 32KB + `truncated` 旗標），非 Dart 端事後補救；④ **不可信輸入**——WebView 內容視同惡意來源，走 #9 已加固的 CRLF / malformed-URL 清洗路徑並補驗證；⑤ **iframe 不支援**——注入只作用於 main frame，v1 明文不支援（README 註明），不偷做跨 frame 橋接；⑥ **`setOnConsoleMessage` 誘惑**——webview_flutter 4.x 原生可收 console 看似免注入，但 [iOS 有遞迴物件 logging bug](https://github.com/flutter/flutter/issues/144535) 且只覆蓋 console（無 fetch/error），只能當降級備援，不能當主路徑。
+* **Effort**：Phase 0=trivial / bridge 主體=medium ｜ **排查價值**：⭐⭐⭐⭐⭐（混合開發場景的最後盲區）
+
+---
+
 ## ❌ 拒絕實現的「垃圾」功能（Anti-Features）
 
 堅守「不走向微核心 / 過度工程」：
@@ -190,6 +213,17 @@
 4. **API Mocking / 動態回應改寫**
    - *拒絕*：同上一份 brainstorm 的判斷——在 debug overlay 裡注入 mock 規則會讓工具代碼翻倍，且極易因 debug 庫 bug 中斷宿主的正式網路流。**嚴重違反「Never break userspace」**。交給外部 proxy。**砍**。
 
+*（以下三條隨 #10 WebView 提案新增 · 2026-07-18）*
+
+5. **B 級 WebView 除錯器（breakpoint / step / DOM inspector / profiler / JS REPL）**
+   - *拒絕*：breakpoint/profiler 需要 CDP，inline 模擬是假貨；DOM inspector 工程量爆炸且 Eruda 頁內已有（#10 Phase 0 食譜即覆蓋此需求）；JS REPL（從 dashboard 對 WebView 執行任意 JS）技術上可行但那是「操控」不是「觀測」，跨越產品邊界且有安全面問題。README 直接指路 chrome://inspect 與 Safari Inspector。**砍**（REPL 若未來需求真實再議）。
+
+6. **WebView 專屬 tab / 第五個 TimelineSource**
+   - *拒絕*：WebView log 就是 log、fetch 就是 network。加 enum、開新 tab 是為不存在的區別打補丁，會讓 filter / 報告 / UI 全鏈路長出特殊情況。provenance 用 `LogEntry.data` 標記足矣。**砍**。
+
+7. **直接相依 webview 套件（提供包裝好的 InspectorWebView widget）**
+   - *拒絕*：綁死 `webview_flutter` 或 `flutter_inappwebview` 其一，就把另一半使用者關在門外（inappwebview_inspector 正是此坑）；兩個都支援則相依翻倍、版本矩陣地獄。host-injection 模式已驗證兩次（`DiagnosticInfoSource`、`DatabaseBrowserSource`），沒有理由背棄。**砍**。同理**跨 iframe / Service Worker 橋接**——複雜度與受眾完全不成比例，**砍**。
+
 ---
 
 ## 📅 下一步實作路徑（依排查價值排序）
@@ -202,7 +236,8 @@
 3. **第三階段 · 建立關聯**（🟡 主體已完成）：**#2 做法 B（Timeline 混合視圖）已於 v1.1.0 落地** ✅（`mergedTimeline` + `TimestampedEntry`）；僅剩 **做法 A**（detail view 的 ±5s 同時段側欄 ⬜）尚未做，可視回饋決定是否補上。
 4. **第四階段 · 帶走證據**（✅ 已完成）：實作 **#3 一鍵診斷報告**（device info；路由堆疊快照可直接複用已完成的 #8 `NavigatorStackResolver`）。QA 提 bug 的剛需在此閉環。
 5. 第五階段 · 加分項（✅ 部分完成）：#6 Replay 已於 v1.0.0 完成實作、**#8 路由堆疊可視化已於 PR #51 完成**；後續可視回饋實作 #7 錯誤聚合摘要。
+6. **第六階段 · WebView 觀測（⬜ 新提案 · 2026-07-18）**：**#10** 依 Phase 推進——**Phase 0**（README「Eruda 快速接線」食譜，trivial，可隨任何 docs PR 先行）→ **Phase 1+2**（bridge 主體：console/error → `LogEntry`、fetch/XHR → `NetworkEntry` 過 redaction；同一條資料管線，可併一個 PR）→ **Phase 3**（webview_flutter / flutter_inappwebview 雙套件接線文檔 + example 示範頁）。
 
-> **收尾建議（2026-07-17 更新）**：**#9 診斷報告 Timeline 重設計**已於 PR #87 完成並合入 main，最高優先項目結清。排查鏈剩下兩個明確缺口——**#5 的搜尋/過濾**（LogLevel FilterChip + errors-only + 搜尋欄）與 **#2 做法 A**（detail view 的 ±5s 同時段側欄），皆為可視回饋後再決定的加分項。
+> **收尾建議（2026-07-17 更新）**：**#9 診斷報告 Timeline 重設計**已於 PR #87 完成並合入 main，最高優先項目結清。排查鏈剩下兩個明確缺口——**#5 的搜尋/過濾**（LogLevel FilterChip + errors-only + 搜尋欄）與 **#2 做法 A**（detail view 的 ±5s 同時段側欄），皆為可視回饋後再決定的加分項。**2026-07-18 補充**：**#10 WebView 觀測**開啟新戰場——Phase 0 食譜零成本先行驗證需求熱度，bridge 主體視回饋排程。
 
-> 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（#9 動 formatters + report builder、#5 動 console UI、#2A 動 detail view），適合並行推進。
+> 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（#9 動 formatters + report builder、#5 動 console UI、#2A 動 detail view、#10 動全新 bridge 檔案 + README），適合並行推進。
