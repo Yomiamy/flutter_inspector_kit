@@ -1,5 +1,6 @@
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
+import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_inspector_kit/src/utils/log_formatters.dart';
 import 'package:flutter_inspector_kit/src/utils/network_formatters.dart';
 import 'package:flutter_inspector_kit/src/webview/webview_bridge_adapter.dart';
@@ -78,6 +79,8 @@ void main() {
       expect(e.responseBody, '{"ok":false}');
       expect(e.errorType, isNull);
       expect(e.sourceDio, isNull); // Replay 正確地不可用
+      expect(e.origin, NetworkOrigin.webview);
+      expect(e.pageUrl, 'https://m.example.com/pay');
     });
 
     test('傳輸失敗：statusCode null 且 error 保留', () {
@@ -86,6 +89,8 @@ void main() {
       final e = inspector.networkEntries.single;
       expect(e.statusCode, isNull);
       expect(e.error, 'NetworkError: Failed to fetch');
+      expect(e.origin, NetworkOrigin.webview);
+      expect(e.pageUrl, isNull); // envelope 無 page 時不假造
     });
 
     test('redaction parity：Authorization 遮罩與 native 同一 code path', () {
@@ -149,7 +154,8 @@ class _Data {
     "reqHeaders": {"Content-Type": "application/json"},
     "reqBody": "{\"amount\":100}",
     "resHeaders": {"Content-Type": "application/json"},
-    "resBody": "{\"ok\":false}"
+    "resBody": "{\"ok\":false}",
+    "page": "https://m.example.com/pay"
   }
   ''';
 

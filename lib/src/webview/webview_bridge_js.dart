@@ -136,6 +136,7 @@ const String inspectorWebViewBridgeJs = r'''
                 resHeaders: headersToObject(res.headers),
                 resBody: resBodyT.v,
                 truncated: reqBody.cut || resBodyT.cut,
+                page: location.href,
                 ts: start,
               });
             });
@@ -151,6 +152,7 @@ const String inspectorWebViewBridgeJs = r'''
             reqBody: reqBody.v,
             error: String(err),
             truncated: reqBody.cut,
+            page: location.href,
             ts: start,
           });
           throw err;
@@ -188,6 +190,7 @@ const String inspectorWebViewBridgeJs = r'''
           resHeaders: parseXhrHeaders(xhr.getAllResponseHeaders()),
           resBody: resBodyT.v,
           truncated: reqBody.cut || resBodyT.cut,
+          page: location.href,
           ts: start,
         });
       });

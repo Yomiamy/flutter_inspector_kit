@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../core/flutter_inspector.dart';
 import '../models/log_level.dart';
 import '../models/network_entry.dart';
+import '../models/network_origin.dart';
 
 /// Translates decoded WebView bridge messages into existing [LogEntry] /
 /// [NetworkEntry] and hands them to the existing registry. A translator, not
@@ -69,6 +70,8 @@ class WebViewBridgeAdapter {
         // errorType / sourceDio deliberately left null: this isn't a Dio
         // request, so Replay is correctly unavailable (existing null check).
         isComplete: true,
+        origin: NetworkOrigin.webview,
+        pageUrl: msg['page']?.toString(),
         timestamp: _tsOf(msg['ts']),
       ),
     );
