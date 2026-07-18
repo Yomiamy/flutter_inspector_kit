@@ -135,7 +135,7 @@
 ## 4. 向後相容性聲明
 
 - **零新相依**：套件本體不新增任何第三方 package；WASM 相容性不因本功能破壞。
-- **零 schema 變更**：`LogEntry` / `NetworkEntry` / `TimestampedEntry` 公開形狀不變；WebView 事件用既有欄位承載。
+- **schema 僅做向後相容擴充**（2026-07-18 修訂，見決策紀錄 #6）：`LogEntry` / `TimestampedEntry` 公開形狀不變；`NetworkEntry` 新增 `origin`（預設 `NetworkOrigin.dio`）與 `pageUrl`（預設 `null`）兩個**帶預設值的可選欄位**——既有建構呼叫、Dio interceptor、Replay 皆零改動，不破壞任何現有使用者。
 - **既有公開 API 不動**：`FlutterInspector` 現有建構參數與行為不變，新增接入點為可選；未接線宿主零影響。
 - **既有 UI / 報告零改動即受益**：Console tab / Network tab / mergedTimeline / #7 error aggregation / #3·#9 診斷報告 Timeline 不需修改即支援 WebView 事件——唯一「行為改變」是接線後多出一個事件來源，資訊只增不減。
 
@@ -165,6 +165,7 @@
 3. **不加第五 source enum、不開專屬 tab**：WebView 事件走既有 log / network 管線，來源標記用既有 `data` 欄位。
 4. **redaction 採方案 B（display-time，與 native 一致）**：adapter 建原始 `NetworkEntry`，遮罩由既有顯示/匯出 formatter 自動繼承、尊重 `redactSensitiveData` opt-out；不新增 WebView 專屬 redaction、不繞過既有管線。（STAGE 0b 校正原「ingest 前遮罩」措辭，使用者已確認）
 5. **截斷在 JS 端**：大 payload 上限在源頭，非 Dart 端事後處理。
+6. **（2026-07-18 使用者修訂）network provenance 升級為第一級欄位**：`NetworkEntry` 新增 `origin`（`NetworkOrigin.dio | .webview`，預設 `dio`）與 `pageUrl`（WebView 請求的 `location.href`）。取代原「零 schema 變更、靠 `sourceDio == null` 推斷」的決策——`sourceDio` 是 `WeakReference`，Dio 實例被 GC 後 native 請求與 WebView 請求無法區分，顯式欄位修掉此歧義。預設 `dio` 使 Dio interceptor / Replay 零改動，向後相容不破壞。`NetworkDetailView` General 區顯示 Origin 與 Page URL。log 的標示維持既有 `LogEntry.data`（`origin`/`pageUrl`）不變。
 
 ---
 

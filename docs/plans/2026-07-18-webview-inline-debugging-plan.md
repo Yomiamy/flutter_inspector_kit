@@ -68,6 +68,7 @@
    - `LogLevel` enum：`verbose, debug, info, warning, error`（`log_level.dart`）。
    - `NetworkEntry`：`method`/`url`/`statusCode`(`int?`)/`duration`(`Duration?`)/`requestHeaders`/`requestBody`/`responseHeaders`/`responseBody`/`error`(`String?`)/`errorType`(`DioExceptionType?`)/`errorStackTrace`/`isComplete`/`isReplay`/`sourceDio`(`WeakReference<Dio>?`)。WebView 填 `errorType: null`、`sourceDio: null`。
    - **NetworkEntry 沒有 `data` 欄位**，故 network 事件**不帶** origin 標記——US-2 驗收未要求 network provenance，且 `sourceDio==null` 已足以在 UI 做 presentation 判斷。**不新增欄位**（YAGNI + 零 schema）。
+   - **（2026-07-18 使用者修訂，取代上一條）**：network provenance 升級為第一級欄位——`NetworkEntry.origin`（`NetworkOrigin.dio | .webview`，預設 `dio`）與 `pageUrl`（`String?`）。理由：`sourceDio` 是 `WeakReference`，Dio 被 GC 後 native 與 WebView 請求無法區分，顯式欄位修掉此歧義。JS envelope 的 `t:"net"` 增送 `page`（`location.href`）；`NetworkDetailView` General 區顯示 Origin / Page URL；example 的 `loadHtmlString` 帶 `baseUrl` 使 pageUrl 有真實值。預設 `dio` 保證 Dio interceptor / Replay 零改動。規格決策紀錄 #6 同步。
 
 4. **截斷雙保險**
    - `NetworkInspector.add` 會把 request/response body 再截到 `kNetworkBodyMaxLength = 10*1024`（`network_entry.dart:10`）。

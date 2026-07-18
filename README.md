@@ -205,6 +205,10 @@ controller.addJavaScriptHandler(
 );
 ```
 
+#### Provenance: telling WebView traffic apart from native
+
+Every bridged request is tagged first-class: `NetworkEntry.origin` is `NetworkOrigin.webview` (native Dio traffic defaults to `NetworkOrigin.dio`) and `NetworkEntry.pageUrl` carries the issuing page's `location.href`. Both show up as **Origin** / **Page URL** rows in the Network detail view. Bridged log entries carry the same marking in `LogEntry.data` (`origin` / `pageUrl`), visible in the log detail view's Data section.
+
 #### Injection timing: know what each package can and can't catch
 
 The two packages inject at genuinely different points, and that changes what you see:
