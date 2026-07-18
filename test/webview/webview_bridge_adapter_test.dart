@@ -109,6 +109,13 @@ void main() {
       final oneLiner = buildNetworkOneLiner(inspector.networkEntries.single);
       expect(oneLiner, isNot(contains('secret=1')));
     });
+
+    test('超出 DateTime 範圍的 ts 靜默丟棄不 throw（敵意輸入）', () {
+      final inspector = FlutterInspector();
+      final adapter = WebViewBridgeAdapter(inspector);
+      expect(() => adapter.handleMessage(_Data.fetchHugeTs), returnsNormally);
+      expect(inspector.networkEntries, isEmpty);
+    });
   });
 }
 
@@ -171,6 +178,19 @@ class _Data {
     "method": "GET",
     "url": "https://[malformed?secret=1",
     "status": 200
+  }
+  ''';
+
+  // ts within int64 range but far outside DateTime's valid ±8.64e15 ms window:
+  // DateTime.fromMillisecondsSinceEpoch throws RangeError, which must be caught
+  // and dropped rather than escaping handleMessage.
+  static const String fetchHugeTs = r'''
+  {
+    "t": "net",
+    "method": "GET",
+    "url": "https://m.example.com/api/pay",
+    "status": 200,
+    "ts": 100000000000000000
   }
   ''';
 }

@@ -24,20 +24,21 @@ class WebViewBridgeAdapter {
   /// dropped — a hostile page must not be able to crash the host's channel
   /// callback with a malformed message.
   void handleMessage(String raw) {
-    final Object? decoded;
+    // One guard covers every handler path: a hostile payload that survives
+    // jsonDecode but blows up a downstream helper (e.g. an out-of-range `ts`
+    // making DateTime.fromMillisecondsSinceEpoch throw RangeError) must still
+    // be dropped silently, never escape to crash the host's channel callback.
     try {
-      decoded = jsonDecode(raw);
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return;
+      switch (decoded['t']) {
+        case 'log':
+          _handleLog(decoded);
+        case 'net':
+          _handleNet(decoded);
+      }
     } catch (_) {
-      return; // malformed JSON — graceful drop
-    }
-    if (decoded is! Map<String, dynamic>) return;
-    switch (decoded['t']) {
-      case 'log':
-        _handleLog(decoded);
-      case 'net':
-        _handleNet(decoded);
-      default:
-        return; // unknown message type — ignored
+      return; // malformed or hostile input — graceful drop
     }
   }
 
