@@ -4,6 +4,7 @@ import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 import 'demos/network_demo.dart';
 import 'demos/objectbox_demo.dart';
 import 'demos/sqlite_demo.dart';
+import 'demos/webview_demo.dart';
 
 // Enable the live system notification summarising network calls (opt-in).
 // On Android this requires a notification icon + (Android 13+) the
@@ -71,6 +72,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late final NetworkDemo _networkDemo;
   late final SqliteDemo _sqliteDemo;
   late final ObjectBoxDemo _objectBoxDemo;
+  late final WebViewDemo _webViewDemo;
 
   @override
   void initState() {
@@ -78,6 +80,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _networkDemo = NetworkDemo(inspector);
     _sqliteDemo = SqliteDemo(inspector);
     _objectBoxDemo = ObjectBoxDemo(inspector);
+    _webViewDemo = WebViewDemo(inspector);
 
     // Show FAB after frame builds
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -145,6 +148,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: () => _runSeed(_objectBoxDemo.seed),
               child: const Text('Seed ObjectBox Demo'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _webViewDemo.open(context),
+              child: const Text('Open WebView Demo'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(

@@ -19,6 +19,7 @@ dependencies:
 
   flutter_inspector_kit:
     path: ../
+  webview_flutter: ^4.14.1
 
 dev_dependencies:
   flutter_test:
