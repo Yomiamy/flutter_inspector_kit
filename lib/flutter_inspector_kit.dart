@@ -6,3 +6,5 @@ export 'src/models/diagnostic_info.dart';
 export 'src/models/log_level.dart';
 export 'src/models/network_entry.dart';
 export 'src/ui/widgets/magical_tap.dart';
+export 'src/webview/webview_bridge_adapter.dart';
+export 'src/webview/webview_bridge_js.dart';
