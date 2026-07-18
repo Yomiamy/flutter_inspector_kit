@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import '../core/flutter_inspector.dart';
 import '../models/log_level.dart';
+import '../models/network_entry.dart';
 
 /// Translates decoded WebView bridge messages into existing [LogEntry] /
-/// `NetworkEntry` and hands them to the existing registry. A translator, not
+/// [NetworkEntry] and hands them to the existing registry. A translator, not
 /// a system: it holds no buffer, does no redaction, renders no UI.
 ///
 /// Used the same way as `FlutterInspectorDioInterceptor`: the host creates an
@@ -33,8 +34,10 @@ class WebViewBridgeAdapter {
     switch (decoded['t']) {
       case 'log':
         _handleLog(decoded);
+      case 'net':
+        _handleNet(decoded);
       default:
-        return; // 'net' (Chunk 3) and unknown types are ignored here
+        return; // unknown message type — ignored
     }
   }
 
@@ -47,6 +50,26 @@ class WebViewBridgeAdapter {
         'origin': 'webview',
         if (msg['page'] != null) 'pageUrl': msg['page'],
       },
+    );
+  }
+
+  void _handleNet(Map<String, dynamic> msg) {
+    _inspector.logNetwork(
+      NetworkEntry(
+        method: msg['method']?.toString() ?? 'GET',
+        url: msg['url']?.toString() ?? '',
+        statusCode: _asInt(msg['status']),
+        duration: _asDuration(msg['durationMs']),
+        requestHeaders: _asHeaders(msg['reqHeaders']),
+        requestBody: msg['reqBody']?.toString(),
+        responseHeaders: _asHeaders(msg['resHeaders']),
+        responseBody: msg['resBody']?.toString(),
+        error: msg['error']?.toString(),
+        // errorType / sourceDio deliberately left null: this isn't a Dio
+        // request, so Replay is correctly unavailable (existing null check).
+        isComplete: true,
+        timestamp: _tsOf(msg['ts']),
+      ),
     );
   }
 
@@ -64,5 +87,18 @@ class WebViewBridgeAdapter {
       default:
         return LogLevel.info;
     }
+  }
+
+  static int? _asInt(Object? v) => v is num ? v.toInt() : null;
+
+  static Duration? _asDuration(Object? v) =>
+      v is num ? Duration(milliseconds: v.toInt()) : null;
+
+  static DateTime? _tsOf(Object? v) =>
+      v is num ? DateTime.fromMillisecondsSinceEpoch(v.toInt()) : null;
+
+  static Map<String, dynamic>? _asHeaders(Object? v) {
+    if (v is! Map) return null;
+    return v.map((key, value) => MapEntry(key.toString(), value));
   }
 }
