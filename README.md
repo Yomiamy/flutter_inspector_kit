@@ -195,7 +195,7 @@ controller
 ```dart
 final adapter = WebViewBridgeAdapter(inspector);
 // AT_DOCUMENT_START injection catches even the page's earliest logs.
-controller.addUserScript(UserScript(
+controller.addUserScript(userScript: UserScript(
   source: inspectorWebViewBridgeJs,
   injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
 ));

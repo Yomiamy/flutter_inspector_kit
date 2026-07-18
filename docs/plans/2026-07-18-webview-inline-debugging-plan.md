@@ -538,7 +538,7 @@ export 'src/webview/webview_bridge_js.dart';
   ```dart
   final adapter = WebViewBridgeAdapter(inspector);
   // documentStart 注入，吃得到早期 log
-  controller.addUserScript(UserScript(
+  controller.addUserScript(userScript: UserScript(
     source: inspectorWebViewBridgeJs,
     injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
   ));
