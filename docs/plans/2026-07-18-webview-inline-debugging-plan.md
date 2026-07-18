@@ -1,6 +1,6 @@
 # WebView Inline Debugging 實作計畫（STAGE 0b）
 
-> **For Claude:** REQUIRED: 使用 superpowers:subagent-driven-development（若有 subagent）或 superpowers:executing-plans 執行本計畫。步驟以 checkbox（`- [ ]`）追蹤。
+> **For Claude:** REQUIRED: 使用 superpowers:subagent-driven-development（若有 subagent）或 superpowers:executing-plans 執行本計畫。步驟以 checkbox（`- [x]`）追蹤。
 >
 > **語言**：繁體中文；程式碼、識別字、指令保留原文。遵守 `flutter-styles.md`（const 正確性、尾隨逗號、named parameter 規範、widget 提取為獨立 class）。
 
@@ -381,7 +381,7 @@ Chunk 6 (example) ┘
 
 > **TDD 誠實說明**：JS payload 是**資料常數字串**，Dart 端無 JS 引擎可執行它。單元測試只能做**結構斷言**（契約護欄）；JS 的實際行為由 Chunk 6 example app 手動驗證（真機/模擬器看事件是否進 dashboard）。不為此建 JS 測試框架（YAGNI）。
 
-- [ ] **Step 1：寫 failing 結構測試（契約護欄）**
+- [x] **Step 1：寫 failing 結構測試（契約護欄）**
 
 ```dart
 // test/webview/webview_bridge_js_test.dart
@@ -407,10 +407,10 @@ void main() {
 }
 ```
 
-- [ ] **Step 2：跑測試確認 FAIL**（`flutter test test/webview/webview_bridge_js_test.dart`，Undefined name）
-- [ ] **Step 3：實作** `webview_bridge_js.dart`——`const String kWebViewBridgeChannelName = 'FlutterInspectorBridge';` + `const String inspectorWebViewBridgeJs = r'''(function(){ ... })();''';`，內含 §2.2 的 hook、§2.2 傳輸偵測、§2.3 截斷。JS 以 IIFE 包裹，並在頂部加 `if (window.__inspectorBridgeInstalled) return; window.__inspectorBridgeInstalled = true;` 防重複注入（同頁多次 `runJavaScript` 不重覆 hook）。
-- [ ] **Step 4：跑測試確認 PASS**
-- [ ] **Step 5：commit**（`feat(webview): add injectable JS bridge payload and protocol constant`）
+- [x] **Step 2：跑測試確認 FAIL**（`flutter test test/webview/webview_bridge_js_test.dart`，Undefined name）
+- [x] **Step 3：實作** `webview_bridge_js.dart`——`const String kWebViewBridgeChannelName = 'FlutterInspectorBridge';` + `const String inspectorWebViewBridgeJs = r'''(function(){ ... })();''';`，內含 §2.2 的 hook、§2.2 傳輸偵測、§2.3 截斷。JS 以 IIFE 包裹，並在頂部加 `if (window.__inspectorBridgeInstalled) return; window.__inspectorBridgeInstalled = true;` 防重複注入（同頁多次 `runJavaScript` 不重覆 hook）。
+- [x] **Step 4：跑測試確認 PASS**
+- [x] **Step 5：commit**（`feat(webview): add injectable JS bridge payload and protocol constant`）
 
 ---
 
@@ -419,7 +419,7 @@ void main() {
 **複雜度：標準整合**。
 **Files**：Create `lib/src/webview/webview_bridge_adapter.dart`、Create `test/webview/webview_bridge_adapter_test.dart`。
 
-- [ ] **Step 1：寫 failing 測試**（測資放同檔 `_Data` class；範本參考 `test/interceptors/dio_interceptor_test.dart`）
+- [x] **Step 1：寫 failing 測試**（測資放同檔 `_Data` class；範本參考 `test/interceptors/dio_interceptor_test.dart`）
 
 涵蓋：
 1. `console.error` 訊息 → `LogLevel.error` 的 `LogEntry` 進 `inspector.logEntries`。
@@ -449,10 +449,10 @@ test('malformed / unknown 訊息靜默丟棄不 throw', () {
 });
 ```
 
-- [ ] **Step 2：跑測試確認 FAIL**
-- [ ] **Step 3：實作** `WebViewBridgeAdapter`——**只先實作 `_handleLog` 與 `handleMessage` 的 `case 'log'`**（`case 'net'` 留給 Chunk 3；此時 `_handleNet` 可先不存在，`net` 落入 default 忽略）。含 `_levelFor` 對應表。
-- [ ] **Step 4：跑測試確認 PASS**
-- [ ] **Step 5：commit**（`feat(webview): translate WebView console/error into LogEntry (Phase 1)`）
+- [x] **Step 2：跑測試確認 FAIL**
+- [x] **Step 3：實作** `WebViewBridgeAdapter`——**只先實作 `_handleLog` 與 `handleMessage` 的 `case 'log'`**（`case 'net'` 留給 Chunk 3；此時 `_handleNet` 可先不存在，`net` 落入 default 忽略）。含 `_levelFor` 對應表。
+- [x] **Step 4：跑測試確認 PASS**
+- [x] **Step 5：commit**（`feat(webview): translate WebView console/error into LogEntry (Phase 1)`）
 
 ---
 
@@ -461,7 +461,7 @@ test('malformed / unknown 訊息靜默丟棄不 throw', () {
 **複雜度：標準整合**。
 **Files**：Modify `lib/src/webview/webview_bridge_adapter.dart`、Modify `test/webview/webview_bridge_adapter_test.dart`。（與 Chunk 2 路徑重疊 → 循序，不並行。）
 
-- [ ] **Step 1：寫 failing 測試**
+- [x] **Step 1：寫 failing 測試**
 
 涵蓋：
 1. `t:"net"` fetch → `NetworkEntry` 進 `inspector.networkEntries`，`method`/`url`/`statusCode`/`duration`/headers/body 正確對應（US-2）。
@@ -490,10 +490,10 @@ test('WebView 網路事件過既有 redaction 邊界，行為與 native 一致',
 });
 ```
 
-- [ ] **Step 2：跑測試確認 FAIL**
-- [ ] **Step 3：實作** `_handleNet` + `handleMessage` 的 `case 'net'` + `_asInt`/`_asDuration`/`_tsOf`/`_asHeaders`（§3.1）。
-- [ ] **Step 4：跑測試確認 PASS**
-- [ ] **Step 5：commit**（`feat(webview): translate WebView fetch/XHR into NetworkEntry (Phase 2)`）
+- [x] **Step 2：跑測試確認 FAIL**
+- [x] **Step 3：實作** `_handleNet` + `handleMessage` 的 `case 'net'` + `_asInt`/`_asDuration`/`_tsOf`/`_asHeaders`（§3.1）。
+- [x] **Step 4：跑測試確認 PASS**
+- [x] **Step 5：commit**（`feat(webview): translate WebView fetch/XHR into NetworkEntry (Phase 2)`）
 
 ---
 
@@ -502,16 +502,16 @@ test('WebView 網路事件過既有 redaction 邊界，行為與 native 一致',
 **複雜度：機械性**。
 **Files**：Modify `lib/flutter_inspector_kit.dart`。
 
-- [ ] **Step 1**：增列 export：
+- [x] **Step 1**：增列 export：
 
 ```dart
 export 'src/webview/webview_bridge_adapter.dart';
 export 'src/webview/webview_bridge_js.dart';
 ```
 
-- [ ] **Step 2**：`flutter analyze` 無 error/warning。
-- [ ] **Step 3**：（可選）在 `test/webview/webview_bridge_adapter_test.dart` 改用 `package:flutter_inspector_kit/flutter_inspector_kit.dart` import，確認公開出口可用。
-- [ ] **Step 4：commit**（`feat(webview): export WebViewBridgeAdapter and JS bridge payload`）
+- [x] **Step 2**：`flutter analyze` 無 error/warning。
+- [x] **Step 3**：（可選）在 `test/webview/webview_bridge_adapter_test.dart` 改用 `package:flutter_inspector_kit/flutter_inspector_kit.dart` import，確認公開出口可用。
+- [x] **Step 4：commit**（`feat(webview): export WebViewBridgeAdapter and JS bridge payload`）
 
 ---
 
@@ -522,8 +522,8 @@ export 'src/webview/webview_bridge_js.dart';
 
 新增「WebView Inline Debugging」章節，內容須含：
 
-- [ ] **共用步驟**：建 `WebViewBridgeAdapter(inspector)` →（各套件）建 channel/handler，名字用 `FlutterInspectorBridge` → `onMessage` 把字串交 `adapter.handleMessage(...)` → 頁面載入時注入 `inspectorWebViewBridgeJs`。
-- [ ] **webview_flutter 段**（約五行）：
+- [x] **共用步驟**：建 `WebViewBridgeAdapter(inspector)` →（各套件）建 channel/handler，名字用 `FlutterInspectorBridge` → `onMessage` 把字串交 `adapter.handleMessage(...)` → 頁面載入時注入 `inspectorWebViewBridgeJs`。
+- [x] **webview_flutter 段**（約五行）：
   ```dart
   final adapter = WebViewBridgeAdapter(inspector);
   controller
@@ -535,7 +535,7 @@ export 'src/webview/webview_bridge_js.dart';
       onPageStarted: (_) => controller.runJavaScript(inspectorWebViewBridgeJs),
     ));
   ```
-- [ ] **flutter_inappwebview 段**（約五行）：
+- [x] **flutter_inappwebview 段**（約五行）：
   ```dart
   final adapter = WebViewBridgeAdapter(inspector);
   // documentStart 注入，吃得到早期 log
@@ -548,10 +548,10 @@ export 'src/webview/webview_bridge_js.dart';
     callback: (args) => adapter.handleMessage(args.first as String),
   );
   ```
-- [ ] **注入時機誠實說明**（§5 規格 / US-7 驗收）：`flutter_inappwebview` 的 `UserScript` 可於 `AT_DOCUMENT_START` 注入、吃得到早期 log；`webview_flutter` 的 `runJavaScript` 於 `onPageStarted` 後執行，**會漏頁面初始化最早期的 log**——明示各自能與不能，不假裝等價。
-- [ ] **限制註記**：iframe / Service Worker 不支援（僅 main frame）；`setOnConsoleMessage` 只能當 console 的降級備援，非 fetch/error 主路徑；WebView 網路事件的 Replay 因非 Dio 而不可用（正確降級）。
-- [ ] **redaction 說明**：WebView 網路事件與 native 一樣受 `redactSensitiveData` 遮罩（走同一匯出/顯示邊界）。
-- [ ] **commit**（`docs(webview): dual-package wiring guide with injection-timing caveats`）
+- [x] **注入時機誠實說明**（§5 規格 / US-7 驗收）：`flutter_inappwebview` 的 `UserScript` 可於 `AT_DOCUMENT_START` 注入、吃得到早期 log；`webview_flutter` 的 `runJavaScript` 於 `onPageStarted` 後執行，**會漏頁面初始化最早期的 log**——明示各自能與不能，不假裝等價。
+- [x] **限制註記**：iframe / Service Worker 不支援（僅 main frame）；`setOnConsoleMessage` 只能當 console 的降級備援，非 fetch/error 主路徑；WebView 網路事件的 Replay 因非 Dio 而不可用（正確降級）。
+- [x] **redaction 說明**：WebView 網路事件與 native 一樣受 `redactSensitiveData` 遮罩（走同一匯出/顯示邊界）。
+- [x] **commit**（`docs(webview): dual-package wiring guide with injection-timing caveats`）
 
 ---
 
@@ -560,11 +560,11 @@ export 'src/webview/webview_bridge_js.dart';
 **複雜度：標準整合**。
 **Files**：Create `example/lib/demos/webview_demo.dart`、Modify `example/pubspec.yaml`、Modify `example/lib/main.dart`。
 
-- [ ] **Step 1**：`example/pubspec.yaml` 加 `webview_flutter: ^4.x`（僅 example；不碰 `lib/` 相依，US-6）。跑 `flutter pub get`（於 `example/`）。
-- [ ] **Step 2**：`webview_demo.dart`——對齊 `network_demo.dart` 慣例：一個 `WebViewDemo` class 持有 `inspector`，內建 `WebViewController` 掛 channel + adapter + 注入 JS，載入一個內嵌 HTML（`loadHtmlString`）含幾顆按鈕觸發 `console.log`/`console.error`/`fetch`，證明事件進 dashboard。UI 若需頁面，提取為獨立 `class WebViewDemoPage extends StatelessWidget`（**禁 `_build...()` helper**，遵 flutter-styles）。
-- [ ] **Step 3**：`main.dart` 加 `late final WebViewDemo`、初始化、一顆「Open WebView Demo」按鈕。
-- [ ] **Step 4**：`flutter analyze`（於 `example/`）無 error；手動於模擬器驗證 WebView 的 console/error/fetch 出現在 Console/Network tab 與 mergedTimeline。
-- [ ] **Step 5：commit**（`docs(example): add WebView demo page wiring the bridge adapter`）
+- [x] **Step 1**：`example/pubspec.yaml` 加 `webview_flutter: ^4.x`（僅 example；不碰 `lib/` 相依，US-6）。跑 `flutter pub get`（於 `example/`）。
+- [x] **Step 2**：`webview_demo.dart`——對齊 `network_demo.dart` 慣例：一個 `WebViewDemo` class 持有 `inspector`，內建 `WebViewController` 掛 channel + adapter + 注入 JS，載入一個內嵌 HTML（`loadHtmlString`）含幾顆按鈕觸發 `console.log`/`console.error`/`fetch`，證明事件進 dashboard。UI 若需頁面，提取為獨立 `class WebViewDemoPage extends StatelessWidget`（**禁 `_build...()` helper**，遵 flutter-styles）。
+- [x] **Step 3**：`main.dart` 加 `late final WebViewDemo`、初始化、一顆「Open WebView Demo」按鈕。
+- [x] **Step 4**：`flutter analyze`（於 `example/`）無 error；手動於模擬器驗證 WebView 的 console/error/fetch 出現在 Console/Network tab 與 mergedTimeline。
+- [x] **Step 5：commit**（`docs(example): add WebView demo page wiring the bridge adapter`）
 
 ---
 

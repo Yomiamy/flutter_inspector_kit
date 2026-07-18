@@ -1,7 +1,7 @@
 # 功能規格：WebView Inline Debugging（WebView 觀測層）
 
 - **日期**：2026-07-18
-- **狀態**：STAGE 0a — 待確認
+- **狀態**：STAGE 4 — 已完成 (PR #91)
 - **來源**：`docs/brainstorm/2026-07-17-features-brainstorm.md`「第三部分：新戰場——WebView 觀測層」`### 10.`（已定案核心設計）
 - **類型**：新事件來源接入（不新增 UI tab、不新增資料模型；WebView 事件併入既有 log / network 管線）
 - **本次範圍**：Phase 1 + 2 + 3（完整 bridge + 雙套件接線文檔 + example 示範頁）。**不含** Phase 0（Eruda README 食譜）。
@@ -158,7 +158,7 @@
 
 ---
 
-## 6. 決策紀錄（STAGE 0a 待拍板）
+## 6. 決策紀錄（已拍板）
 
 1. **範圍**：Phase 1+2+3（完整 bridge + 雙套件接線文檔 + example 示範頁）；不含 Phase 0 Eruda 食譜。（使用者已確認）
 2. **接入模式**：host-injection（套件零相依，宿主自備 webview 套件並接線），比照 `DiagnosticInfoSource` / `DatabaseBrowserSource`。
@@ -175,4 +175,4 @@
 - 範圍邊界（不加 source enum / 不開專屬 tab / 零新相依 / redaction 鐵律 / iframe 不支援 / 不做 B 級除錯器 / 不含 Phase 0）經確認。
 - §5 技術限制與注入時機的誠實邊界經確認。
 
-進入 STAGE 0b（實作計畫）將細化：JS bridge payload 的訊息協定與 hook 實作、adapter 的 Dart 資料表示與進入點 API、redaction 接線點、JS 端截斷上限、Phase 1/2 的任務拆分與逐檔異動、雙套件接線文檔與 example 示範頁，以及對應的 TDD 任務拆解。
+進入 STAGE 0b（實作計畫）將細化：JS bridge payload 的訊息協定與 hook 實作、adapter 的 Dart 資料表示與進入點 API、redaction 接線點、JS 端截斷上限、Phase 1/2 的任務拆分與逐檔異動、雙套件接線文檔與 example 示範頁，以及對應的 TDD 任務拆解。（2026-07-18 更新：實作與驗證已全數完成，見 PR #91）
