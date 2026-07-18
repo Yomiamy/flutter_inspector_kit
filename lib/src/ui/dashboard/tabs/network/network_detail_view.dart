@@ -105,6 +105,9 @@ class NetworkDetailView extends StatelessWidget {
         children: [
           DetailKeyValueRow.text('Method', entry.method),
           DetailKeyValueRow.text('URL', entry.url),
+          DetailKeyValueRow.text('Origin', entry.origin.name),
+          if (entry.pageUrl case final pageUrl?)
+            DetailKeyValueRow.text('Page URL', pageUrl),
           DetailKeyValueRow(
             label: 'Status',
             valueWidget: SelectableText(

@@ -23,7 +23,9 @@ class WebViewDemo {
               _controller.runJavaScript(inspectorWebViewBridgeJs),
         ),
       )
-      ..loadHtmlString(_demoHtml);
+      // baseUrl gives the page a real location.href, so bridged events carry
+      // a meaningful pageUrl instead of about:blank.
+      ..loadHtmlString(_demoHtml, baseUrl: 'https://webview-demo.local/');
   }
 
   late final WebViewController _controller;
