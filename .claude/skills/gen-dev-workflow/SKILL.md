@@ -283,7 +283,7 @@ quick <描述或 #issue>
 **規則：**
 - state 檔照寫：`<branch-slug>.json`（存原 repo `.claude/workflow-state/`），`mode: "quick"`——中斷後「繼續」照常續接，PR MERGED 照常自動刪檔。
 - 不建 worktree ⇒ 同一 repo **同時只能跑一個 quick**（需要多並行就走完整流程的 worktree 隔離）。
-- 中途發現超出小修正範圍（多檔設計判斷、新依賴、要動架構）→ 停下告知，帶著已建的 branch 升級轉入完整流程 STAGE 2，不硬撐。
+- 中途發現超出小修正範圍（多檔設計判斷、新依賴、要動架構）→ 停下告知，`wf-state.sh upgrade <檔>`（單向 quick→sequence，stage 落在 2）升級轉入完整流程。升級後**必須立即**建立對應的 worktree（沿用 ticket-id-dev-prep 規則），將 Root 中未 commit 的變更帶入新工作區，用 `wf-state.sh promote` 將狀態 JSON 移至新工作區，並 `cd` 進入該工作區以確保物理隔離。
 - Token Budget Gate 照常適用。
 
 ---
@@ -419,7 +419,8 @@ worktree 建立後改帶 branch slug，不再需要 workflow-id：
 → 候選檔 = .claude/workflow-state/<slug>.json
 → 若候選檔存在 → 它就是本 session 的 state，走「狀態檔存在時」
 → 若候選檔不存在：
-   ├─ 列出 .claude/workflow-state/*.json（已建 branch 的流程，排除 .pending-*）
+   ├─ 強制調用 `git worktree list` 取得所有活動中的工作區路徑
+   ├─ 遍歷所有工作區路徑，列出它們底下所有的 `.claude/workflow-state/*.json`（已建 branch 的流程，排除 .pending-*）
    │   ├─ 0 個 → 再看有沒有 pending：
    │   │         列出 .claude/workflow-state/.pending-*.json
    │   │         ├─ 0 個 → 走「狀態檔不存在時」
