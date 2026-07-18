@@ -1,252 +1,192 @@
-# Gen-Dev-Workflow 改進評估：借鑑 Pilotfish 動態 Model/Effort 編排
+# gen-dev-workflow 流程優化與架構調整腦力激盪文件
 
-> **來源**：[Nanako0129/pilotfish](https://github.com/Nanako0129/pilotfish) — Multi-model orchestration layer for Claude Code
-> **日期**：2026-07-17
-> **狀態**：brainstorm（尚未進入實作規劃）
+本文件針對 `gen-dev-workflow` 流程進行深度審查，指出其設計哲學上的盲點、目前運作的瓶頸、Bash 狀態機腳本中的具體 Bug，並提出相應的邏輯漏洞修補與驗證方案。
 
 ---
 
-## 背景
+## 1. 總結與設計哲學批評 (Linus-Style Critique)
 
-Pilotfish 是一個 Claude Code 的多 model 編排層，核心哲學：**frontier model 負責規劃與判斷，便宜 model 執行量產工作，fresh-context verifier 守護品質**。它定義了 8 個角色（scout / Explore / plan-verifier / security-reviewer / mech-executor / executor / verifier / security-executor），每個角色綁定不同的 model tier 與 effort level。
+> 「這個工作流設計的核心品味漏洞在於：它試圖用一堆 Markdown 文字去『說服』LLM 遵守狀態轉移。這就跟寫一份『請不要碰野指針』的安全規範給 C 語言實習生，然後指望程式永遠不會 Segment Fault 一樣荒謬。更糟的是，用來作為防護欄的 Shell 腳本（`wf-state.sh`）本身寫得漏洞百出，在 `set -e` 的環境下一碰就碎。」
 
-Anthropic 官方數據佐證了這個方向的可行性：
-- Fable 5 orchestrator + Sonnet workers = **96% 全 Fable 的品質，46% 的成本**
-- 社群實測 12-worker audit：Fable 5 + Haiku workers 節省 **74%** 成本
+### 🟢 展現好品味的設計 (Good Taste)
+* **Token Budget Gate 的閉環設計**：這解決了長流程下 LLM 的 Context 容易爆炸的**真實問題**。在 >150k 時強制寫入 checkpoints、WIP commit 並交接給新 session 的作法，是極其實用且具彈性的。
+* **基於 Worktree 的多流程並行隔離**：透過 `git worktree` 將不同分支的開發徹底隔離在獨立的工作區中。這從**資料結構**與**目錄實體**上直接消滅了並行衝突的可能，而不是試圖用複雜的鎖（Lock）去修補它。這正是簡化資料結構以消除特殊情況的典範。
 
-本文評估 4 個從 Pilotfish 借鑑的改進方向，逐一對照 gen-dev-workflow 目前的設計，給出核心判斷。
-
----
-
-## 改進方向評估
-
-### ① STAGE 0a context 收集降級
-
-#### Pilotfish 做法
-- 定義 `scout` 角色：`model: haiku, effort: low`，專做唯讀搜尋（grep、讀檔、git log、symbol lookup）
-- 主 session（frontier model）只負責收斂 scout 回報的結果，撰寫規格
-
-#### 目前 gen-dev-workflow 的做法
-- STAGE 0a 的兩條並行 context 收集（A. 專案 context 讀檔 / B. 相似功能調查）都交給 `planner`（opus-level, effort: xhigh）
-- 用最貴的 model 做唯讀搜尋，是純粹的浪費
-
-#### 【核心判斷】✅ 值得做
-
-**【關鍵洞察】**
-- **資料結構**：STAGE 0a 的兩條線本質上是「唯讀資料收集」→「有判斷力的收斂」，兩個操作的認知需求天差地別
-- **可消除的複雜度**：目前讓 planner 既當搜尋引擎又當分析師，混合了兩個不同推論等級的工作
-- **風險點**：sonnet 搜尋品質足以覆蓋日常收集需求；偶爾漏報靠 STAGE 3 reviewer 看 diff 時自然能抓到（例如重複造輪）
-
-**【方案】**
-
-不新增角色。直接把 STAGE 0a 兩條收集線的派發參數從 opus 降到 sonnet：
-
-```
-現行：
-  parallel([
-    agent('收集專案 context', {agentType: 'Explore'})   // 繼承主 session opus ← 太貴
-    agent('調查相似功能', {agentType: 'Explore'})        // 繼承主 session opus ← 太貴
-  ]) → planner 收斂 → 撰寫規格
-
-改為：
-  parallel([
-    agent('收集專案 context', {model: 'sonnet', effort: 'high'})   // sonnet, effort: high
-    agent('調查相似功能', {model: 'sonnet', effort: 'high'})        // sonnet, effort: high
-  ]) → planner 收斂並驗證 → 撰寫規格  // opus, effort: xhigh（只在這步）
-```
-
-**需要的配套：**
-1. 修改 STAGE 0a 的 Workflow `agent()` 呼叫，加上 `model: 'sonnet', effort: 'high'` 參數
-2. 推論等級表新增一行「偵察」等級
-
-**預估效益**：STAGE 0a 的 token 消耗降低約 50-60%（兩條收集線從 opus→sonnet）
+### 🔴 湊合與糟糕的設計 (Bad Taste)
+* **過度工程的「人肉暫停點」**：完整流程中包含了至少 6 個固定暫停點，在 STAGE 2 中甚至每完成一個任務就要暫停一次。這把原本應該自動化運行的編排器，變成了需要人類不斷點擊確認的「高頻打擾器」。
+* **防禦性程式碼的缺失**：`wf-state.sh` 雖被立為唯一狀態入口，但其參數解析脆弱，未對變數型別與參數個數進行防禦性檢查。
 
 ---
 
-### ② 兩次失敗才升級（Tiered Retry Escalation）
+## 2. 當前瓶頸與限制分析
 
-#### Pilotfish 做法
-- 失敗後先升一個 tier 再試，不是直接放棄
-- 漸進式：haiku 失敗 → sonnet 重試 → opus 重試 → 才停
+### 2.1. 人在迴口（Human-in-the-loop）頻率過高
+* **現象**：STAGE 2 實作階段會根據任務清單逐一分派並暫停。當任務量多（例如 5-10 個小任務）時，頻繁的暫停展示變更與確認，嚴重打斷了開發的流暢性。
+* **瓶頸**：LLM 雖然能自動寫代碼，但頻繁的人工確認要求使用者的注意力維持在低效的等待狀態。
 
-#### 目前 gen-dev-workflow 的做法
-```
-失敗單元 → 分析原因
-  ├─ context 不足  → 補 context，重派同 model（最多 1 次）
-  ├─ 任務過大      → 拆成更小單元，重新並行/序列
-  ├─ 計畫本身有誤  → 退回 planner（STAGE 0b）
-  └─ 重派仍失敗 2 次 → 停止，回報使用者
-```
-問題：重派用同 model 重試 2 次，不升級就放棄。
+### 2.2. 跨工作區狀態盲區 (Cross-Worktree State Blindspot)
+* **現象**：自 STAGE 1 起，狀態 JSON 會被 promote 並搬移到各 Worktree 的 `.claude/workflow-state/` 中，而 Root 倉庫對應的 JSON 會被刪除。
+* **瓶頸**：當使用者在 Root 倉庫重新啟動 Claude session 並嘗試呼叫 `continue` 時，根目錄的 Agent 由於對 Worktree 目錄毫無感知，會判定「找不到任何活動中的工作流」。
 
-#### 【核心判斷】✅ 值得做，但要限縮範圍
-
-**【關鍵洞察】**
-- **資料結構**：目前的 retry 路徑是「同 tier 重試 → 放棄」，缺少「升級 tier」這個中間態
-- **可消除的複雜度**：不需要完整的 haiku→sonnet→opus 三級鏈（我們的最低 tier 是 sonnet，不像 Pilotfish 從 haiku 起步）
-- **風險點**：無限升級鏈會燒掉預算。必須有硬上限。
-- **實用性**：真正會從「升級 tier」受益的場景是：機械性任務（快/便宜 model）因為推論能力不足而失敗，升到標準 model 就能過。設計判斷類的任務本來就在最強 tier，沒有升級空間。
-
-**【方案】**
-
-修改退回路徑，在「停止」之前插入一步「升級 tier」：
-
-```
-失敗單元 → 分析原因
-  ├─ context 不足  → 補 context，重派同 model（最多 1 次）
-  ├─ 任務過大      → 拆成更小單元
-  ├─ 計畫本身有誤  → 退回 planner
-  └─ 同 tier 重派失敗 2 次 → 升一級 tier 再試 1 次
-       ├─ 成功 → 繼續（日誌記錄「任務 X 從 tier A 升級到 tier B 才成功」供未來參考）
-       └─ 仍失敗 → 停止，回報使用者
-```
-
-| 原始 tier | 升級目標 | 說明 |
-|---|---|---|
-| 快/便宜（agy fast） | 標準（sonnet, effort: max） | 機械性任務推論不足 |
-| 標準（sonnet, effort: max） | 最強推論（opus, effort: xhigh） | 整合任務推論不足 |
-| 最強推論（opus, effort: xhigh） | — 無升級空間 | 直接停止回報 |
-
-**硬規則**：升級最多發生一次。不搞 3 級串聯，避免失控燒錢。
+### 2.3. 外部 `agy` CLI 強相依
+* **現象**：流程的核心委派動作（如 brancher、implementer、publisher）完全依賴外部 `agy` 命令。
+* **限制**：若 `agy` 未正確配置在 PATH，退回 Fallback 模式後的行為描述含糊。且由於 Fallback 模式無法有效委派，整條流程的優勢將不復存在。
 
 ---
 
-### ~~③ 低 tier 收集結果信任等級聲明~~ — 已刪除
+## 3. `wf-state.sh` 中的 Bash Bug 細節與具體修復方案
 
-> Pilotfish 建議 planner 對低 tier 偵察結果做抽樣驗證。但我們的收集線用 sonnet（不是 haiku），搜尋品質已經足夠；且「planner 抽樣驗證」在實作上等於讓 planner 重做收集線的工作，省下的 token 又燒回去。偶爾的漏報靠 STAGE 3 reviewer 看 diff 時自然能抓到。不值得做。
+以下是目前 `wf-state.sh` 腳本中存在的四個 Bash Bug 及其具體修復方案：
 
----
+### Bug 1.1: `shift 2` Crash under `set -e`
+* **問題根源**：由於腳本設定了 `set -euo pipefail`，當執行 `advance`、`init`、`promote` 等指令時，如果使用者漏傳了選填或必填參數（例如少傳了 `<next>`，僅執行 `wf-state.sh advance config.json`），`$#` 數量小於 2，此時執行 `shift 2` 會返回退出狀態碼 `1`。這會觸發 `set -e` 導致腳本直接異常退出（Crash），而無法輸出優雅的 Usage 說明。
+* **受影響程式碼片段 (`wf-state.sh` Line 221)**：
+  ```bash
+  f="$(resolve "$1")"; next="$2"; shift 2
+  ```
+* **具體修復方案**：
+  ```bash
+  f="$(resolve "$1")"
+  if [ $# -ge 2 ]; then
+    next="$2"
+    shift 2
+  else
+    die "advance 指令需要提供目標階段 (next)，用法：wf-state.sh advance <檔> <next> [--confirmed]"
+  fi
+  ```
+  *(同理，針對 `init`、`promote` 與 `upgrade` 中所有包含 `shift 2` 的參數解析迴圈，皆須在 `shift 2` 前檢查剩餘參數個數)*
 
-### ④ Explore 覆蓋（全域設定層）
+### Bug 1.2: Silent Key-Value Corruptions in `set` Command
+* **問題根源**：在 `set` 命令中，腳本將 args 拆分為 `k` 與 `v`。然而，如果傳入的參數不含 `=`（例如 `wf-state.sh set config.json interrupted_by`），`k="${kv%%=*}"` 與 `v="${kv#*=}"` 會同時解析為鍵名 `"interrupted_by"`。這會導致腳本靜默寫入 `"interrupted_by": "interrupted_by"` 至 JSON 中，造成資料損毀。
+* **受影響程式碼片段 (`wf-state.sh` Line 94-95)**：
+  ```bash
+  for kv in "$@"; do
+    k="${kv%%=*}"; v="${kv#*=}"
+  ```
+* **具體修復方案**：
+  ```bash
+  for kv in "$@"; do
+    if [[ "$kv" != *=* ]]; then
+      die "參數格式錯誤：'$kv'。必須為 k=v 格式"
+    fi
+    k="${kv%%=*}"; v="${kv#*=}"
+  ```
 
-#### Pilotfish 做法
-- Claude Code v2.1.198 起，內建 `Explore` subagent 繼承主 session 的 model
-- 如果主 session 跑 Opus/Fable，每次背景搜尋都燒最貴的 token
-- Pilotfish 透過 `~/.claude/agents/Explore.md` 把 Explore 鎖回 Haiku
-- 代價：自訂 Explore 會載入 user memory（內建的不會），但 Pilotfish 在 subagent 角色下自動停用 policy block 來降低 overhead
+### Bug 1.3: `jq_val` String Coercion for Negative Numbers
+* **問題根源**：在型別判定函式 `jq_val()` 中，判定模式 `''|*[!0-9]*|0*` 用於攔截並強製轉化為 JSON 字串。然而，負數（如 `-42`）因為包含負號 `-`，會匹配到 `*[!0-9]*`。這會使負數被錯誤地強製轉換為 JSON 字串 `"-42"` 而非 raw 數值。
+* **受影響程式碼片段 (`wf-state.sh` Line 73-80)**：
+  ```bash
+  jq_val() {
+    case "$1" in
+      null|true|false) echo "$1" ;;
+      0) echo "0" ;;
+      ''|*[!0-9]*|0*) jq -n --arg v "$1" '$v' ;;
+      *) echo "$1" ;;
+    esac
+  }
+  ```
+* **具體修復方案**：
+  使用 Bash Regex 進行精準判斷，只將非合法數值、布林與 null 的內容轉化為字串：
+  ```bash
+  jq_val() {
+    if [[ "$1" =~ ^-?[1-9][0-9]*$ || "$1" == "0" || "$1" == "-0" ]]; then
+      echo "$1"
+    elif [[ "$1" == "true" || "$1" == "false" || "$1" == "null" ]]; then
+      echo "$1"
+    else
+      jq -n --arg v "$1" '$v'
+    fi
+  }
+  ```
 
-#### 目前 gen-dev-workflow 的做法
-- STAGE 0a 的 Workflow `agent()` 呼叫用 `agentType: 'Explore'`，會繼承主 session model
-- 沒有全域 Explore 覆蓋
-
-#### 【核心判斷】🟡 值得知道，但暫不納入 skill 層
-
-**【關鍵洞察】**
-- **資料結構**：這是全域 config 層（`~/.claude/agents/`）的設定，不是 skill 層的流程變更
-- **可消除的複雜度**：如果 ① 落地（STAGE 0a 收集線降級至 sonnet），STAGE 0a 就不再依賴 Explore 的繼承行為，問題自然消失
-- **風險點**：全域覆蓋 Explore 會影響所有專案的所有 session（包括非 workflow 的日常使用），副作用範圍太大
-- **實用性**：對 Antigravity CLI (`agy`) 的使用場景，Explore 的行為可能與 Claude Code 不完全一致，需要驗證
-
-**【方案】**
-
-暫不在 gen-dev-workflow skill 裡處理。如果要做，屬於全域配置層的獨立改動：
-
-```markdown
-# 獨立議題：Explore Agent 全域 Model 覆蓋
-- 範圍：~/.claude/agents/Explore.md（全域，非專案級）
-- 前置：確認 Antigravity CLI 的 Explore 行為是否與 Claude Code 一致
-- 如果 ① 落地，此項優先序自動降低
-```
-
----
-
-## 開發優先序
-
-### P0：STAGE 0a 收集線降級至 Sonnet（①）
-
-> **前置條件**：無
-> **預估成本**：30 分鐘
-> **預估效益**：STAGE 0a token 消耗降低 50–60%
-> **狀態**：✅ 已於 `9d3de40` 落地（採最小改動：僅在 STAGE 0a `agent()` 呼叫層級加上 `model: 'sonnet', effort: 'high'` 覆蓋，未動任何 agent 定義檔）
-
-**異動檔案：**
-- `.agents/skills/gen-dev-workflow/SKILL.md` — 三處修改：
-  1. STAGE 0a 並行收集的 `agent()` 呼叫加上 `model: 'sonnet', effort: 'high'`
-  2. 推論等級表新增「偵察」行
-  3. Stage 層級基準分配表中 STAGE 0a 的 agent 欄更新
-
-**具體步驟：**
-1. 修改 STAGE 0a Workflow `parallel()` 範例，將兩條 `agent()` 呼叫加上 `model: 'sonnet', effort: 'high'` 參數（不改 `agentType`，不新增 agent 定義）
-2. 推論等級表新增一行：`偵察 | model: sonnet | effort: high | STAGE 0a 收集線`
-3. Stage 層級基準分配表 STAGE 0a 行改為：`sonnet（收集）→ planner（收斂）`
-
-**驗收條件：**
-- [x] STAGE 0a 的兩條收集線派發參數為 sonnet + effort: high（`9d3de40`）
-- [x] 不新增任何 agent 定義檔（僅參數覆蓋，`agentType: 'Explore'` 維持）
-- [x] planner 仍為 opus-level，只負責收斂與撰寫規格（未變動）
-- [ ] 推論等級表與 Stage 基準分配表已同步更新 — **未同步**：`9d3de40` 採最小改動只動 `agent()` 參數；Stage 基準分配表 `0a/0b` 行描述的是 planner 的收斂角色（仍為 Opus），未新增「偵察」行。若需表格層級文件一致性，列為後續 follow-up。
-
----
-
-### P1：Tiered Retry Escalation（②）
-
-> **前置條件**：無（可與 P0 平行進行）
-> **預估成本**：1 小時
-> **預估效益**：減少機械性任務失敗時的不必要人工介入
-> **狀態**：✅ 已於 `b73d08f` 落地（退回路徑加入「同 tier 失敗 2 次 → 升一級 tier 再試 1 次」，硬性限制最多升級一次，並要求進度行註記 tier 升級）
-
-**異動檔案：**
-- `.agents/skills/gen-dev-workflow/SKILL.md` — 「退回路徑」段落
-
-**具體步驟：**
-1. 修改「退回路徑（失敗 retry 迴圈）」段落，在最後一條「重派仍失敗 2 次 → 停止」前插入升級步驟：
-   ```
-   └─ 同 tier 重派失敗 2 次 → 升一級 tier 再試 1 次
-        ├─ 成功 → 繼續（日誌記錄升級事實）
-        └─ 仍失敗 → 停止，回報使用者
-   ```
-2. 新增 tier 升級對照表：
-   | 原始 tier | 升級目標 |
-   |---|---|
-   | 快/便宜 | 標準（sonnet, effort: max） |
-   | 標準 | 最強推論（opus, effort: xhigh） |
-   | 最強推論 | 無升級空間，直接停止 |
-3. 明確硬規則：升級最多發生**一次**，不搞多級串聯
-
-**驗收條件：**
-- [x] 退回路徑包含「升一級 tier」步驟
-- [x] tier 升級對照表存在且有硬上限
-- [x] 升級成功時有日誌記錄的要求
+### Bug 1.4: Leftover Temp Files on Rename Failure
+* **問題根源**：在 `atomic_write()` 中，雖然有在 subshell 中做 validate 校驗，但如果最後的 `mv "$tmp" "$f"` 搬移操作失敗（例如磁碟空間滿了、或者目標目錄的權限被更改為唯讀），因為 `set -e`，腳本會立即中斷退出，但已經建立的暫存檔 `.wf-tmp.XXXXXX` 將會永遠遺留在目錄中。
+* **受影響程式碼片段 (`wf-state.sh` Line 62-69)**：
+  ```bash
+  atomic_write() {
+    local f="$1" tmp
+    mkdir -p "$(dirname "$f")"
+    tmp="$(mktemp "$(dirname "$f")/.wf-tmp.XXXXXX")"
+    jq . >"$tmp" || { rm -f "$tmp"; die "非法 JSON，寫入中止"; }
+    ( validate "$tmp" ) || { rm -f "$tmp"; exit 1; }
+    mv "$tmp" "$f"
+  }
+  ```
+* **具體修復方案**：
+  ```bash
+  atomic_write() {
+    local f="$1" tmp
+    mkdir -p "$(dirname "$f")"
+    tmp="$(mktemp "$(dirname "$f")/.wf-tmp.XXXXXX")"
+    jq . >"$tmp" || { rm -f "$tmp"; die "非法 JSON，寫入中止"; }
+    ( validate "$tmp" ) || { rm -f "$tmp"; exit 1; }
+    mv "$tmp" "$f" || { rm -f "$tmp"; die "搬移暫存檔失敗，清理暫存檔 $tmp"; }
+  }
+  ```
 
 ---
 
-### P2：Explore 覆蓋（④）— 條件性
+## 4. 邏輯缺陷與流程漏洞分析 (Logical & Process Gaps)
 
-> **前置條件**：P0 落地後重新評估是否仍有必要
-> **預估成本**：低，但副作用範圍大（全域 config）
-> **預估效益**：如果 P0 已落地，效益趨近於零
+### Gap 2.1: Cross-Worktree State Blindness (CRITICAL)
+* **漏洞描述**：當 Sequence 流程推進到 STAGE 1 時，狀態 JSON 被移入工作區，Root 對話便失去了對該狀態的感知。一旦重開 session，用戶在 Root 執行 `continue` 將無法接續進度。
+* **解決方案**：
+  修改 `SKILL.md` 中續接（continue）狀態定位邏輯。當前目錄找不到狀態時，強制調用 `git worktree list` 遍歷所有活動工作區路徑，並掃描這些工作區的 `.claude/workflow-state/*.json`。
 
-**異動檔案：**
-- `~/.claude/agents/Explore.md`（全域，非專案級）
+### Gap 2.2: Quick-to-Sequence Upgrade Isolation Escape (CRITICAL)
+* **漏洞描述**：Quick 模式運行於 Root 倉庫。當呼叫 `upgrade` 提升為 Sequence 流程時，腳本僅僅修改了狀態 JSON，卻沒有在實體層面建立 Git worktree，這導致升級後的 Sequence 流程直接在 Root 倉庫中運行，打破了工作區物理隔離的鐵律。
+* **解決方案**：
+  在 `SKILL.md` 的 `upgrade` 流程中，強制與建立 worktree 的指令綁定。在 `wf-state.sh upgrade` 執行成功後，必須立即為該分支建立 worktree，複製 Root 中未 commit 的變更至新工作區，並將狀態 JSON promote 到該工作區下，最後指引 Claude `cd` 進入該工作區。
 
-**具體步驟：**
-1. P0 落地後，確認 STAGE 0a 是否仍有任何路徑使用內建 Explore
-2. 若有 → 評估建立全域 `Explore.md` 覆蓋（`model: haiku`）
-3. 若無 → 關閉此項，標記「P0 已解決，不再需要」
+### Gap 2.3: Missing Task Completion Verification
+* **漏洞描述**：狀態機允許任意從 STAGE 2 推進（advance）至 STAGE 3，而沒有在程式碼層面檢查 `completed_tasks` 陣列是否完整包含 `1` 到 `total_tasks` 的所有任務編號。這使得 LLM 可能因為自律失效，跳過未實作的任務直接申請審查。
+* **解決方案**：
+  在 `wf-state.sh` 的 `advance` 指令解析中，當目標為 `3` 且模式為 `sequence` 時，增加校驗邏輯：
+  ```bash
+  if [ "$next" = "3" ] && [ "$mode" = "sequence" ]; then
+    local total completed_count
+    total="$(jq -r '.total_tasks' "$f")"
+    completed_count="$(jq -r '.completed_tasks | length' "$f")"
+    if [ "$total" != "null" ] && [ "$completed_count" -lt "$total" ]; then
+      die "實作尚未全部完成（已完成 $completed_count / 共 $total 任務），拒絕推進至 STAGE 3"
+    fi
+  fi
+  ```
 
-**驗收條件：**
-- [x] P0 落地後重新評估，記錄結論：由於 P0 已在 workflow 呼叫 `Explore` 時明確指定 `model: 'sonnet'` 與 `effort: 'high'` 覆蓋，不再依賴 Explore 的預設繼承行為，故不需全域覆蓋。
-- [ ] 若決定實施：Explore.md 存在且 model 為 haiku
-- [x] 若決定不實施：本項標記關閉並附理由（P0 已於參數層級解決，全域修改副作用太大，不再需要）
+### Gap 2.4: PR Review responder has no retry loop
+* **漏洞描述**：在 STAGE 5 中，轉移路徑為 `responder -> reviewer -> publisher`。若 `reviewer` 審查不通過，狀態機沒有回到 `responder` 重新修改的閉環，容易導致流程卡死。
+* **解決方案**：
+  在 `legal_transition()` 中新增 `reviewer->responder` 的轉移規則：
+  ```bash
+  legal_transition() {
+    case "$1->$2" in
+      "0a->0b"|"0b->1"|"1->2"|"2->3"|"3->4"|"3->2"|"4->done"|"reviewer->responder"|"responder->reviewer"|"reviewer->publisher") return 0 ;;
+      *) return 1 ;;
+    esac
+  }
+  ```
+
+### Gap 2.5: Orphaned Pending Files
+* **漏洞描述**：若 Sequence 流程在 STAGE 0a/0b 階段（尚未 promote）被使用者廢棄，根倉庫的 `.pending-<wf-id>.json` 檔案將永遠殘留，缺乏垃圾回收機制。
+* **解決方案**：
+  在 `wf-state.sh` 中新增 `prune` 命令，允許使用者或系統定期清理建立時間大於 7 天的 `.pending-*.json` 檔案。
 
 ---
 
-### 依賴關係圖
+## 5. 驗證方法 (Verification Methods)
 
-```
-P0（收集線降 Sonnet）──→ P2（Explore 覆蓋，條件性）
-                            ↑ P0 落地後重新評估
+### 5.1. 針對 Bash Bug 的單元測試方法
+1. **驗證 Bug 1.1 修復**：
+   執行 `./wf-state.sh advance config.json` (故意缺少 target stage)，預期腳本輸出正確的 usage 錯誤訊息，且退出碼為 1，不應 crash 退出。
+2. **驗證 Bug 1.2 修復**：
+   執行 `./wf-state.sh set config.json interrupted_by`，預期腳本拒絕修改並印出 "參數格式錯誤：'interrupted_by'。必須為 k=v 格式"。
+3. **驗證 Bug 1.3 修復**：
+   執行 `./wf-state.sh set config.json total_tasks=-5`，隨後執行 `wf-state.sh get config.json`，確認 `total_tasks` 在 JSON 中的值為 raw 數值 `-5`，而不是帶雙引號的 `"-5"`。
+4. **驗證 Bug 1.4 修復**：
+   建立一個唯讀權限的資料夾，將狀態 JSON 放入其中。執行 `./wf-state.sh set` 寫入該 JSON。由於搬移必會失敗，檢查該唯讀目錄下是否殘留有 `.wf-tmp.XXXXXX` 暫存檔，預期無任何殘留。
 
-P1（Tiered Retry）── 獨立，可平行
-```
-
----
-
-## 與 Pilotfish 的關鍵差異（不應照搬的部分）
-
-| Pilotfish 設計 | 我們的情況 | 不照搬的原因 |
-|---|---|---|
-| 8 個角色（含 security-reviewer / security-executor） | 目前不需要 security 專職角色 | YAGNI — 本專案是 Flutter 套件，不是安全敏感的後端服務 |
-| plan-verifier（唯讀挑戰 plan） | STAGE 3 reviewer 已涵蓋 | 我們的 reviewer 在 STAGE 3 已做多 angle 對抗式審查，加 plan-verifier 是重複 |
-| 全域 CLAUDE.md policy | 我們用 per-project skill | 全域 policy 會影響所有專案，我們偏好專案級控制 |
-| `best` alias 作為 orchestrator | 我們直接指定 `opus` | `best` alias 的解析行為可能隨 CLI 版本變動，不夠穩定 |
+### 5.2. 針對流程漏洞的整合驗證
+1. **驗證 Cross-Worktree 續接**：
+   在新 session 的 Root 倉庫中呼叫 `continue`，確認腳本會輸出當前所有 worktree 中的 active workflows 列表。
+2. **驗證 Quick 升級隔離性**：
+   啟動一個 quick 流程，並執行 `upgrade`。驗證系統是否確實自動建立了對應的 git worktree，並且狀態 JSON 成功被 promote 至該 worktree 目錄下。
