@@ -166,6 +166,62 @@ final inspector = FlutterInspector(redactSensitiveData: false);
 
 The flag only affects shared/exported text — the headers shown live inside the dashboard are always the real values.
 
+### WebView inline debugging
+
+Bridge a WebView's own `console.*`, `window.onerror`/`unhandledrejection`, and `fetch`/`XMLHttpRequest` activity into the same Console and Network tabs used for native logs and Dio traffic — one more event source, not a second system. The package stays dependency-free: you bring your own WebView package (`webview_flutter` or `flutter_inappwebview`) and wire it to `WebViewBridgeAdapter` yourself.
+
+Every integration follows the same three steps:
+
+1. Create `final adapter = WebViewBridgeAdapter(inspector);` — a translator that turns bridge messages into existing `LogEntry` / `NetworkEntry` objects via `inspector.log` / `inspector.logNetwork`. It holds no buffer and does no redaction of its own.
+2. Wire your WebView package's channel/handler (named via the `kWebViewBridgeChannelName` constant, i.e. `'FlutterInspectorBridge'`) to call `adapter.handleMessage(rawMessageString)`.
+3. Inject the `inspectorWebViewBridgeJs` payload into the page — it hooks `console.*`, `window.onerror`, `unhandledrejection`, `fetch`, and `XMLHttpRequest`, and posts one JSON envelope per event back through the channel.
+
+#### With `webview_flutter`
+
+```dart
+final adapter = WebViewBridgeAdapter(inspector);
+controller
+  ..addJavaScriptChannel(
+    kWebViewBridgeChannelName, // 'FlutterInspectorBridge'
+    onMessageReceived: (m) => adapter.handleMessage(m.message),
+  )
+  ..setNavigationDelegate(NavigationDelegate(
+    onPageStarted: (_) => controller.runJavaScript(inspectorWebViewBridgeJs),
+  ));
+```
+
+#### With `flutter_inappwebview`
+
+```dart
+final adapter = WebViewBridgeAdapter(inspector);
+// AT_DOCUMENT_START injection catches even the page's earliest logs.
+controller.addUserScript(UserScript(
+  source: inspectorWebViewBridgeJs,
+  injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+));
+controller.addJavaScriptHandler(
+  handlerName: kWebViewBridgeChannelName,
+  callback: (args) => adapter.handleMessage(args.first as String),
+);
+```
+
+#### Injection timing: know what each package can and can't catch
+
+The two packages inject at genuinely different points, and that changes what you see:
+
+- **`flutter_inappwebview`**'s `UserScript` with `AT_DOCUMENT_START` runs before the page's own scripts, so it catches logs/errors/requests fired during the page's earliest initialization.
+- **`webview_flutter`**'s `runJavaScript` only runs from `onPageStarted`, which fires *after* navigation has already begun — any `console.*` / error / fetch activity before that point is missed. This is a real gap, not a rounding error; if you need the page's earliest activity, use `flutter_inappwebview`.
+
+#### Limitations
+
+- **Main frame only** — iframes and Service Workers are not bridged; only the top-level page's JS is hooked.
+- **`setOnConsoleMessage` is a console-only fallback** — it doesn't cover errors or network activity, so it isn't the primary path here; the injected bridge JS is what drives all four event types.
+- **Replay is unavailable for WebView network entries** — the Network detail view's "Resend" action requires a `sourceDio` instance. WebView traffic isn't captured through Dio, so `sourceDio` is always `null` and Replay correctly stays disabled — the same degradation already used for any entry without a `sourceDio`.
+
+#### Redaction
+
+WebView network entries are ordinary `NetworkEntry` objects flowing through the same buffer as Dio-captured traffic, so they're masked by the exact same [`redactSensitiveData`](#redact-sensitive-headers) rules described above — same masked keys, same opt-out flag, same code path. There is no separate redaction step for WebView traffic to configure or forget.
+
 ### Live notification (opt-in)
 
 A continuously-updated system notification can summarise the latest call and the running total. It is **disabled by default** — enable it explicitly:
