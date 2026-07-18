@@ -174,7 +174,10 @@ const String inspectorWebViewBridgeJs = r'''
       var start = Date.now();
       var reqBody = truncate(body);
       xhr.addEventListener('loadend', function () {
-        var resBodyT = truncate(xhr.responseText);
+        // responseText throws on non-text responseType (arraybuffer/blob/json);
+        // guard so a binary response still yields a net event, minus its body.
+        var rt = xhr.responseType;
+        var resBodyT = truncate(rt === '' || rt === 'text' ? xhr.responseText : undefined);
         post({
           t: 'net',
           method: xhr.__inspectorMethod,
