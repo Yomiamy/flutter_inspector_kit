@@ -17,7 +17,7 @@
 
 **Architecture**：三個零件、零新相依、schema 僅向後相容擴充（`NetworkEntry.origin`/`pageUrl`，見 §1.3 修訂）、`FlutterInspector` 建構子零改動。
 
-```
+```text
 [WebView 頁內 JS]                         [Native / Dart]
   inspectorWebViewBridgeJs   ──postMessage(JSON String)──▶  JavaScriptChannel
    ├ hook console.*                                          / addJavaScriptHandler
@@ -179,6 +179,7 @@ import 'dart:convert';
 import '../core/flutter_inspector.dart';
 import '../models/log_level.dart';
 import '../models/network_entry.dart';
+import '../models/network_origin.dart';
 
 /// 把 decode 後的 WebView bridge 訊息翻成既有 [LogEntry] / [NetworkEntry]，
 /// 交給既有 registry。翻譯器不是系統：不持有 buffer、不做 redaction、不做 UI。
@@ -240,6 +241,8 @@ class WebViewBridgeAdapter {
         // errorType / sourceDio 刻意留 null：這不是 Dio 請求。
         // Replay 因 sourceDio == null 正確地不可用（沿用既有 null 檢查）。
         isComplete: true,
+        origin: NetworkOrigin.webview,
+        pageUrl: msg['page']?.toString(),
         timestamp: _tsOf(msg['ts']),
       ),
     );
@@ -350,7 +353,7 @@ class WebViewBridgeAdapter {
 
 ### 依賴圖與並行建議
 
-```
+```text
 Chunk 1 (JS payload)        ─┐   （協定已於 §2 凍結）
 Chunk 2 (adapter · log)     ─┼─ 可並行（不同檔）
                              │

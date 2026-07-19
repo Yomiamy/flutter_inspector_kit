@@ -201,7 +201,11 @@ controller.addUserScript(userScript: UserScript(
 ));
 controller.addJavaScriptHandler(
   handlerName: kWebViewBridgeChannelName,
-  callback: (args) => adapter.handleMessage(args.first as String),
+  callback: (args) {
+    // The page can call this handler directly — validate before forwarding.
+    final raw = args.isNotEmpty ? args.first : null;
+    if (raw is String) adapter.handleMessage(raw);
+  },
 );
 ```
 
