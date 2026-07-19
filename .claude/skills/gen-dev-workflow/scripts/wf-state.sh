@@ -65,25 +65,25 @@ atomic_write() {
   tmp="$(mktemp "$(dirname "$f")/.wf-tmp.XXXXXX")"
   jq . >"$tmp" || { rm -f "$tmp"; die "非法 JSON，寫入中止"; }
   ( validate "$tmp" ) || { rm -f "$tmp"; exit 1; }   # 子 shell 隔離 validate 的 die，確保 tmp 必被清掉
-  mv "$tmp" "$f"
+  mv "$tmp" "$f" || { rm -f "$tmp"; die "搬移暫存檔失敗，清理暫存檔 $tmp"; }
 }
 
 # jq 值解析：null / 數字 / 布林原樣，其餘當字串
-# 純數字但帶前導零（如 007）不是合法 JSON 數值，當字串處理
 jq_val() {
-  case "$1" in
-    null|true|false) echo "$1" ;;
-    0) echo "0" ;;
-    ''|*[!0-9]*|0*) jq -n --arg v "$1" '$v' ;;
-    *) echo "$1" ;;
-  esac
+  if [[ "$1" =~ ^-?[1-9][0-9]*$ || "$1" == "0" || "$1" == "-0" ]]; then
+    echo "$1"
+  elif [[ "$1" == "true" || "$1" == "false" || "$1" == "null" ]]; then
+    echo "$1"
+  else
+    jq -n --arg v "$1" '$v'
+  fi
 }
 
 slugify() { echo "${1//\//-}"; }
 
 legal_transition() {
   case "$1->$2" in
-    "0a->0b"|"0b->1"|"1->2"|"2->3"|"3->4"|"3->2"|"4->done") return 0 ;;
+    "0a->0b"|"0b->1"|"1->2"|"2->3"|"3->4"|"3->2"|"4->done"|"reviewer->responder"|"responder->reviewer"|"reviewer->publisher") return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -92,6 +92,9 @@ apply_sets() { # $1=json, 之後 k=v...；回傳更新後 json
   local json="$1"; shift
   local kv k v
   for kv in "$@"; do
+    if [[ "$kv" != *=* ]]; then
+      die "參數格式錯誤：'$kv'。必須為 k=v 格式"
+    fi
     k="${kv%%=*}"; v="${kv#*=}"
     case "$k" in
       spec|plan|branch|issue|pr|total_tasks|interrupted_by) ;;
@@ -109,10 +112,10 @@ case "$cmd" in
     mode="sequence"; stage="0a"; branch=""; sets=()
     while [ $# -gt 0 ]; do
       case "$1" in
-        --mode) mode="$2"; shift 2 ;;
-        --stage) stage="$2"; shift 2 ;;
-        --branch) branch="$2"; shift 2 ;;
-        --set) sets+=("$2"); shift 2 ;;
+        --mode) [ $# -ge 2 ] || die "--mode 需要值"; mode="$2"; shift 2 ;;
+        --stage) [ $# -ge 2 ] || die "--stage 需要值"; stage="$2"; shift 2 ;;
+        --branch) [ $# -ge 2 ] || die "--branch 需要值"; branch="$2"; shift 2 ;;
+        --set) [ $# -ge 2 ] || die "--set 需要值"; sets+=("$2"); shift 2 ;;
         *) die "init：未知參數 $1" ;;
       esac
     done
@@ -143,8 +146,8 @@ case "$cmd" in
     branch=""; dest="$STATE_DIR"
     while [ $# -gt 0 ]; do
       case "$1" in
-        --branch) branch="$2"; shift 2 ;;
-        --dest) dest="$2"; shift 2 ;;
+        --branch) [ $# -ge 2 ] || die "--branch 需要值"; branch="$2"; shift 2 ;;
+        --dest) [ $# -ge 2 ] || die "--dest 需要值"; dest="$2"; shift 2 ;;
         *) die "promote：未知參數 $1" ;;
       esac
     done
@@ -218,7 +221,13 @@ case "$cmd" in
     ;;
 
   advance)
-    f="$(resolve "$1")"; next="$2"; shift 2
+    f="$(resolve "$1")"
+    if [ $# -ge 2 ]; then
+      next="$2"
+      shift 2
+    else
+      die "advance 指令需要提供目標階段 (next)，用法：wf-state.sh advance <檔> <next> [--confirmed]"
+    fi
     confirmed=false
     [ "${1:-}" = "--confirmed" ] && confirmed=true
     validate "$f"
@@ -230,9 +239,22 @@ case "$cmd" in
     if [ "$mode" = "sequence" ] && ! legal_transition "$cur" "$next"; then
       die "非法 stage 轉移：$cur -> ${next}（sequence 模式合法路徑：0a→0b→1→2→3→4、3→2、4→done）"
     fi
+    if [ "$next" = "3" ] && [ "$mode" = "sequence" ]; then
+      local total completed_count
+      total="$(jq -r '.total_tasks' "$f")"
+      completed_count="$(jq -r '.completed_tasks | length' "$f")"
+      if [ "$total" != "null" ] && [ "$completed_count" -lt "$total" ]; then
+        die "實作尚未全部完成（已完成 $completed_count / 共 $total 任務），拒絕推進至 STAGE 3"
+      fi
+    fi
     jq --arg s "$next" '.stage = $s | .awaiting_confirmation = false | .interrupted_by = null' \
       "$f" | atomic_write "$f"
     echo "→ stage $next"
+    ;;
+
+  prune)
+    find "$STATE_DIR" -name ".pending-*.json" -mtime +7 -exec rm -f {} \;
+    echo "清理 7 天以上的 pending 狀態檔完成"
     ;;
 
   *) usage ;;
