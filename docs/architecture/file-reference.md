@@ -24,7 +24,8 @@
 | [`lib/src/models/timestamped_entry.dart`](../../lib/src/models/timestamped_entry.dart) | `TimestampedEntry`<br>`TimelineSource` (enum) | 混合時序軸的統一契約介面與其格式化擴充方法。定義了 `timestamp`、`displayTime` 屬性。 |
 | [`lib/src/models/log_level.dart`](../../lib/src/models/log_level.dart) | `LogLevel` (enum) | 控制台日誌的嚴重性等級（`verbose` 至 `error`）。 |
 | [`lib/src/models/log_entry.dart`](../../lib/src/models/log_entry.dart) | `LogEntry` | 單條日誌資料模型。實作了 `TimestampedEntry` 介面。 |
-| [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。 |
+| [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。含 `origin` / `pageUrl` provenance 欄位（帶預設值，向後相容）。 |
+| [`lib/src/models/network_origin.dart`](../../lib/src/models/network_origin.dart) | `NetworkOrigin` (enum) | **[新增]** 網路請求來源（`dio` / `webview`）。顯式 provenance，取代不可靠的 `sourceDio == null` 推斷（WeakReference 被 GC 後無法區分來源）。 |
 | [`lib/src/models/navigator_action.dart`](../../lib/src/models/navigator_action.dart) | `NavigatorAction` (enum) | 導航動作類型（`push`、`pop`、`replace`、`remove`）。 |
 | [`lib/src/models/navigator_entry.dart`](../../lib/src/models/navigator_entry.dart) | `NavigatorEntry` | 導航事件資料模型。實作 `TimestampedEntry`。 |
 | [`lib/src/models/database_operation.dart`](../../lib/src/models/database_operation.dart) | `DatabaseOperation` (enum) | 資料庫操作類型（`insert`、`update`、`delete`、`query`）。 |
@@ -44,6 +45,8 @@
 | [`lib/src/interceptors/dio_interceptor.dart`](../../lib/src/interceptors/dio_interceptor.dart) | `FlutterInspectorDioInterceptor` | Dio 攔截器，實作 Adapter 模式，將網絡生命週期轉化為 `NetworkEntry` 發送給 Core。 |
 | [`lib/src/observers/navigator_observer.dart`](../../lib/src/observers/navigator_observer.dart) | `FlutterInspectorNavigatorObserver` | 導航觀察者，實作 Adapter 模式，將路由變更進行 Widget 類型解析後發送給 Core。 |
 | [`lib/src/sources/operation_log_source.dart`](../../lib/src/sources/operation_log_source.dart) | `OperationLogSource` | 將資料庫 SQL 日誌包裝成虛擬 `DatabaseBrowserSource`，以便在資料庫 Tab 顯示。 |
+| [`lib/src/webview/webview_bridge_js.dart`](../../lib/src/webview/webview_bridge_js.dart) | `kWebViewBridgeChannelName`<br>`inspectorWebViewBridgeJs` | **[新增]** 可注入 WebView 的 JS bridge payload（常數字串）。Hook `console.*`、`window.onerror`、`unhandledrejection`、`fetch`、`XHR`，JS 端截斷大 payload 後以統一 JSON envelope postMessage 給 native；單一 payload 同時支援 webview_flutter 與 flutter_inappwebview 的傳輸層。 |
+| [`lib/src/webview/webview_bridge_adapter.dart`](../../lib/src/webview/webview_bridge_adapter.dart) | `WebViewBridgeAdapter` | **[新增]** WebView 訊息翻譯器，形狀鏡像 Dio interceptor。decode bridge JSON → 建 `LogEntry` / `NetworkEntry`（含 webview provenance）→ 經公開 API 推入 Core。`handleMessage` 永不拋出，並以 256KB 上限擋下繞過注入腳本的敵意超大訊息。 |
 
 ### 4. 平台適應通知層 (`lib/src/notifications/`)
 

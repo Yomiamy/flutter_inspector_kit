@@ -29,13 +29,14 @@
   │                 領域模型層 (Domain Models)                 │
   │               [TimestampedEntry] (抽象介面)                │
   │   [LogEntry]  [NetworkEntry]  [NavigatorEntry]  [DBEntry]  │
-  │   [DiagnosticInfo]                                         │
+  │   [DiagnosticInfo]  [NetworkOrigin]                        │
   └─────────────────────────────▲──────────────────────────────┘
                                 │ 結構化寫入
                                 │
   ┌─────────────────────────────┴──────────────────────────────┐
   │            資料擷取層 (Collectors / Interceptors)          │
   │ [DioInterceptor] [NavigatorObserver] [UncaughtErrorHandler]│
+  │ [WebViewBridgeAdapter] <── postMessage ── 頁內注入 JS bridge │
   └────────────────────────────────────────────────────────────┘
 ```
 
@@ -49,6 +50,7 @@
 - 採用 **Immutable (不可變)** 的設計模式。
 - **`TimestampedEntry`**：定義混合時序軸（Merged Timeline）排序契約之抽象介面，包含 `timestamp`、`displayTime` 欄位與 `TimelineSource` 來源標記。
 - 具體實體包括：`LogEntry`、`NetworkEntry`、`NavigatorEntry` 與 `DatabaseEntry`。
+- **`NetworkOrigin`**：網路請求的來源列舉（`dio` / `webview`）。`NetworkEntry` 以第一級欄位 `origin`（預設 `dio`）與 `pageUrl`（WebView 請求的 `location.href`）標記 provenance——顯式欄位而非依賴 `sourceDio == null` 推斷，因為 `WeakReference<Dio>` 被 GC 後兩種來源將無法區分。
 - **`DiagnosticInfo`**：裝置與應用程式的元數據模型（如應用版本、裝置型號、系統版本等）。為了確保平台自適應與 WASM 相容性，其所有欄位皆為 nullable，並在報告中安全地以 `N/A` 降級顯示，避免 host 無法提供資訊時導致流程中斷。
 - **`DiagnosticInfoSource`**：Host 提供裝置與 App 元數據的抽象資料源介面。Host 實作此介面後，經由建構子注入 `FlutterInspector` 中。
 
@@ -57,6 +59,7 @@
 - **`NavigatorObserver`** (`FlutterInspectorNavigatorObserver`)：自動監聽路由變化，並安全解析頁面 Widget 類型。
 - **`UncaughtErrorHandler`**：獨立類別，專職掛載與鏈接未捕捉的例外。它透過建構子接收 `onLog` 回呼函數，在呼叫 `attach()` 時安全地將錯誤鉤子鏈接（chain/wrap）至 `FlutterError.onError`、`PlatformDispatcher.instance.onError` 與 `ErrorWidget.builder`。此類別無 `FlutterInspector` 的逆向依賴，保證了職責單一與高品味的模組獨立性。
 - **`OperationLogSource`**：將資料庫操作日誌轉換為虛擬表格，以配合資料庫瀏覽器展示。
+- **`WebViewBridgeAdapter`** + **`inspectorWebViewBridgeJs`**：WebView 觀測橋。宿主把 `inspectorWebViewBridgeJs`（可注入 JS payload）掛進自己的 WebView（`webview_flutter` 或 `flutter_inappwebview` 皆可，套件零相依），頁內的 `console.*`、JS error、`fetch`/`XHR` 事件經 JavaScriptChannel 以 JSON 送回，adapter 翻譯為既有 `LogEntry` / `NetworkEntry` 後透過公開 API 推入 Core——與 Dio interceptor 完全同形的「翻譯器」，不持有 buffer、不做 UI。
 
 ### 4. 表現層 (Presentation Layer) & 工具類
 - **`InspectorFab`**：支援拖曳的安全區域內懸浮按鈕。
@@ -94,3 +97,9 @@
 - `UncaughtErrorHandler` 嚴格包裹現有 Host 處理程序（`FlutterError.onError` 等）。
 - 寫入日誌的邏輯完全置於 `try-catch` 中，不論日誌儲存是否失敗，**都必須確保在 finally 中將錯誤原樣轉發回下游**。
 - **原則**：我們的職責是輔助調試，絕不能因為套件自身的崩潰或錯誤導致主 App 的行為改變。
+
+### 4. 敵意輸入防護 (WebView Bridge Hardening)
+WebView 頁面內容是**不可信來源**，且頁面可繞過注入腳本直接對 channel 送任意 payload：
+- **`handleMessage` 永不拋出**：整條訊息路由包在單一 `try-catch` 內，malformed JSON、未知型別、超出 `DateTime` 範圍的時間戳一律靜默丟棄。
+- **雙重大小上限**：JS 端於源頭截斷（`MAX_CHARS`，附 `truncated` 標記）；Dart 端在 `jsonDecode` 前再以 256KB 上限擋下繞過注入腳本的超大訊息——UI isolate 永不解析無界輸入。
+- **redaction 無旁門**：WebView 網路事件與 native 走同一組顯示/匯出 formatter，遮罩行為與 `redactSensitiveData` opt-out 逐字節一致。

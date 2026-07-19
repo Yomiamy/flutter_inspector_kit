@@ -2,7 +2,7 @@
 
 > 「好的程式碼沒有特殊情況。」 —— Linus Torvalds
 
-本文件詳細剖析本套件內四大核心功能的運作流程、狀態移轉與數據傳遞軌跡，並新增了「診斷報告導出與分享」及「懸浮按鈕與 Overlay 生命週期管理」兩個核心流程。
+本文件詳細剖析本套件內四大核心功能的運作流程、狀態移轉與數據傳遞軌跡，並涵蓋「診斷報告導出與分享」、「懸浮按鈕與 Overlay 生命週期管理」與「WebView 事件橋接」等核心流程。
 
 ---
 
@@ -260,3 +260,45 @@
 
 1. **冪等性載入 (`attach`)**：在 `attach()` 時，首先確認內部 `_overlayEntry` 欄位是否為空。若非空則立即返回以避免重複掛載（Idempotence）。尋找當前 context 下的 `Overlay` 元件。成功取得後，建構並將封裝了 `InspectorFab` 的 `OverlayEntry` 插入，其 onTap 事件會觸發注入的 `onFabTap` 回呼。
 2. **安全卸載 (`detach`)**：在 `detach()` 時，調用 `_overlayEntry?.remove()`，並將欄位重設為 `null`，防止記憶體洩漏並為下次載入做好準備。
+
+---
+
+## 7. WebView 事件橋接流程 (WebView Bridge Flow)
+
+宿主 app 的 WebView 內事件（console / JS error / fetch / XHR）經注入的 JS bridge 翻譯為既有 `LogEntry` / `NetworkEntry`，與 native 事件共用同一條 timeline——**多一個事件來源，不是多一個系統**。套件對 webview 套件零相依：宿主自備 `webview_flutter` 或 `flutter_inappwebview` 並照 README 接線。
+
+```text
+  WebView 頁面 (不可信來源)      JavaScriptChannel /        WebViewBridgeAdapter        FlutterInspector & Registry
+  inspectorWebViewBridgeJs       addJavaScriptHandler
+       │                              │                           │                            │
+       │ console.* / onerror /        │                           │                            │
+       │ unhandledrejection /         │                           │                            │
+       │ fetch / XHR 被 hook          │                           │                            │
+       │                              │                           │                            │
+       │─ 1. JS 端截斷 (MAX_CHARS) ──│                           │                            │
+       │   統一 JSON envelope         │                           │                            │
+       │   {t:"log"|"net", ...}       │                           │                            │
+       │─── 2. postMessage(String) ──>│                           │                            │
+       │                              │─── 3. handleMessage ─────>│                            │
+       │                              │                           │─ 4. 大小上限檢查 (256KB)   │
+       │                              │                           │─ 5. jsonDecode + 型別守衛  │
+       │                              │                           │   (整條路由包 try-catch，  │
+       │                              │                           │    敵意輸入靜默丟棄)       │
+       │                              │                           │                            │
+       │                              │              t == "log" ─>│─── inspector.log(...) ────>│ → Log RingBuffer
+       │                              │              t == "net" ─>│─── inspector.logNetwork ──>│ → Network RingBuffer
+       │                              │                           │    (origin: webview,       │
+       │                              │                           │     pageUrl: location.href)│
+       │                              │                           │                            ▼
+       │                              │                           │          既有 mergedTimeline / Console tab /
+       │                              │                           │          Network tab / Error Aggregation /
+       │                              │                           │          診斷報告 Timeline（零改動即受益）
+```
+
+### 關鍵細節
+
+1. **翻譯器不是系統**：adapter 形狀鏡像 `FlutterInspectorDioInterceptor`——持 inspector 參照、用公開 API 推事件，`FlutterInspector` 建構子零改動；不持有 buffer、不做 UI、不做 redaction。
+2. **Provenance 為第一級欄位**：network 事件帶 `origin: NetworkOrigin.webview` 與 `pageUrl`；log 事件以既有 `data` map 攜帶 `{'origin':'webview','pageUrl':...}`。`NetworkDetailView` General 區顯示 Origin / Page URL。
+3. **Replay 自然降級**：WebView 請求非經 Dio 送出，`sourceDio == null` 使既有 Replay 檢查自動停用，無新增特殊分支。
+4. **redaction 共用邊界**：WebView `NetworkEntry` 存原始 headers/body（與 native 一致），遮罩由既有顯示/匯出 formatter 依 `redactSensitiveData` 施加——同一組 code path，無旁門。
+5. **注入時機差異**：`flutter_inappwebview` 的 `UserScript` 可於 documentStart 注入、吃得到頁面最早期事件；`webview_flutter` 的 `runJavaScript` 於 `onPageStarted` 後執行會漏最早期 log。README 明文標註，套件不假裝抹平。
