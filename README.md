@@ -190,6 +190,8 @@ controller
   ));
 ```
 
+Working demo: [`example/lib/demos/webview_demo.dart`](example/lib/demos/webview_demo.dart).
+
 #### With `flutter_inappwebview`
 
 ```dart
@@ -208,6 +210,8 @@ controller.addJavaScriptHandler(
   },
 );
 ```
+
+Working demo: [`example/lib/demos/inappwebview_demo.dart`](example/lib/demos/inappwebview_demo.dart) — its page fires a log during document load, proving the document-start injection catches activity that `webview_flutter`'s wiring misses.
 
 #### Provenance: telling WebView traffic apart from native
 
