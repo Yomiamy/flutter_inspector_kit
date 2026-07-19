@@ -15,7 +15,7 @@
 
 **Goal**：把 WebView 內的 `console.*` / JS error / `fetch` / `XHR` 翻譯成既有 `LogEntry` / `NetworkEntry`，經既有 registry 進入同一條 timeline——**多一個事件來源，不是多一個系統**。
 
-**Architecture**：三個零件、零新相依、零 schema 變更、`FlutterInspector` 建構子零改動。
+**Architecture**：三個零件、零新相依、schema 僅向後相容擴充（`NetworkEntry.origin`/`pageUrl`，見 §1.3 修訂）、`FlutterInspector` 建構子零改動。
 
 ```
 [WebView 頁內 JS]                         [Native / Dart]
@@ -63,7 +63,7 @@
    - **on-screen detail view 的 header 表格是原始未遮罩的**（`network_detail_view.dart:66` `KeyValueTable(data: entry.requestHeaders)`）——native 就這行為。
    - ⇒ WebView `NetworkEntry` 走**同一個 buffer、同一組 formatter**，redaction 對它**自動生效且與 native 逐字節一致、且尊重 `redactSensitiveData` opt-out**。adapter **不該**在 ingest 時 redact（會與 native 分歧、且忽略 opt-out）。
 
-3. **零 schema 變更可行**（逐欄確認）
+3. **schema 對應**（逐欄確認；`LogEntry` 零變更，`NetworkEntry` 後經修訂擴充——見本節末修訂條目）
    - `LogEntry`：`message`/`level`(`LogLevel`)/`stackTrace`(`String?`)/`data`(`Map?`)/`timestamp`。provenance → `data: {'origin':'webview','pageUrl':...}`。
    - `LogLevel` enum：`verbose, debug, info, warning, error`（`log_level.dart`）。
    - `NetworkEntry`：`method`/`url`/`statusCode`(`int?`)/`duration`(`Duration?`)/`requestHeaders`/`requestBody`/`responseHeaders`/`responseBody`/`error`(`String?`)/`errorType`(`DioExceptionType?`)/`errorStackTrace`/`isComplete`/`isReplay`/`sourceDio`(`WeakReference<Dio>?`)。WebView 填 `errorType: null`、`sourceDio: null`。
@@ -573,7 +573,7 @@ export 'src/webview/webview_bridge_js.dart';
 | 保證 | 如何在實作中確保 |
 |---|---|
 | **零新相依** | `lib/src/webview/*` 只 import 既有 `core/`、`models/`；webview 套件僅入 `example/pubspec.yaml`。CI/`flutter pub deps` 檢查 `lib/` 相依不變。 |
-| **零 schema 變更** | adapter 只用既有 `LogEntry` / `NetworkEntry` 建構子與既有欄位；provenance 塞既有 `LogEntry.data`；不新增任何 model 欄位（§1.3）。既有 `*_entry_test.dart` 全綠即證。 |
+| **schema 僅向後相容擴充**（2026-07-18 修訂，§1.3） | `LogEntry` 零變更（provenance 塞既有 `data`）；`NetworkEntry` 新增 `origin`（預設 `NetworkOrigin.dio`）與 `pageUrl`（預設 `null`）兩個帶預設值欄位——既有建構呼叫、Dio interceptor、Replay 零改動。既有 `*_entry_test.dart` 全綠 + provenance 新測試即證。 |
 | **既有公開 API 不變** | **`FlutterInspector` 建構子與方法零改動**——adapter 是外部物件，鏡像 Dio interceptor 的關係（§1.1）。既有 `flutter_inspector_test.dart` 全綠即證。 |
 | **既有 UI / 報告零改動即受益** | 不改 `console_tab` / `network_tab` / `mergedTimeline` / `diagnostic_report` / #7 aggregation；WebView entry 是同型別、進同 buffer，自動流經全鏈路。 |
 | **redaction 不開後門** | §5 方案 B：無 ingest redaction，靠共用邊界；parity 測試（Chunk 3）證明與 native 同 code path、尊重 opt-out。 |

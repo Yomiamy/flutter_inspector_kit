@@ -17,7 +17,7 @@
 ### 為什麼要做（Why，已逐檔核對的現況事實）
 
 - **`lib/` 零 webview 程式碼**：掃描確認套件目前完全沒有 WebView 觀測能力。宿主 app 一旦嵌 H5 活動頁 / 支付頁 / 混合頁，頁內的 `console.log`、JS error、`fetch` 全部隱形。
-- **既有資料模型天生容納 WebView 事件（零 schema 變更）**：
+- **既有資料模型天生容納 WebView 事件**（原設計為零 schema 變更；2026-07-18 修訂後 `LogEntry` 維持不變、`NetworkEntry` 擴充向後相容欄位，見決策紀錄 #6）：
   - `lib/src/models/log_entry.dart`：`LogEntry` 欄位為 `timestamp` / `level`(`LogLevel`) / `message` / `stackTrace`(`String?`) / `data`(`Map<String, dynamic>?`)。WebView 的 console 訊息與 JS error 完整對應，來源標記（`origin: webview`、`pageUrl`）可塞進既有 `data` map，**不需新增欄位**。
   - `lib/src/models/network_entry.dart`：`NetworkEntry` 的 `errorType`(`DioExceptionType?`) 與 `sourceDio`(`WeakReference<Dio>?`) 本為 nullable。WebView 的 `fetch` 填 null 即可入列——**天生容納非 Dio 來源**。
   - `lib/src/models/timestamped_entry.dart`：`LogEntry` 與 `NetworkEntry` 皆已實作 `TimestampedEntry`，故 `mergedTimeline()`、Console tab、Network tab、#7 error aggregation、#3/#9 診斷報告 Timeline **不需任何改動即免費支援 WebView 事件**。
