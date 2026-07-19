@@ -1,3 +1,12 @@
+## 1.7.0
+
+### Added
+* **WebView inline debugging**: introduced `WebViewBridgeAdapter` and injected JS bridge payload to seamlessly capture and translate a WebView's `console.*`, `window.onerror`, `fetch`, and `XMLHttpRequest` activity into the native Console and Network tabs.
+* **First-class provenance metadata**: network and log entries now include `origin` (e.g., `NetworkOrigin.webview` vs `NetworkOrigin.dio`) and `pageUrl` fields, clearly distinguishing native HTTP traffic from WebView traffic in the detail views.
+
+### Fixed
+* **WebView bridge reliability**: capped raw bridge message size before JSON decoding to prevent memory spikes, and properly guarded `XHR` response text reads for non-text response types.
+
 ## 1.6.0
 
 ### Changed
