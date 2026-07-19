@@ -121,6 +121,16 @@ void main() {
       expect(() => adapter.handleMessage(_Data.fetchHugeTs), returnsNormally);
       expect(inspector.networkEntries, isEmpty);
     });
+
+    test('超過大小上限的 raw 訊息在 decode 前被丟棄（敵意輸入）', () {
+      final inspector = FlutterInspector();
+      final adapter = WebViewBridgeAdapter(inspector);
+      // 合法 JSON 但整體超過 256KB 上限——若無 guard 會成為一筆 entry。
+      final oversized =
+          '{"t":"log","method":"info","message":"${'a' * 300000}"}';
+      expect(() => adapter.handleMessage(oversized), returnsNormally);
+      expect(inspector.logEntries, isEmpty);
+    });
   });
 }
 

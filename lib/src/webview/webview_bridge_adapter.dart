@@ -16,6 +16,12 @@ import '../models/network_origin.dart';
 class WebViewBridgeAdapter {
   WebViewBridgeAdapter(this._inspector);
 
+  /// Upper bound for one raw bridge message. A hostile page can bypass the
+  /// injected script (and its JS-side truncation) by posting directly to the
+  /// channel; anything larger is dropped before [jsonDecode] so the UI
+  /// isolate never parses unbounded input.
+  static const int _maxRawMessageChars = 256 * 1024;
+
   final FlutterInspector _inspector;
 
   /// Feeds in one raw bridge message (the JSON string handed over by the
@@ -25,6 +31,7 @@ class WebViewBridgeAdapter {
   /// dropped — a hostile page must not be able to crash the host's channel
   /// callback with a malformed message.
   void handleMessage(String raw) {
+    if (raw.length > _maxRawMessageChars) return; // oversized — graceful drop
     // One guard covers every handler path: a hostile payload that survives
     // jsonDecode but blows up a downstream helper (e.g. an out-of-range `ts`
     // making DateTime.fromMillisecondsSinceEpoch throw RangeError) must still
