@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_inspector_kit/src/models/timestamped_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -65,22 +66,25 @@ void main() {
         expect(entry.isReplay, isFalse);
       });
 
-      test('copyWith(isReplay: true) sets isReplay, other fields unchanged', () {
-        final original = NetworkEntry(
-          method: 'GET',
-          url: 'https://x',
-          statusCode: 200,
-          timestamp: fixedTime,
-          isComplete: true,
-        );
-        final replayed = original.copyWith(isReplay: true);
-        expect(replayed.isReplay, isTrue);
-        expect(replayed.method, original.method);
-        expect(replayed.url, original.url);
-        expect(replayed.statusCode, original.statusCode);
-        expect(replayed.timestamp, original.timestamp);
-        expect(replayed.isComplete, original.isComplete);
-      });
+      test(
+        'copyWith(isReplay: true) sets isReplay, other fields unchanged',
+        () {
+          final original = NetworkEntry(
+            method: 'GET',
+            url: 'https://x',
+            statusCode: 200,
+            timestamp: fixedTime,
+            isComplete: true,
+          );
+          final replayed = original.copyWith(isReplay: true);
+          expect(replayed.isReplay, isTrue);
+          expect(replayed.method, original.method);
+          expect(replayed.url, original.url);
+          expect(replayed.statusCode, original.statusCode);
+          expect(replayed.timestamp, original.timestamp);
+          expect(replayed.isComplete, original.isComplete);
+        },
+      );
 
       test('entries differing only in isReplay are not equal', () {
         final base = NetworkEntry(
@@ -281,24 +285,27 @@ void main() {
         expect(a.hashCode, isNot(b.hashCode));
       });
 
-      test('equality and hashCode same when errorType and errorStackTrace match', () {
-        final a = NetworkEntry(
-          method: 'POST',
-          url: 'https://api',
-          timestamp: fixedTime,
-          errorType: DioExceptionType.badResponse,
-          errorStackTrace: '#0 trace',
-        );
-        final b = NetworkEntry(
-          method: 'POST',
-          url: 'https://api',
-          timestamp: fixedTime,
-          errorType: DioExceptionType.badResponse,
-          errorStackTrace: '#0 trace',
-        );
-        expect(a, equals(b));
-        expect(a.hashCode, b.hashCode);
-      });
+      test(
+        'equality and hashCode same when errorType and errorStackTrace match',
+        () {
+          final a = NetworkEntry(
+            method: 'POST',
+            url: 'https://api',
+            timestamp: fixedTime,
+            errorType: DioExceptionType.badResponse,
+            errorStackTrace: '#0 trace',
+          );
+          final b = NetworkEntry(
+            method: 'POST',
+            url: 'https://api',
+            timestamp: fixedTime,
+            errorType: DioExceptionType.badResponse,
+            errorStackTrace: '#0 trace',
+          );
+          expect(a, equals(b));
+          expect(a.hashCode, b.hashCode);
+        },
+      );
     });
 
     group('derived getters', () {
@@ -386,6 +393,75 @@ void main() {
           timestamp: fixedTime,
         );
         expect(normal.isTruncated, isFalse);
+      });
+    });
+
+    group('origin / pageUrl provenance', () {
+      test('defaults to dio origin with null pageUrl', () {
+        final entry = NetworkEntry(method: 'GET', url: 'https://x');
+        expect(entry.origin, NetworkOrigin.dio);
+        expect(entry.pageUrl, isNull);
+      });
+
+      test('webview origin and pageUrl survive copyWith', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          origin: NetworkOrigin.webview,
+          pageUrl: 'https://m.example.com/pay',
+        );
+        final copy = entry.copyWith(statusCode: 200);
+        expect(copy.origin, NetworkOrigin.webview);
+        expect(copy.pageUrl, 'https://m.example.com/pay');
+      });
+
+      test('copyWith 可單獨指定 origin 與 pageUrl', () {
+        final base = NetworkEntry(method: 'GET', url: 'https://x');
+        final copied = base.copyWith(
+          origin: NetworkOrigin.webview,
+          pageUrl: 'https://m.example.com',
+        );
+        expect(copied.origin, NetworkOrigin.webview);
+        expect(copied.pageUrl, 'https://m.example.com');
+      });
+
+      test('equality 對 origin 與 pageUrl 逐欄敏感', () {
+        final base = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
+        final originOnly = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          origin: NetworkOrigin.webview,
+          timestamp: fixedTime,
+        );
+        final pageUrlOnly = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          pageUrl: 'https://m.example.com',
+          timestamp: fixedTime,
+        );
+        expect(base, isNot(equals(originOnly)));
+        expect(base, isNot(equals(pageUrlOnly)));
+      });
+
+      test('equality distinguishes origin and pageUrl', () {
+        final base = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
+        final webview = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          origin: NetworkOrigin.webview,
+          pageUrl: 'https://m.example.com',
+          timestamp: fixedTime,
+        );
+        expect(base, isNot(equals(webview)));
+        expect(base, equals(base.copyWith()));
       });
     });
   });
