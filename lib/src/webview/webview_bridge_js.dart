@@ -88,6 +88,12 @@ const String inspectorWebViewBridgeJs = r'''
       if (original) original.apply(console, args);
       var message = args
         .map(function (a) {
+          // Error props are non-enumerable — JSON.stringify yields "{}".
+          // String(a) keeps name+message; append the stack when present
+          // (worst case V8 repeats the message line, nothing is lost).
+          if (a instanceof Error) {
+            return String(a) + (a.stack ? '\n' + a.stack : '');
+          }
           return typeof a === 'object' ? safeStringify(a) : String(a);
         })
         .join(' ');
@@ -113,11 +119,17 @@ const String inspectorWebViewBridgeJs = r'''
   var originalFetch = window.fetch;
   if (originalFetch) {
     window.fetch = function (input, init) {
-      var method = (init && init.method) || 'GET';
-      var url = typeof input === 'string' ? input : input && input.url;
+      // fetch(Request) carries its own metadata; fall back to the Request
+      // when init doesn't override. (Its body is a one-shot stream, so only
+      // an explicit init.body is recorded.)
+      var req = input && typeof input === 'object' ? input : null;
+      var method = (init && init.method) || (req && req.method) || 'GET';
+      var url = typeof input === 'string' ? input : req && req.url;
       var start = Date.now();
       var reqBody = truncate((init && init.body) || undefined);
-      var reqHeaders = headersToObject(init && init.headers);
+      var reqHeaders = headersToObject(
+        (init && init.headers) || (req && req.headers)
+      );
       return originalFetch.apply(this, arguments).then(
         function (res) {
           res
