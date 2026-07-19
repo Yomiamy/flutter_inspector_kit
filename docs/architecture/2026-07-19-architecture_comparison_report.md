@@ -1,4 +1,4 @@
-# Flutter Inspector 架構與代碼風格對比報告 (更新於 2026-07-18)
+# Flutter Inspector 架構與代碼風格對比報告 (更新於 2026-07-19)
 
 本報告參考 **對照組專案** 的工程準則與架構設計，對比當前 `flutter_inspector`（下稱**當前專案**）的 `lib` 與 `example/lib` 目錄，旨在評估其代碼品味、職責拆分、命名慣例，並記錄已落地的架構調整、重構實作與核心設計權衡。
 
@@ -101,6 +101,20 @@ graph TD
 * **`DiagnosticReport` (`lib/src/utils/diagnostic_report.dart`) 整合**：
   * 診斷報告導出的 `Logs` 區段現已替換為按時間降序排列的 Chronological mixed `Timeline` Markdown 表格。
   * `errorsOnly` 過濾開關套用至整個時序軸串流（僅保留錯誤/警告日誌，以及 `statusCode >= 400` 或帶有 transport 錯誤的網絡請求；無錯誤語意的導航與資料庫事件則被濾除），確保了在 UI 端與報告導出端邏輯的一致。
+
+### 4. WebView Bridge 架構解耦與防禦性設計
+
+在引入 WebView 的支援時，我們遵循了「不破壞核心」、「防禦敵意輸入」與「追蹤來源」的核心設計準則：
+
+* **Adapter Pattern (翻譯器非系統)**：
+  * JS Bridge 被實作為一個「翻譯器 (Adapter)」，而非一個全新的子系統。它負責將來自 Web 端的外部輸入，直接映射並轉換為既有的 `LogEntry` 與 `NetworkEntry`。
+  * 這避免了為 WebView 單獨建立一套新的資料流或 UI 視圖，保持了既有時序軸（Timeline）與資料庫設計的純潔性，完美實踐了「消除特殊情況」的好品味。
+* **Provenance Metadata (來源溯源)**：
+  * 為了解決來源追蹤的脆弱性，我們引入了 `NetworkOrigin` 列舉與 `pageUrl` 屬性，明確標記事件的發源地。
+  * 徹底廢棄了過去依賴 `sourceDio == null` 這類隱含狀態（且容易受到 `WeakReference` GC 回收影響而失真）的脆弱檢查，轉而使用明確的元資料標記，提升了資料結構的堅固性。
+* **Hostile Input Hardening (敵意輸入防護)**：
+  * 秉持「絕不破壞用戶空間」的鐵律，我們將 WebView 的 payload 視為不可信的敵意輸入。
+  * 在 JS 端實施字串長度截斷（MAX_CHARS），在 Dart 端設置 256KB 的解碼上限，並透過嚴謹的邊界與 `try-catch` 防護，確保 Flutter UI Isolate 不會因為惡意的 Web payload 而遭遇 OOM 或崩潰。這反映了極高的安全默認與系統穩定性品味。
 
 ---
 
