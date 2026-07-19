@@ -415,6 +415,38 @@ void main() {
         expect(copy.pageUrl, 'https://m.example.com/pay');
       });
 
+      test('copyWith 可單獨指定 origin 與 pageUrl', () {
+        final base = NetworkEntry(method: 'GET', url: 'https://x');
+        final copied = base.copyWith(
+          origin: NetworkOrigin.webview,
+          pageUrl: 'https://m.example.com',
+        );
+        expect(copied.origin, NetworkOrigin.webview);
+        expect(copied.pageUrl, 'https://m.example.com');
+      });
+
+      test('equality 對 origin 與 pageUrl 逐欄敏感', () {
+        final base = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
+        final originOnly = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          origin: NetworkOrigin.webview,
+          timestamp: fixedTime,
+        );
+        final pageUrlOnly = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          pageUrl: 'https://m.example.com',
+          timestamp: fixedTime,
+        );
+        expect(base, isNot(equals(originOnly)));
+        expect(base, isNot(equals(pageUrlOnly)));
+      });
+
       test('equality distinguishes origin and pageUrl', () {
         final base = NetworkEntry(
           method: 'GET',
