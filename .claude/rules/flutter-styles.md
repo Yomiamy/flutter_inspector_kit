@@ -26,8 +26,9 @@ Flutter 版本 3.35
 - **非同步**：正確使用 `async`/`await`。**禁止**使用 `.then()`。UI 請用 `FutureBuilder` 或狀態管理。
 
 ### 🛠 狀態管理與架構
-- **Riverpod** (推薦)：使用 Riverpod v2 + `@riverpod` (程式碼生成)。
-- **BLoC**：若使用，嚴格遵守單向數據流。
+- **選型原則**：本 package 本身無跨畫面共享狀態，以原生 Flutter (`StatefulWidget` / `ValueNotifier` / `ChangeNotifier`) 為主，**不引入**重量級狀態管理依賴。下列規範適用於採用該狀態管理的**消費端 App 或子模組**，二選一、專案內保持一致，勿混用：
+  - **BLoC**：嚴格遵守單向數據流。本 Guide 的範例以 BLoC 為基準（見 §7.3）。
+  - **Riverpod**：Riverpod v2 + `@riverpod` (程式碼生成)。
 - **UI 純淨原則**：`build` 方法僅聲明佈局。業務邏輯必須移至 Controller/Notifier/ViewModel。
 
 ### 📦 關鍵庫偏好
@@ -360,20 +361,70 @@ void func() {
 }
 ```
 
+### 5.4. 善用 Dart 3 語言特性 (Modern Dart)
+
+本專案 SDK 為 Dart 3+，優先採用下列特性取代舊寫法，能消滅特殊情況、提升型別安全：
+
+- **`sealed class` + 窮盡式 `switch`**：對「有限且封閉」的狀態/型別建模。編譯器強制窮盡所有分支，新增子類時會在編譯期報錯，比 `if-else` 鏈或無 `default` 的 switch 安全。是 BLoC state 之外的輕量選項。
+- **`switch` expression + pattern matching**：以表達式取代冗長的 `switch` 語句，直接回傳值。
+- **Records**：函式需回傳多個值時，用 record 取代自訂類別或 `List`/`Map`，具名欄位保留語意。
+- **不要濫用**：需要 `copyWith`、序列化、跨層共享的複雜資料模型，仍用 `class`（或 `freezed`）；record 只適合就地、短生命週期的組合值。
+
+```dart
+// sealed + 窮盡式 switch expression：新增 Loading 子類會在編譯期強制你補上分支
+sealed class Result<T> {}
+class Success<T> extends Result<T> { Success(this.data); final T data; }
+class Failure<T> extends Result<T> { Failure(this.error); final Object error; }
+
+String describe(Result<int> r) => switch (r) {
+  Success(:final data) => 'OK: $data',
+  Failure(:final error) => 'Fail: $error',
+};
+
+// Record：輕量的多值回傳
+(int count, String label) summarize(List<int> xs) => (xs.length, 'items');
+final (count, label) = summarize([1, 2, 3]);
+```
+
+### 5.5. 串接呼叫用 Cascade (`..`)
+
+對同一物件連續操作時，用 cascade `..` 取代重複的變數名，讓意圖更集中。
+
+```dart
+// Good
+final paint = Paint()
+  ..color = Colors.red
+  ..strokeWidth = 2.0
+  ..style = PaintingStyle.stroke;
+
+// Bad
+final paint = Paint();
+paint.color = Colors.red;
+paint.strokeWidth = 2.0;
+paint.style = PaintingStyle.stroke;
+```
+
 ## 6. 錯誤處理 (Error Handling)
 
 ### 6.1. 使用 `try-catch` (Use `try-catch`)
 
-對於可能拋出異常的程式碼，使用 `try-catch` 塊進行適當的錯誤處理。
+對於可能拋出異常的程式碼，使用 `try-catch` 塊進行適當的錯誤處理。遵循 Effective Dart：
+
+- **具體優先**：優先使用帶 `on` 子句的具體例外型別；避免無 `on` 的裸 `catch`（會連 `Error`/`AssertionError` 一起吞掉）。
+- **不吞錯**：捕捉後**必須**記錄、顯示或 `rethrow`，禁止空 catch 或只留 `//`。
+- **保留堆疊**：需要向上拋出時用 `rethrow`，不要 `throw e`（會遺失原始 stack trace）。同時接住 `StackTrace` 以利記錄。
+- **不捕捉 `Error`**：`Error` 及其子類代表程式 bug，應讓它崩潰，不要 catch。
+- **日誌一致**：以 `logger` 記錄（見 §Y.3），禁止 `print`。
 
 ```dart
 void method() {
   try {
     // Some operation that might throw an exception
-  } on FormatException catch (e) {
-    print('Format error: $e');
-  } catch (e) {
-    print('An unknown error occurred: $e');
+  } on FormatException catch (e, st) {
+    Logger().e('Format error', error: e, stackTrace: st);
+  } on DioException catch (e, st) {
+    Logger().e('Network error', error: e, stackTrace: st);
+    rethrow; // 保留原始 stack trace，交由上層處理
   }
 }
 ```
@@ -390,7 +441,7 @@ void method() {
 
 ### 7.3. 狀態管理 (State Management)
 
-選擇 BLoC 作為主要的狀態管理解決方案，並遵循 BLoC 的最佳實踐來組織和管理應用程式的狀態。
+當專案採用 BLoC 時（見上方「狀態管理與架構」的選型原則），遵循 BLoC 的最佳實踐來組織和管理應用程式的狀態。採用 Riverpod 的專案則對應到 Notifier/AsyncNotifier，原則相通。
 
 #### 7.3.1. BLoC 組織 (BLoC Organization)
 
@@ -428,7 +479,51 @@ class CartLoad extends CartEvent {
 
 ### 7.4. 資源管理 (Resource Management)
 
-確保正確釋放不再需要的資源，例如 `AnimationController`、`StreamSubscription` 等。
+確保正確釋放不再需要的資源，例如 `AnimationController`、`StreamSubscription` 等。在 `State.dispose()` 中呼叫對應的 `dispose()` / `cancel()`，並記得 `super.dispose()` 放最後。
+
+### 7.5. BuildContext 與非同步安全 (Async Gaps)
+
+**跨越 `await` 後嚴禁直接使用 `BuildContext`**（對應 lint `use_build_context_synchronously`）。await 期間 widget 可能已被 unmount，此時操作 `context`（`Navigator`、`ScaffoldMessenger`、`Theme.of` 等）會拋錯或造成記憶體洩漏。這是最常見的真實 crash 來源。
+
+**Bad:**
+```dart
+Future<void> _save() async {
+  await repository.save(data);
+  Navigator.of(context).pop();          // ❌ await 後 context 可能已失效
+  ScaffoldMessenger.of(context).showSnackBar(...);
+}
+```
+
+**Good:**
+```dart
+Future<void> _save() async {
+  await repository.save(data);
+  if (!mounted) return;                 // ✅ 先擋掉已 unmount 的情況
+  Navigator.of(context).pop();
+}
+
+// 或：await 前先取出不依賴 context 存活的物件
+Future<void> _save2() async {
+  final messenger = ScaffoldMessenger.of(context);
+  await repository.save(data);
+  messenger.showSnackBar(...);          // ✅ 不再觸碰 context
+}
+```
+
+- `StatelessWidget` 內若無 `mounted`，改用「await 前先擷取所需物件」的寫法。
+- 非同步請一律 `async`/`await`；**禁止** `.then()`（見頂部規範）。UI 消費非同步結果用 `FutureBuilder`/`StreamBuilder` 或狀態管理。
+
+### 7.6. 進階效能優化 (Advanced Performance)
+
+依 [Flutter 官方效能準則](https://docs.flutter.dev/perf/best-practices) 補充（`const`、`ListView.builder`、局部 `setState`、`build` 純淨已於前文涵蓋）：
+
+- **`RepaintBoundary`**：把高頻重繪或動畫的子樹（如持續更新的圖表、進度動畫）包起來，隔離重繪範圍，避免帶動整頁 repaint。
+- **少用 `Opacity` widget**：改用 `AnimatedOpacity`、`FadeInImage`，或直接以半透明顏色繪製。`Opacity`/`saveLayer` 會配置離屏緩衝，代價高。
+- **`AnimatedBuilder` / `ListenableBuilder`**：與動畫無關的子樹用 `child:` 傳入，勿在 `builder` 內重建，避免每幀重蓋。
+- **禁止在 Widget 覆寫 `operator ==`**：會造成 O(N²) diff。用 `const` 建構式讓 Flutter 短路重建才是正解。
+- **間距用 `const SizedBox`**：單純留白用 `const SizedBox(height: x)`，勿用 `Container`；只需背景色用 `ColoredBox`，只需內距用 `Padding`。
+- **字串串接用 `StringBuffer`**：迴圈內累積字串用 `StringBuffer`，勿用 `+`（避免產生大量中間 String 物件）。
+- **列表分隔線用 `ListView.separated`**：需要項目間分隔線時用 `ListView.separated`，勿在每個 item 手動塞 `Divider`（同樣是 lazy build，且分隔邏輯集中）。
 
 ## 8. 測試 (Testing)
 
@@ -483,3 +578,32 @@ const double kDefaultPadding = 8.0;
 ### Y.3. Logger 規則
 
 使用 `logger` 套件來進行日誌記錄，Debug 模式下使用 `Logger().d`，確保 Release 模式下不會有額外輸出。
+
+需要依建置模式分岔行為時，用 `foundation.dart` 的編譯期常數 `kDebugMode` / `kReleaseMode` / `kProfileMode` 判斷（tree-shaking 會在 release build 移除 dead code），勿自行讀環境變數：
+
+```dart
+import 'package:flutter/foundation.dart';
+
+if (kDebugMode) {
+  Logger().d('診斷資訊只在 debug 輸出');
+}
+```
+
+> 若不引入 `logger` 套件，Flutter 內建替代方案為 `debugPrint()`（避免 Android 因量大截斷 log）或 `dart:developer` 的 `log()`；一律**禁止 `print()`**。
+
+---
+
+## 資料來源 (References)
+
+本 Style Guide 的效能、非同步與錯誤處理準則參考以下官方文件：
+
+- [Effective Dart: Usage](https://dart.dev/effective-dart/usage) — 非同步、錯誤處理、集合與字串的官方 DO/DON'T 慣例。
+- [Flutter — Performance best practices](https://docs.flutter.dev/perf/best-practices) — `const`、`build()` 成本、`Opacity`/`saveLayer`、`RepaintBoundary`、lazy list、intrinsics 等效能準則。
+- [Effective Dart: Style](https://dart.dev/effective-dart/style) — 命名、格式化與識別字慣例。
+- [Effective Dart: Design](https://dart.dev/effective-dart/design) — API 與參數設計取捨。
+- [Dart 3 — Patterns / Records / Sealed classes](https://dart.dev/language/patterns) — 現代 Dart 語言特性。
+
+社群整理（Cascade、`ListView.separated`、`kDebugMode` 等實務技巧參考）：
+
+- [ibhavikmakwana/flutter-best-practices](https://github.com/ibhavikmakwana/flutter-best-practices)
+- [ibhavikmakwana/FlutterDartTips](https://github.com/ibhavikmakwana/FlutterDartTips)
