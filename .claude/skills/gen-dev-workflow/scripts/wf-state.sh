@@ -240,7 +240,6 @@ case "$cmd" in
       die "非法 stage 轉移：$cur -> ${next}（sequence 模式合法路徑：0a→0b→1→2→3→4、3→2、4→done）"
     fi
     if [ "$next" = "3" ] && [ "$mode" = "sequence" ]; then
-      local total completed_count
       total="$(jq -r '.total_tasks' "$f")"
       completed_count="$(jq -r '.completed_tasks | length' "$f")"
       if [ "$total" != "null" ] && [ "$completed_count" -lt "$total" ]; then
