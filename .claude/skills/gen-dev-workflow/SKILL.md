@@ -275,7 +275,7 @@ quick <描述或 #issue>
 ③ Task("reviewer", "快掃 <branch> diff，單 lens：correctness")
    - 保住「不讓同源 model 自審」原則；發現問題 → 主對話修正後重掃
   ▼
-④ 依 gen-commit 慣例 commit → 用 gen-pr skill 產 PR 草稿
+④ 呼叫 gen-commit skill 執行 commit → 用 gen-pr skill 產 PR 草稿
   ▼
 ⏸ 唯一暫停點：展示 PR 草稿 → 使用者確認 → 發布，流程結束
 ```
