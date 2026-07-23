@@ -3,6 +3,8 @@
 [![pub package](https://img.shields.io/pub/v/flutter_inspector_kit.svg)](https://pub.dev/packages/flutter_inspector_kit)
 [![platform](https://img.shields.io/badge/platform-flutter-blue.svg)](https://pub.dev/packages/flutter_inspector_kit)
 
+**Language / 語言**: [English](README.md) | [繁體中文](README.zh-TW.md)
+
 In-app, multi-inspector debugging overlay for Flutter apps — logs, network, navigation, and database, all behind one unified API.
 
 ## 📦 Features
@@ -16,12 +18,14 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🚨 **Structured Network Errors** | Failed requests show an **Exception Details** section distinguishing transport-layer failures (device offline / DNS / timeout) from server-side errors (4xx/5xx), with copyable stack traces | Instantly tell whether "Failed" means the device lost connectivity or the server returned 500 — no more guessing during QA |
 | 📊 **Error Aggregation Summary** | Network tab shows a collapsible banner that groups failed/errored requests by status code (or error type for transport failures), with per-group counts and time range; tap a group to filter the call list down to just that error | A page is flooded with dozens of failed calls — glance at the summary banner to see "12× 401", "3× timeout", tap the 401 group to isolate exactly those calls instead of scrolling through the full list |
 | 🩺 **Diagnostic Report** | Export a single Markdown report — device/app header, current route stack, and the logs / network / navigation / database sections — filtered by time window (5m / 1h / all), source, and an optional errors-only toggle; straight to the share sheet, nothing written to disk | QA reproduces a bug and, instead of screenshotting four tabs and hand-typing the OS version, taps Export once and pastes a complete report into the Jira ticket |
+| 🌐 **WebView Inline Debugging** | Bridge a WebView's own `console.*`, `window.onerror`/`unhandledrejection`, and `fetch`/`XMLHttpRequest` activity into the same Console and Network tabs used for native logs and Dio traffic — dependency-free, wire your own `webview_flutter` or `flutter_inappwebview` to `WebViewBridgeAdapter` | A hybrid screen misbehaves and you can't tell if the bug is in Flutter or the embedded web page — see the WebView's JS errors and its `fetch`/`XHR` calls inline in Console/Network, tagged by origin, so you know instantly which side to fix without attaching Chrome DevTools to the WebView |
 | 🛡️ **Sensitive-Data Redaction** | Secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path | Safely share network logs with teammates or attach them to Jira tickets without leaking tokens or session cookies |
 | 🧭 **Navigator** | Track route pushes, pops, and replacements automatically; toggle between **Event History** (raw log) and **Active Stack** (live route-stack visualization) | Verify deep-link routing, confirm back-stack correctness, or diagnose "why did the user land on this screen?" during a QA walkthrough |
 | 🗄️ **Database** | Record insert / update / delete / query operations with affected-row counts and payloads; browse real tables via pluggable `DatabaseBrowserSource` (SQLite / ObjectBox adapters provided) | Verify that a "Save" action actually wrote the expected rows; browse local SQLite tables on-device without pulling the `.db` file |
 | 🛑 **Uncaught Error Capture** *(opt-in)* | Automatically turn uncaught errors into `error`-level Console logs via three Flutter hooks (build/layout/paint, async, `ErrorWidget`); chains existing handlers — never swallows errors | An unawaited `Future` throws deep inside a third-party package — no `try/catch` anywhere near it. Uncaught error capture logs it automatically with a full stack trace, so it shows up in Console without any manual instrumentation |
 | 🔔 **Live Notification** *(opt-in)* | A system notification summarising the latest API call and the running total; tap to jump straight to the Network tab | Monitor API traffic in real-time while navigating the app — no need to keep the dashboard open; also useful for verifying whether the number of API calls per operation is reasonable (e.g., a single page load triggering dozens of calls hints at redundant requests) |
 | 👆 **Magical Tap & Floating Button** | Open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB | Embed in a release build as a hidden diagnostic entry point — when QA or users hit an issue, trigger the inspector on the spot for initial error triage without rebuilding a debug version or tracing through source code |
+| 🧩 **Custom Tab** | Inject your own widget as a 5th dashboard tab via `FlutterInspector(customTab: ..., customTabTitle: ...)` — sits alongside Console / Network / Navigator / Database | Surface app-specific debug tooling right next to the built-in inspectors — a feature-flag toggle panel, the current auth/session state, or a "clear cache" button — so your team's ad-hoc diagnostics live in one place instead of a separate debug screen |
 
 ## 📱 Screenshots
 
@@ -43,7 +47,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.7.0
+  flutter_inspector_kit: ^1.7.1
 ```
 
 Then run `flutter pub get`.
@@ -98,6 +102,19 @@ void initState() {
 ```
 
 Remove it again with `inspector.detach()`.
+
+### Add a custom tab
+
+Inject your own widget as a 5th dashboard tab, sitting alongside the built-in Console / Network / Navigator / Database tabs. Use it to surface app-specific diagnostics — a feature-flag panel, the current auth state, a "clear cache" button, etc.
+
+```dart
+final inspector = FlutterInspector(
+  customTab: const MyDebugPanel(),
+  customTabTitle: 'Flags', // defaults to 'Custom'
+);
+```
+
+The widget is built lazily when its tab is first shown and can be any Flutter widget — including stateful ones with their own controllers.
 
 ### Log network requests
 

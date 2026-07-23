@@ -1,3 +1,8 @@
+## 1.7.1
+
+### Fixed
+* **Duplicate uncaught error logs**: `FlutterError.onError` and `ErrorWidget.builder` previously logged the same build-crash `FlutterErrorDetails` twice; an object-identity guard now dedupes them while still logging each distinct crash.
+
 ## 1.7.0
 
 ### Added
