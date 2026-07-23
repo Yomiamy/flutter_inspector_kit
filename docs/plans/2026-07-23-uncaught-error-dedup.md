@@ -3,8 +3,8 @@
 - 日期：2026-07-23
 - 對應規格：`docs/features/2026-07-23-uncaught-error-dedup.md`
 - 類型：Bug fix（單檔、low-effort）
-- 實作檔：`lib/src/core/uncaught_error_handler.dart`（唯一）
-- 測試檔：`test/core/uncaught_error_handler_test.dart`（已寫好，TDD red 完成，本次不動）
+- 實作檔：`lib/src/core/uncaught_error_handler.dart`（唯一邏輯異動）
+- 測試檔：`test/core/uncaught_error_handler_test.dart`（TDD red 先行，本 PR 新增 `dedup` / `no dedup` 兩個測試；既有 3 個測試不動）
 
 ## 核心決策（已鎖定）
 
