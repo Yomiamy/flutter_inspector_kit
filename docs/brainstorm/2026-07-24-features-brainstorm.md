@@ -120,7 +120,7 @@
 * **重用**：各 entry 的 `timestamp`、`InspectorRegistry` 已持有四個 buffer、`LogLevel` 配色、`KeyValueTable`。
 * **品味守則**：`TimelineEvent` 只是**指標包裝**（指向既有 entry），不複製資料、不引入第二份真相。
 * **Effort**：A=low / B=medium ｜ **排查價值**：⭐⭐⭐⭐⭐
-* **🟡 實作現況（v1.1.0 / PR #40 #42）**：**做法 B 已落地，且實作得比原構想更乾淨**——沒有引入 `TimelineEvent` union，而是讓四個 entry model 共同實作 `TimestampedEntry` 介面，由 `InspectorRegistry.mergedTimeline()` 把四個 `RingBuffer` 拍扁後依 `timestamp` 降序歸併排序，`ConsoleTab` 直接渲染（`ConsoleTab` 的 `build()` 內呼叫 `inspector.mergedTimeline(sources: _selected)`），按 entry runtime type 動態分派渲染、點 Network 列跳 `NetworkDetailView`。這同時消滅了 v1.1.0 前「鏡射到 console log 的廉價替代」（見本文件頂部與 overview 的歷史演進）。**未完成**：做法 A 的「±5s 同時段側欄」尚未做——**codebase 中完全無對應程式碼**（2026-07-23 確認），現為整條混合時間軸，無以單筆為中心的時間窗聚焦。**實作方案見第四部分 §D3**。
+* **🟡 實作現況（v1.1.0 / PR #40 #42）**：**做法 B 已落地，且實作得比原構想更乾淨**——沒有引入 `TimelineEvent` union，而是讓四個 entry model 共同實作 `TimestampedEntry` 介面，由 `InspectorRegistry.mergedTimeline()` 把四個 `RingBuffer` 拍扁後依 `timestamp` 降序歸併排序，`ConsoleTab` 直接渲染（`ConsoleTab` 的 `build()` 內呼叫 `inspector.mergedTimeline(sources: _selected)`），按 entry runtime type 動態分派渲染、點 Network 列跳 `NetworkDetailView`。這同時消滅了 v1.1.0 前「鏡射到 console log 的廉價替代」（見本文件頂部與 overview 的歷史演進）。**做法 A 已否決（2026-07-24）**：原提案的「±5s 同時段側欄」經重新檢視三個鐵律問題後判定固定時間窗與「找因果」目標不匹配（事件密集時是噪音、稀疏時視窗太窄），不再排入 Phase Plan，詳見第四部分 §D3 的否決紀錄；該需求改由 §P2 錯誤上下文快照覆蓋。
 
 ### 3. 一鍵診斷報告（Diagnostic Report）— ✅ 已完成（原 🔴 QA 提 bug 的剛需）
 * **痛點**：QA 重現 bug 後，要手動切四個 tab、逐筆截圖/複製、再手打 device/OS/版本資訊。耗時且容易漏，回報品質參差。
@@ -249,17 +249,23 @@
 - **Effort**：low（實際 low）｜ **排查價值**：⭐⭐⭐⭐
 - **文件**：規格 [`docs/features/2026-07-23-uncaught-error-dedup.md`](../features/2026-07-23-uncaught-error-dedup.md)、計畫 [`docs/plans/2026-07-23-uncaught-error-dedup.md`](../plans/2026-07-23-uncaught-error-dedup.md)
 
-### §D3. Detail View ±5s 同時段側欄（#2 做法 A）
+### §D3. Detail View ±5s 同時段側欄（#2 做法 A）— ❌ 已否決（2026-07-24）
 
 > 看到一筆 error log 後，想知道「這前後 5 秒內發生了什麼 API 呼叫、什麼路由跳轉」——目前只能回到 Console Timeline 肉眼搜。
 
-**設計方向**：
+**原設計方向**（保留作決策紀錄）：
 - 在 `LogDetailView` / `NetworkDetailView` 底部加 `_NearbyEventsSection`
 - 工具函式 `eventsAround(InspectorRegistry registry, DateTime center, Duration window)` 掃四個 buffer
 - 展示 ±5s 內的其他事件（排除自身），點擊可跳轉對應 detail view
 - 作為 `ExpansionTile` 預設收合，不影響既有頁面的載入效能
-- **影響範圍**：`log_detail_view.dart`、`network_detail_view.dart`、可選新增共用 widget
-- **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐
+
+**❌ 否決理由（三個鐵律問題重新檢視）**：
+1. **這是真實問題還是腦補？** 原始痛點是「detail view 孤立、看不到前後脈絡」，但「前後脈絡」的真正需求是**因果關係**，不是**時間鄰近**。固定 ±5s 時間窗跟這個目標本身不匹配：
+   - **事件密集時**（連續操作、狂點、背景 polling）：±5s 塞進來的多半是無關噪音，跟現在「500 筆裡肉眼找」的摩擦沒有本質差異，只是換個地方繼續肉眼掃
+   - **事件稀疏時**：真正相關的事件可能發生在 20 秒前（例如「進結帳頁」到「填完表單送出失敗」中間隔了填表單的時間），5 秒視窗反而抓不到
+   - 調整視窗長度或改成固定筆數，都只是在兩個爛選項間換一個沒那麼爛的，無法真正解決「密集時太吵、稀疏時太窄」的兩難——這是設計假設（事件密度均勻）本身站不住腳，不是實作精度問題
+2. **有沒有更簡單的方法？** 有，且已規劃：**§P2 錯誤上下文快照**——只在 error 發生當下快照真正相關的東西（路由堆疊、最後一次成功的 API），是精準的因果線索，而非時間鄰近的噪音列表。`mergedTimeline()`（§2 做法 B）也已經提供「按時序看全局」的能力，覆蓋了「回頭肉眼搜」的需求。
+3. **結論**：§D3 從優先序列表移除，不再排入 Phase Plan。「detail view 缺乏上下文」的真實需求由 §P2 更準確地覆蓋。
 
 ### §D4. DatabaseTab 搜尋 / 過濾
 
@@ -383,7 +389,7 @@
 | **2** | 錯誤爆發偵測 + 視覺警報 | §P1 新提案 | low | ⭐⭐⭐⭐⭐ |
 | **3** | 錯誤上下文快照 | §P2 新提案 | low | ⭐⭐⭐⭐⭐ |
 | ~~4~~ | 未捕捉例外去重修復 — ✅ 已完成（PR #96） | §D2（#1 缺陷） | low | ⭐⭐⭐⭐ |
-| **5** | Detail View ±5s 同時段側欄 | §D3（#2 做法 A） | med | ⭐⭐⭐⭐ |
+| ~~5~~ | ~~Detail View ±5s 同時段側欄~~ — ❌ 已否決（2026-07-24，理由見 §D3） | §D3（#2 做法 A） | med | — |
 | **6** | Timeline 書籤 / 標記 | §P3 新提案 | low | ⭐⭐⭐⭐ |
 | **7** | Dashboard 錯誤計數 Badge | §P6 新提案 | low | ⭐⭐⭐ |
 | **8** | Error 高亮強化 | §P7 新提案 | trivial | ⭐⭐⭐ |
@@ -577,8 +583,9 @@
 | 項目 | 內容 | 寫入路徑 |
 |------|------|----------|
 | **§P2** 錯誤上下文快照 | error 時自動快照路由堆疊 + 最後成功 API | `uncaught_error_handler.dart` + `flutter_inspector.dart` |
-| **§D3** ±5s 同時段側欄 | detail view 底部跨層事件關聯 | `log_detail_view.dart` + `network_detail_view.dart` |
 | **§P3** Timeline 書籤 | 長按標記 + bookmark-only 過濾 + 報告前綴 | `console_tab.dart` + `diagnostic_report.dart` |
+
+> ~~§D3 ±5s 同時段側欄~~ 已於 2026-07-24 否決（固定時間窗與「找因果」目標不匹配，見 §D3 詳細理由）；該需求由 §P2 錯誤上下文快照取代。
 
 > 提供「為什麼出錯」的深度線索。需 Phase 1 的搜尋/過濾基建先完成。
 
@@ -598,4 +605,4 @@
 
 > **收尾建議（2026-07-24 更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成，#1 去重已由 PR #96 修復）。**Phase 1 僅剩 §D1 ConsoleTab 搜尋/過濾紅燈**（去重 bug §D2 已完成），預估 effort=low–medium。Phase 2–4 依實際回饋與優先級排程。全部 13 項的設計都遵循「重用既有零件」原則——零新相依、零新模型，只是把已經存在的資料用更聰明的方式呈現。
 
-> 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（§D1 動 console_tab、§D2 動 uncaught_error_handler、§P1 動 flutter_inspector + dashboard、§D3 動 detail views），適合並行推進。
+> 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（§D1 動 console_tab、§D2 動 uncaught_error_handler、§P1 動 flutter_inspector + dashboard、§P2 動 uncaught_error_handler + flutter_inspector），適合並行推進。
