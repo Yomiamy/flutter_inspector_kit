@@ -23,6 +23,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🛑 **Uncaught Error Capture** *(opt-in)* | Automatically turn uncaught errors into `error`-level Console logs via three Flutter hooks (build/layout/paint, async, `ErrorWidget`); chains existing handlers — never swallows errors | An unawaited `Future` throws deep inside a third-party package — no `try/catch` anywhere near it. Uncaught error capture logs it automatically with a full stack trace, so it shows up in Console without any manual instrumentation |
 | 🔔 **Live Notification** *(opt-in)* | A system notification summarising the latest API call and the running total; tap to jump straight to the Network tab | Monitor API traffic in real-time while navigating the app — no need to keep the dashboard open; also useful for verifying whether the number of API calls per operation is reasonable (e.g., a single page load triggering dozens of calls hints at redundant requests) |
 | 👆 **Magical Tap & Floating Button** | Open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB | Embed in a release build as a hidden diagnostic entry point — when QA or users hit an issue, trigger the inspector on the spot for initial error triage without rebuilding a debug version or tracing through source code |
+| 🧩 **Custom Tab** | Inject your own widget as a 5th dashboard tab via `FlutterInspector(customTab: ..., customTabTitle: ...)` — sits alongside Console / Network / Navigator / Database | Surface app-specific debug tooling right next to the built-in inspectors — a feature-flag toggle panel, the current auth/session state, or a "clear cache" button — so your team's ad-hoc diagnostics live in one place instead of a separate debug screen |
 
 ## 📱 Screenshots
 
@@ -99,6 +100,19 @@ void initState() {
 ```
 
 Remove it again with `inspector.detach()`.
+
+### Add a custom tab
+
+Inject your own widget as a 5th dashboard tab, sitting alongside the built-in Console / Network / Navigator / Database tabs. Use it to surface app-specific diagnostics — a feature-flag panel, the current auth state, a "clear cache" button, etc.
+
+```dart
+final inspector = FlutterInspector(
+  customTab: const MyDebugPanel(),
+  customTabTitle: 'Flags', // defaults to 'Custom'
+);
+```
+
+The widget is built lazily when its tab is first shown and can be any Flutter widget — including stateful ones with their own controllers.
 
 ### Log network requests
 
