@@ -55,7 +55,7 @@
 ### 3. 數據擷取層 (Collectors / Interceptors)
 - **`DioInterceptor`** (`FlutterInspectorDioInterceptor`)：攔截 Dio 請求與響應，處理 pending 狀態更新，並支持安全請求重發（Replay）。
 - **`NavigatorObserver`** (`FlutterInspectorNavigatorObserver`)：自動監聽路由變化，並安全解析頁面 Widget 類型。
-- **`UncaughtErrorHandler`**：獨立類別，專職掛載與鏈接未捕捉的例外。它透過建構子接收 `onLog` 回呼函數，在呼叫 `attach()` 時安全地將錯誤鉤子鏈接（chain/wrap）至 `FlutterError.onError`、`PlatformDispatcher.instance.onError` 與 `ErrorWidget.builder`。此類別無 `FlutterInspector` 的逆向依賴，保證了職責單一與高品味的模組獨立性。
+- **`UncaughtErrorHandler`**：獨立類別，專職掛載與鏈接未捕捉的例外。它透過建構子接收 `onLog` 回呼函數，在呼叫 `attach()` 時安全地將錯誤鉤子鏈接（chain/wrap）至 `FlutterError.onError`、`PlatformDispatcher.instance.onError` 與 `ErrorWidget.builder`。此類別無 `FlutterInspector` 的逆向依賴，保證了職責單一與高品味的模組獨立性。針對同一次 build 崩潰會同時觸發 `FlutterError.onError` 與 `ErrorWidget.builder`（兩者收到**同一個** `FlutterErrorDetails` 物件）的情況，`_logFlutterError` 以 object-identity 去重（`identical` 比對上一筆已記錄的 details），確保 Console 只記錄一次（PR #96）。
 - **`OperationLogSource`**：將資料庫操作日誌轉換為虛擬表格，以配合資料庫瀏覽器展示。
 
 ### 4. 表現層 (Presentation Layer) & 工具類

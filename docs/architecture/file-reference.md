@@ -14,7 +14,7 @@
 | [`lib/src/core/flutter_inspector.dart`](../../lib/src/core/flutter_inspector.dart) | `FlutterInspector` | 套件的主入口。管理初始化、接收各項日誌與資料輸入，並與各個領域 Inspector 進行協調。 |
 | [`lib/src/core/inspector_registry.dart`](../../lib/src/core/inspector_registry.dart) | `InspectorRegistry` | 中央緩衝註冊表，集中持有並管理四個領域的 RingBuffer，同時實裝多源歸併排序。 |
 | [`lib/src/core/ring_buffer.dart`](../../lib/src/core/ring_buffer.dart) | `RingBuffer<T>` | 基礎 FIFO 環形快取。提供固定容量的資料寫入、刪除最舊數據及原地取代（`replace`）功能。 |
-| [`lib/src/core/uncaught_error_handler.dart`](../../lib/src/core/uncaught_error_handler.dart) | `UncaughtErrorHandler` | 獨立的錯誤監聽類別，無 Inspector 逆向依賴。透過建構子接收回呼並安全鏈接至三大系統錯誤鉤子。 |
+| [`lib/src/core/uncaught_error_handler.dart`](../../lib/src/core/uncaught_error_handler.dart) | `UncaughtErrorHandler` | 獨立的錯誤監聽類別，無 Inspector 逆向依賴。透過建構子接收回呼並安全鏈接至三大系統錯誤鉤子。同一 build 崩潰以 object-identity 去重，避免重複記錄（PR #96）。 |
 | [`lib/src/core/inspector_overlay_manager.dart`](../../lib/src/core/inspector_overlay_manager.dart) | `InspectorOverlayManager` | 負責安全地管理懸浮 FAB Overlay 生命週期，支援冪等加載與無洩漏卸載。 |
 
 ### 2. 數據模型層 (`lib/src/models/`)
