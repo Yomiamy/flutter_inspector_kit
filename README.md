@@ -3,6 +3,8 @@
 [![pub package](https://img.shields.io/pub/v/flutter_inspector_kit.svg)](https://pub.dev/packages/flutter_inspector_kit)
 [![platform](https://img.shields.io/badge/platform-flutter-blue.svg)](https://pub.dev/packages/flutter_inspector_kit)
 
+**Language / 語言**: [English](README.md) | [繁體中文](README.zh-TW.md)
+
 In-app, multi-inspector debugging overlay for Flutter apps — logs, network, navigation, and database, all behind one unified API.
 
 ## 📦 Features
