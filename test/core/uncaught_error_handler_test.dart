@@ -118,4 +118,39 @@ void main() {
     final widget = ErrorWidget.builder(buildDetails(StateError('boom')));
     expect(widget.runtimeType, originalBuilder(buildDetails(StateError('boom'))).runtimeType);
   });
+
+  test('dedup: same FlutterErrorDetails logged once across both hooks', () {
+    var callCount = 0;
+    final handler = UncaughtErrorHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        callCount++;
+      },
+    );
+    handler.attach();
+
+    // 同一次 build 崩潰：framework 建立單一 details，先觸發 FlutterError.onError，
+    // 再把「同一物件」傳給 ErrorWidget.builder。應只記錄一筆。
+    final details = buildDetails(StateError('boom'));
+    FlutterError.onError!(details);
+    ErrorWidget.builder(details);
+
+    expect(callCount, 1);
+  });
+
+  test('no dedup: distinct FlutterErrorDetails are each logged', () {
+    var callCount = 0;
+    final handler = UncaughtErrorHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        callCount++;
+      },
+    );
+    handler.attach();
+
+    // 兩次獨立崩潰 = 兩個不同的 details 物件（identical 為 false）→ 各自記錄。
+    // 這也涵蓋「同一 bug 反覆崩潰不該被吞」的情境。
+    FlutterError.onError!(buildDetails(StateError('a')));
+    ErrorWidget.builder(buildDetails(StateError('b')));
+
+    expect(callCount, 2);
+  });
 }

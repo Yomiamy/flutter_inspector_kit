@@ -20,6 +20,10 @@ class UncaughtErrorHandler {
   FlutterExceptionHandler? _oldFlutterErrorHandler;
   bool Function(Object, StackTrace)? _oldPlatformDispatcherOnError;
   bool _attached = false;
+  // ponytail: only tracks the last logged details, dedups the common
+  // FlutterError.onError + ErrorWidget.builder double-fire for the same
+  // error; a bounded history would be needed to dedup non-adjacent repeats.
+  FlutterErrorDetails? _lastLoggedDetails;
 
   /// Creates a new UncaughtErrorHandler instance.
   UncaughtErrorHandler({required this.onLog});
@@ -27,7 +31,7 @@ class UncaughtErrorHandler {
   /// Attaches the three standard Flutter error hooks, chaining/wrapping any
   /// existing host handler so errors are always forwarded downstream.
   ///
-  /// Idempotent: the dedup flag ensures hooks are attached at most once.
+  /// Idempotent: the `_attached` flag ensures hooks are attached at most once.
   void attach() {
     if (_attached) return;
     _attached = true;
@@ -83,6 +87,9 @@ class UncaughtErrorHandler {
   }
 
   void _logFlutterError(FlutterErrorDetails details, {required String source}) {
+    if (identical(details, _lastLoggedDetails)) return;
+    _lastLoggedDetails = details;
+
     final data = <String, dynamic>{
       'source': source,
       'exceptionType': details.exception.runtimeType.toString(),
