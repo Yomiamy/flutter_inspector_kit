@@ -188,6 +188,17 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               child: const Text('Throw Uncaught Error'),
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const _BrokenWidgetPage(),
+                  ),
+                );
+              },
+              child: const Text('Trigger Widget Build Error'),
+            ),
           ],
         ),
       ),
@@ -197,5 +208,15 @@ class _MyHomePageState extends State<MyHomePage> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+}
+
+class _BrokenWidgetPage extends StatelessWidget {
+  const _BrokenWidgetPage();
+
+  @override
+  Widget build(BuildContext context) {
+    // Intentionally throw inside build method to trigger FlutterError.onError & ErrorWidget.builder
+    throw FlutterError('Demo: Widget build error triggered inside build()');
   }
 }
