@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-23（新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。前次更新：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24（**#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。前次更新：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -12,13 +12,13 @@
 ## 📊 完成度總覽（截至 2026-07-23 · v1.7.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
-> **更新說明（2026-07-23）**：對照 v1.7.0 codebase 完成全面缺口分析。確認 **#1 去重機制實質未實作**（`UncaughtErrorHandler` 的 `FlutterError.onError` 與 `ErrorWidget.builder` 仍各自觸發 `_logFlutterError`，同一 build 崩潰重複記錄兩次）；**#5 ConsoleTab** 的 `InspectorSearchBar` 元件已存在但未接入、`entriesAtLevel()` 在 UI 層零呼叫、errors-only 邏輯僅存在於 `diagnostic_report.dart` 未暴露至 Console UI。**#2 做法 A（±5s 側欄）** 完全無程式碼。新增第四部分提出 9 項新功能提案。
-> **歷史更新**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0 完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅，並修正了 **#7 錯誤聚合摘要** 的狀態為 ✅。最新檢視 codebase (v1.5.0) 發現 **#3 一鍵診斷報告** 也已完成（`buildDiagnosticReport` 及 `ExportReportSheet`），由 ⬜ 升級為 ✅。**#9 診斷報告 Timeline 重設計** 已於 PR #87（2026-07-17 合入 main）完成，由 ⬜ 升級為 ✅。**#10 WebView Inline Debugging** 於 PR #91 完成，由 ⬜ 升級為 ✅。
+> **更新說明（2026-07-23）**：對照 v1.7.0 codebase 完成全面缺口分析。確認 **#1 去重機制實質未實作**（`UncaughtErrorHandler` 的 `FlutterError.onError` 與 `ErrorWidget.builder` 各自觸發 `_logFlutterError`，同一 build 崩潰重複記錄兩次）——**已於 2026-07-24 PR #96 修復**（object-identity 去重）；**#5 ConsoleTab** 的 `InspectorSearchBar` 元件已存在但未接入、`entriesAtLevel()` 在 UI 層零呼叫、errors-only 邏輯僅存在於 `diagnostic_report.dart` 未暴露至 Console UI。**#2 做法 A（±5s 側欄）** 完全無程式碼。新增第四部分提出 9 項新功能提案。
+> **歷史更新**：v1.1.0（PR #40 / #42）把 console 重構為真正的混合時間軸後，**#2 由 ⬜ 升級為 🟡**（時序關聯的主體已落地）。PR #51 完成 **#8 當前路由堆疊可視化**，由 ⬜ 升級為 ✅。v1.3.0 完成 **#4 Dio 結構化錯誤捕捉**，由 🟡 升級為 ✅，並修正了 **#7 錯誤聚合摘要** 的狀態為 ✅。最新檢視 codebase (v1.5.0) 發現 **#3 一鍵診斷報告** 也已完成（`buildDiagnosticReport` 及 `ExportReportSheet`），由 ⬜ 升級為 ✅。**#9 診斷報告 Timeline 重設計** 已於 PR #87（2026-07-17 合入 main）完成，由 ⬜ 升級為 ✅。**#10 WebView Inline Debugging** 於 PR #91 完成，由 ⬜ 升級為 ✅。**#1 去重機制**於 PR #96（2026-07-24 合入 main，merge `5d2b37d`）修復，由 ✅⚠️（帶缺陷完成）升級為 ✅。
 
 | # | 功能 | 狀態 | 備註 |
 |---|------|:---:|------|
 | **#9** | **診斷報告 Timeline 重設計** | **✅** | PR #87：`## Logs` → 按 `timestamp` 降序交錯四層的 `## Timeline` 混合串流；新增 `buildLogOneLiner`/`buildNetworkOneLiner` 單行 formatter，`errorsOnly` 升級為過濾整條 stream，`## Network`/`## Navigation`/`## Database` detail section 不動 |
-| #1 | 全局未捕捉例外捕捉 | ✅⚠️ | PR #30：`captureUncaughtErrors`(default off) + 三掛點 chain。**⚠️ 去重未實作**：`FlutterError.onError` 與 `ErrorWidget.builder` 均呼叫 `_logFlutterError(details)`，同一 build 崩潰在 Console 產生 2 筆重複 error log（見第四部分 §D2） |
+| #1 | 全局未捕捉例外捕捉 | ✅ | PR #30：`captureUncaughtErrors`(default off) + 三掛點 chain。**去重已補（PR #96）**：`FlutterError.onError` 與 `ErrorWidget.builder` 對同一 build 崩潰收到同一 `FlutterErrorDetails`，`_logFlutterError` 以 object-identity（`identical`）去重，Console 只記錄一次（見第四部分 §D2） |
 | #6 | 網路請求重放 | ✅ | PR #36 / v1.0.0 已完成：支援 per-Dio 原樣重送、`isReplay` 標記、狀態回饋與防連點保護 |
 | #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `ChoiceChip` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
 | #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄，完全無程式碼） |
@@ -30,7 +30,7 @@
 
 **Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking / WebView B 級除錯器 / 第五 source enum）— ✅ 正確地皆未實作，守住「不走向微核心」。
 
-**進度結論（v1.7.0）**：原始 10 項裡 8 項完全完成（#3、#4、#6、#7、#8、#9、#10，以及 v1.1.0 實質完成的 #2 時序軸主體），**1 項帶缺陷的完成**（#1 去重未實作），**1 項半成品**（#5 console 搜尋/過濾）。第四部分另提出 9 項新功能提案。
+**進度結論（v1.7.0，含 2026-07-24 更新）**：原始 10 項裡 9 項完全完成（#1、#3、#4、#6、#7、#8、#9、#10，以及 v1.1.0 實質完成的 #2 時序軸主體；#1 去重缺陷已由 PR #96 修復），**1 項半成品**（#5 console 搜尋/過濾）。第四部分另提出 9 項新功能提案。
 
 ---
 
@@ -49,19 +49,19 @@
 
 ## 🔍 排查能力現況盤點
 
-> **當前現況快照（v1.7.0）**：相較於初期有四個紅燈的盲區，經過多次迭代後，目前排查基礎建設已大幅補齊。紅燈僅剩 Console 搜尋/過濾；黃燈有 ±5s 側欄與 error 去重。
+> **當前現況快照（v1.7.0，含 2026-07-24 更新）**：相較於初期有四個紅燈的盲區，經過多次迭代後，目前排查基礎建設已大幅補齊。紅燈僅剩 Console 搜尋/過濾；黃燈僅剩 ±5s 側欄（error 去重已由 PR #96 修復）。
 
 | 排查環節 | 現況 (v1.7.0) | 評級 |
 |---|---|---|
 | 看見「我主動 log 的」錯誤 | `inspector.log()` 正常記錄；`LogDetailView` 支援點擊展開、複製與分享 stackTrace | ✅ 完善 |
-| 看見「未捕捉」的例外 | 已實作 `captureUncaughtErrors`，覆蓋 `FlutterError.onError`、`PlatformDispatcher` 與 `ErrorWidget.builder`；**但同一 build 崩潰會重複記錄兩次**（`_logFlutterError` 被 onError + ErrorWidget.builder 各呼叫一次，無去重） | 🟡 已捕捉但有噪音 |
+| 看見「未捕捉」的例外 | 已實作 `captureUncaughtErrors`，覆蓋 `FlutterError.onError`、`PlatformDispatcher` 與 `ErrorWidget.builder`；同一 build 崩潰的重複記錄已由 object-identity 去重消除（PR #96） | ✅ 完善 |
 | 看見網路失敗的根因 | 成功擷取 `err.type` 與 `stackTrace`，能精準區分「傳輸層失敗」與「Server 錯誤回應」 | ✅ 已修復 |
 | 關聯「錯誤前後發生了什麼」 | `mergedTimeline` 將四個 buffer 歸併，跨層時序主體已成；但仍缺單筆 detail view 的 ±5s 聚焦側欄 | 🟡 尚欠聚焦 |
 | 帶走排查證據 | `buildDiagnosticReport`／`ExportReportSheet` 已落地，且 #9（PR #87）將 `## Logs` 換為 `## Timeline` 混合串流，四層事件按 `timestamp` 降序交錯——報告可直接看出跨層因果 | ✅ 完善 |
 | 過濾定位 error log | `LogInspector.entriesAtLevel()` 仍未被 UI 呼叫，ConsoleTab 依然缺乏搜尋欄與 LogLevel FilterChip；`InspectorSearchBar` 元件存在但僅用於 NetworkTab | 🔴 依然不足 |
 | 看見 WebView 內的事件（console / JS error / fetch） | v1.7.0 實作 `WebViewBridgeAdapter` 及 JS injection 腳本，無縫將 web 端日誌網路請求轉接入 Inspector；新增 `NetworkOrigin` provenance 標記 | ✅ 完善 |
 
-> 結論：排查鏈條上的七個環節，如今**四個綠燈、兩個黃燈、一個紅燈**。黃燈新增為 #1 去重缺陷（原評為綠燈，經 2026-07-23 深度分析後降級）。
+> 結論：排查鏈條上的七個環節，如今**五個綠燈、一個黃燈、一個紅燈**。#1 去重缺陷已於 PR #96（2026-07-24）修復並回升綠燈；黃燈僅剩 ±5s 同時段側欄，紅燈僅剩 Console 搜尋/過濾。
 
 ---
 
@@ -107,7 +107,7 @@
 * **品味守則**：chain 而非覆蓋既有 handler。捕捉後**必須**把錯誤往下游傳（`FlutterError.presentError` / 重拋），否則就違反「Never break userspace」——debug 工具不該吞掉宿主的崩潰。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 * **✅ 實作現況**：PR #30 已完成。`FlutterInspector(captureUncaughtErrors: false)` 入口 + `UncaughtErrorHandler` 三掛點（`FlutterError.onError` chain、`PlatformDispatcher.onError`、`ErrorWidget.builder`）皆落地。`runGuarded` 已移除改用 `PlatformDispatcher.onError`。
-* **⚠️ 殘留缺陷（2026-07-23 確認）**：去重機制**實質未實作**——`UncaughtErrorHandler._logFlutterError(details)` 同時被 `FlutterError.onError` 與 `ErrorWidget.builder` 呼叫，`_attached` 旗標只防重複 `attach()`，不防重複 log。同一次 widget build 崩潰會在 Console 產生 2 筆完全相同的 error log。**修復方案見第四部分 §D2**。
+* **✅ 去重已補（PR #96 · 2026-07-24 合入 main）**：原缺陷為 `_logFlutterError(details)` 同時被 `FlutterError.onError` 與 `ErrorWidget.builder` 呼叫、`_attached` 旗標只防重複 `attach()` 不防重複 log，同一 build 崩潰產生 2 筆重複 error log。修復採 **object-identity 去重**：新增 `_lastLoggedDetails` 欄位，`_logFlutterError` 入口 `if (identical(details, _lastLoggedDetails)) return;`。同一 build 崩潰兩個 hook 收到的是同一物件（identity 恆真 → 吞第二筆）；兩次獨立崩潰即使訊息相同也是不同物件（identity 恆假 → 各自記錄），不誤吞短時間內的獨立錯誤。詳見 §D2。
 
 ### 2. 跨 Inspector 時序關聯（Correlated Timeline）— 🟡 部分完成（原 🔴 排查的靈魂）
 * **痛點**：錯誤幾乎都是跨層的——「點了某按鈕（nav）→ 發了某 API（network）→ 5xx → 印了某 error log」。但現在這四件事躺在四個孤立 buffer 裡，開發者得在四個 tab 之間用肉眼對時間戳，這是排查最大的摩擦。
@@ -233,22 +233,19 @@
 - **影響範圍**：`lib/src/ui/dashboard/tabs/console_tab.dart`（主改）、可選新增 `lib/src/utils/console_utils.dart`（過濾邏輯）
 - **Effort**：low–medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 
-### §D2. 未捕捉例外去重修復（#1 殘留缺陷）— ⚠️ Bug Fix
+### §D2. 未捕捉例外去重修復（#1 殘留缺陷）— ✅ 已完成（PR #96 · 2026-07-24）
 
 > 同一個 widget build 崩潰，`FlutterError.onError` 和 `ErrorWidget.builder` 各觸發一次 `_logFlutterError`，Console 出現兩筆完全相同的 error log，干擾判斷「是一次還是兩次」。
 
-**現況確認**：`UncaughtErrorHandler`（`lib/src/core/uncaught_error_handler.dart`）的 `attach()` 中：
-- L37: `FlutterError.onError` → 呼叫 `_logFlutterError(details, source: 'flutterError')`
-- L72: `ErrorWidget.builder` → 呼叫 `_logFlutterError(details, source: 'errorWidget')`
-- `_attached` 旗標只防重複 `attach()`，**不防同一 exception 被兩個 hook 重複 log**。
+**原缺陷確認**：`UncaughtErrorHandler`（`lib/src/core/uncaught_error_handler.dart`）的 `attach()` 中，`FlutterError.onError` 與 `ErrorWidget.builder` 各自呼叫 `_logFlutterError(details, ...)`，`_attached` 旗標只防重複 `attach()`，**不防同一 exception 被兩個 hook 重複 log**。
 
-**設計方向**：
-- 在 `UncaughtErrorHandler` 內維護一個固定容量的 dedup ring（如 `Queue<int>` cap=32）
-- Key = `details.exception.hashCode ^ (details.stack.hashCode)`
-- 若 key 在最近 2 秒內已見過則跳過
-- 超出時間窗的相同例外仍記錄（真正的重複觸發不該被吞）
-- **影響範圍**：`lib/src/core/uncaught_error_handler.dart`
-- **Effort**：low ｜ **排查價值**：⭐⭐⭐⭐
+**實際實作（PR #96，刻意偏離原構想）**：原設計提議 hashCode + 2 秒時間窗的 dedup ring，實作時判定那是為不存在的情境過度設計——framework 對同一 build 崩潰傳給兩個 hook 的是**同一個 `FlutterErrorDetails` 物件**，用 object identity 一步到位；且時間窗反而會誤吞「2 秒內兩次訊息相同的獨立崩潰」（各自是新物件，本該分別記錄）。最終方案（消滅特殊情況而非新增判斷）：
+- 新增單一欄位 `FlutterErrorDetails? _lastLoggedDetails`
+- `_logFlutterError` 入口：`if (identical(details, _lastLoggedDetails)) return;`，通過後更新 `_lastLoggedDetails`
+- 無 Queue、無 hashCode、無時鐘、無魔術數字
+- **影響範圍**：`lib/src/core/uncaught_error_handler.dart`（+ `test/core/uncaught_error_handler_test.dart` 新增 `dedup` / `no dedup` 兩測試）
+- **Effort**：low（實際 low）｜ **排查價值**：⭐⭐⭐⭐
+- **文件**：規格 [`docs/features/2026-07-23-uncaught-error-dedup.md`](../features/2026-07-23-uncaught-error-dedup.md)、計畫 [`docs/plans/2026-07-23-uncaught-error-dedup.md`](../plans/2026-07-23-uncaught-error-dedup.md)
 
 ### §D3. Detail View ±5s 同時段側欄（#2 做法 A）
 
@@ -383,7 +380,7 @@
 | **1** | ConsoleTab 搜尋 + LogLevel 過濾 | §D1（#5 缺口） | low–med | ⭐⭐⭐⭐⭐ |
 | **2** | 錯誤爆發偵測 + 視覺警報 | §P1 新提案 | low | ⭐⭐⭐⭐⭐ |
 | **3** | 錯誤上下文快照 | §P2 新提案 | low | ⭐⭐⭐⭐⭐ |
-| **4** | 未捕捉例外去重修復 | §D2（#1 缺陷） | low | ⭐⭐⭐⭐ |
+| ~~4~~ | 未捕捉例外去重修復 — ✅ 已完成（PR #96） | §D2（#1 缺陷） | low | ⭐⭐⭐⭐ |
 | **5** | Detail View ±5s 同時段側欄 | §D3（#2 做法 A） | med | ⭐⭐⭐⭐ |
 | **6** | Timeline 書籤 / 標記 | §P3 新提案 | low | ⭐⭐⭐⭐ |
 | **7** | Dashboard 錯誤計數 Badge | §P6 新提案 | low | ⭐⭐⭐ |
@@ -440,9 +437,9 @@
 | 項目 | 內容 | 寫入路徑 |
 |------|------|----------|
 | **§D1** ConsoleTab 搜尋/過濾 | 搜尋欄 + LogLevel FilterChip + errors-only 快捷 | `console_tab.dart` + 可選 `console_utils.dart` |
-| **§D2** 未捕捉例外去重 | exception hash + 時間窗去重 | `uncaught_error_handler.dart` |
+| **§D2** 未捕捉例外去重 — ✅ 已完成 | object-identity 去重（PR #96，2026-07-24 合入 main） | `uncaught_error_handler.dart` |
 
-> 消滅排查鏈上最後一個 🔴 紅燈 + 修復一個長期噪音 bug。兩項寫入路徑不重疊，可並行。
+> 消滅排查鏈上最後一個 🔴 紅燈 + 修復一個長期噪音 bug。**§D2 去重已由 PR #96 完成**，Phase 1 僅剩 §D1 ConsoleTab 搜尋/過濾。
 
 ### Phase 2 · 主動告警 + 視覺強化
 
@@ -478,6 +475,6 @@
 
 ---
 
-> **收尾建議（2026-07-23）**：排查鏈的基礎建設已近完備（10 項原始功能中 8 項完成）。**Phase 1 是唯一的必做項**——消滅 ConsoleTab 搜尋/過濾紅燈 + 修復去重 bug，預估合計 effort=low–medium。Phase 2–4 依實際回饋與優先級排程。全部 13 項的設計都遵循「重用既有零件」原則——零新相依、零新模型，只是把已經存在的資料用更聰明的方式呈現。
+> **收尾建議（2026-07-24 更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成，#1 去重已由 PR #96 修復）。**Phase 1 僅剩 §D1 ConsoleTab 搜尋/過濾紅燈**（去重 bug §D2 已完成），預估 effort=low–medium。Phase 2–4 依實際回饋與優先級排程。全部 13 項的設計都遵循「重用既有零件」原則——零新相依、零新模型，只是把已經存在的資料用更聰明的方式呈現。
 
 > 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（§D1 動 console_tab、§D2 動 uncaught_error_handler、§P1 動 flutter_inspector + dashboard、§D3 動 detail views），適合並行推進。

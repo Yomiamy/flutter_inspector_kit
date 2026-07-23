@@ -70,7 +70,7 @@ graph TD
 ```
 
 * **`UncaughtErrorHandler` (`lib/src/core/uncaught_error_handler.dart`)**：
-  * **職責**：集中註冊與串接 Flutter 架構的三個標準錯誤鉤子（`FlutterError.onError`、`PlatformDispatcher.instance.onError` 與 `ErrorWidget.builder`）。
+  * **職責**：集中註冊與串接 Flutter 架構的三個標準錯誤鉤子（`FlutterError.onError`、`PlatformDispatcher.instance.onError` 與 `ErrorWidget.builder`）。同一次 build 崩潰經 `onError` 與 `ErrorWidget.builder` 會收到同一個 `FlutterErrorDetails`，`_logFlutterError` 以 object-identity 去重，避免 Console 重複記錄（PR #96）。
   * **解耦機制**：透過 `LogCallback` 構造函數注入 `onLog` 回呼函數。其內部完全沒有導入或依賴 `FlutterInspector`。
 * **`InspectorOverlayManager` (`lib/src/core/inspector_overlay_manager.dart`)**：
   * **職責**：管理 `InspectorFab` 懸浮按鈕的 Overlay 生命週期（`attach`、`detach`）。
