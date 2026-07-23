@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24（**#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。前次更新：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24（**#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。前次更新：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -29,6 +29,8 @@
 | #10 | WebView Inline Debugging（觀測層） | ✅ | PR #91：JS payload + host-injection bridge，把 WebView 的 console/error/fetch 映射為既有 `LogEntry`/`NetworkEntry` 入列 Timeline——零新相依、零 schema 變更（見第三部分） |
 
 **Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking / WebView B 級除錯器 / 第五 source enum）— ✅ 正確地皆未實作，守住「不走向微核心」。
+
+> **⚠️ 文件此前漏列的既有基建（2026-07-24 補記）**：對照實際 codebase 發現，`flutter_local_notifications: ^22.0.0` **早已是相依**（`pubspec.yaml`），且自 **v0.1.0（pub.dev 首發）** 就有 **opt-in 系統通知**功能——入口 `FlutterInspector(showNetworkNotification: false)`（default off）+ `NetworkNotifier`（`lib/src/notifications/network_notifier.dart` 及 `_io`/`_web` 平台分支）+ `AlertThrottler`（2 秒節流窗）。行為：一則**持續更新的單一系統通知**，摘要「最新一筆網路呼叫 + 總數」，點擊開 Network tab；初始化/權限失敗時安全降級為 no-op，web build 為 no-op stub（保 WASM 相容）。此前的缺口分析（含 anti-feature 判斷與下方 §P1）**未盤點到這塊**，造成「通知類＝未實作／需引入新相依」的誤判——實際上**相依與節流器都已就位**，任何「錯誤告警」提案都是對既有基建的**擴充**，而非新建。
 
 **進度結論（v1.7.0，含 2026-07-24 更新）**：原始 10 項裡 9 項完全完成（#1、#3、#4、#6、#7、#8、#9、#10，以及 v1.1.0 實質完成的 #2 時序軸主體；#1 去重缺陷已由 PR #96 修復），**1 項半成品**（#5 console 搜尋/過濾）。第四部分另提出 9 項新功能提案。
 
@@ -274,14 +276,14 @@
 
 ### §P1. 錯誤爆發偵測 + 視覺警報（Error Spike Detection）— 🆕
 
-> **痛點**：短時間內湧入大量 error（如 API 全面 5xx、WebView JS 狂報錯），Console 被淹沒但沒有任何「告警」機制。開發者可能在看別的 tab，錯過爆發窗口。
+> **痛點**：短時間內湧入大量 error（如 API 全面 5xx、WebView JS 狂報錯），Console 被淹沒但沒有任何**錯誤**告警機制（**釐清**：既有 `NetworkNotifier` 系統通知只摘要網路活動、不辨識 error）。開發者可能在看別的 tab、甚至把 app 切到背景，錯過爆發窗口。
 
 * **設計**：
   - 在 `FlutterInspector` 層追蹤「最近 N 秒內的 error-level entry 計數」
   - 超過閾值（如 10 筆/30s）時，Dashboard 頂部彈出 `MaterialBanner`——「⚠️ 過去 30 秒偵測到 {N} 筆錯誤」，點擊跳轉 Console 並自動套用 errors-only 過濾
   - 零新模型，只是一個 `ValueNotifier<int>` + 閾值比較
-* **重用**：既有 `RingBuffer` 的 timestamp 掃描、`LogLevel.error` 判別、`NetworkEntry` 的 error 判別（`statusCode >= 400 || error != null`）
-* **品味守則**：告警是**讀取既有 buffer 的衍生狀態**，不引入第二份計數器。用 `AlertThrottler` 防止 banner 本身的爆發。
+* **重用**：既有 `RingBuffer` 的 timestamp 掃描、`LogLevel.error` 判別、`NetworkEntry` 的 error 判別（`statusCode >= 400 || error != null`）；**以及既有 `NetworkNotifier` + `AlertThrottler` 系統通知基建**（自 v0.1.0，`flutter_local_notifications` 已在相依）——`MaterialBanner` 只在前景可見時有效，據此基建可低成本延伸「app 在背景時的**系統通知**告警」，補上前景盲區。
+* **品味守則**：告警是**讀取既有 buffer 的衍生狀態**，不引入第二份計數器。用 `AlertThrottler` 防止 banner 本身的爆發（該節流器已存在於通知模組，直接複用）。
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐⭐⭐
 
 ### §P2. 錯誤上下文快照（Error Context Snapshot）— 🆕
