@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24（**#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。前次更新：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -29,6 +29,8 @@
 | #10 | WebView Inline Debugging（觀測層） | ✅ | PR #91：JS payload + host-injection bridge，把 WebView 的 console/error/fetch 映射為既有 `LogEntry`/`NetworkEntry` 入列 Timeline——零新相依、零 schema 變更（見第三部分） |
 
 **Anti-features**（Profiler / 落盤 crash history / HAR timing / API mocking / WebView B 級除錯器 / 第五 source enum）— ✅ 正確地皆未實作，守住「不走向微核心」。
+
+> **⚠️ 文件此前漏列的既有基建（2026-07-24 補記）**：對照實際 codebase 發現，`flutter_local_notifications: ^22.0.0` **早已是相依**（`pubspec.yaml`），且自 **v0.1.0（pub.dev 首發）** 就有 **opt-in 系統通知**功能——入口 `FlutterInspector(showNetworkNotification: false)`（default off）+ `NetworkNotifier`（`lib/src/notifications/network_notifier.dart` 及 `_io`/`_web` 平台分支）+ `AlertThrottler`（2 秒節流窗）。行為：一則**持續更新的單一系統通知**，摘要「最新一筆網路呼叫 + 總數」，點擊開 Network tab；初始化/權限失敗時安全降級為 no-op，web build 為 no-op stub（保 WASM 相容）。此前的缺口分析（含 anti-feature 判斷與下方 §P1）**未盤點到這塊**，造成「通知類＝未實作／需引入新相依」的誤判——實際上**相依與節流器都已就位**，任何「錯誤告警」提案都是對既有基建的**擴充**，而非新建。
 
 **進度結論（v1.7.0，含 2026-07-24 更新）**：原始 10 項裡 9 項完全完成（#1、#3、#4、#6、#7、#8、#9、#10，以及 v1.1.0 實質完成的 #2 時序軸主體；#1 去重缺陷已由 PR #96 修復），**1 項半成品**（#5 console 搜尋/過濾）。第四部分另提出 9 項新功能提案。
 
@@ -274,14 +276,14 @@
 
 ### §P1. 錯誤爆發偵測 + 視覺警報（Error Spike Detection）— 🆕
 
-> **痛點**：短時間內湧入大量 error（如 API 全面 5xx、WebView JS 狂報錯），Console 被淹沒但沒有任何「告警」機制。開發者可能在看別的 tab，錯過爆發窗口。
+> **痛點**：短時間內湧入大量 error（如 API 全面 5xx、WebView JS 狂報錯），Console 被淹沒但沒有任何**錯誤**告警機制（**釐清**：既有 `NetworkNotifier` 系統通知只摘要網路活動、不辨識 error）。開發者可能在看別的 tab、甚至把 app 切到背景，錯過爆發窗口。
 
 * **設計**：
   - 在 `FlutterInspector` 層追蹤「最近 N 秒內的 error-level entry 計數」
   - 超過閾值（如 10 筆/30s）時，Dashboard 頂部彈出 `MaterialBanner`——「⚠️ 過去 30 秒偵測到 {N} 筆錯誤」，點擊跳轉 Console 並自動套用 errors-only 過濾
   - 零新模型，只是一個 `ValueNotifier<int>` + 閾值比較
-* **重用**：既有 `RingBuffer` 的 timestamp 掃描、`LogLevel.error` 判別、`NetworkEntry` 的 error 判別（`statusCode >= 400 || error != null`）
-* **品味守則**：告警是**讀取既有 buffer 的衍生狀態**，不引入第二份計數器。用 `AlertThrottler` 防止 banner 本身的爆發。
+* **重用**：既有 `RingBuffer` 的 timestamp 掃描、`LogLevel.error` 判別、`NetworkEntry` 的 error 判別（`statusCode >= 400 || error != null`）；**以及既有 `NetworkNotifier` + `AlertThrottler` 系統通知基建**（自 v0.1.0，`flutter_local_notifications` 已在相依）——`MaterialBanner` 只在前景可見時有效，據此基建可低成本延伸「app 在背景時的**系統通知**告警」，補上前景盲區。
+* **品味守則**：告警是**讀取既有 buffer 的衍生狀態**，不引入第二份計數器。用 `AlertThrottler` 防止 banner 本身的爆發（該節流器已存在於通知模組，直接複用）。
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐⭐⭐
 
 ### §P2. 錯誤上下文快照（Error Context Snapshot）— 🆕
@@ -390,6 +392,125 @@
 | **11** | DatabaseTab 搜尋 / 過濾 | §D4 缺口 | low | ⭐⭐⭐ |
 | **12** | 慢請求標記 | §P8 新提案 | trivial | ⭐⭐ |
 | **13** | Diagnostic Report JSON 輸出 | §P9 新提案 | med | ⭐⭐ |
+
+---
+
+## 🔭 第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷（2026-07-24 新增）
+
+> 本節出發點：對照 Sentry/Bugsnag（breadcrumbs）、Flipper（多層 plugin 檢視）、Reactotron（tag 過濾 + custom command）等開源除錯生態的具體手法，看哪些能以「零/低新增基建」的方式移植。**先做了二次 codebase 查核**（見下方「查核結論」），結果是：本專案已經把 breadcrumb（`mergedTimeline`）和 alert throttle（`AlertThrottler`）這兩塊地基做完了，開源生態的手法大多是這兩塊的變形；真正缺的是「生命週期 / 連線狀態」這類**本專案從未實作過的 hook 類別**——這些提案的 effort 因此如實標高，不偽裝成「零成本重用」。
+
+### 查核結論（用於判斷下列各項的真實 effort）
+
+| 查核項 | 結論 | 影響 |
+|---|---|---|
+| `InspectorRegistry` buffer | 固定 log/network/navigator/database 四個，皆 `implements TimestampedEntry`（僅 `timestamp` 欄位） | 新事件來源可直接掛上既有 `mergedTimeline()`，不需新資料管線 |
+| `RingBuffer` | 純 FIFO，`capacity` 固定上限，**無** high-water-mark 統計 | 若新提案需要「近期計數」，得自己在 buffer 之外維護滑動視窗，非現成 |
+| Rebuild/build 耗時 hook | 全 repo `debugPrintRebuildDirtyWidgets`/`Timeline.startSync`/`SchedulerBinding` **零命中** | rebuild 類提案完全是新建，非移植既有 hook |
+| `NetworkNotifier`/`AlertThrottler` | 目前綁死「單一持續更新通知」；`AlertThrottler` 本身通用但只被 `NetworkNotifier` 私有持有，非共用單例 | §P1 錯誤告警要用系統通知，得先做 §P13 的重構才能複用節流邏輯 |
+| `LogEntry.data`/`NetworkEntry` 欄位 | `data: Map<String,dynamic>?` 已存在；`NetworkEntry` **無**連線狀態欄位 | 上下文快照類提案（如 §P2）可直接塞 `data`，零 schema 變更；連線狀態則要新欄位 |
+| redaction pipeline | 只作用於 `NetworkTab`/`NetworkDetailView`/匯出格式化；`LogEntry.data`、`DatabaseEntry`、`NavigatorEntry`、`dio_interceptor` 存入 buffer 的原始資料**完全未遮罩**；`log_detail_view.dart` 拿到 `redactSensitiveData` flag 但內部從未使用 | 見 §D5，是既有缺陷非新提案 |
+| App 生命週期 hook | `AppLifecycleState`/`WidgetsBindingObserver` **零命中** | §P14 是全新地基，非移植 |
+| pubspec 相依 | 無 `connectivity_plus`/`battery_plus`/`device_info_plus` | §P12 需要新相依，非「已在相依」的低成本項 |
+
+### §D5. Redaction 涵蓋缺口（既有缺陷，非新功能）— 🔴 建議獨立開 issue
+
+> 這不是功能提案，是**査核時發現的既有安全性缺陷**，附在此處以免被淹沒在功能清單裡。
+
+**現況**：`redactSensitiveData`（`FlutterInspector` 建構參數，預設 `true`）目前的涵蓋範圍：
+
+- ✅ `NetworkTab`、`NetworkDetailView`、`network_formatters.dart`（curl / 純文字匯出）：header 經 `redactHeaders()` 遮罩 `authorization`/`cookie`/`set-cookie`/`x-api-key`
+- ❌ `LogEntry.data`：任何人透過 `inspector.log(data: {...})` 塞進去的 Map，原封不動存進 `RingBuffer`，UI 直接用 `KeyValueTable` 渲染，**無遮罩**
+- ❌ `DatabaseEntry`、`NavigatorEntry`：完全未接 redaction
+- ❌ `dio_interceptor.dart`：存進 buffer 的 `NetworkEntry` 本體是**明碼**，`redactHeaders()` 只在**顯示/匯出當下**現算，buffer 裡的原始資料從頭到尾未過濾
+- ❌ `log_detail_view.dart`：`ConsoleTab` 有把 `redactSensitiveData` flag 一路傳進 `LogDetailView`，但該 view **內部從未讀取這個參數**——傳了等於沒傳，是一個「看起來接了線、實際上斷路」的死接線
+
+**風險**：body 從未被 redaction 覆蓋（只有 header），且 `LogEntry.data` 若被用來記錄使用者輸入（表單欄位、token、PII）會完整落在 Console 明碼顯示，`redactSensitiveData: true` 給人的保護假象比實際涵蓋範圍大。
+
+**建議**：獨立開 bug issue（非功能 PR），修復方向兩選一：
+1. 補齊 `LogDetailView` 對 `redactSensitiveData` 的實際使用（最小修復，對齊「傳了就要用」）
+2. 若要根治，redaction 應移到 **entry 存入 buffer 前**而非顯示時現算——即在 `LogInspector.add()` / `DatabaseInspector.add()` 等入口統一過濾，讓「buffer 裡的資料本來就是安全的」，而非依賴每個 view 各自記得呼叫
+
+* **Effort**：low（方案 1）/ medium（方案 2，牽動四個 inspector 的 add 入口）｜**風險等級**：🔴（安全性缺陷，非排查功能缺口）
+
+### §P10. Rebuild 異常偵測（Excessive Rebuild Guard）— 🆕 需使用者接線
+
+> **痛點**：`setState` 迴圈、`ChangeNotifier` 誤觸發、`AnimatedBuilder` 忘記傳 `child` 這類 bug，症狀是「某個 widget 瘋狂重建」，但現有排查鏈完全看不到——這類 bug 現在只能靠 DevTools 的 Performance View 肉眼抓，跟本文件「排查」主軸脫節（DevTools 那是效能剖析，不是錯誤排查）。
+
+* **先拆穿一件事**：這不是 anti-feature #1（完整 Profiler）的翻版。Profiler 回答「哪裡慢」，這裡回答「這個 widget 是不是在不正常地狂建」——是一個**離散的 bug 信號**（超過閾值 → 一筆 log），不是連續的效能剖析面板。
+* **好品味設計（關鍵洞察）**：
+  > Flutter 沒有「任意 widget rebuild 完成」的全域回呼（`debugPrintRebuildDirtyWidgets` 是 debug-only 全域旗標且直接 print，不分 widget、不進 buffer）。所以這**做不到自動偵測**，只能是 opt-in per-widget 的輕量 mixin——這和本文件其他功能「app 層級一個 flag 全開」的接線模式不同，必須誠實標注。
+  - 提供 `RebuildGuardMixin`（`State` mixin），內部維護一個 `List<DateTime>` 滑動視窗（`RingBuffer` 沒有「近 1 秒內筆數」語意，這裡是新邏輯，非重用）
+  - `build()` 開頭呼叫 `guardRebuild()`：清掉視窗外的舊時間戳、加入當前時間戳，超過閾值（預設 20 次/秒，可設定）→ `inspector.log('Excessive rebuild: $runtimeType (${count}x/1s)', level: LogLevel.warning)`
+  - 同一個 widget 連續超標只記一次，冷卻期（如 5 秒）後才能再觸發——避免真的在狂建的 widget 洗版 Console
+* **重用**：`inspector.log()`、`LogLevel.warning`。**不重用**：`RingBuffer`（語意不合，滑動視窗需要「移除視窗外的舊項」而非「滿了才淘汰最舊」）。
+* **品味守則**：mixin 是**症狀偵測器**，不是效能分析——不記錄耗時、不記錄呼叫堆疊、不分帳每幀花費。開發者主動選擇要監控哪些 widget（通常是懷疑有問題的那幾個），不是全 app 插樁。
+* **Effort**：low（邏輯本身簡單）但**接線成本非零**——需要開發者手動幫可疑 widget 加 mixin，不是一個 `flag: true` 就全解決；這點要在 README 講清楚，避免被誤期待成自動偵測。
+* **排查價值**：⭐⭐⭐（見效但受眾窄：只有「懷疑某 widget 有 rebuild bug」時才會主動用）
+
+### §P11. 多告警類型重構 NetworkNotifier（§P1 的後端支撐）— 🆕
+
+> **痛點**：§P1「錯誤爆發偵測」設想用既有系統通知基建做背景告警，但查核發現 `NetworkNotifier` 目前寫死「單一持續更新通知」（固定 notification id + channel），且 `AlertThrottler` 是它的私有欄位，不是共用元件。§P1 若直接動工會被迫在 `NetworkNotifier` 內部長出 if/else 分支去區分「網路摘要」與「錯誤爆發」兩種通知語意——這正是「特殊情況」的壞味道。
+
+* **好品味設計**：
+  > 把「一則通知」抽象成 `id` + `channel` 兩個參數，`NetworkNotifier` 變成這個通用能力的其中一個**呼叫者**，而非通知邏輯本身的擁有者。
+  - `AlertThrottler` 保持純邏輯不變（已經是通用的），但改由呼叫端各自持有一份實例（`NetworkNotifier` 一份、未來 §P1 的錯誤告警一份），而非塞在 `NetworkNotifier` 內部
+  - 新增輕量的 `InspectorNotificationChannel`（或直接是幾個具名常數：`networkChannelId`/`errorAlertChannelId`），讓 `flutter_local_notifications` 的初始化一次註冊多個 channel
+  - `NetworkNotifier.showOrUpdate()` 簽章不變（既有呼叫者零修改），只是內部改用參數化的 channel id
+* **重用**：`AlertThrottler`（邏輯零修改，只改持有關係）、`flutter_local_notifications` 初始化流程、`_io`/`_web` 平台分支模式
+* **品味守則**：這是**重構**不是新功能——目的是讓 §P1 能落地時不必重新發明節流器，也不必在通知模組裡塞 if/else 分special-case。若 §P1 最終不做，這項重構本身沒有獨立存在的理由，**應與 §P1 綁定排程**，不要單獨動工。
+* **Effort**：low ｜**排查價值**：⭐⭐⭐（本身無直接排查價值，純粹是 §P1 的解鎖前提）
+
+### §P12. 離線/斷網事件標記（Connectivity Marker）— 🆕 需新相依，謹慎評估
+
+> **痛點**：網路請求失敗時，`NetworkDetailView` 已能分辨「傳輸層失敗 vs server 錯誤回應」（§4/#4 已完成），但**看不出「當下裝置本身是否離線」**——開發者仍得自己推敲「是我家 wifi 斷線，還是 server 真的掛了」。
+
+* **先問三個鐵律問題**：
+  1. **真實問題？** 部分真實——`DioExceptionType.connectionError` 已經間接透露「連不上」，多數情況這已經夠用；「裝置離線」是連線失敗一堆根因裡的**一種**，不是排查鏈上獨缺的一塊拼圖。
+  2. **更簡單的方法？** 有：§4 的 `errorType` 分類已經覆蓋大部分情境，若要更精確，讓開發者自己在 error log 的 `data` 塞一筆 connectivity 資訊（用既有 `LogEntry.data`）比引入新相依更便宜。
+  3. **會破壞什麼？** 新增 `connectivity_plus` 相依會擴大套件的 transitive dependency surface，且與本文件「零新相依」的一貫品味守則衝突。
+* **判斷**：**效益不足以蓋過新相依的成本**，傾向不做。若真要做，正確的落地方式是**文件化的整合模式**（README 教學：使用者自行監聽 `connectivity_plus` 的 stream，在斷網時 `inspector.log('Device offline', level: warning)`），而非套件內建功能——這與 anti-feature #7「不直接相依 webview 套件」的判斷邏輯一致：讓消費端自己選要不要引入。
+* **Effort**：若做 low（單純轉發事件）；若走「文件化模式」則 trivial（只寫 README）｜**排查價值**：⭐⭐（多數場景已被 §4 覆蓋）
+* **建議**：不列入 Phase Plan，改為 README 補充一段「離線排查食譜」，成本最低且不违反零新相依守則。
+
+### §P13. App 前景/背景切換標記（Lifecycle Marker）— 🆕 需新 hook
+
+> **痛點**：崩潰或異常網路行為，若發生在 app 被切到背景的瞬間（iOS/Android 對背景 app 的資源限制、被系統 kill 前的緊急回收），這個「當下處於什麼生命週期狀態」的 context 現在完全沒被記錄——Sentry 等工具的 breadcrumb 預設就包含這個維度。
+
+* **好品味設計**：
+  > 生命週期切換本身**就是一條 log**，比照 §1 未捕捉例外的做法——不新增資料模型，轉成一筆 `LogEntry`。
+  - `FlutterInspector` 新增可選建構參數 `captureLifecycleEvents`（default **off**，比照 `captureUncaughtErrors` 的保守慣例）
+  - 內部用 `WidgetsBindingObserver.didChangeAppLifecycleState` 掛勾，`resumed`/`paused`/`inactive`/`detached` 各轉一筆 `LogLevel.info` 的 `LogEntry`（訊息如 `App lifecycle: resumed`）
+  - 崩潰發生時，Timeline 上崩潰事件前最近一筆 lifecycle log 就是「當下 app 是否在前景」的答案——**免費疊加**在既有 `mergedTimeline()` 上，不需要額外的側欄或 UI
+* **重用**：`inspector.log()`、`mergedTimeline()`、`LogLevel.info`
+* **品味守則**：跟 §1 一樣「chain 不覆蓋」——`WidgetsBindingObserver` 用 `add`/`remove` 註冊，不霸占宿主 app 唯一的 observer 名額（Flutter 允許多個 observer 並存，天生不衝突，不像 `FlutterError.onError` 需要手動 chain）。
+* **Effort**：low ｜**排查價值**：⭐⭐⭐⭐（崩潰報告新增一個免費維度，成本低價值不錯）
+
+### §P14. Breadcrumb 式自訂標記事件（`inspector.mark()`）— 🆕
+
+> **痛點**：開發者常常想在「關鍵業務流程節點」主動留一個標記（如「進入結帳流程」「使用者按下送出」），現在只能用 `inspector.log()` 硬湊，跟一般 info log 混在一起，排查時不容易在 Timeline 裡一眼認出「這是我特意標的節點」還是「隨手印的訊息」。
+
+* **先問**：這是不是只要教「約定成俗」就好，不用加新 API？—— **多數情況是**，`inspector.log('CHECKOUT_START')` 已經能用。但缺一個**視覺上可辨識**的標記慣例，容易被 100 筆 info log 淹沒。
+* **好品味設計（最小化）**：
+  > 不新增 entry model、不新增 buffer。`mark()` 就是 `log()` 的一層薄語法糖，只是**固定一個可辨識的 level 或 data 標記**，讓 Console/Timeline 的 UI 能選擇性高亮。
+  - `inspector.mark(String label)` → 內部呼叫 `log(label, level: LogLevel.info, data: {'_marker': true})`
+  - ConsoleTab 對 `data['_marker'] == true` 的條目加一個視覺區分（如 📍 前綴或不同底色，做法比照 §P7 Error 高亮強化的機制）
+  - 完全不影響 `buildDiagnosticReport`——marker log 一樣進 `## Timeline`，`_marker` data 自然可見
+* **重用**：`inspector.log()`、`LogEntry.data`（零新欄位）、§P7 已規劃的高亮機制（同一套 presentation 層判斷邏輯，這裡多一種 badge）
+* **品味守則**：`mark()` 就是 `log()` 的殼，**不要**為了「聽起來像獨立功能」而新增 `MarkEntry` 模型或新 buffer——那是為不存在的區別打補丁（同 anti-feature #6 的判斷邏輯）。
+* **Effort**：trivial ｜**排查價值**：⭐⭐⭐（小成本、體驗改善，錦上添花類）
+
+---
+
+### 第二輪優先順序建議
+
+| 優先序 | 項目 | Effort | 排查價值 | 備註 |
+|:---:|------|:---:|:---:|------|
+| **1** | §D5 Redaction 涵蓋缺口修復 | low–med | 🔴安全性 | 建議獨立開 bug issue，優先級高於功能提案 |
+| **2** | §P13 App 前景/背景切換標記 | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高 |
+| **3** | §P14 Breadcrumb 標記 `inspector.mark()` | trivial | ⭐⭐⭐ | 體驗改善，可與 §P7 高亮機制一併排程 |
+| **4** | §P10 Rebuild 異常偵測 | low（但需使用者接線） | ⭐⭐⭐ | 受眾較窄，opt-in per-widget 而非 app 層級 |
+| **5** | §P11 NetworkNotifier 重構 | low | ⭐⭐⭐（解鎖 §P1） | 應與 §P1 綁定排程，不單獨動工 |
+| — | §P12 離線/斷網事件標記 | — | ⭐⭐ | **不建議做**：改寫入 README 作為整合食譜，避免新相依 |
 
 ---
 
