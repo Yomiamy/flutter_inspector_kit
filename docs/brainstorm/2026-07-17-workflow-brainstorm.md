@@ -20,6 +20,7 @@
 | **Gap 2.3** 缺任務完成校驗（`completed_tasks`） | ✅ 已修 | 於 2026-07-21 修復，`advance` 增加任務數量校驗 |
 | **Gap 2.4** STAGE 5 缺 `reviewer→responder` 退回 | ✅ 已修 | 於 2026-07-21 修復，新增閉環轉移路徑 |
 | **Gap 2.5** 廢棄 `.pending-*.json` 無 `prune` GC | ✅ 已修 | 於 2026-07-21 修復，新增 `prune` 指令 |
+| **Bug 1.6** `promote` 後 `stage-done 1` 恆遭拒（STAGE 1 happy path 斷裂） | ⬜ 待修 | 於 2026-07-25 實作 §P13 時撞到並實查確認，詳見 §6 |
 
 > **已落地的地基**（analysis 確認，非本 brainstorm 提出的待辦）：`wf-state.sh` 已成 state 檔唯一入口——狀態機轉移表（非法轉移 `exit 1`）、暫停點棘輪（無 `--confirmed` 拒絕 `advance`）、`set` 白名單、schema 校驗 + 原子寫入皆已實作。
 >
@@ -213,3 +214,32 @@
    在新 session 的 Root 倉庫中呼叫 `continue`，確認腳本會輸出當前所有 worktree 中的 active workflows 列表。
 2. **驗證 Quick 升級隔離性**：
    啟動一個 quick 流程，並執行 `upgrade`。驗證系統是否確實自動建立了對應的 git worktree，並且狀態 JSON 成功被 promote 至該 worktree 目錄下。
+
+---
+
+## 6. 後續發現的待修項目（2026-07-21 之後）
+
+### Bug 1.6: `promote` 後 `stage-done <1>` 恆遭拒，STAGE 1 happy path 斷裂 — ⬜ 待修
+
+* **撞到的情境**：2026-07-25 用本流程實作 §P13（PR #100）時，STAGE 1 建好 worktree 後，照 SKILL.md 的指示跑 `promote` → 隨後 `stage-done <檔> 1`，被腳本直接拒絕：
+  ```text
+  wf-state: sequence 模式 stage-done 參數須等於目前 stage（目前：0a），改 stage 請用 advance
+  ```
+* **根因（已實查 `wf-state.sh` 原始碼與多次隔離重現確認）**：
+  - `promote`（Line 144-163）只做兩件事：把 `.branch` 欄位填上、把檔案搬到新 worktree。**它不碰 `stage` 也不碰 `mode`**——所以 promote 完的檔案仍是 `{mode: "sequence", stage: "0a"}`。
+  - 但 SKILL.md 的「狀態機腳本」表格指示 STAGE 1 建好 worktree 後執行 `stage-done <檔> 1`。
+  - `stage-done`（Line 176-187）在 sequence 模式下強制 `<stage> 參數 == 目前 stage`（Line 182-184）。此時目前 stage 還是 `0a`，傳 `1` 必被拒。
+  - 換句話說：**SKILL.md 記載的 STAGE 1 收尾流程，在 sequence 模式下必定失敗**。正常 sequence 從 0a 一路 `advance` 上來時，promote 發生在 STAGE 1，但 stage 欄位並沒有跟著 promote 一起前進到 `1`，兩者脫節。
+* **我最初的誤判（記錄下來以免重蹈）**：當下我把 `&&` 鏈的中斷誤讀成「`promote` 把 state 檔吃掉了」，還推測是 `--dest` 指向不存在目錄 + EXIT trap 所致。**這個診斷是錯的**——事後隔離重現證明 `promote` 對不存在的 dest 目錄運作完全正常（`mkdir -p` + `claim_new` 會建好），檔案該寫的有寫、該刪的 pending 有刪。真正的失敗是後續 `stage-done 1` 被 sequence guard 擋下，中斷了我串起來的 `&&` 鏈，而我沒往下追就 fallback 到 `init --mode jump` 重建。**教訓：`&&` 鏈中斷要逐段定位是哪一段 exit 非零，不要看到 `get` 報 pending 路徑就腦補整條鏈的因果。**
+* **⚠️ 一個被否決的錯誤修復方向（記錄下來以免重蹈）**：本文件初稿曾提議「讓 `promote` 一併 `.stage = "1"`」，並自稱「promote 不受轉移表約束，安全」。**這是錯的，經 PR #100 的 CodeRabbit review 抓出並實查確認**：`promote` 不只服務 sequence-from-0a，還服務 **quick→sequence 升級路徑**——SKILL.md L288 明載，`upgrade`（已把 stage 設為 `2`）之後也走 `promote` 把狀態搬進 worktree。若 `promote` 無條件寫死 `stage=1`，會把升級後的 `stage=2` 打回 `1`，讓一個已在實作階段的流程重跑 STAGE 1。原方案只看了一條路徑就下「安全」結論，是典型的以偏概全。
+* **正確的修復方向（限定作用範圍，不動 `promote` 的共用邏輯）**：
+  1. **首選——修 SKILL.md 的 sequence STAGE 1 收尾流程，不碰腳本**：正常 sequence 從 0a 一路 `advance` 上來，promote 之後 stage 仍是 `0a`。收尾時不該用 `stage-done 1`（會撞 guard），而是先 `advance 0b --confirmed` → `advance 1 --confirmed` 走完既有轉移表，stage 到 `1` 後才 `stage-done 1`。這條路徑本來就沒有 0a→0b 的暫停語意，兩個 `--confirmed` 是形式上的多餘、但**零腳本改動、零副作用**，且完全尊重轉移表。
+  2. **次選——若要動腳本，改也只能限定在 sequence STAGE 1**：例如在 SKILL.md 呼叫 promote 後、緊接一個**只在 mode==sequence 且 stage==0a 時**才把 stage 推到 `1` 的動作（不可寫進 `promote` 本體，因為 promote 對 quick 升級是 stage-agnostic 的搬運工）。此路徑必須補 **quick、jump、非-0a** 三種流程的 regression 才能落地，成本高於首選。
+* **影響面**：只要是**正常 sequence 流程**（非 `--mode jump`）跑到 STAGE 1，都會撞到。本次因為 fallback 到 jump 模式而繞過，但 jump 模式喪失了 sequence 的轉移表保護——是繞過不是修好。
+* **驗證方法**：
+  ```bash
+  P=$(wf-state.sh init)                                    # sequence, stage 0a
+  wf-state.sh promote "$P" --branch feat/x --dest wt/.claude/workflow-state
+  WT=wt/.claude/workflow-state/feat-x.json
+  wf-state.sh stage-done "$WT" 1                           # 修復前：被拒；修復後：通過
+  ```
