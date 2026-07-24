@@ -18,6 +18,7 @@ import '../observers/navigator_observer.dart';
 import '../ui/dashboard/dashboard_modal.dart';
 import 'inspector_overlay_manager.dart';
 import 'inspector_registry.dart';
+import 'lifecycle_handler.dart';
 import 'uncaught_error_handler.dart';
 import '../version.dart';
 
@@ -65,10 +66,27 @@ class FlutterInspector {
   ///   per-instance, so creating multiple capture-enabled inspectors layers the
   ///   hooks and records the same error once per instance (host errors still
   ///   forward correctly — just duplicated logs).
-  /// - The hooks are not torn down: once attached they remain for the process
-  ///   lifetime ([detach] only removes the FAB overlay). The `_old*` handlers
+  /// - The error hooks are not torn down: once attached they remain for the
+  ///   process lifetime ([detach] does not restore them). The `_old*` handlers
   ///   are kept solely to chain to, not to restore.
   final bool captureUncaughtErrors;
+
+  /// Whether to record app lifecycle transitions (`resumed` / `inactive` /
+  /// `paused` / `detached` / `hidden`) as [LogLevel.info] log entries, so a
+  /// crash or a stalled request can be read against whether the app was in the
+  /// foreground at that moment.
+  ///
+  /// Defaults to `false` so the package registers no observer unless the host
+  /// opts in.
+  ///
+  /// Notes:
+  /// - Enable this on a single, app-wide inspector. Each enabled instance keeps
+  ///   its own observer and its own buffer, so multiple instances each record
+  ///   their own copy (correct per instance, just duplicated across them).
+  /// - Unlike the error hooks, this observer *is* torn down: [detach] removes
+  ///   it from [WidgetsBinding.instance]. Removing one observer from the
+  ///   binding's list cannot affect the host's own observers.
+  final bool captureLifecycleEvents;
 
   /// Whether to mask sensitive headers (e.g. `Authorization`, `Cookie`,
   /// `Set-Cookie`, `X-Api-Key`) in all share/export paths (cURL, plain text).
@@ -85,6 +103,7 @@ class FlutterInspector {
   final DiagnosticInfoSource? diagnosticInfoSource;
 
   late final UncaughtErrorHandler _uncaughtErrorHandler;
+  late final LifecycleHandler _lifecycleHandler;
   late final InspectorRegistry _registry;
   late final FlutterInspectorNavigatorObserver _navigatorObserver;
   late final OperationLogSource _operationLogSource;
@@ -134,6 +153,7 @@ class FlutterInspector {
     this.showNetworkNotification = false,
     this.navigatorKey,
     this.captureUncaughtErrors = false,
+    this.captureLifecycleEvents = false,
     this.redactSensitiveData = true,
     this.diagnosticInfoSource,
     int bufferSize = 500,
@@ -146,6 +166,8 @@ class FlutterInspector {
     _registry = InspectorRegistry(bufferSize: bufferSize);
     _uncaughtErrorHandler = UncaughtErrorHandler(onLog: log);
     if (captureUncaughtErrors) setupErrorHandlers();
+    _lifecycleHandler = LifecycleHandler(onLog: log);
+    if (captureLifecycleEvents) _lifecycleHandler.attach();
     _navigatorObserver = FlutterInspectorNavigatorObserver(this);
     _operationLogSource = OperationLogSource(_registry.database);
     if (databaseSources != null) {
@@ -187,9 +209,11 @@ class FlutterInspector {
     _overlayManager.attach(context: context, visible: visible);
   }
 
-  /// Removes the FAB overlay.
+  /// Removes the FAB overlay, and the lifecycle observer when
+  /// [captureLifecycleEvents] is enabled.
   void detach() {
     _overlayManager.detach();
+    _lifecycleHandler.detach();
   }
 
   /// Records a log message.
