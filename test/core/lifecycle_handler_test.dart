@@ -100,7 +100,7 @@ void main() {
     );
 
     expect(callCount, 1);
-    expect(h.detach, returnsNormally);
+    expect(() => h.detach(), returnsNormally);
   });
 
   test('not attached: state change produces no log', () {

@@ -412,7 +412,7 @@ Enable **lifecycle capture** to record every foreground/background transition as
 final inspector = FlutterInspector(captureLifecycleEvents: true);
 ```
 
-It is **disabled by default**, and `detach()` removes the observer again. Each transition (`resumed` / `inactive` / `paused` / `detached` / `hidden`) becomes one entry, which the merged Timeline interleaves with network, navigation and database events automatically.
+It is **disabled by default**, and `detach()` removes the observer again. Each transition (`resumed` / `inactive` / `paused` / `detached`, plus `hidden` on Flutter 3.13+) becomes one entry, which the merged Timeline interleaves with network, navigation and database events automatically.
 
 > The observer is registered with `WidgetsBinding.instance.addObserver`, which appends to a list — your app's own `WidgetsBindingObserver`s keep receiving their callbacks untouched.
 

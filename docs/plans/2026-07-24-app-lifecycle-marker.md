@@ -103,7 +103,7 @@ class LifecycleHandler with WidgetsBindingObserver {
 
 ### 3.2 `lib/src/core/flutter_inspector.dart`（修改）
 
-四處異動，全部在既有結構的對應位置：
+六處異動，全部在既有結構的對應位置：
 
 1. **import**：新增 `import 'lifecycle_handler.dart';`
 2. **公開欄位 + dartdoc**（緊接在 `captureUncaughtErrors` 欄位之後，L71 附近）：
@@ -150,13 +150,13 @@ void detach() {
 
 6. **`captureUncaughtErrors` dartdoc 修訂**（規格 (b) 要求）：L68-70 原句
 
-> `The hooks are not torn down: once attached they remain for the process lifetime ([detach] only removes the FAB overlay).`
+   > The hooks are not torn down: once attached they remain for the process lifetime ([detach] only removes the FAB overlay).
 
-改為：
+   改為：
 
-> `The error hooks are not torn down: once attached they remain for the process lifetime ([detach] does not restore them). The `_old*` handlers are kept solely to chain to, not to restore.`
+   > The error hooks are not torn down: once attached they remain for the process lifetime ([detach] does not restore them). The `_old*` handlers are kept solely to chain to, not to restore.
 
-**只改這句措辭**，不動同段其他內容。
+   **只改這句措辭**，不動同段其他內容。
 
 ---
 
@@ -169,7 +169,7 @@ void detach() {
 | 3 | `lib/src/core/lifecycle_handler.dart` | 新增 | 獨佔新檔 |
 | 4 | `lib/src/core/flutter_inspector.dart` | 修改 | 欄位區 L71/L87、建構式 L130-158、`detach()` L191-193、dartdoc L68-70 — **單一檔案，不可與任何其他任務並行寫入** |
 | 5 | `README.md` | 修改 | L390-399「Uncaught error capture (opt-in)」段落**之後**插入新小節 |
-| 6 | `CHANGELOG.md` | 修改 | 檔頭新增 `## 1.8.0` → `### Added` 條目 |
+| 6 | `CHANGELOG.md` | 修改 | 檔頭新增 `## Unreleased` → `### Added` 條目（版號留給 release 流程統一 bump 四處） |
 | 7 | `example/lib/main.dart` | 修改 | L18-27 建構式區塊 |
 
 `lib/src/core/uncaught_error_handler.dart` **不修改**（`LogCallback` 直接 import 重用）。
@@ -217,7 +217,7 @@ T7/T9 的 tearDown 統一呼叫 `inspector.detach()`，確保跨測試不殘留 
 | **T-2** | 寫 `test/core/flutter_inspector_lifecycle_test.dart`（T7–T9）。`captureLifecycleEvents` 參數尚不存在 → red | 3 個 test case 齊備 | **機械性** | 無。**可與 T-1 並行** |
 | **T-3** | 新增 `lib/src/core/lifecycle_handler.dart`，照 §3.1 實作 | `flutter test test/core/lifecycle_handler_test.dart` 全綠 | **機械性**（§3.1 已給完整結構） | 依賴 T-1 |
 | **T-4** | 修改 `lib/src/core/flutter_inspector.dart`：新參數、私有欄位、建構式接線、`detach()` 擴充、`captureUncaughtErrors` dartdoc 修訂（§3.2 六處） | `flutter test test/core/` 全綠；既有 `flutter_inspector` 相關測試不回歸 | **設計判斷**（動到公開 API 與 `detach()` 語意，需確認既有測試零回歸、dartdoc 措辭正確） | 依賴 T-2、T-3 |
-| **T-5** | 文件三處：`README.md` 新小節、`CHANGELOG.md` `## 1.8.0 → ### Added` 條目、`example/lib/main.dart` 加 `captureLifecycleEvents: true` 與說明註解 | 三處措辭與既有 opt-in 條目風格一致；example 可編譯 | **機械性** | 依賴 T-4（措辭需與最終 API 一致）。三處檔案彼此獨立，**內部可並行** |
+| **T-5** | 文件三處：`README.md` 新小節、`CHANGELOG.md` `## Unreleased → ### Added` 條目、`example/lib/main.dart` 加 `captureLifecycleEvents: true` 與說明註解 | 三處措辭與既有 opt-in 條目風格一致；example 可編譯 | **機械性** | 依賴 T-4（措辭需與最終 API 一致）。三處檔案彼此獨立，**內部可並行** |
 
 **並行示意**：`(T-1 ∥ T-2)` → `T-3` → `T-4` → `T-5(三檔並行)`
 
@@ -227,7 +227,7 @@ T7/T9 的 tearDown 統一呼叫 `inspector.detach()`，確保跨測試不殘留 
 
 **README.md**（L399 之後、該小節結尾處新增）：
 
-```markdown
+````markdown
 ### App lifecycle markers (opt-in)
 
 Enable **lifecycle capture** to record every foreground/background transition
@@ -239,18 +239,18 @@ final inspector = FlutterInspector(captureLifecycleEvents: true);
 ```
 
 It is **disabled by default**, and `detach()` removes the observer again.
-Each transition (`resumed` / `inactive` / `paused` / `detached` / `hidden`)
-becomes one entry, which the merged Timeline interleaves with network,
-navigation and database events automatically.
-```
+Each transition (`resumed` / `inactive` / `paused` / `detached`, plus `hidden`
+on Flutter 3.13+) becomes one entry, which the merged Timeline interleaves with
+network, navigation and database events automatically.
+````
 
 **CHANGELOG.md**（檔頭）：
 
 ```markdown
-## 1.8.0
+## Unreleased
 
 ### Added
-* **App lifecycle markers**: `FlutterInspector(captureLifecycleEvents: true)` records every app lifecycle transition (`resumed` / `inactive` / `paused` / `detached` / `hidden`) as an `info` Console log, so crashes and stalled network calls can be read against whether the app was in the foreground. Opt-in and disabled by default; `detach()` removes the observer.
+* **App lifecycle markers**: `FlutterInspector(captureLifecycleEvents: true)` records every app lifecycle transition (`resumed` / `inactive` / `paused` / `detached`, plus `hidden` on Flutter 3.13+) as an `info` Console log, so crashes and stalled network calls can be read against whether the app was in the foreground. Opt-in and disabled by default; `detach()` removes the observer.
 ```
 
 （若 release 流程另有版號規則，交由 releaser 調整標題，條目內容不變。）

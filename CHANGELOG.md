@@ -1,7 +1,7 @@
 ## Unreleased
 
 ### Added
-* **App lifecycle markers**: `FlutterInspector(captureLifecycleEvents: true)` records every app lifecycle transition (`resumed` / `inactive` / `paused` / `detached` / `hidden`) as an `info` Console log, so crashes and stalled network calls can be read against whether the app was in the foreground. Opt-in and disabled by default; `detach()` removes the observer.
+* **App lifecycle markers**: `FlutterInspector(captureLifecycleEvents: true)` records every app lifecycle transition (`resumed` / `inactive` / `paused` / `detached`, plus `hidden` on Flutter 3.13+) as an `info` Console log, so crashes and stalled network calls can be read against whether the app was in the foreground. Opt-in and disabled by default; `detach()` removes the observer.
 
 ## 1.7.1
 

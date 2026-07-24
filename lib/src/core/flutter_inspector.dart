@@ -72,14 +72,19 @@ class FlutterInspector {
   final bool captureUncaughtErrors;
 
   /// Whether to record app lifecycle transitions (`resumed` / `inactive` /
-  /// `paused` / `detached` / `hidden`) as [LogLevel.info] log entries, so a
-  /// crash or a stalled request can be read against whether the app was in the
-  /// foreground at that moment.
+  /// `paused` / `detached`, plus `hidden` on Flutter 3.13+) as [LogLevel.info]
+  /// log entries, so a crash or a stalled request can be read against whether
+  /// the app was in the foreground at that moment.
   ///
   /// Defaults to `false` so the package registers no observer unless the host
   /// opts in.
   ///
   /// Notes:
+  /// - When `true`, the inspector registers a [WidgetsBindingObserver] at
+  ///   construction time, so the binding must already exist — construct the
+  ///   inspector after `WidgetsFlutterBinding.ensureInitialized()` / `runApp`.
+  ///   (Any real app satisfies this; it is the same precondition the host
+  ///   already meets before calling `runApp`.)
   /// - Enable this on a single, app-wide inspector. Each enabled instance keeps
   ///   its own observer and its own buffer, so multiple instances each record
   ///   their own copy (correct per instance, just duplicated across them).
