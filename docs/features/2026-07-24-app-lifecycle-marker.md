@@ -68,11 +68,16 @@ reviewer 可逐條驗證：
 
 `captureUncaughtErrors` 的 dartdoc 中「hooks are not torn down（detach 只移除 FAB overlay）」這句敘述在本功能落地後會失準，需同步修訂為「error hooks 不 teardown」以免誤導——這是文件精確性問題，不是行為變更。
 
-### (c) log 的 `data` Map — **不帶額外欄位，純 message**
+### (c) log 的 `data` Map — **維持 `null`；top page 資訊放進 message，不放 `data`**
 
-`UncaughtErrorHandler` 帶 `data: {'source': ...}` 是因為它有**三個來源**（`flutterError` / `platformDispatcher` / `errorWidget`）需要區分，那是真實的資訊需求。
+`UncaughtErrorHandler` 帶 `data: {'source': ...}` 是因為它有**三個來源**（`flutterError` / `platformDispatcher` / `errorWidget`）需要區分，那是真實的資訊需求。lifecycle 沒有這種來源歧義，`{'source': 'lifecycle'}` 無消費者——不加，`data` 維持 `null`。
 
-lifecycle 只有一個來源，狀態名稱已經在 message 裡。加 `{'source': 'lifecycle'}` 是為不存在的消費者準備的欄位——沒有任何 UI 或篩選器讀它。YAGNI：不加。真的需要程式化篩選時，message 前綴 `App lifecycle:` 已足夠。
+**修訂（2026-07-25，回應使用者實際使用回饋）**：初版的「純狀態名 message」在真實使用中不夠——home/back 頻繁切換時 `resumed`/`paused` 每筆長得一樣，要知道「這次切換是在哪一頁」得跳去 Navigator tab 對時間戳。因此 message 尾巴附加**當前 top-most page**：`App lifecycle: resumed · HomePage (/home)`（`displayName` 優先 `widgetType` 型態、後接 `routeName`；無 routeName 時只顯示型態；堆疊推不出來時整段省略）。
+
+- **仍放 message、不放 `data`**：使用者要的是 Console 上肉眼一眼可辨，message 尾巴正好；`data` 維持 `null`，不為「未來可能的程式化篩選」預先開欄位（那才是 YAGNI）。
+- **來源是 best-effort 推導**：透過 `NavigatorStackResolver.resolve(navigatorEntries).first` 取得，這是純函式重播、會因 observer 掛載前導航 / buffer 淘汰 / nested Navigator 而失準。故推不出來時**明確省略尾巴**而非硬掰——不讓讀者把推導值當事實（這正是 §P2 被否決的核心教訓，此處用「省略而非猜測」避開同一個坑）。
+- **不帶 `arguments`**：可能含大量資料或 PII，塞進 lifecycle log 是噪音也是洩漏風險，只取型態 + path。
+- **耦合邊界**：`LifecycleHandler` 不持有 registry/resolver，只收一個 `String? Function()? topPageLabel` callback；resolve 邏輯留在 `FlutterInspector._currentTopPageLabel()`。handler 仍是「症狀記錄器」，不知道那個字串怎麼來的。
 
 ### (d) 多實例情境 — **不做去重，文件說明**
 

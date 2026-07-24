@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
+import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
+import 'package:flutter_inspector_kit/src/models/navigator_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -56,5 +58,36 @@ void main() {
       AppLifecycleState.paused,
     );
     expect(inspector.logEntries, hasLength(1));
+  });
+
+  test('lifecycle log names the current top page from the nav stack', () {
+    final inspector = FlutterInspector(captureLifecycleEvents: true);
+    currentInspector = inspector;
+
+    // 推一筆 push 進 navigator buffer，讓 resolver 有 top page 可推導。
+    inspector.registry.navigator.add(
+      NavigatorEntry(action: NavigatorAction.push, routeName: '/home'),
+    );
+
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.paused,
+    );
+
+    // routeName 有值 → message 尾巴帶 (routeName)；此 entry 無 widgetType，
+    // displayName 退回 routeName，故格式為 "/home (/home)"。
+    expect(inspector.logEntries.single.message, contains('paused'));
+    expect(inspector.logEntries.single.message, contains('/home'));
+  });
+
+  test('empty nav stack yields a bare lifecycle message', () {
+    final inspector = FlutterInspector(captureLifecycleEvents: true);
+    currentInspector = inspector;
+
+    // 未推任何 navigator 事件 → resolver 回空 → 不加尾巴。
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+
+    expect(inspector.logEntries.single.message, 'App lifecycle: resumed');
   });
 }

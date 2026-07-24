@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 
 import '../inspectors/log_inspector.dart';
 import '../inspectors/navigator_inspector.dart';
+import '../inspectors/navigator_stack_resolver.dart';
 import '../models/database_browser_source.dart';
 import '../models/database_entry.dart';
 import '../models/database_operation.dart';
@@ -75,6 +76,12 @@ class FlutterInspector {
   /// `paused` / `detached`, plus `hidden` on Flutter 3.13+) as [LogLevel.info]
   /// log entries, so a crash or a stalled request can be read against whether
   /// the app was in the foreground at that moment.
+  ///
+  /// Each entry names the current top-most page so repeated home/back switches
+  /// stay distinguishable without cross-referencing the Navigator tab, e.g.
+  /// `App lifecycle: resumed · HomePage (/home)`. The page is a best-effort
+  /// replay of the navigation history; when it cannot be resolved the suffix is
+  /// simply omitted.
   ///
   /// Defaults to `false` so the package registers no observer unless the host
   /// opts in.
@@ -171,7 +178,10 @@ class FlutterInspector {
     _registry = InspectorRegistry(bufferSize: bufferSize);
     _uncaughtErrorHandler = UncaughtErrorHandler(onLog: log);
     if (captureUncaughtErrors) setupErrorHandlers();
-    _lifecycleHandler = LifecycleHandler(onLog: log);
+    _lifecycleHandler = LifecycleHandler(
+      onLog: log,
+      topPageLabel: _currentTopPageLabel,
+    );
     if (captureLifecycleEvents) _lifecycleHandler.attach();
     _navigatorObserver = FlutterInspectorNavigatorObserver(this);
     _operationLogSource = OperationLogSource(_registry.database);
@@ -286,6 +296,21 @@ class FlutterInspector {
       TimelineSource.db,
     },
   }) => _registry.mergedTimeline(sources: sources);
+
+  /// Best-effort label for the current top-most page, for the lifecycle log
+  /// suffix. Replays [navigatorEntries] and formats the top route as
+  /// `displayName (routeName)`, dropping the `(routeName)` part when the route
+  /// has no name. Returns `null` when the stack cannot be resolved (empty
+  /// history), so the caller omits the suffix rather than inventing one.
+  String? _currentTopPageLabel() {
+    final stack = NavigatorStackResolver().resolve(navigatorEntries);
+    if (stack.isEmpty) return null;
+    final top = stack.first;
+    final route = top.routeName;
+    return (route == null || route.isEmpty)
+        ? top.displayName
+        : '${top.displayName} ($route)';
+  }
 
   /// Opens the full-screen dashboard modal.
   ///

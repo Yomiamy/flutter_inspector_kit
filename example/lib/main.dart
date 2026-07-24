@@ -25,8 +25,9 @@ void main() {
     // involved, so there is no Zone mismatch to worry about.
     captureUncaughtErrors: true,
     // Record app foreground/background transitions as info logs (opt-in).
-    // Handy when reading the Console timeline: the nearest lifecycle entry
-    // above a crash tells you whether the app was in the foreground.
+    // Each entry names the current top page (e.g. "resumed · HomePage"), so
+    // the nearest lifecycle entry above a crash tells you both whether the app
+    // was in the foreground and which page it was on.
     captureLifecycleEvents: true,
   );
   runApp(const MyApp());

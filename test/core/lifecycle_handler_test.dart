@@ -145,6 +145,70 @@ void main() {
     );
     expect(hostCalled, isTrue);
   });
+
+  test('topPageLabel: non-empty label is appended after " · "', () {
+    String? lastMessage;
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        lastMessage = message;
+      },
+      topPageLabel: () => 'HomePage (/home)',
+    );
+    handler = h;
+    h.attach();
+
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+
+    expect(lastMessage, 'App lifecycle: resumed · HomePage (/home)');
+  });
+
+  test('topPageLabel: null and empty both omit the suffix', () {
+    final messages = <String>[];
+    final labels = <String?>['', null];
+    var i = 0;
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        messages.add(message);
+      },
+      topPageLabel: () => labels[i++],
+    );
+    handler = h;
+    h.attach();
+
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.paused,
+    );
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+
+    // 空字串與 null 都不加 " · " 尾巴，退回純狀態訊息。
+    expect(messages, ['App lifecycle: paused', 'App lifecycle: resumed']);
+  });
+
+  test('topPageLabel: a throwing supplier is caught, does not propagate', () {
+    var logged = false;
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        logged = true;
+      },
+      topPageLabel: () => throw StateError('resolve failed'),
+    );
+    handler = h;
+    h.attach();
+
+    expect(
+      () => WidgetsBinding.instance.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+      returnsNormally,
+    );
+    // supplier 拋錯落入既有 try-catch，該次 log 被吞（與 onLog 拋錯同路徑），
+    // 但不向宿主傳播。
+    expect(logged, isFalse);
+  });
 }
 
 /// Minimal host observer, proving [LifecycleHandler] never crowds out the

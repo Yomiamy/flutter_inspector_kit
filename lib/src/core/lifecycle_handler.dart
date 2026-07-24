@@ -12,10 +12,19 @@ class LifecycleHandler with WidgetsBindingObserver {
   /// The function called to log a lifecycle transition.
   final LogCallback onLog;
 
+  /// Optional supplier of a label for the current top-most page, appended to
+  /// the log message so a background/foreground switch reads as the page it
+  /// happened on (e.g. `App lifecycle: resumed · HomePage (/home)`).
+  ///
+  /// Returns `null` when the top page cannot be resolved (empty history, or a
+  /// best-effort replay that came up empty); the message then omits the suffix
+  /// rather than inventing one.
+  final String? Function()? topPageLabel;
+
   bool _attached = false;
 
   /// Creates a new LifecycleHandler instance.
-  LifecycleHandler({required this.onLog});
+  LifecycleHandler({required this.onLog, this.topPageLabel});
 
   /// Registers this handler as a [WidgetsBindingObserver].
   ///
@@ -39,7 +48,9 @@ class LifecycleHandler with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     try {
-      onLog('App lifecycle: ${state.name}', level: LogLevel.info);
+      final page = topPageLabel?.call();
+      final suffix = (page == null || page.isEmpty) ? '' : ' · $page';
+      onLog('App lifecycle: ${state.name}$suffix', level: LogLevel.info);
     } catch (e, s) {
       debugPrintStack(
         stackTrace: s,
