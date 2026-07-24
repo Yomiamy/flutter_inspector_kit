@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24 **實作路徑重排為「鏈推斷優先」**——原 Phase Plan 以「先滅紅燈」把 §D1 ConsoleTab 搜尋/過濾排最高優先，重新檢視後判定該紅燈紅在「功能對稱性」而非「排查能力」：過濾是**點查詢**（已知道要找什麼），排查要的是**鏈推斷**（不知道要找什麼），且過濾會**切斷因果鏈**。新排序原則為「往時間軸加資訊 → 標記已有資訊 → 檢索 → 打磨」，§P13 升為第一順位，§D1 降至 Tier 3 並與 §P5 合併，§P14 降級不單獨排程，**§P2 錯誤上下文快照整項否決**（快照的事件本就在 timeline 上、推導堆疊會失準卻被當事實、預先挑維度違背「錯誤常是綜合因素」——與 §D3 同病）。同時修正三處與 codebase 不符的估計（`InspectorSearchBar` 實為私有 `_SearchBar`、`entriesAtLevel()` 接不上混合流、`NavigatorStackResolver.currentStack` 不存在）。詳見文末「下一步實作路徑」。｜**前次更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -233,7 +233,21 @@
 - 搜尋 + 來源過濾 + LogLevel 過濾三者正交疊加
 - 建立 `ConsoleFilter` + `applyConsoleFilter()` 純函式（鏡射 `NetworkFilter` / `applyNetworkFilter()`）
 - **影響範圍**：`lib/src/ui/dashboard/tabs/console_tab.dart`（主改）、可選新增 `lib/src/utils/console_utils.dart`（過濾邏輯）
-- **Effort**：low–medium ｜ **排查價值**：⭐⭐⭐⭐⭐
+- **Effort**：low–medium ｜ **排查價值**：~~⭐⭐⭐⭐⭐~~ → **⭐⭐⭐（降級，見下）**
+
+> **⚠️ 重新定性（2026-07-24 · 查核 `network_tab.dart` 實作後）**
+>
+> **① 搜尋語意＝過濾，不是捲動**。既有 `NetworkTab` 的 `build()` 把 `applyNetworkFilter()` 結果直接餵 `ListView.builder`，不匹配的 entry 根本不建立，空了顯示 `'No matches'`，全程無 `ScrollController`。ConsoleTab 應沿用過濾語意——捲動語意在此會壞掉：Console 是**持續有新事件湧入**的混合流，捲到第 300 筆後新事件進來會把目標推走，要修就得引入「錨定 entry identity + 重算 index」的捲動狀態管理，為一個搜尋框長出一套機制。
+>
+> **② 但過濾對「因果推斷」有本質缺陷**。搜「timeout」剩 3 筆 error，而前後的 API 呼叫與路由跳轉**全被濾掉**——排查要的不是「這筆 error 長什麼樣」，是「為什麼走到這裡」。過濾是**點查詢**（你已知道要找什麼），排查是**鏈推斷**（你不知道要找什麼）。更根本的問題是搜尋要求你**先知道關鍵字**，而難查的 bug 恰恰是不知道該搜什麼的那種。本節原標為 🔴 紅燈，實際上紅在「ConsoleTab 缺 NetworkTab 有的東西」的**功能對稱性**，不是**排查能力**——兩者被混為一談。
+>
+> **③ 修正方向：與 §P5 合併**。過濾完要能跳回完整脈絡——搜到 3 筆後點其中一筆 → **清掉過濾 + Timeline 捲到該位置**，站回完整時間軸看前後。這是 §D1 的過濾 + §P5 的 `ScrollController.animateTo` 兩個零件的組合，不需第三個機制；也正好是 §D3 ±5s 側欄想解決卻解錯的問題（側欄的錯在「固定窗 + 另開列表」，跳回主軸讓使用者自己決定往前看多遠）。**§D1 與 §P5 應合併為一項排程**，不該分居 Phase 1 與 Phase 4。
+>
+> **④ 上表兩處「已存在」的估計不準確**：
+> - `InspectorSearchBar` **查無此符號**；`network_tab.dart` 內是**私有的 `_SearchBar`**，需先提取為共用元件或複製一份
+> - `entriesAtLevel()` 回傳 `List<LogEntry>`，而 ConsoleTab 渲染的是 `mergedTimeline` 的**四源混合流**（log/network/nav/db）——**接不上**，需另寫吃 `List<TimestampedEntry>` 的過濾函式
+>
+> 故此項非「接線」等級，是「照 `applyNetworkFilter` 模式新寫 `applyConsoleFilter` + 提取搜尋元件」。仍在 low–med，但沒有原文暗示的那麼便宜。
 
 ### §D2. 未捕捉例外去重修復（#1 殘留缺陷）— ✅ 已完成（PR #96 · 2026-07-24）
 
@@ -292,9 +306,21 @@
 * **品味守則**：告警是**讀取既有 buffer 的衍生狀態**，不引入第二份計數器。用 `AlertThrottler` 防止 banner 本身的爆發（該節流器已存在於通知模組，直接複用）。
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐⭐⭐
 
-### §P2. 錯誤上下文快照（Error Context Snapshot）— 🆕
+### ~~§P2. 錯誤上下文快照（Error Context Snapshot）~~ — ❌ 已否決（2026-07-24）
 
-> **痛點**：error log 或 network failure 發生時，有些**瞬態上下文**事後無法還原——「當時的路由堆疊是什麼」、「最後成功的 API 是哪個」。
+> **否決理由（2026-07-24 · 三個鐵律問題重新檢視）**：
+>
+> **1. 這是真實問題還是腦補？** 原痛點寫「瞬態上下文事後無法還原」——**這個前提不成立**。導航事件、網路事件本來就都在各自的 `RingBuffer` 裡，`mergedTimeline()` 已按時序把四源交錯排好。要看 error 前發生了什麼，Console tab 往上滑就是了。快照做的事是「把已經在 timeline 上的東西複製一份釘到 error 旁邊」，**省去對時間戳的便利，不是新資訊**。
+>
+> **2. 推導出來的東西不該當證據。** 原設計要快照 `NavigatorStackResolver` 推導的路由堆疊，但該 resolver 是**從觀察到的事件重放推導**的 best-effort 結果（原始碼註解自承），會因 `RingBuffer` 容量淘汰最早的 push、observer 掛載前的導航、nested Navigator 多樹混流、`_matches()` 只比對 routeName+widgetType 而失準。而報告裡一個標著「當時的路由堆疊」的欄位，讀者**會當成事實**。錯誤的證據比沒有證據更糟——會照著它推錯方向。
+>
+> **3. 最致命：它預設因果是單線的。** 快照挑「路由堆疊 + 最後成功的 API」兩個維度，等於預先假定「錯誤的原因就在這兩條線裡」。但真實錯誤往往是**綜合因素**——某個 API 回了非預期空值 ＋ 剛好切到背景 ＋ 前一次 db 寫入未完成。事先挑兩個維度釘上去，反而把注意力鎖死在那兩條線上，漏掉真正的交互作用。**這一點推翻的不是「挑錯維度」，是「挑維度」這件事本身**：完整時間軸不挑，它把所有維度攤平讓排查者自己判斷什麼相關——而那個東西已經存在。
+>
+> **與 §D3 同病**：兩者都想在 error 旁邊另闢一塊「相關資訊」，但「相關」只有排查的人邊看邊定義得出來，工具定義不了。§D3 用固定時間窗猜、§P2 用固定維度猜，都是猜。
+>
+> **結論**：移出所有 Phase / Tier，不排程。「error 缺乏上下文」的需求由既有 `mergedTimeline()` 覆蓋。下方原設計保留作決策紀錄。
+
+> **痛點（原文，保留作紀錄）**：error log 或 network failure 發生時，有些**瞬態上下文**事後無法還原——「當時的路由堆疊是什麼」、「最後成功的 API 是哪個」。
 
 * **設計**：
   - 每當捕捉到 error-level entry 時，自動快照 `NavigatorStackResolver.currentStack` 和最後一筆成功 `NetworkEntry`
@@ -303,7 +329,9 @@
   - `buildDiagnosticReport` 的 Timeline 條目自然會包含這些 data
 * **重用**：`NavigatorStackResolver`（已存在）、`LogEntry.data` Map（已定義）、`KeyValueTable`（已能渲染 Map）
 * **品味守則**：快照**讀取既有資料結構**（NavigatorEntry buffer + NetworkEntry buffer），不維護自己的狀態。限制快照頻率（如 debounce 500ms 或只在首次 error 時快照）防高頻 error 場景效能問題。
-* **Effort**：low ｜ **排查價值**：⭐⭐⭐⭐⭐
+* ~~**Effort**：low ｜ **排查價值**：⭐⭐⭐⭐⭐~~ → **不排程**，理由見本節開頭否決說明。
+
+> **附帶更正**：原文提到的 `NavigatorStackResolver.currentStack` **這個 API 不存在**——實際只有純函式 `resolve(List<NavigatorEntry> entries)`，不持有狀態、無快取、無 getter。此更正對其他章節仍有效（勿再引用該 API 名稱）。
 
 ### §P3. Timeline 書籤 / 標記（Bookmark / Pin）— 🆕
 
@@ -387,7 +415,7 @@
 |:---:|------|------|:---:|:---:|
 | **1** | ConsoleTab 搜尋 + LogLevel 過濾 | §D1（#5 缺口） | low–med | ⭐⭐⭐⭐⭐ |
 | **2** | 錯誤爆發偵測 + 視覺警報 | §P1 新提案 | low | ⭐⭐⭐⭐⭐ |
-| **3** | 錯誤上下文快照 | §P2 新提案 | low | ⭐⭐⭐⭐⭐ |
+| ~~3~~ | ~~錯誤上下文快照~~ — ❌ 已否決（2026-07-24，理由見 §P2） | §P2 新提案 | — | — |
 | ~~4~~ | 未捕捉例外去重修復 — ✅ 已完成（PR #96） | §D2（#1 缺陷） | low | ⭐⭐⭐⭐ |
 | ~~5~~ | ~~Detail View ±5s 同時段側欄~~ — ❌ 已否決（2026-07-24，理由見 §D3） | §D3（#2 做法 A） | med | — |
 | **6** | Timeline 書籤 / 標記 | §P3 新提案 | low | ⭐⭐⭐⭐ |
@@ -497,7 +525,15 @@
 * **品味守則**：跟 §1 一樣「chain 不覆蓋」——`WidgetsBindingObserver` 用 `add`/`remove` 註冊，不霸占宿主 app 唯一的 observer 名額（Flutter 允許多個 observer 並存，天生不衝突，不像 `FlutterError.onError` 需要手動 chain）。
 * **Effort**：low ｜**排查價值**：⭐⭐⭐⭐（崩潰報告新增一個免費維度，成本低價值不錯）
 
-### §P14. Breadcrumb 式自訂標記事件（`inspector.mark()`）— 🆕
+### §P14. Breadcrumb 式自訂標記事件（`inspector.mark()`）— ⚠️ 降級（2026-07-24）
+
+> **降級判斷（2026-07-24）**：`mark()` 與 `log()` **功能上沒有差別**——同一個 `LogEntry`、同一個 buffer、同一條 timeline、連 level 都是 info，差別只在 `data` 裡多一個固定 flag。它**沒有往時間軸加任何新資訊**：§P13 加的是「當時在前景還背景」這種原本拿不到的維度，`mark()` 加的只是「這筆 log 長得不一樣」——**是渲染差異，不是資訊差異**。
+>
+> 因此它不屬於「服務因果推斷」的那一批，應與 §P7 Error 高亮同列（標記已有資訊）。而且比 §P7 更弱：§P7 標的 error 是工具自己判斷得出來的，`mark()` 標的「這很重要」得靠人記得呼叫。
+>
+> **更關鍵**：為此新增一個公開 API 不划算。公開 API 有維護、文件、breaking change 成本，而想要的效果（timeline 上顯眼）有兩個更便宜的達成方式：① 約定 `log('📍 CHECKOUT_START')`，**零程式碼、現在就能用**；② §P7 高亮機制做完後，讓它一併認 `data` 裡的任意 flag。這與 anti-feature #6「為不存在的區別打補丁」是同一個毛病的輕量版。
+>
+> **結論**：移出優先序列，**與 §P7 綁定或直接被 emoji 約定取代**。若 §P7 完成後覺得約定夠用，本項永不需實作。下方原設計保留作紀錄。
 
 > **痛點**：開發者常常想在「關鍵業務流程節點」主動留一個標記（如「進入結帳流程」「使用者按下送出」），現在只能用 `inspector.log()` 硬湊，跟一般 info log 混在一起，排查時不容易在 Timeline 裡一眼認出「這是我特意標的節點」還是「隨手印的訊息」。
 
@@ -517,10 +553,10 @@
 
 | 優先序 | 項目 | Effort | 排查價值 | 備註 |
 |:---:|------|:---:|:---:|------|
-| **1** | §P13 App 前景/背景切換標記 | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高 |
-| **2** | §P14 Breadcrumb 標記 `inspector.mark()` | trivial | ⭐⭐⭐ | 體驗改善，可與 §P7 高亮機制一併排程 |
-| **3** | §P10 Rebuild 異常偵測 | low（但需使用者接線） | ⭐⭐⭐ | 受眾較窄，opt-in per-widget 而非 app 層級 |
-| **4** | §P11 NetworkNotifier 重構 | low | ⭐⭐⭐（解鎖 §P1） | 應與 §P1 綁定排程，不單獨動工 |
+| **1** | §P13 App 前景/背景切換標記 | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高；**唯一無隱藏成本的一項** |
+| **2** | §P10 Rebuild 異常偵測 | low（但需使用者接線） | ⭐⭐⭐ | 受眾較窄，opt-in per-widget 而非 app 層級 |
+| **3** | §P11 NetworkNotifier 重構 | low | ⭐⭐⭐（解鎖 §P1） | 應與 §P1 綁定排程，不單獨動工 |
+| — | ~~§P14 Breadcrumb 標記 `inspector.mark()`~~ | trivial | — | **降級不單獨排程**：與 `log()` 無功能差異，是渲染差異非資訊差異；與 §P7 綁定或直接用 emoji 約定取代（見 §P14） |
 | — | ~~§D5 Redaction 涵蓋缺口修復~~ | — | — | **不排程**：debug 工具應資訊越詳細越好，遮罩是排查絆腳石；既有實作保留不動（見 §D5） |
 | — | §P12 離線/斷網事件標記 | — | ⭐⭐ | **不建議做**：改寫入 README 作為整合食譜，避免新相依 |
 
@@ -561,54 +597,69 @@
 
 ---
 
-## 📅 下一步實作路徑（2026-07-23 更新 · 四階段 Phase Plan）
+## 📅 下一步實作路徑（2026-07-24 重排 · 鏈推斷優先）
 
-排序原則：**🔴 先滅紅燈 → 修 bug → 主動告警 → 深度排查 → 體驗打磨**。
+> **重排理由（2026-07-24）**：原四階段 Phase Plan 以「先滅紅燈」為排序原則，把 §D1 ConsoleTab 搜尋/過濾放在最高優先。重新檢視後判定這個定性有問題——
+>
+> **排查的核心動作是「鏈推斷」（不知道要找什麼，要看事情怎麼演變成這樣），不是「點查詢」（已知道要找什麼，把它撈出來）。** 過濾服務的是後者，而且它**主動切斷因果鏈**：搜到 3 筆 timeout，前後的 API 呼叫與路由跳轉全被濾掉。§D1 標的 🔴 紅燈紅在「ConsoleTab 缺 NetworkTab 有的東西」的**功能對稱性**，不是**排查能力**。
+>
+> 新排序原則：**往時間軸加資訊 → 標記已有資訊 → 檢索既有資訊 → 打磨**。判準是「這一項有沒有讓時間軸上出現原本拿不到的資訊」——有的優先，因為那才是推斷因果的原料。
 
-### Phase 1 · 排查紅燈滅火（最高優先）
+### Tier 1 · 往時間軸加資訊（真正服務因果推斷）
 
-| 項目 | 內容 | 寫入路徑 |
-|------|------|----------|
-| **§D1** ConsoleTab 搜尋/過濾 | 搜尋欄 + LogLevel FilterChip + errors-only 快捷 | `console_tab.dart` + 可選 `console_utils.dart` |
-| **§D2** 未捕捉例外去重 — ✅ 已完成 | object-identity 去重（PR #96，2026-07-24 合入 main） | `uncaught_error_handler.dart` |
+| 項目 | 內容 | 寫入路徑 | Effort |
+|------|------|----------|:---:|
+| **§P13** App 生命週期標記 | `WidgetsBindingObserver` → 各狀態轉一筆 info log | `flutter_inspector.dart` + 新 hook | low |
 
-> 消滅排查鏈上最後一個 🔴 紅燈 + 修復一個長期噪音 bug。**§D2 去重已由 PR #96 完成**，Phase 1 僅剩 §D1 ConsoleTab 搜尋/過濾。
+> **本層只剩一項**。判準是「有沒有讓時間軸出現原本拿不到的資訊」——§P13 補上的「當時 app 在前景還背景」現在完全無從得知，是真正的新維度，且無隱藏成本，**建議最先動工**。
+>
+> ~~§P2 錯誤上下文快照~~ 原列於本層，已於 2026-07-24 否決（見 §P2）：它快照的導航/網路事件**本來就在 timeline 上**，是把已有資訊換位置而非新增維度；且「挑兩個維度釘在 error 旁」預設了因果單線，與「錯誤常是綜合因素」的實情衝突。
 
-### Phase 2 · 主動告警 + 視覺強化
+### Tier 2 · 標記已有資訊（低成本、有感）
 
-| 項目 | 內容 | 寫入路徑 |
-|------|------|----------|
-| **§P1** 錯誤爆發偵測 | error 計數 + MaterialBanner 告警 | `flutter_inspector.dart` + `dashboard_modal.dart` |
-| **§P7** Error 高亮強化 | error 行淡紅底色 | `console_tab.dart` 的 `_LogEntryRow` / `_NetworkEntryRow` |
-| **§P6** Dashboard Badge | tab 的 error count badge | `dashboard_modal.dart` |
+| 項目 | 內容 | 寫入路徑 | Effort |
+|------|------|----------|:---:|
+| **§P7** Error 高亮強化 | error 行淡紅底色 | `console_tab.dart` 的 `_LogEntryRow` / `_NetworkEntryRow` | trivial |
+| **§P11 → §P1** 錯誤爆發偵測（**綁定**） | 先重構通知 channel，再接 error 計數 + 告警 | `network_notifier.dart` → `flutter_inspector.dart` + `dashboard_modal.dart` | low + low |
+| **§P6** Dashboard Badge | tab 的 error count badge | `dashboard_modal.dart` | low |
 
-> 從「被動翻找」升級為「主動告知」。三項皆 effort=low/trivial，可一次釋出。
+> §P7 成本是 §D1 的十分之一，卻解決了「肉眼掃」的一半問題——error 自己從滾動列表跳出來，建議優先。**§P11 必須排在 §P1 之前**，否則會被迫在 `NetworkNotifier` 內長 if/else 區分「網路摘要」與「錯誤爆發」兩種通知語意。§P14 若要做，併入 §P7 的高亮機制，不單獨排程。
 
-### Phase 3 · 深度排查
+### Tier 3 · 檢索既有資訊（原 Phase 1，已降級）
 
-| 項目 | 內容 | 寫入路徑 |
-|------|------|----------|
-| **§P2** 錯誤上下文快照 | error 時自動快照路由堆疊 + 最後成功 API | `uncaught_error_handler.dart` + `flutter_inspector.dart` |
-| **§P3** Timeline 書籤 | 長按標記 + bookmark-only 過濾 + 報告前綴 | `console_tab.dart` + `diagnostic_report.dart` |
+| 項目 | 內容 | 寫入路徑 | Effort |
+|------|------|----------|:---:|
+| **§D1 + §P5**（**合併**） | 過濾 + 點擊清過濾並捲回主時間軸 | `console_tab.dart` + 可選 `console_utils.dart` | med |
+| **§P3** Timeline 書籤 | 長按標記 + bookmark-only 過濾 + 報告前綴 | `console_tab.dart` + `diagnostic_report.dart` | low |
 
-> ~~§D3 ±5s 同時段側欄~~ 已於 2026-07-24 否決（固定時間窗與「找因果」目標不匹配，見 §D3 詳細理由）；該需求由 §P2 錯誤上下文快照取代。
+> **§D1 與 §P5 應合併為一項**，不該分居原 Phase 1 與 Phase 4：單獨的過濾切斷前後文，單獨的 §P5 只能跳最新 error；合起來才完整——搜到 → 點擊 → 清過濾並捲到該位置 → 站回完整時間軸看前後。這也是 §D3 ±5s 側欄想解決卻解錯的問題（見 §D1 重新定性 ③）。
+>
+> ~~§D3 ±5s 同時段側欄~~ 已於 2026-07-24 否決（見 §D3）。**注意**：§D3 原記「由 §P2 錯誤上下文快照取代」，但 §P2 隨後亦被否決——兩者同病（都想在 error 旁另闢一塊「相關資訊」，一個用固定時間窗猜、一個用固定維度猜）。該需求的實際覆蓋者是**既有的 `mergedTimeline()`**：完整時間軸不預先挑什麼相關，把所有維度攤平讓排查者自己判斷。
 
-> 提供「為什麼出錯」的深度線索。需 Phase 1 的搜尋/過濾基建先完成。
-
-### Phase 4 · 體驗打磨（依回饋排程）
+### Tier 4 · 打磨（依回饋排程，寫入路徑互不重疊）
 
 | 項目 | 內容 |
 |------|------|
 | **§P4** 快速複製 Diagnostic Snippet | NetworkDetailView 一鍵 cURL + error payload |
-| **§P5** Jump to Latest Error FAB | ConsoleTab 浮動按鈕跳轉最新 error |
+| **§D4** DatabaseTab 搜尋/過濾 | 搜尋 + operation FilterChip |
+| **§P10** Rebuild 異常偵測 | 全清單唯一需逐 widget 接線，非 app 層級 flag |
 | **§P8** 慢請求標記 | NetworkTab 的 duration 閾值 + 🐢 標記 |
 | **§P9** Diagnostic Report JSON | 結構化 JSON 匯出格式 |
-| **§D4** DatabaseTab 搜尋/過濾 | 搜尋 + operation FilterChip |
 
-> 每一項都是獨立增量，且彼此寫入路徑不重疊，適合並行推進。
+### 不排程
+
+| 項目 | 理由 |
+|------|------|
+| ~~§D5 Redaction 涵蓋缺口~~ | debug 工具應以資訊完整為先，遮罩是排查絆腳石；既有實作保留原樣 |
+| ~~§P2 錯誤上下文快照~~ | 快照的事件本來就在 timeline 上（換位置非新增維度）；推導堆疊會失準卻被當事實；**預先挑兩個維度違背「錯誤常是綜合因素」**——需求由 `mergedTimeline()` 覆蓋 |
+| ~~§P14 `inspector.mark()`~~ | 與 `log()` 無功能差異，是渲染差異非資訊差異；併入 §P7 或用 emoji 約定取代 |
+| ~~§P12 離線/斷網標記~~ | 需 `connectivity_plus` 新相依，`DioExceptionType.connectionError` 已覆蓋多數情境；改寫 README 食譜 |
+| ~~§D3 ±5s 側欄~~ | 固定時間窗與「找因果」目標不匹配，由 §P2 取代 |
 
 ---
 
-> **收尾建議（2026-07-24 更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成，#1 去重已由 PR #96 修復）。**Phase 1 僅剩 §D1 ConsoleTab 搜尋/過濾紅燈**（去重 bug §D2 已完成），預估 effort=low–medium。Phase 2–4 依實際回饋與優先級排程。全部 13 項的設計都遵循「重用既有零件」原則——零新相依、零新模型，只是把已經存在的資料用更聰明的方式呈現。
-
-> 每一階段都是獨立可上線的增量，且彼此寫入路徑不重疊（§D1 動 console_tab、§D2 動 uncaught_error_handler、§P1 動 flutter_inspector + dashboard、§P2 動 uncaught_error_handler + flutter_inspector），適合並行推進。
+> **收尾建議（2026-07-24 重排版）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**下一步建議從 §P13 動工**——經本輪檢驗後，它是 Tier 1 唯一存活的項目：真正往 timeline 加上原本拿不到的維度，且無隱藏成本。原被列為最高優先的 §D1 已降級至 Tier 3 並與 §P5 合併，§P2 則整項否決，理由見各節。
+>
+> **本輪的一條共通判準**（§D3 / §P2 均據此否決）：**不要替排查者預先決定「什麼跟這個錯誤相關」**。固定時間窗（§D3）、固定維度（§P2）都是工具在猜，而真實錯誤常是綜合因素——完整時間軸把所有維度攤平、由人邊看邊判斷，才是對的形狀。凡是提案想在 error 旁另闢一塊「相關資訊」的，先用這條判準檢驗。
+>
+> **本次重排同時修正了三處與實際 codebase 不符的估計**：§D1 的 `InspectorSearchBar`（實為私有 `_SearchBar`）與 `entriesAtLevel()`（回傳型別接不上混合流）、§P2 的 `NavigatorStackResolver.currentStack`（不存在）。文件其餘「重用既有零件」的宣稱建議在動工前逐項實查，勿直接採信。
