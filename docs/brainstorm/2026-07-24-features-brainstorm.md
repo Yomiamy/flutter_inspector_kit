@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -414,15 +414,19 @@
 | Rebuild/build 耗時 hook | 全 repo `debugPrintRebuildDirtyWidgets`/`Timeline.startSync`/`SchedulerBinding` **零命中** | rebuild 類提案完全是新建，非移植既有 hook |
 | `NetworkNotifier`/`AlertThrottler` | 目前綁死「單一持續更新通知」；`AlertThrottler` 本身通用但只被 `NetworkNotifier` 私有持有，非共用單例 | §P1 錯誤告警要用系統通知，得先做 §P13 的重構才能複用節流邏輯 |
 | `LogEntry.data`/`NetworkEntry` 欄位 | `data: Map<String,dynamic>?` 已存在；`NetworkEntry` **無**連線狀態欄位 | 上下文快照類提案（如 §P2）可直接塞 `data`，零 schema 變更；連線狀態則要新欄位 |
-| redaction pipeline | 只作用於 `NetworkTab`/`NetworkDetailView`/匯出格式化；`LogEntry.data`、`DatabaseEntry`、`NavigatorEntry`、`dio_interceptor` 存入 buffer 的原始資料**完全未遮罩**；`log_detail_view.dart` 拿到 `redactSensitiveData` flag 但內部從未使用 | 見 §D5，是既有缺陷非新提案 |
+| redaction pipeline | 只作用於 `NetworkTab`/`NetworkDetailView`/匯出格式化；`LogEntry.data`、`DatabaseEntry`、`NavigatorEntry`、`dio_interceptor` 存入 buffer 的原始資料**完全未遮罩**；`log_detail_view.dart` 拿到 `redactSensitiveData` flag 但內部從未使用 | 見 §D5——查核屬實，但**已決定不排程修復**（debug 工具以資訊完整為先），既有實作保留不動 |
 | App 生命週期 hook | `AppLifecycleState`/`WidgetsBindingObserver` **零命中** | §P14 是全新地基，非移植 |
 | pubspec 相依 | 無 `connectivity_plus`/`battery_plus`/`device_info_plus` | §P12 需要新相依，非「已在相依」的低成本項 |
 
-### §D5. Redaction 涵蓋缺口（既有缺陷，非新功能）— 🔴 建議獨立開 issue
+### ~~§D5. Redaction 涵蓋缺口（既有缺陷，非新功能）~~ — ❌ 不排程（2026-07-24）
 
-> 這不是功能提案，是**査核時發現的既有安全性缺陷**，附在此處以免被淹沒在功能清單裡。
+> **決策（2026-07-24）**：查核所述的涵蓋缺口屬實，但**不排入開發**。既有 redaction 實作**保留原樣、不動**，本節保留作為查核紀錄。
+>
+> **理由**：`flutter_inspector_kit` 是 debug 工具，使用者是在自己的 debug build 裡看自己的資料——**除錯時資訊越詳細越好**。遮罩 header、遮罩 `LogEntry.data`，只會變成排查的絆腳石：想複製一段 curl 重現問題，結果 `Authorization` 是 `***`，還得回頭翻程式碼撈真值。這是為了「理論上的安全」增加真實的排查摩擦，與本文件「解決真實問題，不解決臆想威脅」的一貫判準相違。
+>
+> 因此「補齊涵蓋範圍」的方向被否決；既有的 `redactSensitiveData` 與 `redactHeaders()` 維持現狀（不擴大、也不移除），下方現況盤點與修復方向僅供未來若有需求時參考。
 
-**現況**：`redactSensitiveData`（`FlutterInspector` 建構參數，預設 `true`）目前的涵蓋範圍：
+**現況（保留作查核紀錄）**：`redactSensitiveData`（`FlutterInspector` 建構參數，預設 `true`）目前的涵蓋範圍：
 
 - ✅ `NetworkTab`、`NetworkDetailView`、`network_formatters.dart`（curl / 純文字匯出）：header 經 `redactHeaders()` 遮罩 `authorization`/`cookie`/`set-cookie`/`x-api-key`
 - ❌ `LogEntry.data`：任何人透過 `inspector.log(data: {...})` 塞進去的 Map，原封不動存進 `RingBuffer`，UI 直接用 `KeyValueTable` 渲染，**無遮罩**
@@ -432,11 +436,13 @@
 
 **風險**：body 從未被 redaction 覆蓋（只有 header），且 `LogEntry.data` 若被用來記錄使用者輸入（表單欄位、token、PII）會完整落在 Console 明碼顯示，`redactSensitiveData: true` 給人的保護假象比實際涵蓋範圍大。
 
-**建議**：獨立開 bug issue（非功能 PR），修復方向兩選一：
-1. 補齊 `LogDetailView` 對 `redactSensitiveData` 的實際使用（最小修復，對齊「傳了就要用」）
-2. 若要根治，redaction 應移到 **entry 存入 buffer 前**而非顯示時現算——即在 `LogInspector.add()` / `DatabaseInspector.add()` 等入口統一過濾，讓「buffer 裡的資料本來就是安全的」，而非依賴每個 view 各自記得呼叫
+**~~建議~~（已否決，保留作紀錄）**：原提議獨立開 bug issue，修復方向兩選一：
+1. ~~補齊 `LogDetailView` 對 `redactSensitiveData` 的實際使用（最小修復，對齊「傳了就要用」）~~
+2. ~~若要根治，redaction 應移到 **entry 存入 buffer 前**而非顯示時現算——即在 `LogInspector.add()` / `DatabaseInspector.add()` 等入口統一過濾，讓「buffer 裡的資料本來就是安全的」，而非依賴每個 view 各自記得呼叫~~
 
-* **Effort**：low（方案 1）/ medium（方案 2，牽動四個 inspector 的 add 入口）｜**風險等級**：🔴（安全性缺陷，非排查功能缺口）
+* ~~**Effort**：low（方案 1）/ medium（方案 2，牽動四個 inspector 的 add 入口）｜**風險等級**：🔴~~ → **不排程**，理由見本節開頭決策說明。
+
+> **殘留待議（不阻塞、非本次範圍）**：`log_detail_view.dart` 收下 `redactSensitiveData` flag 卻從未讀取，屬「接了線但斷路」的死參數。與遮不遮罩的取捨無關，純粹是程式碼整潔問題——未來若順手可移除該參數傳遞，但**不因此排程任何工作**。
 
 ### §P10. Rebuild 異常偵測（Excessive Rebuild Guard）— 🆕 需使用者接線
 
@@ -511,11 +517,11 @@
 
 | 優先序 | 項目 | Effort | 排查價值 | 備註 |
 |:---:|------|:---:|:---:|------|
-| **1** | §D5 Redaction 涵蓋缺口修復 | low–med | 🔴安全性 | 建議獨立開 bug issue，優先級高於功能提案 |
-| **2** | §P13 App 前景/背景切換標記 | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高 |
-| **3** | §P14 Breadcrumb 標記 `inspector.mark()` | trivial | ⭐⭐⭐ | 體驗改善，可與 §P7 高亮機制一併排程 |
-| **4** | §P10 Rebuild 異常偵測 | low（但需使用者接線） | ⭐⭐⭐ | 受眾較窄，opt-in per-widget 而非 app 層級 |
-| **5** | §P11 NetworkNotifier 重構 | low | ⭐⭐⭐（解鎖 §P1） | 應與 §P1 綁定排程，不單獨動工 |
+| **1** | §P13 App 前景/背景切換標記 | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高 |
+| **2** | §P14 Breadcrumb 標記 `inspector.mark()` | trivial | ⭐⭐⭐ | 體驗改善，可與 §P7 高亮機制一併排程 |
+| **3** | §P10 Rebuild 異常偵測 | low（但需使用者接線） | ⭐⭐⭐ | 受眾較窄，opt-in per-widget 而非 app 層級 |
+| **4** | §P11 NetworkNotifier 重構 | low | ⭐⭐⭐（解鎖 §P1） | 應與 §P1 綁定排程，不單獨動工 |
+| — | ~~§D5 Redaction 涵蓋缺口修復~~ | — | — | **不排程**：debug 工具應資訊越詳細越好，遮罩是排查絆腳石；既有實作保留不動（見 §D5） |
 | — | §P12 離線/斷網事件標記 | — | ⭐⭐ | **不建議做**：改寫入 README 作為整合食譜，避免新相依 |
 
 ---
