@@ -404,6 +404,18 @@ This wires three standard Flutter hooks — `FlutterError.onError` (build/layout
 
 Captured errors appear as red logs in the **Console** tab. Tap any log that carries a stack trace or structured data to open a detail view with a copyable stack trace and the structured payload, plus copy/share actions.
 
+### App lifecycle markers (opt-in)
+
+Enable **lifecycle capture** to record every foreground/background transition as an `info`-level Console log, so a crash or a stalled request can be read against whether the app was in the foreground at that moment:
+
+```dart
+final inspector = FlutterInspector(captureLifecycleEvents: true);
+```
+
+It is **disabled by default**, and `detach()` removes the observer again. Each transition (`resumed` / `inactive` / `paused` / `detached` / `hidden`) becomes one entry, which the merged Timeline interleaves with network, navigation and database events automatically.
+
+> The observer is registered with `WidgetsBinding.instance.addObserver`, which appends to a list — your app's own `WidgetsBindingObserver`s keep receiving their callbacks untouched.
+
 ### Track navigation
 
 Nothing to do here — routes are tracked automatically once you register `inspector.navigatorObserver` in `navigatorObservers` (see [Initialize](#initialize)). Pushes, pops, and replacements all show up in the Navigator tab.

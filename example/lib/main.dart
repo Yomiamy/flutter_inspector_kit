@@ -24,6 +24,10 @@ void main() {
     // together cover framework, asynchronous and build-time errors. No zone is
     // involved, so there is no Zone mismatch to worry about.
     captureUncaughtErrors: true,
+    // Record app foreground/background transitions as info logs (opt-in).
+    // Handy when reading the Console timeline: the nearest lifecycle entry
+    // above a crash tells you whether the app was in the foreground.
+    captureLifecycleEvents: true,
   );
   runApp(const MyApp());
 }
