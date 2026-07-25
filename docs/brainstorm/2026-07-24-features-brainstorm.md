@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-24 **實作路徑重排為「鏈推斷優先」**——原 Phase Plan 以「先滅紅燈」把 §D1 ConsoleTab 搜尋/過濾排最高優先，重新檢視後判定該紅燈紅在「功能對稱性」而非「排查能力」：過濾是**點查詢**（已知道要找什麼），排查要的是**鏈推斷**（不知道要找什麼），且過濾會**切斷因果鏈**。新排序原則為「往時間軸加資訊 → 標記已有資訊 → 檢索 → 打磨」，§P13 升為第一順位，§D1 降至 Tier 3 並與 §P5 合併，§P14 降級不單獨排程，**§P2 錯誤上下文快照整項否決**（快照的事件本就在 timeline 上、推導堆疊會失準卻被當事實、預先挑維度違背「錯誤常是綜合因素」——與 §D3 同病）。同時修正三處與 codebase 不符的估計（`InspectorSearchBar` 實為私有 `_SearchBar`、`entriesAtLevel()` 接不上混合流、`NavigatorStackResolver.currentStack` 不存在）。詳見文末「下一步實作路徑」。｜**前次更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-25 **§P13 App 生命週期標記完成**——PR #100 合入 main（merge `c616482`），新增 `LifecycleHandler` + `captureLifecycleEvents`（default off）把前景/背景切換轉成 `LogLevel.info` log，並在 message 尾巴附加當前 top-most page（型態 + path，解 home/back 洗頻）。`detach()` 一併 teardown observer（不沿用 error hooks 的不 teardown 慣例）。Tier 1 清空，下一步進 Tier 2（§P7 或 §P11→§P1）。｜**前次更新**：2026-07-24 **實作路徑重排為「鏈推斷優先」**——原 Phase Plan 以「先滅紅燈」把 §D1 ConsoleTab 搜尋/過濾排最高優先，重新檢視後判定該紅燈紅在「功能對稱性」而非「排查能力」：過濾是**點查詢**（已知道要找什麼），排查要的是**鏈推斷**（不知道要找什麼），且過濾會**切斷因果鏈**。新排序原則為「往時間軸加資訊 → 標記已有資訊 → 檢索 → 打磨」，§P13 升為第一順位，§D1 降至 Tier 3 並與 §P5 合併，§P14 降級不單獨排程，**§P2 錯誤上下文快照整項否決**（快照的事件本就在 timeline 上、推導堆疊會失準卻被當事實、預先挑維度違背「錯誤常是綜合因素」——與 §D3 同病）。同時修正三處與 codebase 不符的估計（`InspectorSearchBar` 實為私有 `_SearchBar`、`entriesAtLevel()` 接不上混合流、`NavigatorStackResolver.currentStack` 不存在）。詳見文末「下一步實作路徑」。｜**前次更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -512,7 +512,7 @@
 * **Effort**：若做 low（單純轉發事件）；若走「文件化模式」則 trivial（只寫 README）｜**排查價值**：⭐⭐（多數場景已被 §4 覆蓋）
 * **建議**：不列入 Phase Plan，改為 README 補充一段「離線排查食譜」，成本最低且不违反零新相依守則。
 
-### §P13. App 前景/背景切換標記（Lifecycle Marker）— 🆕 需新 hook
+### §P13. App 前景/背景切換標記（Lifecycle Marker）— ✅ 已完成（PR #100 · 2026-07-24 合入 main，merge `c616482`）
 
 > **痛點**：崩潰或異常網路行為，若發生在 app 被切到背景的瞬間（iOS/Android 對背景 app 的資源限制、被系統 kill 前的緊急回收），這個「當下處於什麼生命週期狀態」的 context 現在完全沒被記錄——Sentry 等工具的 breadcrumb 預設就包含這個維度。
 
@@ -524,6 +524,11 @@
 * **重用**：`inspector.log()`、`mergedTimeline()`、`LogLevel.info`
 * **品味守則**：跟 §1 一樣「chain 不覆蓋」——`WidgetsBindingObserver` 用 `add`/`remove` 註冊，不霸占宿主 app 唯一的 observer 名額（Flutter 允許多個 observer 並存，天生不衝突，不像 `FlutterError.onError` 需要手動 chain）。
 * **Effort**：low ｜**排查價值**：⭐⭐⭐⭐（崩潰報告新增一個免費維度，成本低價值不錯）
+* **✅ 實作現況（PR #100 · v1.7.1 之後）**：新增 `LifecycleHandler`（`lib/src/core/lifecycle_handler.dart`，`with WidgetsBindingObserver`）+ `captureLifecycleEvents` 建構參數（default off）。與原構想的兩處**刻意深化**：
+  1. **`detach()` 一併移除 observer，不沿用 error hooks 的「不 teardown」**——這是實質差異：`FlutterError.onError` 是單一 slot（還原會幹掉宿主後裝的 handler），而 `WidgetsBindingObserver` 是一個 list，`removeObserver(this)` 只移除自己。能乾淨移除就該乾淨移除。
+  2. **message 尾巴附加當前 top-most page**（使用者實測回饋後追加）：`App lifecycle: resumed · HomePage (/home)`。home/back 頻繁切換時純狀態名會被洗頻，附上頁面才不用跳 Navigator tab 對時間戳。來源走既有 `NavigatorStackResolver.resolve(navigatorEntries).first`（純函式重播、零新資料管線），**推不出來時省略尾巴而非硬掰**——避免把 best-effort 推導值當事實（這正是 §P2 被否決的核心教訓，用「省略而非猜測」避開同一個坑）。只取型態 + path，不帶 `arguments`（PII/大量資料風險）。`data` 仍維持 `null`。
+  - **耦合邊界**：`LifecycleHandler` 只收 `String? Function()? topPageLabel` callback，不持有 registry/resolver；resolve 邏輯留在 `FlutterInspector._currentTopPageLabel()`。handler 仍是「症狀記錄器」。
+  - 完整設計判斷（`hidden` 納入、observer teardown、`data` map、top-page 追加）見 [`docs/features/2026-07-24-app-lifecycle-marker.md`](../features/2026-07-24-app-lifecycle-marker.md) 與 [`docs/plans/2026-07-24-app-lifecycle-marker.md`](../plans/2026-07-24-app-lifecycle-marker.md)。
 
 ### §P14. Breadcrumb 式自訂標記事件（`inspector.mark()`）— ⚠️ 降級（2026-07-24）
 
@@ -553,7 +558,7 @@
 
 | 優先序 | 項目 | Effort | 排查價值 | 備註 |
 |:---:|------|:---:|:---:|------|
-| **1** | §P13 App 前景/背景切換標記 | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高；**唯一無隱藏成本的一項** |
+| ~~1~~ | §P13 App 前景/背景切換標記 — ✅ **已完成（PR #100）** | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高；額外附加 top-most page（型態 + path）解洗頻問題 |
 | **2** | §P10 Rebuild 異常偵測 | low（但需使用者接線） | ⭐⭐⭐ | 受眾較窄，opt-in per-widget 而非 app 層級 |
 | **3** | §P11 NetworkNotifier 重構 | low | ⭐⭐⭐（解鎖 §P1） | 應與 §P1 綁定排程，不單獨動工 |
 | — | ~~§P14 Breadcrumb 標記 `inspector.mark()`~~ | trivial | — | **降級不單獨排程**：與 `log()` 無功能差異，是渲染差異非資訊差異；與 §P7 綁定或直接用 emoji 約定取代（見 §P14） |
@@ -607,11 +612,11 @@
 
 ### Tier 1 · 往時間軸加資訊（真正服務因果推斷）
 
-| 項目 | 內容 | 寫入路徑 | Effort |
-|------|------|----------|:---:|
-| **§P13** App 生命週期標記 | `WidgetsBindingObserver` → 各狀態轉一筆 info log | `flutter_inspector.dart` + 新 hook | low |
+| 項目 | 內容 | 寫入路徑 | Effort | 狀態 |
+|------|------|----------|:---:|:---:|
+| **§P13** App 生命週期標記 | `WidgetsBindingObserver` → 各狀態轉一筆 info log（尾巴附 top-most page） | `lifecycle_handler.dart`（新）+ `flutter_inspector.dart` | low | ✅ PR #100 |
 
-> **本層只剩一項**。判準是「有沒有讓時間軸出現原本拿不到的資訊」——§P13 補上的「當時 app 在前景還背景」現在完全無從得知，是真正的新維度，且無隱藏成本，**建議最先動工**。
+> **本層唯一項目已完成**（PR #100，2026-07-24 合入 main）。判準是「有沒有讓時間軸出現原本拿不到的資訊」——§P13 補上「當時 app 在前景還背景」+「切換發生在哪一頁」兩個原本無從得知的維度，是真正的新資訊。實作另深化了 `detach()` 的 observer teardown 與 top-page 尾巴（見 §P13 實作現況）。**Tier 1 清空，下一步進 Tier 2。**
 >
 > ~~§P2 錯誤上下文快照~~ 原列於本層，已於 2026-07-24 否決（見 §P2）：它快照的導航/網路事件**本來就在 timeline 上**，是把已有資訊換位置而非新增維度；且「挑兩個維度釘在 error 旁」預設了因果單線，與「錯誤常是綜合因素」的實情衝突。
 
@@ -658,7 +663,7 @@
 
 ---
 
-> **收尾建議（2026-07-24 重排版）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**下一步建議從 §P13 動工**——經本輪檢驗後，它是 Tier 1 唯一存活的項目：真正往 timeline 加上原本拿不到的維度，且無隱藏成本。原被列為最高優先的 §D1 已降級至 Tier 3 並與 §P5 合併，§P2 則整項否決，理由見各節。
+> **收尾建議（2026-07-25 更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**Tier 1（§P13）已於 PR #100 完成**——真正往 timeline 加上原本拿不到的維度（前景/背景 + 切換頁面），且動工前逐項實查、無隱藏成本坑到。**下一步進 Tier 2**：§P7 Error 高亮強化（trivial，成本最低）或 §P11→§P1 錯誤爆發偵測（綁定排程）。原被列為最高優先的 §D1 仍在 Tier 3 並與 §P5 合併，§P2 整項否決，理由見各節。
 >
 > **本輪的一條共通判準**（§D3 / §P2 均據此否決）：**不要替排查者預先決定「什麼跟這個錯誤相關」**。固定時間窗（§D3）、固定維度（§P2）都是工具在猜，而真實錯誤常是綜合因素——完整時間軸把所有維度攤平、由人邊看邊判斷，才是對的形狀。凡是提案想在 error 旁另闢一塊「相關資訊」的，先用這條判準檢驗。
 >
