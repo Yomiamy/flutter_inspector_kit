@@ -179,12 +179,9 @@ List<NetworkErrorGroup> aggregateNetworkErrors(List<NetworkEntry> entries) {
   final Map<(int?, DioExceptionType?), _ErrorGroupBuilder> builders = {};
 
   for (final entry in entries) {
-    // 1. Filter out non-error entries: only requests with an error or a
-    // >=400 status code count. Pending requests (both null) are excluded.
-    final statusCode = entry.statusCode;
-    final isError =
-        entry.error != null || (statusCode != null && statusCode >= 400);
-    if (!isError) continue;
+    // 1. Filter out non-error entries. Pending requests (no status, no error)
+    // are excluded by [NetworkEntry.isFailed].
+    if (!entry.isFailed) continue;
 
     // 2. Group by statusCode when present; only transport failures
     // (statusCode == null) fall back to errorType. This keeps all 502s

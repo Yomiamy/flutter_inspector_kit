@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_entry.dart';
 import '../../../models/log_entry.dart';
+import '../../../models/log_level.dart';
 import '../../../models/navigator_entry.dart';
 import '../../../models/network_entry.dart';
 import '../../../models/timestamped_entry.dart';
@@ -10,6 +11,11 @@ import '../../../extensions/log_level_color_extension.dart';
 import '../../theme/theme.dart';
 import 'console/log_detail_view.dart';
 import 'network/network_detail_view.dart';
+
+/// Row background applied to error logs and failed network calls so they stand
+/// out while scrolling a long merged timeline. Kept faint on purpose: the tint
+/// marks the row without competing with the level-coloured text.
+final Color _kErrorRowTint = ThemeColor.colorF44336.withValues(alpha: 0.08);
 
 /// Tab for displaying a cross-layer merged timeline (logs, network, navigation,
 /// database) with a source filter and per-type row dispatch.
@@ -156,6 +162,7 @@ class _LogEntryRow extends StatelessWidget {
         (entry.stackTrace?.isNotEmpty ?? false) ||
         (entry.data?.isNotEmpty ?? false);
     return ListTile(
+      tileColor: entry.level == LogLevel.error ? _kErrorRowTint : null,
       title: Text(entry.message, style: TextStyle(color: entry.level.color)),
       subtitle: Text(entry.displayTime),
       trailing: canTap
@@ -182,6 +189,7 @@ class _NetworkEntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      tileColor: entry.isFailed ? _kErrorRowTint : null,
       title: Text('${entry.method} ${entry.statusCode ?? '-'} ${entry.url}'),
       subtitle: Text(entry.displayTime),
       trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),

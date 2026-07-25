@@ -20,6 +20,41 @@ void main() {
       expect(entry.statusCode, isNull);
     });
 
+    group('isFailed', () {
+      NetworkEntry entryWith({
+        int? statusCode,
+        String? error,
+        DioExceptionType? errorType,
+      }) => NetworkEntry(
+        method: 'GET',
+        url: 'https://x',
+        statusCode: statusCode,
+        error: error,
+        errorType: errorType,
+        timestamp: fixedTime,
+      );
+
+      test('is false for success and pending requests', () {
+        expect(entryWith(statusCode: 200).isFailed, isFalse);
+        expect(entryWith(statusCode: 304).isFailed, isFalse);
+        expect(entryWith().isFailed, isFalse);
+      });
+
+      test('is true for 4xx and 5xx responses', () {
+        expect(entryWith(statusCode: 400).isFailed, isTrue);
+        expect(entryWith(statusCode: 404).isFailed, isTrue);
+        expect(entryWith(statusCode: 500).isFailed, isTrue);
+      });
+
+      test('is true for transport failures without a status code', () {
+        expect(entryWith(error: 'Connection refused').isFailed, isTrue);
+        expect(
+          entryWith(errorType: DioExceptionType.connectionTimeout).isFailed,
+          isTrue,
+        );
+      });
+    });
+
     test('copyWith completes the entry', () {
       final pending = NetworkEntry(
         method: 'GET',

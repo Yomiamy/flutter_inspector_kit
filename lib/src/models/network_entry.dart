@@ -101,6 +101,14 @@ class NetworkEntry implements TimestampedEntry {
   /// serialisation (cURL, plain-text, or any other export format).
   final WeakReference<Dio>? sourceDio;
 
+  /// Whether this request carries an error signal: an HTTP status of 400 or
+  /// above, or a transport-level failure ([error] / [errorType]).
+  ///
+  /// Single source of truth for "did this call fail" across the network tab,
+  /// its error-summary groups, the console timeline and the diagnostic report.
+  bool get isFailed =>
+      (statusCode ?? 0) >= 400 || error != null || errorType != null;
+
   /// Truncates [body] to [kNetworkBodyMaxLength] characters, appending
   /// [kTruncatedMarker] when truncation occurs. Returns `null` for `null` input.
   static String? truncateBody(String? body) {
