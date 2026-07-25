@@ -11,10 +11,11 @@
 | 檔案路徑 | 關鍵類別/列舉 | 單一職責 (Single Responsibility) |
 | :--- | :--- | :--- |
 | [`lib/flutter_inspector_kit.dart`](../../lib/flutter_inspector_kit.dart) | - | Barrel 檔案，導出本套件對外公開的 API。 |
-| [`lib/src/core/flutter_inspector.dart`](../../lib/src/core/flutter_inspector.dart) | `FlutterInspector` | 套件的主入口。管理初始化、接收各項日誌與資料輸入，並與各個領域 Inspector 進行協調。 |
+| [`lib/src/core/flutter_inspector.dart`](../../lib/src/core/flutter_inspector.dart) | `FlutterInspector` | 套件的主入口。管理初始化、接收各項日誌與資料輸入，並與各個領域 Inspector 進行協調。含 `_currentTopPageLabel()`——為 `LifecycleHandler` 提供當前 top-most page 標籤（走 `NavigatorStackResolver` best-effort 重播，推不出來回傳 `null`）。 |
 | [`lib/src/core/inspector_registry.dart`](../../lib/src/core/inspector_registry.dart) | `InspectorRegistry` | 中央緩衝註冊表，集中持有並管理四個領域的 RingBuffer，同時實裝多源歸併排序。 |
 | [`lib/src/core/ring_buffer.dart`](../../lib/src/core/ring_buffer.dart) | `RingBuffer<T>` | 基礎 FIFO 環形快取。提供固定容量的資料寫入、刪除最舊數據及原地取代（`replace`）功能。 |
 | [`lib/src/core/uncaught_error_handler.dart`](../../lib/src/core/uncaught_error_handler.dart) | `UncaughtErrorHandler` | 獨立的錯誤監聽類別，無 Inspector 逆向依賴。透過建構子接收回呼並安全鏈接至三大系統錯誤鉤子。同一 build 崩潰以 object-identity 去重，避免重複記錄（PR #96）。 |
+| [`lib/src/core/lifecycle_handler.dart`](../../lib/src/core/lifecycle_handler.dart) | `LifecycleHandler` | **[新增]** 獨立的 app 生命週期監聽類別（`with WidgetsBindingObserver`），無 Inspector 逆向依賴。opt-in `captureLifecycleEvents`（default off）下把 `resumed`/`inactive`/`paused`/`detached`/`hidden` 各轉一筆 `LogLevel.info` log，message 尾巴附當前 top-most page（由建構子傳入的 `topPageLabel` callback 提供）。`detach()` 乾淨移除 observer（PR #100）。 |
 | [`lib/src/core/inspector_overlay_manager.dart`](../../lib/src/core/inspector_overlay_manager.dart) | `InspectorOverlayManager` | 負責安全地管理懸浮 FAB Overlay 生命週期，支援冪等加載與無洩漏卸載。 |
 
 ### 2. 數據模型層 (`lib/src/models/`)
@@ -24,7 +25,8 @@
 | [`lib/src/models/timestamped_entry.dart`](../../lib/src/models/timestamped_entry.dart) | `TimestampedEntry`<br>`TimelineSource` (enum) | 混合時序軸的統一契約介面與其格式化擴充方法。定義了 `timestamp`、`displayTime` 屬性。 |
 | [`lib/src/models/log_level.dart`](../../lib/src/models/log_level.dart) | `LogLevel` (enum) | 控制台日誌的嚴重性等級（`verbose` 至 `error`）。 |
 | [`lib/src/models/log_entry.dart`](../../lib/src/models/log_entry.dart) | `LogEntry` | 單條日誌資料模型。實作了 `TimestampedEntry` 介面。 |
-| [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。 |
+| [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。含 `origin` / `pageUrl` provenance 欄位（帶預設值，向後相容）。 |
+| [`lib/src/models/network_origin.dart`](../../lib/src/models/network_origin.dart) | `NetworkOrigin` (enum) | **[新增]** 網路請求來源（`dio` / `webview`）。顯式 provenance，取代不可靠的 `sourceDio == null` 推斷（WeakReference 被 GC 後無法區分來源）。 |
 | [`lib/src/models/navigator_action.dart`](../../lib/src/models/navigator_action.dart) | `NavigatorAction` (enum) | 導航動作類型（`push`、`pop`、`replace`、`remove`）。 |
 | [`lib/src/models/navigator_entry.dart`](../../lib/src/models/navigator_entry.dart) | `NavigatorEntry` | 導航事件資料模型。實作 `TimestampedEntry`。 |
 | [`lib/src/models/database_operation.dart`](../../lib/src/models/database_operation.dart) | `DatabaseOperation` (enum) | 資料庫操作類型（`insert`、`update`、`delete`、`query`）。 |
@@ -44,6 +46,8 @@
 | [`lib/src/interceptors/dio_interceptor.dart`](../../lib/src/interceptors/dio_interceptor.dart) | `FlutterInspectorDioInterceptor` | Dio 攔截器，實作 Adapter 模式，將網絡生命週期轉化為 `NetworkEntry` 發送給 Core。 |
 | [`lib/src/observers/navigator_observer.dart`](../../lib/src/observers/navigator_observer.dart) | `FlutterInspectorNavigatorObserver` | 導航觀察者，實作 Adapter 模式，將路由變更進行 Widget 類型解析後發送給 Core。 |
 | [`lib/src/sources/operation_log_source.dart`](../../lib/src/sources/operation_log_source.dart) | `OperationLogSource` | 將資料庫 SQL 日誌包裝成虛擬 `DatabaseBrowserSource`，以便在資料庫 Tab 顯示。 |
+| [`lib/src/webview/webview_bridge_js.dart`](../../lib/src/webview/webview_bridge_js.dart) | `kWebViewBridgeChannelName`<br>`inspectorWebViewBridgeJs` | **[新增]** 可注入 WebView 的 JS bridge payload（常數字串）。Hook `console.*`、`window.onerror`、`unhandledrejection`、`fetch`、`XHR`，JS 端截斷大 payload 後以統一 JSON envelope postMessage 給 native；單一 payload 同時支援 webview_flutter 與 flutter_inappwebview 的傳輸層。 |
+| [`lib/src/webview/webview_bridge_adapter.dart`](../../lib/src/webview/webview_bridge_adapter.dart) | `WebViewBridgeAdapter` | **[新增]** WebView 訊息翻譯器，形狀鏡像 Dio interceptor。decode bridge JSON → 建 `LogEntry` / `NetworkEntry`（含 webview provenance）→ 經公開 API 推入 Core。`handleMessage` 永不拋出，並以 256KB 上限擋下繞過注入腳本的敵意超大訊息。 |
 
 ### 4. 平台適應通知層 (`lib/src/notifications/`)
 
