@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
+import 'package:flutter_inspector_kit/src/extensions/log_level_color_extension.dart';
 import 'package:flutter_inspector_kit/src/models/database_entry.dart';
 import 'package:flutter_inspector_kit/src/models/database_operation.dart';
 import 'package:flutter_inspector_kit/src/models/log_entry.dart';
@@ -331,6 +332,7 @@ void main() {
     ) async {
       final inspector = FlutterInspector();
       inspector.log('boom', level: LogLevel.error);
+      inspector.log('heads up', level: LogLevel.warning);
       inspector.log('all good', level: LogLevel.info);
       inspector.logNetwork(
         NetworkEntry(
@@ -368,6 +370,14 @@ void main() {
         isNotNull,
       );
       expect(tileColorOf(find.textContaining('https://api.test/ok')), isNull);
+
+      // Warnings stay text-only: an orange label but no tint, so a
+      // warning-heavy timeline does not wash out and hide the errors.
+      expect(tileColorOf(find.text('heads up')), isNull);
+      expect(
+        tester.widget<Text>(find.text('heads up')).style?.color,
+        LogLevel.warning.color,
+      );
     });
 
     testWidgets('nav and db rows are not tappable (no chevron)', (
