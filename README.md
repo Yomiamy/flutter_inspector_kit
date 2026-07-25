@@ -12,7 +12,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | Feature | Description | Use Case Example |
 |---|---|---|
 | 🪵 **Console** | Capture logs across five severity levels (`verbose` / `debug` / `info` / `warning` / `error`), with optional structured data and stack traces | QA says "tapping checkout does nothing" — open Console, spot a red error entry in the timeline; tap in to see the structured error detail, response body, and full stack trace to understand what went wrong |
-| 🧵 **Merged Timeline** | Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips | Continuing the checkout case — switch the source chip to "All" and scroll back along the timeline to inspect the request that got 401: check what token was in the `Authorization` header, what params were sent, and compare with backend expectations to pinpoint why the server rejected it — all without switching tabs or manually comparing timestamps |
+| 🧵 **Merged Timeline** | Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips; error logs and failed network calls carry a faint red row tint so they stand out while scrolling | Continuing the checkout case — switch the source chip to "All" and scroll back along the timeline to inspect the request that got 401: check what token was in the `Authorization` header, what params were sent, and compare with backend expectations to pinpoint why the server rejected it — all without switching tabs or manually comparing timestamps |
 | 📡 **Network** | Intercept HTTP traffic via Dio; inspect structured request/response details; search/filter by URL, method, or status; share as cURL | A page shows up completely blank — open the Network tab to find the API returned an error, so there's no data to display; tap in to inspect request params and response body, then copy as a runnable cURL command and paste it into a bug ticket for the backend team to reproduce |
 | 🔄 **Network Replay** | Resend a captured request using the original Dio instance (same headers, base URL, interceptors); replayed entries are auto-labeled | Re-trigger a failed API call on-device to verify a server-side hotfix without restarting the app or rebuilding the user flow |
 | 🚨 **Structured Network Errors** | Failed requests show an **Exception Details** section distinguishing transport-layer failures (device offline / DNS / timeout) from server-side errors (4xx/5xx), with copyable stack traces | Instantly tell whether "Failed" means the device lost connectivity or the server returned 500 — no more guessing during QA |
@@ -20,9 +20,10 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🩺 **Diagnostic Report** | Export a single Markdown report — device/app header, current route stack, and the logs / network / navigation / database sections — filtered by time window (5m / 1h / all), source, and an optional errors-only toggle; straight to the share sheet, nothing written to disk | QA reproduces a bug and, instead of screenshotting four tabs and hand-typing the OS version, taps Export once and pastes a complete report into the Jira ticket |
 | 🌐 **WebView Inline Debugging** | Bridge a WebView's own `console.*`, `window.onerror`/`unhandledrejection`, and `fetch`/`XMLHttpRequest` activity into the same Console and Network tabs used for native logs and Dio traffic — dependency-free, wire your own `webview_flutter` or `flutter_inappwebview` to `WebViewBridgeAdapter` | A hybrid screen misbehaves and you can't tell if the bug is in Flutter or the embedded web page — see the WebView's JS errors and its `fetch`/`XHR` calls inline in Console/Network, tagged by origin, so you know instantly which side to fix without attaching Chrome DevTools to the WebView |
 | 🛡️ **Sensitive-Data Redaction** | Secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path | Safely share network logs with teammates or attach them to Jira tickets without leaking tokens or session cookies |
-| 🧭 **Navigator** | Track route pushes, pops, and replacements automatically; toggle between **Event History** (raw log) and **Active Stack** (live route-stack visualization) | Verify deep-link routing, confirm back-stack correctness, or diagnose "why did the user land on this screen?" during a QA walkthrough |
+| 🧭 **Navigator** | Track route pushes, pops, and replacements automatically; toggle between **Event History** (raw log) and **Active Stack** (live route-stack visualization). The dashboard's own routes are filtered out, so investigating never pollutes the history | Verify deep-link routing, confirm back-stack correctness, or diagnose "why did the user land on this screen?" during a QA walkthrough — and since opening detail views doesn't write into the history, the stack you read after ten minutes of digging is still your app's, not a log of your own investigation |
 | 🗄️ **Database** | Record insert / update / delete / query operations with affected-row counts and payloads; browse real tables via pluggable `DatabaseBrowserSource` (SQLite / ObjectBox adapters provided) | Verify that a "Save" action actually wrote the expected rows; browse local SQLite tables on-device without pulling the `.db` file |
 | 🛑 **Uncaught Error Capture** *(opt-in)* | Automatically turn uncaught errors into `error`-level Console logs via three Flutter hooks (build/layout/paint, async, `ErrorWidget`); chains existing handlers — never swallows errors | An unawaited `Future` throws deep inside a third-party package — no `try/catch` anywhere near it. Uncaught error capture logs it automatically with a full stack trace, so it shows up in Console without any manual instrumentation |
+| ⏱️ **App Lifecycle Markers** *(opt-in)* | Record every `resumed` / `inactive` / `paused` / `detached` transition as an `info` Console log, each naming the top-most page at that moment, interleaved into the merged Timeline | A batch of requests fails with timeouts that nobody can reproduce at a desk — read the Timeline and an `App lifecycle: paused · CheckoutPage` marker sits right before them, so the OS froze the network while the user switched away; the backend was never at fault. Equally useful in reverse: confirming a "refresh on resume" actually fires, and on which page |
 | 🔔 **Live Notification** *(opt-in)* | A system notification summarising the latest API call and the running total; tap to jump straight to the Network tab | Monitor API traffic in real-time while navigating the app — no need to keep the dashboard open; also useful for verifying whether the number of API calls per operation is reasonable (e.g., a single page load triggering dozens of calls hints at redundant requests) |
 | 👆 **Magical Tap & Floating Button** | Open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB | Embed in a release build as a hidden diagnostic entry point — when QA or users hit an issue, trigger the inspector on the spot for initial error triage without rebuilding a debug version or tracing through source code |
 | 🧩 **Custom Tab** | Inject your own widget as a 5th dashboard tab via `FlutterInspector(customTab: ..., customTabTitle: ...)` — sits alongside Console / Network / Navigator / Database | Surface app-specific debug tooling right next to the built-in inspectors — a feature-flag toggle panel, the current auth/session state, or a "clear cache" button — so your team's ad-hoc diagnostics live in one place instead of a separate debug screen |
@@ -47,7 +48,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.7.1
+  flutter_inspector_kit: ^1.8.0
 ```
 
 Then run `flutter pub get`.
@@ -369,7 +370,7 @@ Available levels: `verbose`, `debug`, `info`, `warning`, `error`.
 
 ### Read the merged timeline
 
-The **Console** tab already interleaves logs, network, navigation, and database events on a single timeline (newest first), with a filter chip per source. You can also read that same merged view programmatically:
+The **Console** tab already interleaves logs, network, navigation, and database events on a single timeline (newest first), with a filter chip per source. Error-level logs and failed network calls are given a faint red row background so they're spottable while scrolling a long timeline — warnings keep their orange text but stay un-tinted, so a warning-heavy app doesn't wash the whole list out. You can also read that same merged view programmatically:
 
 ```dart
 // All sources, newest first.
@@ -433,6 +434,8 @@ The Navigator tab offers two views, toggled via chips at the top:
 
 - **Event History**: the raw log of push/pop/replace/remove events (the original behavior).
 - **Active Stack**: the current route stack, derived live from the event history and rendered top-first as vertical cards — the topmost card (the current screen) is highlighted. Shows "Empty stack history" when no routes have been recorded yet.
+
+The dashboard's own routes — log/network detail views, table and cell details, the export sheet — are excluded from this history, so investigating a bug never shows up as navigation in your app's route stack. Your app's routes are recorded exactly as before, including unnamed ones.
 
 ### Track database operations
 

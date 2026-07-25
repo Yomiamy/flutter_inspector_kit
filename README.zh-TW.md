@@ -12,7 +12,7 @@
 | 功能 | 說明 | 使用情境範例 |
 |---|---|---|
 | 🪵 **Console** | 擷取五種嚴重程度（`verbose` / `debug` / `info` / `warning` / `error`）的 log，可選帶結構化資料與 stack trace | QA 回報「點結帳沒反應」——打開 Console，在時間軸上一眼看到紅色錯誤項目；點進去查看結構化錯誤細節、response body 與完整 stack trace，理解到底哪裡出錯 |
-| 🧵 **Merged Timeline** | Console 分頁把 logs、network、navigation 與 database 事件交錯排在同一條依時間戳排序的時間軸上，並提供各來源的 filter chip | 延續結帳案例——把來源 chip 切到「All」，沿時間軸往回捲，檢視那個拿到 401 的請求：看 `Authorization` header 帶了什麼 token、送了哪些參數，和後端預期比對，精準定位伺服器為何拒絕——全程不用切分頁或手動比對時間戳 |
+| 🧵 **Merged Timeline** | Console 分頁把 logs、network、navigation 與 database 事件交錯排在同一條依時間戳排序的時間軸上，並提供各來源的 filter chip；error 等級的 log 與失敗的 network 呼叫會帶淡紅底色，捲動長時間軸時一眼就能認出 | 延續結帳案例——把來源 chip 切到「All」，沿時間軸往回捲，檢視那個拿到 401 的請求：看 `Authorization` header 帶了什麼 token、送了哪些參數，和後端預期比對，精準定位伺服器為何拒絕——全程不用切分頁或手動比對時間戳 |
 | 📡 **Network** | 透過 Dio 攔截 HTTP 流量；檢視結構化的 request/response 細節；依 URL、method 或 status 搜尋／篩選；以 cURL 分享 | 某個頁面整片空白——打開 Network 分頁發現 API 回了錯誤，所以根本沒資料可顯示；點進去檢視 request 參數與 response body，再複製成可直接執行的 cURL 指令，貼進 bug ticket 讓後端團隊重現 |
 | 🔄 **Network Replay** | 用原始的 Dio 實例重送一個已擷取的請求（沿用相同 headers、base URL、interceptors）；重送的項目會自動標記 | 在裝置上重觸一個失敗的 API 呼叫，驗證伺服器端的 hotfix，不必重啟 App 或重走一遍使用者流程 |
 | 🚨 **Structured Network Errors** | 失敗的請求會顯示 **Exception Details** 區塊，區分傳輸層失敗（裝置離線／DNS／逾時）與伺服器端錯誤（4xx/5xx），並附可複製的 stack trace | 立刻分辨「Failed」到底是裝置斷線還是伺服器回了 500——QA 期間不必再靠猜 |
@@ -20,9 +20,10 @@
 | 🩺 **Diagnostic Report** | 匯出單一份 Markdown 報告——裝置／App 標頭、當前 route stack，以及 logs / network / navigation / database 各區段——可依時間窗（5m / 1h / all）、來源與可選的僅錯誤開關篩選；直接送進分享面板，不寫入磁碟 | QA 重現 bug 後，不用截四個分頁的圖再手打 OS 版本，按一次 Export 就把完整報告貼進 Jira ticket |
 | 🌐 **WebView Inline Debugging** | 把 WebView 自身的 `console.*`、`window.onerror`/`unhandledrejection` 與 `fetch`/`XMLHttpRequest` 活動橋接進與原生 log、Dio 流量共用的同一個 Console 與 Network 分頁——零相依，自行把你的 `webview_flutter` 或 `flutter_inappwebview` 接到 `WebViewBridgeAdapter` | 混合式頁面出狀況，你分不清 bug 在 Flutter 還是內嵌網頁——直接在 Console/Network 內看到 WebView 的 JS 錯誤與 `fetch`/`XHR` 呼叫，並依 origin 標記，立刻知道該修哪一側，不必把 Chrome DevTools 掛到 WebView 上 |
 | 🛡️ **Sensitive-Data Redaction** | 預設即安全——敏感 headers（`Authorization`、`Cookie`、`Set-Cookie`、`X-Api-Key`）在每一條分享／匯出路徑上都會被遮罩 | 放心把 network log 分享給隊友或附進 Jira ticket，不會外洩 token 或 session cookie |
-| 🧭 **Navigator** | 自動追蹤 route 的 push、pop 與 replace；可在 **Event History**（原始 log）與 **Active Stack**（即時 route-stack 視覺化）之間切換 | 驗證 deep-link 路由、確認 back-stack 正確性，或在 QA 走查時診斷「使用者為什麼會落到這個畫面？」 |
+| 🧭 **Navigator** | 自動追蹤 route 的 push、pop 與 replace；可在 **Event History**（原始 log）與 **Active Stack**（即時 route-stack 視覺化）之間切換。dashboard 自身的 route 會被濾掉，查 bug 不會反過來污染這份歷史 | 驗證 deep-link 路由、確認 back-stack 正確性，或在 QA 走查時診斷「使用者為什麼會落到這個畫面？」——而且因為點開詳情頁不會寫進歷史，翻查十分鐘後看到的 stack 仍然是你 App 的，不是你自己查問題的軌跡 |
 | 🗄️ **Database** | 記錄 insert / update / delete / query 操作，含受影響筆數與 payload；透過可插拔的 `DatabaseBrowserSource` 瀏覽真實資料表（已提供 SQLite / ObjectBox adapter） | 驗證「儲存」動作是否真的寫進預期的資料列；在裝置上直接瀏覽本地 SQLite 資料表，不必把 `.db` 檔拉出來 |
 | 🛑 **Uncaught Error Capture** *(需 opt-in)* | 透過三個 Flutter hook（build/layout/paint、async、`ErrorWidget`）自動把未捕捉的錯誤轉成 `error` 等級的 Console log；串接既有 handler——絕不吞錯 | 某個未 await 的 `Future` 在第三方套件深處拋錯——附近完全沒有 `try/catch`。Uncaught error capture 自動連同完整 stack trace 記錄下來，不用任何手動埋點就出現在 Console |
+| ⏱️ **App Lifecycle Markers** *(需 opt-in)* | 把每一次 `resumed` / `inactive` / `paused` / `detached` 轉換記錄成 `info` 等級的 Console log，各自標註當下最上層的頁面，並交錯進合併時間軸 | 一批請求以 timeout 失敗，在辦公桌前卻怎麼都重現不了——翻時間軸，`App lifecycle: paused · CheckoutPage` 這筆就卡在它們前面，代表使用者切走了、OS 把網路凍結，根本不是後端的問題。反過來也好用：確認「回到前景就刷新」真的有觸發，而且是在哪一頁觸發 |
 | 🔔 **Live Notification** *(需 opt-in)* | 一則系統通知摘要最新一筆 API 呼叫與累計總數；點一下直接跳到 Network 分頁 | 在 App 內導覽時即時監看 API 流量——不必一直開著 dashboard；也適合驗證每個操作的 API 呼叫數是否合理（例如單一頁面載入就觸發數十筆呼叫，暗示有重複請求） |
 | 👆 **Magical Tap & Floating Button** | 用隱藏的多次點擊手勢，或可拖曳的 App 內 FAB 打開 dashboard | 內嵌進 release build 作為隱藏的診斷入口——當 QA 或使用者遇到問題，當場觸發 inspector 做初步錯誤分流，不必重建 debug 版或翻原始碼 |
 | 🧩 **Custom Tab** | 透過 `FlutterInspector(customTab: ..., customTabTitle: ...)` 注入你自己的 widget 作為第 5 個 dashboard 分頁——與 Console / Network / Navigator / Database 並列 | 把 App 專屬的偵錯工具擺在內建 inspector 旁邊——feature-flag 開關面板、當前 auth/session 狀態、或「清快取」按鈕——讓團隊的臨時診斷全集中在一處，不必另開一個 debug 畫面 |
@@ -47,7 +48,7 @@
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.7.1
+  flutter_inspector_kit: ^1.8.0
 ```
 
 接著執行 `flutter pub get`。
@@ -369,7 +370,7 @@ inspector.log(
 
 ### 讀取合併後的時間軸
 
-**Console** 分頁本身就已把 logs、network、navigation 與 database 事件交錯排在單一時間軸上（最新在前），並為每個來源提供一個 filter chip。你也可以用程式化方式讀取這份相同的合併檢視：
+**Console** 分頁本身就已把 logs、network、navigation 與 database 事件交錯排在單一時間軸上（最新在前），並為每個來源提供一個 filter chip。error 等級的 log 與失敗的 network 呼叫會被加上淡紅色的列底色，捲動長時間軸時容易辨識——warning 維持原本的橘色文字但不上底色，避免 warning 一多就把整份列表洗成一片紅。你也可以用程式化方式讀取這份相同的合併檢視：
 
 ```dart
 // All sources, newest first.
@@ -404,6 +405,27 @@ final inspector = FlutterInspector(captureUncaughtErrors: true);
 
 被擷取的錯誤會以紅色 log 出現在 **Console** 分頁。點任何帶 stack trace 或結構化資料的 log 即可打開詳情頁，內含可複製的 stack trace 與結構化 payload，並附複製／分享動作。
 
+### App 生命週期標記（需 opt-in）
+
+啟用 **lifecycle capture**，把每一次前景／背景轉換記錄成 `info` 等級的 Console log，這樣崩潰或卡住的請求就能對照當下 App 是否在前景來判讀：
+
+```dart
+final inspector = FlutterInspector(captureLifecycleEvents: true);
+```
+
+它**預設停用**，而 `detach()` 會把 observer 移除。每一次轉換（`resumed` / `inactive` / `paused` / `detached`，Flutter 3.13+ 另有 `hidden`）都會成為一筆項目，並自動被合併時間軸與 network、navigation、database 事件交錯排列。
+
+每筆項目還會標註當前最上層的頁面，讓反覆的 home／back 切換在 Console 裡仍可區分，不必跳到 Navigator 分頁比對：
+
+```text
+App lifecycle: resumed · HomePage (/home)
+App lifecycle: paused · CheckoutPage
+```
+
+頁面名稱是依導覽歷史盡力還原的結果；無法解析時（歷史為空）就單純省略該後綴。
+
+> 這個 observer 是用 `WidgetsBinding.instance.addObserver` 註冊的，它是往清單追加——你 App 自己的 `WidgetsBindingObserver` 仍會照常收到各自的 callback。
+
 ### 追蹤 navigation
 
 這裡不用做任何事——只要你把 `inspector.navigatorObserver` 註冊進 `navigatorObservers`（見 [初始化](#初始化)），route 就會被自動追蹤。push、pop 與 replace 全都會出現在 Navigator 分頁。
@@ -412,6 +434,8 @@ Navigator 分頁提供兩種檢視，透過頂端的 chip 切換：
 
 - **Event History**：push/pop/replace/remove 事件的原始 log（原本的行為）。
 - **Active Stack**：當前的 route stack，從 event history 即時推導，以垂直卡片由上而下呈現——最上方的卡片（當前畫面）會被標亮。尚未記錄任何 route 時顯示「Empty stack history」。
+
+dashboard 自己開啟的 route——log／network 詳情頁、資料表與 cell 詳情、匯出面板——都不會被計入這份歷史，所以查 bug 的動作不會反過來污染你 App 的 route stack。你 App 自己的 route 記錄方式完全不變，包含未命名的 route。
 
 ### 追蹤 database 操作
 
