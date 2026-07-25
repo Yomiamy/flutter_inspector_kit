@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-25 **§P7 Error 高亮強化完成**——PR #101 合入 main（merge `3ecdf51`），ConsoleTab 的 error log 與失敗網路請求加淡紅底（`ListTile.tileColor`，alpha 0.08）。**只染 error 不染 warning**（warning 密集時整片泛黃反而稀釋「跳出來」的效果），warning 維持橘字並有測試鎖住。真正的 diff 主體是**收斂「網路請求是否失敗」的三份重複判定**——動工才發現該判定在 `network_tab` / `diagnostic_report` / `network_utils` 各手寫一份且已漂移（各漏一種失敗類型），統一為 `NetworkEntry.isFailed`，並一併修掉「只帶 `errorType` 的傳輸失敗不產生 Error Summary 群組卡片」這個靜默的既有 bug。Tier 2 下一步為 §P11→§P1（綁定排程）。｜**前次更新**：2026-07-25 **§P13 App 生命週期標記完成**——PR #100 合入 main（merge `c616482`），新增 `LifecycleHandler` + `captureLifecycleEvents`（default off）把前景/背景切換轉成 `LogLevel.info` log，並在 message 尾巴附加當前 top-most page（型態 + path，解 home/back 洗頻）。`detach()` 一併 teardown observer（不沿用 error hooks 的不 teardown 慣例）。Tier 1 清空，下一步進 Tier 2（§P7 或 §P11→§P1）。｜**前次更新**：2026-07-24 **實作路徑重排為「鏈推斷優先」**——原 Phase Plan 以「先滅紅燈」把 §D1 ConsoleTab 搜尋/過濾排最高優先，重新檢視後判定該紅燈紅在「功能對稱性」而非「排查能力」：過濾是**點查詢**（已知道要找什麼），排查要的是**鏈推斷**（不知道要找什麼），且過濾會**切斷因果鏈**。新排序原則為「往時間軸加資訊 → 標記已有資訊 → 檢索 → 打磨」，§P13 升為第一順位，§D1 降至 Tier 3 並與 §P5 合併，§P14 降級不單獨排程，**§P2 錯誤上下文快照整項否決**（快照的事件本就在 timeline 上、推導堆疊會失準卻被當事實、預先挑維度違背「錯誤常是綜合因素」——與 §D3 同病）。同時修正三處與 codebase 不符的估計（`InspectorSearchBar` 實為私有 `_SearchBar`、`entriesAtLevel()` 接不上混合流、`NavigatorStackResolver.currentStack` 不存在）。詳見文末「下一步實作路徑」。｜**前次更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-26 **新增 §D6 Inspector 自身頁面污染 NavigatorTab（既有缺陷）**——實測確認（probe test）dashboard 內 push 的 detail view 會被記進使用者的 Navigator 軌跡。根因是三段鏈：`dashboard_modal.dart` 的 `showGeneralDialog` 未指定 `useRootNavigator`（預設 `true`）→ dashboard 掛在**宿主 app 的 root Navigator**（正是掛載 observer 的那一個）→ 而 4 處 detail view 的 `MaterialPageRoute` **完全沒帶 `RouteSettings.name`**，`_isInspectorRoute()` 的字串等值比對一律放行。污染量與排查強度**成正比**（越反覆開關 detail view 越髒），故排入 **Tier 2** 而非打磨層——它侵蝕的是 NavigatorTab 既有功能的資料可信度。**已定案採方案 B**（dashboard 內部統一走 `pushInspectorRoute` helper，`_isInspectorRoute` 只認單一來源），不採方案 A（逐一補 route name）——A 把正確性押在「新增頁面時記得補」的人為自律上，B 才消滅特殊情況。**尚未實作**。｜**前次更新**：2026-07-25 **§P7 Error 高亮強化完成**——PR #101 合入 main（merge `3ecdf51`），ConsoleTab 的 error log 與失敗網路請求加淡紅底（`ListTile.tileColor`，alpha 0.08）。**只染 error 不染 warning**（warning 密集時整片泛黃反而稀釋「跳出來」的效果），warning 維持橘字並有測試鎖住。真正的 diff 主體是**收斂「網路請求是否失敗」的三份重複判定**——動工才發現該判定在 `network_tab` / `diagnostic_report` / `network_utils` 各手寫一份且已漂移（各漏一種失敗類型），統一為 `NetworkEntry.isFailed`，並一併修掉「只帶 `errorType` 的傳輸失敗不產生 Error Summary 群組卡片」這個靜默的既有 bug。Tier 2 下一步為 §P11→§P1（綁定排程）。｜**前次更新**：2026-07-25 **§P13 App 生命週期標記完成**——PR #100 合入 main（merge `c616482`），新增 `LifecycleHandler` + `captureLifecycleEvents`（default off）把前景/背景切換轉成 `LogLevel.info` log，並在 message 尾巴附加當前 top-most page（型態 + path，解 home/back 洗頻）。`detach()` 一併 teardown observer（不沿用 error hooks 的不 teardown 慣例）。Tier 1 清空，下一步進 Tier 2（§P7 或 §P11→§P1）。｜**前次更新**：2026-07-24 **實作路徑重排為「鏈推斷優先」**——原 Phase Plan 以「先滅紅燈」把 §D1 ConsoleTab 搜尋/過濾排最高優先，重新檢視後判定該紅燈紅在「功能對稱性」而非「排查能力」：過濾是**點查詢**（已知道要找什麼），排查要的是**鏈推斷**（不知道要找什麼），且過濾會**切斷因果鏈**。新排序原則為「往時間軸加資訊 → 標記已有資訊 → 檢索 → 打磨」，§P13 升為第一順位，§D1 降至 Tier 3 並與 §P5 合併，§P14 降級不單獨排程，**§P2 錯誤上下文快照整項否決**（快照的事件本就在 timeline 上、推導堆疊會失準卻被當事實、預先挑維度違背「錯誤常是綜合因素」——與 §D3 同病）。同時修正三處與 codebase 不符的估計（`InspectorSearchBar` 實為私有 `_SearchBar`、`entriesAtLevel()` 接不上混合流、`NavigatorStackResolver.currentStack` 不存在）。詳見文末「下一步實作路徑」。｜**前次更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -291,6 +291,55 @@
 - 模式完全對齊 NetworkTab
 - **影響範圍**：`lib/src/ui/dashboard/tabs/database_tab.dart`
 - **Effort**：low ｜ **排查價值**：⭐⭐⭐
+
+---
+
+### §D6. Inspector 自身頁面污染 NavigatorTab（既有缺陷）— ⬜ 待實作 · 方案已定案（2026-07-26 發現）
+
+> **這是既有 bug，不是新功能**。`_isInspectorRoute()` 只過濾 dashboard 本身，漏掉所有從 dashboard 內部 push 出去的 detail view——使用者在 inspector 裡的每一次點擊，都被當成他 app 的導航事件記進 NavigatorTab。
+
+**實測證據（2026-07-26 以 probe test 驗證，非推論）**：
+
+```
+ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
+```
+
+`NetworkDetailView` 確實出現在 `inspector.navigatorInspector.entries` 中。
+
+**根因鏈**：
+1. `dashboard_modal.dart:30` 的 `showGeneralDialog` **未指定 `useRootNavigator`**，Flutter 預設為 `true` → dashboard 掛在**宿主 app 的 root Navigator** 上，而該 Navigator 正是掛載 `FlutterInspectorNavigatorObserver` 的那一個。
+2. dashboard 內的 detail view 以 `Navigator.of(context).push(...)` 推送，context 來自 dashboard 子樹 → 同樣落在被觀察的 root Navigator。
+3. `navigator_observer.dart:17-18` 的 `_isInspectorRoute()` 只比對 `name == 'flutter_inspector_dashboard'`，而這些 detail view 的 `MaterialPageRoute` **完全沒帶 `RouteSettings.name`**（`name == null`）→ 過濾器一律放行。
+
+**污染來源共 4 處**（全部無 route name）：
+
+| 檔案 | 行 | 推送的頁面 |
+|------|---|-----------|
+| `tabs/network_tab.dart` | 187 | `NetworkDetailView` |
+| `tabs/console_tab.dart` | 164 | `LogDetailView` |
+| `tabs/console_tab.dart` | 178 | `NetworkDetailView` |
+| `tabs/database_tab.dart` | 185 | （table rows 頁） |
+
+> `tabs/database/table_rows_view.dart:116` 的 `showModalBottomSheet` 同樣未帶 name，但 bottom sheet 亦為 route，會觸發 `didPush`——一併納入。
+
+**為何值得修**：污染量與使用者的排查強度**成正比**——越是深入追查（反覆開關 detail view），NavigatorTab 就被灌越多雜訊，正好在最需要乾淨導航軌跡時最髒。這違背了工具「不干擾被觀測對象」的基本原則（觀測者效應）。
+
+**設計方向：✅ 已定案採方案 B**（2026-07-26 決定）
+
+- ~~**方案 A**~~：逐一為 4 處 `MaterialPageRoute` 補上 `RouteSettings(name: 'flutter_inspector_*')`，`_isInspectorRoute` 改為 `startsWith` 比對。
+  - **不採用**。**治標**——新增任何 detail view 都必須記得補 name，漏一個就再破一次，等於把正確性寄託在人的記憶上。這是在既有的 1 個判斷點旁再加第 5、第 6 個。
+- **方案 B（定案）**：dashboard 內部推送統一走一個 helper（如 `pushInspectorRoute`），由它統一掛上帶前綴的 route name；`_isInspectorRoute` 只認這一個來源。
+  - **消滅特殊情況**——新增頁面自動被涵蓋，不依賴呼叫端自律。符合「好品味」判準：把 4 個散落的判斷點收斂成 1 個。
+
+**實作備忘（2026-07-26 探勘所得，動工時可直接用）**：
+- 4 處呼叫端**全部是 `MaterialPageRoute` + `builder`**，形狀一致，單一 helper 即可覆蓋，無需為個別頁面開特例。
+- `table_rows_view.dart:116` 的 `showModalBottomSheet` 形狀不同（非 `MaterialPageRoute`），需要 `routeSettings:` 參數另外處理——**別假設它能套同一個 helper**。
+- helper 內建議加 `assert(name.startsWith(prefix))`，讓誤用在 debug build 當場炸出來，而非靜默漏過。
+- `dashboard_modal.dart:32` 現有的 `'flutter_inspector_dashboard'` 字串常值應一併收進共用常數，否則前綴定義會有兩份。
+
+- **影響範圍**：`lib/src/observers/navigator_observer.dart` + 上表 4 處呼叫端（+ `table_rows_view.dart`）
+- **Effort**：low ｜ **排查價值**：⭐⭐⭐⭐（直接影響 NavigatorTab 可信度）
+- **⚠️ 動工前必查**：依 §P7 的教訓，先 grep 一次「dashboard 內還有幾處 push / showDialog / showModalBottomSheet」，上表是 2026-07-26 的快照，可能已增生。
 
 ---
 
@@ -635,7 +684,10 @@
 | **§P7** Error 高亮強化 | error 行淡紅底色 | `console_tab.dart` 的 `_LogEntryRow` / `_NetworkEntryRow` | trivial | ✅ PR #101 |
 | **§P11 → §P1** 錯誤爆發偵測（**綁定**） | 先重構通知 channel，再接 error 計數 + 告警 | `network_notifier.dart` → `flutter_inspector.dart` + `dashboard_modal.dart` | low + low | ⬜ 下一順位 |
 | **§P6** Dashboard Badge | tab 的 error count badge | `dashboard_modal.dart` | low | ⬜ |
+| **§D6** Inspector 自身頁面污染 NavigatorTab | 收斂 inspector 內部 push 的識別（**方案 B**），讓 detail view 不進使用者導航軌跡 | 新增 helper + `navigator_observer.dart` + 4 處 dashboard 呼叫端 | low | ⬜ 方案已定案 |
 
+> **§D6 是既有 bug 而非新功能**，排在 Tier 2 的理由是它侵蝕的是**既有功能的可信度**（NavigatorTab 的資料正確性），不是錦上添花；且污染量與排查強度成正比——越認真追查越髒。已於 2026-07-26 用 probe test 實測確認 `NetworkDetailView` 會進入 `navigatorInspector.entries`（見 §D6）。
+>
 > **§P7 已完成**（PR #101，2026-07-25 合入 main）。實際成本確如預估的 trivial，但 diff 主體不在高亮本身——動工才發現「網路請求是否失敗」的判定在三處各手寫一份且已漂移，收斂成 `NetworkEntry.isFailed` 並一併修掉 errorType-only 失敗不產生錯誤群組的既有 bug（見 §P7 實作現況）。**這是本輪的一條經驗**：trivial 項目的成本估在「要寫的程式碼」上通常準，但會低估「動到的既有判定有多少份」。
 >
 > **下一步：§P11 → §P1。§P11 必須排在 §P1 之前**，否則會被迫在 `NetworkNotifier` 內長 if/else 區分「網路摘要」與「錯誤爆發」兩種通知語意。§P14 若要做，併入 §P7 的高亮機制，不單獨排程——§P7 已完成，該機制（`_kErrorRowTint` + 逐 Row 的 `tileColor` 判斷）現已存在，屆時只需多認一種 `data` flag。
