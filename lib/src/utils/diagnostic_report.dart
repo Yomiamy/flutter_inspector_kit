@@ -27,8 +27,8 @@ import 'redaction.dart';
 /// * [sections] — which sources to include. Unselected sources are absent
 ///   entirely, not rendered empty.
 /// * [errorsOnly] — restrict the whole Timeline stream to error signals:
-///   error/warning logs and failed network calls (`statusCode >= 400` or a
-///   transport `errorType`); nav/db events are dropped. Off by default: a
+///   error/warning logs and failed network calls ([NetworkEntry.isFailed]);
+///   nav/db events are dropped. Off by default: a
 ///   report whose whole point is "what happened around the error" is worth
 ///   little once the leading info/debug breadcrumbs are stripped. The
 ///   independent Network/Navigation/Database detail sections are unaffected.
@@ -205,7 +205,7 @@ bool _isError(TimestampedEntry e) {
     return e.level == LogLevel.error || e.level == LogLevel.warning;
   }
   if (e is NetworkEntry) {
-    return (e.statusCode ?? 0) >= 400 || e.errorType != null;
+    return e.isFailed;
   }
   return false;
 }

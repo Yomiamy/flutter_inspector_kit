@@ -103,6 +103,15 @@ void main() {
       expect(aggregateNetworkErrors([]), isEmpty);
     });
 
+    test('只有 errorType 的傳輸失敗仍會產生群組', () {
+      final groups = aggregateNetworkErrors([
+        mkEntry(errorType: DioExceptionType.connectionTimeout),
+      ]);
+      expect(groups, hasLength(1));
+      expect(groups.first.statusCode, isNull);
+      expect(groups.first.errorType, DioExceptionType.connectionTimeout);
+    });
+
     test('全部成功請求 → 無 error group', () {
       final entries = List.generate(5, (_) => mkEntry(statusCode: 200));
       expect(aggregateNetworkErrors(entries), isEmpty);
