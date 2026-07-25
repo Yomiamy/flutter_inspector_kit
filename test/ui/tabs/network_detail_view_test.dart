@@ -292,12 +292,18 @@ void main() {
 
     // Test 2: incomplete entry → disabled
     testWidgets('disabled when entry is not complete', (tester) async {
+      // Held in a local so the WeakReference inside NetworkEntry stays alive:
+      // once collected, the button disables for the wrong reason and this
+      // stops testing isComplete at all. A bare local is enough because
+      // `flutter test` runs the JIT VM, which keeps it live for the frame;
+      // AOT's last-use liveness would not, but widget tests never run AOT.
+      final dio = Dio();
       final entry = NetworkEntry(
         method: 'GET',
         url: 'https://api.test/ping',
         requestHeaders: {},
         isComplete: false,
-        sourceDio: Dio(),
+        sourceDio: dio,
         timestamp: t,
       );
       await pumpView(tester, entry);
