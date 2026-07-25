@@ -1,5 +1,8 @@
 ## Unreleased
 
+### Fixed
+* **Inspector routes no longer pollute the Navigator tab**: opening a detail view or bottom sheet inside the dashboard (log/network details, table rows, cell details, the export sheet) was recorded as navigation in the *host app's* history, so the more thoroughly you investigated, the noisier the Navigator tab became — the export sheet even wrote itself into the report it was about to produce. Every route the dashboard opens is now tagged with a shared prefix that the observer filters on. Host app navigation is untouched, including unnamed routes.
+
 ### Added
 * **App lifecycle markers**: `FlutterInspector(captureLifecycleEvents: true)` records every app lifecycle transition (`resumed` / `inactive` / `paused` / `detached`, plus `hidden` on Flutter 3.13+) as an `info` Console log, so crashes and stalled network calls can be read against whether the app was in the foreground. Each entry names the current top-most page (e.g. `App lifecycle: resumed · HomePage (/home)`) so repeated home/back switches stay distinguishable without cross-referencing the Navigator tab. Opt-in and disabled by default; `detach()` removes the observer.
 

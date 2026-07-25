@@ -8,6 +8,7 @@ import '../../../models/navigator_entry.dart';
 import '../../../models/network_entry.dart';
 import '../../../models/timestamped_entry.dart';
 import '../../../extensions/log_level_color_extension.dart';
+import '../../../observers/inspector_route_names.dart';
 import '../../theme/theme.dart';
 import 'console/log_detail_view.dart';
 import 'network/network_detail_view.dart';
@@ -169,8 +170,10 @@ class _LogEntryRow extends StatelessWidget {
           ? const Icon(Icons.chevron_right, size: ThemeSize.size18)
           : null,
       onTap: canTap
-          ? () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => LogDetailView(entry: entry)),
+          ? () => pushInspectorRoute(
+              context,
+              kInspectorLogDetailRoute,
+              (_) => LogDetailView(entry: entry),
             )
           : null,
     );
@@ -193,12 +196,12 @@ class _NetworkEntryRow extends StatelessWidget {
       title: Text('${entry.method} ${entry.statusCode ?? '-'} ${entry.url}'),
       subtitle: Text(entry.displayTime),
       trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => NetworkDetailView(
-            entry: entry,
-            redactSensitiveData: redactSensitiveData,
-          ),
+      onTap: () => pushInspectorRoute(
+        context,
+        kInspectorNetworkDetailRoute,
+        (_) => NetworkDetailView(
+          entry: entry,
+          redactSensitiveData: redactSensitiveData,
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_browser_source.dart';
+import '../../../observers/inspector_route_names.dart';
 import '../../../sources/operation_log_source.dart';
 import '../../theme/theme.dart';
 import '../../widgets/error_card.dart';
@@ -177,17 +178,11 @@ class _DatabaseTabBody extends StatelessWidget {
               const Icon(Icons.chevron_right, color: ThemeColor.color9E9E9E),
             ],
           ),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => TableRowsView(
-                  source: selectedSource,
-                  tableName: table.name,
-                ),
-              ),
-            );
-          },
+          onTap: () => pushInspectorRoute(
+            context,
+            kInspectorTableRowsRoute,
+            (_) => TableRowsView(source: selectedSource, tableName: table.name),
+          ),
         );
       },
     );

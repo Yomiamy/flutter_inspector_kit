@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/flutter_inspector.dart';
 import '../../models/diagnostic_info.dart';
 import '../../models/timestamped_entry.dart';
+import '../../observers/inspector_route_names.dart';
 import '../../utils/diagnostic_report.dart';
 import '../../utils/share_text.dart';
 
@@ -19,6 +20,7 @@ class ExportReportSheet extends StatefulWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      routeSettings: const RouteSettings(name: kInspectorExportReportRoute),
       builder: (_) => ExportReportSheet(inspector: inspector),
     );
   }
