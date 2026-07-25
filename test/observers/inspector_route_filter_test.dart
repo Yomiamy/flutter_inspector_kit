@@ -1,54 +1,148 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
-import 'package:flutter_inspector_kit/src/observers/inspector_route_names.dart';
+import 'package:flutter_inspector_kit/src/models/database_operation.dart';
+import 'package:flutter_inspector_kit/src/models/log_level.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/export_report_sheet.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/console_tab.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/database/table_rows_view.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/database_tab.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network_tab.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Drives the real dashboard entry points rather than hand-built routes.
+///
+/// Asserting on route names we construct ourselves would only prove the
+/// observer filters those strings — it would still pass if a call site dropped
+/// `pushInspectorRoute` or its `routeSettings`, which is exactly the regression
+/// this file exists to catch.
 void main() {
-  group('inspector route filter (end-to-end)', () {
-    testWidgets('no inspector-owned route reaches the entries buffer', (
-      tester,
+  group('inspector route filter (real dashboard entry points)', () {
+    /// Pumps [child] under an app whose Navigator is observed by [inspector],
+    /// then drops the entry recorded for the initial route so each test starts
+    /// from an empty buffer.
+    Future<void> pumpObserved(
+      WidgetTester tester,
+      FlutterInspector inspector,
+      Widget child,
     ) async {
-      final inspector = FlutterInspector();
       await tester.pumpWidget(
         MaterialApp(
           navigatorObservers: [inspector.navigatorObserver],
-          home: const SizedBox(),
+          home: Scaffold(body: child),
         ),
       );
+      await tester.pumpAndSettle();
+      inspector.clearNavigator();
+    }
+
+    testWidgets('ConsoleTab log row does not record navigation', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector();
+      inspector.log('boom', level: LogLevel.error, stackTrace: '#0 main');
+      await pumpObserved(tester, inspector, ConsoleTab(inspector: inspector));
+
+      await tester.tap(find.text('boom'));
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+    });
+
+    testWidgets('ConsoleTab network row does not record navigation', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector();
+      inspector.logNetwork(
+        NetworkEntry(method: 'GET', url: 'https://x.test/a', statusCode: 200),
+      );
+      await pumpObserved(tester, inspector, ConsoleTab(inspector: inspector));
+
+      await tester.tap(find.textContaining('https://x.test/a'));
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+    });
+
+    testWidgets('NetworkTab row does not record navigation', (tester) async {
+      final inspector = FlutterInspector();
+      inspector.logNetwork(
+        NetworkEntry(method: 'GET', url: 'https://x.test/b', statusCode: 200),
+      );
+      await pumpObserved(tester, inspector, NetworkTab(inspector: inspector));
+
+      await tester.tap(find.textContaining('https://x.test/b'));
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+    });
+
+    testWidgets('DatabaseTab table row does not record navigation', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector();
+      inspector.database(DatabaseOperation.insert, 'users');
+      await pumpObserved(tester, inspector, DatabaseTab(inspector: inspector));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('users'));
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+    });
+
+    testWidgets('TableRowsView cell details sheet does not record navigation', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector();
+      await pumpObserved(
+        tester,
+        inspector,
+        TableRowsView(source: _FakeDatabaseBrowserSource(), tableName: 'users'),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('hello'));
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+    });
+
+    testWidgets('ExportReportSheet does not record navigation', (tester) async {
+      final inspector = FlutterInspector();
+      await pumpObserved(
+        tester,
+        inspector,
+        Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () => ExportReportSheet.show(context, inspector),
+            child: const Text('open'),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, isEmpty);
+    });
+
+    testWidgets('host app navigation is still recorded', (tester) async {
+      final inspector = FlutterInspector();
+      await pumpObserved(tester, inspector, const SizedBox());
       final navigator = tester.state<NavigatorState>(find.byType(Navigator));
 
-      const names = [
-        kInspectorDashboardRoute,
-        kInspectorLogDetailRoute,
-        kInspectorNetworkDetailRoute,
-        kInspectorTableRowsRoute,
-        kInspectorCellDetailsRoute,
-        kInspectorExportReportRoute,
-      ];
-
-      for (final name in names) {
-        navigator.push(
-          MaterialPageRoute<void>(
-            settings: RouteSettings(name: name),
-            builder: (_) => const SizedBox(),
-          ),
-        );
-        await tester.pumpAndSettle();
-        navigator.pop();
-        await tester.pumpAndSettle();
-      }
-
-      // MaterialApp's `home` becomes an initial route named '/' (a host
-      // route, not an inspector one) and is recorded — AC-2 says only
-      // inspector-owned routes get filtered. So the buffer holds exactly
-      // that one entry, none of the inspector routes pushed above.
-      expect(inspector.navigatorInspector.entries.length, 1);
-      expect(inspector.navigatorInspector.entries.first.routeName, '/');
-
-      // The same observer still records the host app's own navigation.
       navigator.push(
         MaterialPageRoute<void>(
           settings: const RouteSettings(name: '/user-page'),
@@ -56,64 +150,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(inspector.navigatorInspector.entries.length, 2);
-      expect(
-        inspector.navigatorInspector.entries.first.routeName,
-        '/user-page',
-      );
-    });
 
-    testWidgets('ExportReportSheet.show does not pollute the entries buffer', (
-      tester,
-    ) async {
-      final inspector = FlutterInspector();
-      await tester.pumpWidget(
-        MaterialApp(
-          navigatorObservers: [inspector.navigatorObserver],
-          home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => ExportReportSheet.show(context, inspector),
-              child: const Text('open'),
-            ),
-          ),
-        ),
-      );
-
-      // Drop the '/' initial-route entry: only the sheet's own push (or
-      // lack thereof) is under test here.
-      inspector.clearNavigator();
-
-      await tester.tap(find.text('open'));
+      // Unnamed host route — must never be dropped (name == null).
+      navigator.push(MaterialPageRoute<void>(builder: (_) => const SizedBox()));
       await tester.pumpAndSettle();
 
-      expect(inspector.navigatorInspector.entries, isEmpty);
+      final names = inspector.navigatorInspector.entries
+          .map((e) => e.routeName)
+          .toList();
+      expect(names, containsAll(<String?>['/user-page', null]));
     });
-
-    testWidgets(
-      'TableRowsView cell details sheet does not pollute the entries buffer',
-      (tester) async {
-        final inspector = FlutterInspector();
-        await tester.pumpWidget(
-          MaterialApp(
-            navigatorObservers: [inspector.navigatorObserver],
-            home: TableRowsView(
-              source: _FakeDatabaseBrowserSource(),
-              tableName: 'users',
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // Drop the '/' initial-route entry: only the cell-details sheet's
-        // own push (or lack thereof) is under test here.
-        inspector.clearNavigator();
-
-        await tester.tap(find.text('hello'));
-        await tester.pumpAndSettle();
-
-        expect(inspector.navigatorInspector.entries, isEmpty);
-      },
-    );
   });
 }
 

@@ -47,7 +47,7 @@ const String kInspectorExportReportRoute = 'flutter_inspector_export_report';
 - 常數的**語意所有者是過濾規則**（observer），UI 只是規則的遵守方。放在判斷端，依賴方向是 `ui/ → observers/`，單向。
 - 反向（放 `lib/src/ui/dashboard/`）會讓 `observers/` 依賴 `ui/`，把過濾邏輯綁在 UI 層上，方向錯誤。
 - 放 `lib/src/utils/` 也可行，但 `utils/` 現有內容（redaction、formatters、table_sort）皆為無狀態純函式工具，route 命名契約不屬於這個語意群。
-- `observers/` 目前只有 `navigator_observer.dart`，無任何 import；新檔零 import（純 `const String`）→ 不可能循環相依。測試端 `test/observers/navigator_observer_test.dart` 已 import 同目錄的 observer，路徑自然。
+- 新檔只依賴 Flutter 基礎庫（helper 需 `package:flutter/material.dart` 取得 `BuildContext` / `WidgetBuilder` / `MaterialPageRoute`），不 import 本專案任何模組 → 不可能與 `ui/` 形成循環相依。測試端 `test/observers/navigator_observer_test.dart` 已 import 同目錄的 observer，路徑自然。
 - 檔名 `snake_case`，符合 §2.4。
 
 **慣例對齊**：file 層級 `const String kXxx` + 檔頭說明註解，與 `lib/src/utils/redaction.dart:6`、`lib/src/webview/webview_bridge_js.dart:5` 完全同形。
@@ -290,7 +290,7 @@ testWidgets('opening the export sheet does not pollute entries',
 
 ## 3. 任務拆分
 
-任務粒度 2–5 分鐘。相依順序：**T1 → (T2 ‖ T3 ‖ T4 ‖ T5 ‖ T6) → T7 → T8**。
+任務粒度 2–5 分鐘。相依順序：**T1 → (T2 ‖ T3 ‖ T4 ‖ T5 ‖ T6) → (T7 ‖ T8) → T9**。T7 與 T8 寫入不同測試檔、互無資料相依，可並行（與下方 Wave 3 一致）。
 
 ### T1｜建立共用常數與 helper（TDD 起點）
 
@@ -399,7 +399,7 @@ testWidgets('opening the export sheet does not pollute entries',
 **Wave 1（序列）**：T1
 
 **Wave 2（5 路並行，寫入路徑互不重疊）**：
-```
+```text
 T2  → lib/src/observers/navigator_observer.dart
 T3  → lib/src/ui/dashboard/dashboard_modal.dart
 T4  → lib/src/ui/dashboard/tabs/console_tab.dart

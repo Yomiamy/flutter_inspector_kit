@@ -26,7 +26,7 @@
 
 在掛載 `FlutterInspectorNavigatorObserver` 的 app 中開啟 dashboard、點開一筆 network entry 後，`inspector.navigatorInspector.entries` 的實際內容：
 
-```
+```text
 ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 ```
 
@@ -127,7 +127,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 ### AC-3：正確性由單一來源保證（消滅特殊情況）
 
-- [ ] Dashboard 內部所有 route 推送皆經由**收斂後的入口**取得 route name，不存在「某處自行硬編 name 字串」的旁路。
+- [ ] Dashboard 內部所有 route 的名稱皆來自**同一份常數定義**，不存在「某處自行硬編 name 字串」的旁路。名稱的**傳遞方式**依 route 形狀而異：page route 走 `pushInspectorRoute` helper、bottom sheet 經 `showModalBottomSheet` 的 `routeSettings:`、dashboard dialog 用共用常數——三者共用同一份常數與前綴，這才是「單一來源」的實質內容（非單一函式，見 §6）。
 - [ ] `_isInspectorRoute` 的判斷只依賴**一個**來源定義的名稱規則。
 - [ ] `'flutter_inspector_dashboard'` 這類字串常值收斂為**單一共用常數**，產生端與判斷端引用同一份定義。
 - [ ] 誤用（未依規則命名）在 **debug build 會當場失敗**（例如 `assert`），而非靜默漏過成為新的污染點。

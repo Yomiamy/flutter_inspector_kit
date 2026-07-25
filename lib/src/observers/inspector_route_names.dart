@@ -18,10 +18,19 @@ const String kInspectorRoutePrefix = 'flutter_inspector_';
 /// on this exact string in their own NavigatorObserver.
 const String kInspectorDashboardRoute = 'flutter_inspector_dashboard';
 
+/// The log detail page, opened from a Console row.
 const String kInspectorLogDetailRoute = 'flutter_inspector_log_detail';
+
+/// The network detail page, opened from either the Console or Network tab.
 const String kInspectorNetworkDetailRoute = 'flutter_inspector_network_detail';
+
+/// The table rows page, opened from a Database tab table.
 const String kInspectorTableRowsRoute = 'flutter_inspector_table_rows';
+
+/// The cell details bottom sheet, opened from a table row.
 const String kInspectorCellDetailsRoute = 'flutter_inspector_cell_details';
+
+/// The diagnostic report export bottom sheet.
 const String kInspectorExportReportRoute = 'flutter_inspector_export_report';
 
 /// Pushes an inspector-owned page route, tagged so the navigator observer
