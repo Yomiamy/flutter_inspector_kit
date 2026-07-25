@@ -1,6 +1,6 @@
 # 🩺 Flutter Inspector 錯誤問題排查與分析：功能腦力激盪報告
 
-> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-25 **§P13 App 生命週期標記完成**——PR #100 合入 main（merge `c616482`），新增 `LifecycleHandler` + `captureLifecycleEvents`（default off）把前景/背景切換轉成 `LogLevel.info` log，並在 message 尾巴附加當前 top-most page（型態 + path，解 home/back 洗頻）。`detach()` 一併 teardown observer（不沿用 error hooks 的不 teardown 慣例）。Tier 1 清空，下一步進 Tier 2（§P7 或 §P11→§P1）。｜**前次更新**：2026-07-24 **實作路徑重排為「鏈推斷優先」**——原 Phase Plan 以「先滅紅燈」把 §D1 ConsoleTab 搜尋/過濾排最高優先，重新檢視後判定該紅燈紅在「功能對稱性」而非「排查能力」：過濾是**點查詢**（已知道要找什麼），排查要的是**鏈推斷**（不知道要找什麼），且過濾會**切斷因果鏈**。新排序原則為「往時間軸加資訊 → 標記已有資訊 → 檢索 → 打磨」，§P13 升為第一順位，§D1 降至 Tier 3 並與 §P5 合併，§P14 降級不單獨排程，**§P2 錯誤上下文快照整項否決**（快照的事件本就在 timeline 上、推導堆疊會失準卻被當事實、預先挑維度違背「錯誤常是綜合因素」——與 §D3 同病）。同時修正三處與 codebase 不符的估計（`InspectorSearchBar` 實為私有 `_SearchBar`、`entriesAtLevel()` 接不上混合流、`NavigatorStackResolver.currentStack` 不存在）。詳見文末「下一步實作路徑」。｜**前次更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
+> **建立日期**：2026-06-25（原始檔名）｜**最後更新**：2026-07-25 **§P7 Error 高亮強化完成**——PR #101 合入 main（merge `3ecdf51`），ConsoleTab 的 error log 與失敗網路請求加淡紅底（`ListTile.tileColor`，alpha 0.08）。**只染 error 不染 warning**（warning 密集時整片泛黃反而稀釋「跳出來」的效果），warning 維持橘字並有測試鎖住。真正的 diff 主體是**收斂「網路請求是否失敗」的三份重複判定**——動工才發現該判定在 `network_tab` / `diagnostic_report` / `network_utils` 各手寫一份且已漂移（各漏一種失敗類型），統一為 `NetworkEntry.isFailed`，並一併修掉「只帶 `errorType` 的傳輸失敗不產生 Error Summary 群組卡片」這個靜默的既有 bug。Tier 2 下一步為 §P11→§P1（綁定排程）。｜**前次更新**：2026-07-25 **§P13 App 生命週期標記完成**——PR #100 合入 main（merge `c616482`），新增 `LifecycleHandler` + `captureLifecycleEvents`（default off）把前景/背景切換轉成 `LogLevel.info` log，並在 message 尾巴附加當前 top-most page（型態 + path，解 home/back 洗頻）。`detach()` 一併 teardown observer（不沿用 error hooks 的不 teardown 慣例）。Tier 1 清空，下一步進 Tier 2（§P7 或 §P11→§P1）。｜**前次更新**：2026-07-24 **實作路徑重排為「鏈推斷優先」**——原 Phase Plan 以「先滅紅燈」把 §D1 ConsoleTab 搜尋/過濾排最高優先，重新檢視後判定該紅燈紅在「功能對稱性」而非「排查能力」：過濾是**點查詢**（已知道要找什麼），排查要的是**鏈推斷**（不知道要找什麼），且過濾會**切斷因果鏈**。新排序原則為「往時間軸加資訊 → 標記已有資訊 → 檢索 → 打磨」，§P13 升為第一順位，§D1 降至 Tier 3 並與 §P5 合併，§P14 降級不單獨排程，**§P2 錯誤上下文快照整項否決**（快照的事件本就在 timeline 上、推導堆疊會失準卻被當事實、預先挑維度違背「錯誤常是綜合因素」——與 §D3 同病）。同時修正三處與 codebase 不符的估計（`InspectorSearchBar` 實為私有 `_SearchBar`、`entriesAtLevel()` 接不上混合流、`NavigatorStackResolver.currentStack` 不存在）。詳見文末「下一步實作路徑」。｜**前次更新**：2026-07-24（新增 **第五部分：第二輪腦力激盪——開源除錯生態手法 + 效能訊號 + 既有缺陷**，基於 v1.7.0 codebase 二次查核（含 `RingBuffer`/`AlertThrottler`/redaction pipeline/生命週期 hook 的實際可重用性驗證），提出 P10–P15 共 6 項，並記錄一項殘留 redaction 缺陷 §D5（**§D5 已於同日決定不排程**——debug 工具應以資訊完整為先，遮罩反成排查絆腳石，既有 redaction 實作保留原樣不動）。核心結論：多數「開源工具常見手法」在本專案已有地基（breadcrumb＝`mergedTimeline`、alert throttle＝`AlertThrottler`），真正的新地基需求集中在「生命週期/連線狀態」這類本專案從缺的 hook 類別。**前次更新**：2026-07-24 **#1 去重機制修復完成**——PR #96 合入 main（merge `5d2b37d`），`UncaughtErrorHandler` 改以 object-identity（`identical` 比對上一筆 `FlutterErrorDetails`）去重，消滅同一 build 崩潰在 Console 的重複記錄，§D2 由待辦轉為已完成。**另補記**：文件此前漏列的既有「網路系統通知」基建（`showNetworkNotification` opt-in，自 v0.1.0，`flutter_local_notifications` 已在相依）已補進完成度總覽與 §P1，修正「通知類未實作」的誤判。更早：2026-07-23 新增 **第四部分：功能缺口深度分析與新功能提案**——對照 v1.7.0 codebase 盤點全部 10 項原始功能的實際缺口，並提出 9 項新功能提案 P1–P9，聚焦「快速排查 / 輔助定位錯誤」；更新完成度總覽與實作路徑為四階段 Phase Plan。再更早：2026-07-18 新增 #10 WebView Inline Debugging 提案並完成）
 
 > 「好代碼沒有特殊情況。」 —— Linus Torvalds
 >
@@ -377,7 +377,7 @@
   - 用 `ValueListenableBuilder` 監聽 buffer 變化，局部重建
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐
 
-### §P7. Error 高亮強化（Error Visual Enhancement）— 🆕
+### §P7. Error 高亮強化（Error Visual Enhancement）— ✅ 已完成（PR #101）
 
 > **痛點**：目前 error log 只靠 `StatusColorIndicator` 的小色點區分（實際上 ConsoleTab 用 `TextStyle(color: entry.level.color)` 染文字色），在 500 條 timeline 裡不夠醒目。
 
@@ -386,6 +386,12 @@
   - 網路失敗的 `_NetworkEntryRow` 同理
   - 效果：error 條目帶淡紅底色，一眼從滾動列表中跳出
 * **Effort**：trivial ｜ **排查價值**：⭐⭐⭐
+* **✅ 實作現況（PR #101 · merge `3ecdf51`）**：與原構想有三處差異，前兩處是**刻意收窄/簡化**，第三處是動工後才浮現的既有缺陷：
+  1. **只染 error，warning 不染**——原構想寫「error/warning 都加背景色」，實作決定只染 error。理由：warning 密集的 app 會整片泛黃，反而稀釋掉「跳出來」的效果，違背這項功能的唯一目的。warning 維持橘字不變，已有測試鎖住（`console_tab_test.dart` 斷言 warning 的 `tileColor` 為 null 且文字色為 `LogLevel.warning.color`）。
+  2. **用 `ListTile.tileColor`，不外包 `Container`**——原構想的 `Container` 是多餘的：`ListTile` 自帶 `tileColor` 參數，而外包 `Container` 會多一層 widget，且背景色會蓋在 Material 之上、破壞 InkWell 水波紋。alpha 0.08 為半透明，疊在 ambient surface 上合成，深色底自然透上來。
+  3. **順帶收斂「網路請求是否失敗」的三份重複判定**（本項才是這次 diff 的主體）：動工時發現該判定在 `network_tab.dart:52`、`diagnostic_report.dart:208`、`network_utils.dart:186` 各手寫一份，且**三份已經漂移**——各漏一種失敗類型（前兩者分別漏 `errorType` / `error`，第三者漏 `errorType`）。新增 `NetworkEntry.isFailed`（`>=400` ∪ `error` ∪ `errorType`）作為單一判定來源，四個消費端統一走它。
+  - **一併修掉的既有 bug**：只帶 `errorType` 的傳輸失敗原本**不會產生 Error Summary 群組卡片**，在網路 tab 的錯誤摘要裡靜默消失（`aggregateNetworkErrors` 的判定漏了 `errorType`）。收斂後修正，已加測試鎖住。目前內建的 dio interceptor 一律同時寫 `error` 與 `errorType`，故走不到該分歧；但 `NetworkEntry` 建構式與 `logNetwork()` 都是公開 API，接非 dio 網路層的使用者即可觸發。
+  - **未採納的 review 意見兩則**（皆經實測查證後 pushback）：① 建議把 `isFailed` 的 `errorType` 收窄以排除 `cancel`——在本 codebase 是 no-op，因 interceptor 一律同時寫 `error`，`error != null` 那項會先短路；真要處理應在 interceptor 決定記不記，而非在最下游的 getter 加 enum 白名單。② 建議 tint 改走 theme 衍生以支援 dark mode——本 package 全 `lib/` 對 `Brightness`/`ThemeMode` 的引用為 **0**，整套 design system 就是固定 hex token，且半透明 tint 本就會適應底色。
 
 ### §P8. 網路請求耗時慢查詢標記（Slow Request Indicator）— 🆕
 
@@ -420,7 +426,7 @@
 | ~~5~~ | ~~Detail View ±5s 同時段側欄~~ — ❌ 已否決（2026-07-24，理由見 §D3） | §D3（#2 做法 A） | med | — |
 | **6** | Timeline 書籤 / 標記 | §P3 新提案 | low | ⭐⭐⭐⭐ |
 | **7** | Dashboard 錯誤計數 Badge | §P6 新提案 | low | ⭐⭐⭐ |
-| **8** | Error 高亮強化 | §P7 新提案 | trivial | ⭐⭐⭐ |
+| ~~8~~ | Error 高亮強化 — ✅ 已完成（PR #101） | §P7 新提案 | trivial | ⭐⭐⭐ |
 | **9** | 快速複製 Diagnostic Snippet | §P4 新提案 | low | ⭐⭐⭐ |
 | **10** | Jump to Latest Error FAB | §P5 新提案 | low | ⭐⭐⭐ |
 | **11** | DatabaseTab 搜尋 / 過濾 | §D4 缺口 | low | ⭐⭐⭐ |
@@ -539,6 +545,8 @@
 > **更關鍵**：為此新增一個公開 API 不划算。公開 API 有維護、文件、breaking change 成本，而想要的效果（timeline 上顯眼）有兩個更便宜的達成方式：① 約定 `log('📍 CHECKOUT_START')`，**零程式碼、現在就能用**；② §P7 高亮機制做完後，讓它一併認 `data` 裡的任意 flag。這與 anti-feature #6「為不存在的區別打補丁」是同一個毛病的輕量版。
 >
 > **結論**：移出優先序列，**與 §P7 綁定或直接被 emoji 約定取代**。若 §P7 完成後覺得約定夠用，本項永不需實作。下方原設計保留作紀錄。
+>
+> **§P7 完成後的現況（2026-07-25）**：高亮機制已存在於 `console_tab.dart`（`_kErrorRowTint` + 各 Row 的 `tileColor` 判斷），本項若要做，只需讓該判斷多認一種 `data` flag，**不需要新的公開 API**。在有人實際反映 `log('📍 …')` 的 emoji 約定不夠用之前，維持不排程。
 
 > **痛點**：開發者常常想在「關鍵業務流程節點」主動留一個標記（如「進入結帳流程」「使用者按下送出」），現在只能用 `inspector.log()` 硬湊，跟一般 info log 混在一起，排查時不容易在 Timeline 裡一眼認出「這是我特意標的節點」還是「隨手印的訊息」。
 
@@ -548,7 +556,7 @@
   - `inspector.mark(String label)` → 內部呼叫 `log(label, level: LogLevel.info, data: {'_marker': true})`
   - ConsoleTab 對 `data['_marker'] == true` 的條目加一個視覺區分（如 📍 前綴或不同底色，做法比照 §P7 Error 高亮強化的機制）
   - 完全不影響 `buildDiagnosticReport`——marker log 一樣進 `## Timeline`，`_marker` data 自然可見
-* **重用**：`inspector.log()`、`LogEntry.data`（零新欄位）、§P7 已規劃的高亮機制（同一套 presentation 層判斷邏輯，這裡多一種 badge）
+* **重用**：`inspector.log()`、`LogEntry.data`（零新欄位）、§P7 **已實作**的高亮機制（PR #101，同一套 presentation 層判斷邏輯，這裡多一種 badge）
 * **品味守則**：`mark()` 就是 `log()` 的殼，**不要**為了「聽起來像獨立功能」而新增 `MarkEntry` 模型或新 buffer——那是為不存在的區別打補丁（同 anti-feature #6 的判斷邏輯）。
 * **Effort**：trivial ｜**排查價值**：⭐⭐⭐（小成本、體驗改善，錦上添花類）
 
@@ -622,13 +630,15 @@
 
 ### Tier 2 · 標記已有資訊（低成本、有感）
 
-| 項目 | 內容 | 寫入路徑 | Effort |
-|------|------|----------|:---:|
-| **§P7** Error 高亮強化 | error 行淡紅底色 | `console_tab.dart` 的 `_LogEntryRow` / `_NetworkEntryRow` | trivial |
-| **§P11 → §P1** 錯誤爆發偵測（**綁定**） | 先重構通知 channel，再接 error 計數 + 告警 | `network_notifier.dart` → `flutter_inspector.dart` + `dashboard_modal.dart` | low + low |
-| **§P6** Dashboard Badge | tab 的 error count badge | `dashboard_modal.dart` | low |
+| 項目 | 內容 | 寫入路徑 | Effort | 狀態 |
+|------|------|----------|:---:|:---:|
+| **§P7** Error 高亮強化 | error 行淡紅底色 | `console_tab.dart` 的 `_LogEntryRow` / `_NetworkEntryRow` | trivial | ✅ PR #101 |
+| **§P11 → §P1** 錯誤爆發偵測（**綁定**） | 先重構通知 channel，再接 error 計數 + 告警 | `network_notifier.dart` → `flutter_inspector.dart` + `dashboard_modal.dart` | low + low | ⬜ 下一順位 |
+| **§P6** Dashboard Badge | tab 的 error count badge | `dashboard_modal.dart` | low | ⬜ |
 
-> §P7 成本是 §D1 的十分之一，卻解決了「肉眼掃」的一半問題——error 自己從滾動列表跳出來，建議優先。**§P11 必須排在 §P1 之前**，否則會被迫在 `NetworkNotifier` 內長 if/else 區分「網路摘要」與「錯誤爆發」兩種通知語意。§P14 若要做，併入 §P7 的高亮機制，不單獨排程。
+> **§P7 已完成**（PR #101，2026-07-25 合入 main）。實際成本確如預估的 trivial，但 diff 主體不在高亮本身——動工才發現「網路請求是否失敗」的判定在三處各手寫一份且已漂移，收斂成 `NetworkEntry.isFailed` 並一併修掉 errorType-only 失敗不產生錯誤群組的既有 bug（見 §P7 實作現況）。**這是本輪的一條經驗**：trivial 項目的成本估在「要寫的程式碼」上通常準，但會低估「動到的既有判定有多少份」。
+>
+> **下一步：§P11 → §P1。§P11 必須排在 §P1 之前**，否則會被迫在 `NetworkNotifier` 內長 if/else 區分「網路摘要」與「錯誤爆發」兩種通知語意。§P14 若要做，併入 §P7 的高亮機制，不單獨排程——§P7 已完成，該機制（`_kErrorRowTint` + 逐 Row 的 `tileColor` 判斷）現已存在，屆時只需多認一種 `data` flag。
 
 ### Tier 3 · 檢索既有資訊（原 Phase 1，已降級）
 
@@ -663,7 +673,9 @@
 
 ---
 
-> **收尾建議（2026-07-25 更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**Tier 1（§P13）已於 PR #100 完成**——真正往 timeline 加上原本拿不到的維度（前景/背景 + 切換頁面），且動工前逐項實查、無隱藏成本坑到。**下一步進 Tier 2**：§P7 Error 高亮強化（trivial，成本最低）或 §P11→§P1 錯誤爆發偵測（綁定排程）。原被列為最高優先的 §D1 仍在 Tier 3 並與 §P5 合併，§P2 整項否決，理由見各節。
+> **收尾建議（2026-07-25 二次更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**Tier 1（§P13）已於 PR #100 完成**——真正往 timeline 加上原本拿不到的維度（前景/背景 + 切換頁面），且動工前逐項實查、無隱藏成本坑到。**Tier 2 的 §P7 已於 PR #101 完成**（error 行淡紅底，只染 error 不染 warning）。**下一步：§P11 → §P1 錯誤爆發偵測**（綁定排程，§P11 先行），Tier 2 剩餘另有 §P6 Dashboard Badge。原被列為最高優先的 §D1 仍在 Tier 3 並與 §P5 合併，§P2 整項否決，理由見各節。
+>
+> **§P7 帶出的一條估計偏差**：trivial 項目的 effort 估在「要寫的程式碼」上是準的（高亮本體只有兩行 `tileColor`），但**低估了「會動到幾份既有判定」**——實作時發現「網路請求是否失敗」在三個檔案各手寫一份且已漂移各漏一種失敗類型，收斂它才是 diff 的主體，並順帶修掉一個靜默的既有 bug（errorType-only 的傳輸失敗不產生錯誤群組卡片）。文件其餘標為 trivial/low 的項目，建議動工前先 grep 一次「這個判斷在幾個地方被重寫過」，那才是真實成本所在。
 >
 > **本輪的一條共通判準**（§D3 / §P2 均據此否決）：**不要替排查者預先決定「什麼跟這個錯誤相關」**。固定時間窗（§D3）、固定維度（§P2）都是工具在猜，而真實錯誤常是綜合因素——完整時間軸把所有維度攤平、由人邊看邊判斷，才是對的形狀。凡是提案想在 error 旁另闢一塊「相關資訊」的，先用這條判準檢驗。
 >
