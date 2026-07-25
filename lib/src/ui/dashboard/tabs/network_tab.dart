@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/flutter_inspector.dart';
 import '../../../models/network_entry.dart';
+import '../../../observers/inspector_route_names.dart';
 import '../../../utils/network_formatters.dart';
 import '../../../utils/network_utils.dart';
 import '../../theme/theme.dart';
@@ -265,12 +266,12 @@ class _EntryTile extends StatelessWidget {
         style: TextStyle(color: entry.error != null ? statusColor : null),
       ),
       trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => NetworkDetailView(
-            entry: entry,
-            redactSensitiveData: redactSensitiveData,
-          ),
+      onTap: () => pushInspectorRoute(
+        context,
+        kInspectorNetworkDetailRoute,
+        (_) => NetworkDetailView(
+          entry: entry,
+          redactSensitiveData: redactSensitiveData,
         ),
       ),
     );

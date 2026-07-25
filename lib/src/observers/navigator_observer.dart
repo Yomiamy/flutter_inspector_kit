@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../core/flutter_inspector.dart';
 import '../models/navigator_action.dart';
 import '../models/navigator_entry.dart';
+import 'inspector_route_names.dart';
 
 /// An observer that records navigation events into the inspector.
 ///
@@ -14,8 +15,13 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
 
   final FlutterInspector _inspector;
 
+  /// Whether [route] belongs to the inspector's own UI.
+  ///
+  /// A `null` name means the host app pushed an unnamed route — that must be
+  /// recorded, so null resolves to `false` (not filtered). Dropping unnamed
+  /// routes would lose user data, which is worse than the bug this fixes.
   bool _isInspectorRoute(Route<dynamic> route) =>
-      route.settings.name == 'flutter_inspector_dashboard';
+      route.settings.name?.startsWith(kInspectorRoutePrefix) ?? false;
 
   Type? _resolveWidgetType(Route<dynamic> route) {
     final settings = route.settings;

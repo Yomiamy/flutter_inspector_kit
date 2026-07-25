@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../models/database_browser_source.dart';
+import '../../../../observers/inspector_route_names.dart';
 import '../../../../utils/table_sort.dart';
 import '../../../theme/theme.dart';
 import '../../../widgets/error_card.dart';
@@ -117,6 +118,7 @@ class _TableRowsViewState extends State<TableRowsView> {
   void _showCellDetails(Object? cell) {
     showModalBottomSheet(
       context: context,
+      routeSettings: const RouteSettings(name: kInspectorCellDetailsRoute),
       builder: (context) => _CellDetailsBottomSheet(cell: cell),
     );
   }

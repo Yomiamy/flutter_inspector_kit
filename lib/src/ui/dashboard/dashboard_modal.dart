@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/flutter_inspector.dart';
+import '../../observers/inspector_route_names.dart';
 import 'export_report_sheet.dart';
 import 'tabs/console_tab.dart';
 import 'tabs/database_tab.dart';
@@ -29,7 +30,7 @@ class DashboardModal extends StatelessWidget {
   }) {
     showGeneralDialog(
       context: context,
-      routeSettings: const RouteSettings(name: 'flutter_inspector_dashboard'),
+      routeSettings: const RouteSettings(name: kInspectorDashboardRoute),
       pageBuilder: (context, animation, secondaryAnimation) {
         return DashboardModal(inspector: inspector, initialIndex: initialIndex);
       },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
+import 'package:flutter_inspector_kit/src/observers/inspector_route_names.dart';
 import 'package:flutter_inspector_kit/src/observers/navigator_observer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -80,33 +81,52 @@ void main() {
       expect(entry.widgetType, _SamplePage);
     });
 
-    testWidgets(
-      'resolves widgetType from builder',
-      (tester) async {
-        // A real Navigator is required so the observer has a navigator context
-        // from which to run the route builder.
-        await tester.pumpWidget(
-          MaterialApp(
-            navigatorObservers: [observer],
-            home: const SizedBox(),
-          ),
-        );
+    testWidgets('resolves widgetType from builder', (tester) async {
+      // A real Navigator is required so the observer has a navigator context
+      // from which to run the route builder.
+      await tester.pumpWidget(
+        MaterialApp(navigatorObservers: [observer], home: const SizedBox()),
+      );
 
-        final navigator = tester.state<NavigatorState>(find.byType(Navigator));
-        navigator.push(
-          MaterialPageRoute<void>(builder: (_) => const _SamplePage()),
-        );
-        await tester.pumpAndSettle();
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      navigator.push(
+        MaterialPageRoute<void>(builder: (_) => const _SamplePage()),
+      );
+      await tester.pumpAndSettle();
 
-        final pushEntry = inspector.navigatorInspector.entries
-            .firstWhere((e) => e.action == NavigatorAction.push);
-        expect(pushEntry.widgetType, _SamplePage);
+      final pushEntry = inspector.navigatorInspector.entries.firstWhere(
+        (e) => e.action == NavigatorAction.push,
+      );
+      expect(pushEntry.widgetType, _SamplePage);
+    });
+
+    test(
+      'records an unnamed user route (name == null must not be dropped)',
+      () {
+        final route = MaterialPageRoute<void>(builder: (_) => const SizedBox());
+        observer.didPush(route, null);
+
+        expect(inspector.navigatorInspector.entries.length, 1);
+        expect(inspector.navigatorInspector.entries.first.routeName, isNull);
       },
     );
 
+    test('records user routes whose names merely resemble the prefix', () {
+      for (final name in ['/flutter', '/inspector', '/home', 'flutter_x']) {
+        observer.didPush(
+          MaterialPageRoute<void>(
+            settings: RouteSettings(name: name),
+            builder: (_) => const SizedBox(),
+          ),
+          null,
+        );
+      }
+      expect(inspector.navigatorInspector.entries.length, 4);
+    });
+
     test('ignores inspector dashboard route', () {
       final route = MaterialPageRoute(
-        settings: const RouteSettings(name: 'flutter_inspector_dashboard'),
+        settings: const RouteSettings(name: kInspectorDashboardRoute),
         builder: (_) => const SizedBox(),
       );
 
