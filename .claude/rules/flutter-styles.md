@@ -525,6 +525,48 @@ Future<void> _save2() async {
 - **字串串接用 `StringBuffer`**：迴圈內累積字串用 `StringBuffer`，勿用 `+`（避免產生大量中間 String 物件）。
 - **列表分隔線用 `ListView.separated`**：需要項目間分隔線時用 `ListView.separated`，勿在每個 item 手動塞 `Divider`（同樣是 lazy build，且分隔邏輯集中）。
 
+### 7.7. 生命週期與狀態陷阱 (Lifecycle & State Anti-Patterns)
+
+**嚴禁在 `build()` 內將路由參數或外部資料指派給本地狀態 (State)**。這是一個極度危險且難以察覺的反模式 (Anti-pattern)，會導致狀態無預警重置。
+
+**The Bug (反模式):**
+當你在 `build` 方法中讀取 `ModalRoute.of(context)` 並直接賦值給 `State` 變數時，只要發生任何不可控的重建（例如：鍵盤彈出導致 `MediaQuery` 改變、上層 Widget 更新、或內部觸發 `setState`），`build` 就會再次執行，**把你辛苦更新的狀態用傳入的原始參數給覆蓋掉**。`build` 方法必須是純粹的 (Pure)——只將狀態映射到 UI，絕不可包含變更狀態的副作用。
+
+**Bad:**
+```dart
+@override
+Widget build(BuildContext context) {
+  final args = ModalRoute.of(context)!.settings.arguments as MyArgs;
+  // 🔴 嚴重錯誤：每次頁面重建，使用者編輯過的值都會被洗掉
+  this._localValue = args.initialValue; 
+  return Scaffold(...);
+}
+```
+
+**Good (正解):**
+因為 `ModalRoute.of` 需要完整的 context，不能在 `initState` 中呼叫。正確作法是放在 `didChangeDependencies` 並且搭配 `_isInit` 旗標，確保只初始化一次：
+
+```dart
+bool _isInit = false;
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  if (!_isInit) {
+    // ✅ 安全：只在第一次依賴建立時讀取並寫入初始狀態
+    final args = ModalRoute.of(context)!.settings.arguments as MyArgs;
+    _localValue = args.initialValue;
+    _isInit = true;
+  }
+}
+
+@override
+Widget build(BuildContext context) {
+  // 保持 build 純淨，不再修改 _localValue
+  return Scaffold(...);
+}
+```
+
 ## 8. 測試 (Testing)
 
 ### 8.1. 測試 (Testing)
