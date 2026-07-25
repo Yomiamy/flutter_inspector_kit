@@ -326,6 +326,50 @@ void main() {
       expect(view.redactSensitiveData, isFalse);
     });
 
+    testWidgets('tints only error logs and failed network rows', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector();
+      inspector.log('boom', level: LogLevel.error);
+      inspector.log('all good', level: LogLevel.info);
+      inspector.logNetwork(
+        NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/fail',
+          statusCode: 500,
+          isComplete: true,
+        ),
+      );
+      inspector.logNetwork(
+        NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/ok',
+          statusCode: 200,
+          isComplete: true,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
+
+      Color? tileColorOf(Finder text) => tester
+          .widget<ListTile>(
+            find.ancestor(of: text, matching: find.byType(ListTile)),
+          )
+          .tileColor;
+
+      expect(tileColorOf(find.text('boom')), isNotNull);
+      expect(tileColorOf(find.text('all good')), isNull);
+      expect(
+        tileColorOf(find.textContaining('https://api.test/fail')),
+        isNotNull,
+      );
+      expect(tileColorOf(find.textContaining('https://api.test/ok')), isNull);
+    });
+
     testWidgets('nav and db rows are not tappable (no chevron)', (
       tester,
     ) async {
