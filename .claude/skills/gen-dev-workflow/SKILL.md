@@ -203,7 +203,19 @@ STAGE 1 建立分支與工作區時，**不論從哪個入口進來**，最後�
    ```
    base branch 預設 `origin/main`，除非使用者明確要求其他 base。若目標 branch 或 worktree 路徑已存在，停止並回報，不默默重用或覆蓋。
 4. **最小設定檢查**：`cd` 進新 worktree 後執行 `git branch --show-current` 與 `git status --short` 驗證，並 `flutter pub get`（依 `ticket-id-dev-prep` 的「設定完成規則」，若專案有本地限定設定檔如 `.env`、簽章檔，同步進新 worktree）。
-5. **主對話切換工作目錄**：後續 STAGE 2–4 的所有 Bash 指令與檔案操作都在新 worktree 路徑下執行，state 檔（見「狀態追蹤」章節）也寫在新 worktree 內的 `.claude/workflow-state/`，與主 repo 分開、互不干擾。
+5. **🔴 帶入 STAGE 0a/0b 產出的規劃文件**（正常路徑必做）：功能規格與實作計畫是在**原 repo 目錄**產出的未 commit 檔案，新 worktree 從 `origin/main` 拉出來時**不會有它們**。若不搬，state 檔記的 `spec`/`plan` 路徑切進 worktree 後指向不存在的檔，STAGE 2 的 implementer 讀不到計畫。
+   ```bash
+   # 於原 repo 執行；<repo-root> 為原 repo 路徑，<worktree-path> 為步驟 3 建立的目錄
+   mkdir -p "<worktree-path>/docs/features" "<worktree-path>/docs/plans"
+   cp "<repo-root>/<spec 路徑>" "<worktree-path>/<spec 路徑>"
+   cp "<repo-root>/<plan 路徑>" "<worktree-path>/<plan 路徑>"
+   ```
+   - 用**複製**不用 commit + cherry-pick：規劃文件在原 repo 尚未 commit，複製過去後由 STAGE 2 的實作 commit 一併帶進 branch，不需在 base branch 上多留一個 commit。
+   - 複製後**驗證兩個檔案都存在於新 worktree**，缺任一個就停下回報，不要帶著壞掉的路徑進 STAGE 2。
+   - 路徑維持 repo 相對路徑不變（例 `docs/plans/2026-05-03-cart.md`），所以 state 檔的 `spec`/`plan` 欄位**不需改寫**，切目錄後自然指向新 worktree 內的同名檔。
+   - **原 repo 的那兩份留著不刪**：它們是規劃階段的產物，刪除等於在使用者還沒確認流程走完前銷毀資料。
+   - issue-id 路徑（跳過 STAGE 0a/0b）沒有這兩份文件，本步驟略過。
+6. **主對話切換工作目錄**：後續 STAGE 2–4 的所有 Bash 指令與檔案操作都在新 worktree 路徑下執行，state 檔（見「狀態追蹤」章節）也寫在新 worktree 內的 `.claude/workflow-state/`，與主 repo 分開、互不干擾。
 
 ### 與 STAGE 2 並行任務用的 `isolation: 'worktree'` 的區別
 
