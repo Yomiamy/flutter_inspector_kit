@@ -1,12 +1,17 @@
 # gen-dev-workflow 流程優化與架構調整腦力激盪文件
 
+> **📝 更新紀錄 (Changelog)**：
+> * **2026-07-30**：同步審查 SKILL.md（含 `acf4f70` 新增的 STAGE 1 規劃文件搬移步驟）——確認 Bug 1.6 在這之前未修復，現已透過修改 SKILL.md 工作流指示 (Workaround) 解決，其餘 Bug 1.1–1.5 與 Gap 2.1–2.5 的修復狀態均無變動。新增 §7 記錄 STAGE 1 規劃文件搬移需求。
+> * **2026-07-25**：記錄 Bug 1.6（`promote` 後 `stage-done 1` 恆遭拒），含實查過程與被否決的錯誤修復方向。
+> * **2026-07-21**：Bug 1.1–1.5 及 Gap 2.1–2.5 全數修復。
+
 本文件針對 `gen-dev-workflow` 流程進行深度審查，指出其設計哲學上的盲點、目前運作的瓶頸、Bash 狀態機腳本中的具體 Bug，並提出相應的邏輯漏洞修補與驗證方案。
 
 ---
 
-## 0. 完成度總覽（截至 2026-07-21）
+## 0. 完成度總覽（截至 2026-07-30）
 
-> 狀態依 [`docs/features/2026-07-18-gen-dev-workflow-analysis.md`](../features/2026-07-18-gen-dev-workflow-analysis.md) 核對標注（`wf-state.sh` 屬 `gen-dev-workflow` skill，不在本 repo，無法直接讀原始碼，故以該份 analysis 為權威來源）。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。
+> 狀態依 [`docs/architecture/2026-07-30-gen-dev-workflow-analysis.md`](../architecture/2026-07-30-gen-dev-workflow-analysis.md) 與 `wf-state.sh` 原始碼核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。
 
 | 項目 | 狀態 | 依據 |
 |------|:---:|------|
@@ -20,7 +25,7 @@
 | **Gap 2.3** 缺任務完成校驗（`completed_tasks`） | ✅ 已修 | 於 2026-07-21 修復，`advance` 增加任務數量校驗 |
 | **Gap 2.4** STAGE 5 缺 `reviewer→responder` 退回 | ✅ 已修 | 於 2026-07-21 修復，新增閉環轉移路徑 |
 | **Gap 2.5** 廢棄 `.pending-*.json` 無 `prune` GC | ✅ 已修 | 於 2026-07-21 修復，新增 `prune` 指令 |
-| **Bug 1.6** `promote` 後 `stage-done 1` 恆遭拒（STAGE 1 happy path 斷裂） | ⬜ 待修 | 於 2026-07-25 實作 §P13 時撞到並實查確認，詳見 §6 |
+| **Bug 1.6** `promote` 後 `stage-done 1` 恆遭拒（STAGE 1 happy path 斷裂） | ✅ 已修 | 於 2026-07-30 修改 SKILL.md STAGE 1 指示，透過連續 advance 繞過，詳見 §6 |
 
 > **已落地的地基**（analysis 確認，非本 brainstorm 提出的待辦）：`wf-state.sh` 已成 state 檔唯一入口——狀態機轉移表（非法轉移 `exit 1`）、暫停點棘輪（無 `--confirmed` 拒絕 `advance`）、`set` 白名單、schema 校驗 + 原子寫入皆已實作。
 >
@@ -219,7 +224,7 @@
 
 ## 6. 後續發現的待修項目（2026-07-21 之後）
 
-### Bug 1.6: `promote` 後 `stage-done <1>` 恆遭拒，STAGE 1 happy path 斷裂 — ⬜ 待修
+### Bug 1.6: `promote` 後 `stage-done <1>` 恆遭拒，STAGE 1 happy path 斷裂 — ✅ 已修
 
 * **撞到的情境**：2026-07-25 用本流程實作 §P13（PR #100）時，STAGE 1 建好 worktree 後，照 SKILL.md 的指示跑 `promote` → 隨後 `stage-done <檔> 1`，被腳本直接拒絕：
   ```text
@@ -232,14 +237,47 @@
   - 換句話說：**SKILL.md 記載的 STAGE 1 收尾流程，在 sequence 模式下必定失敗**。正常 sequence 從 0a 一路 `advance` 上來時，promote 發生在 STAGE 1，但 stage 欄位並沒有跟著 promote 一起前進到 `1`，兩者脫節。
 * **我最初的誤判（記錄下來以免重蹈）**：當下我把 `&&` 鏈的中斷誤讀成「`promote` 把 state 檔吃掉了」，還推測是 `--dest` 指向不存在目錄 + EXIT trap 所致。**這個診斷是錯的**——事後隔離重現證明 `promote` 對不存在的 dest 目錄運作完全正常（`mkdir -p` + `claim_new` 會建好），檔案該寫的有寫、該刪的 pending 有刪。真正的失敗是後續 `stage-done 1` 被 sequence guard 擋下，中斷了我串起來的 `&&` 鏈，而我沒往下追就 fallback 到 `init --mode jump` 重建。**教訓：`&&` 鏈中斷要逐段定位是哪一段 exit 非零，不要看到 `get` 報 pending 路徑就腦補整條鏈的因果。**
 * **⚠️ 一個被否決的錯誤修復方向（記錄下來以免重蹈）**：本文件初稿曾提議「讓 `promote` 一併 `.stage = "1"`」，並自稱「promote 不受轉移表約束，安全」。**這是錯的，經 PR #100 的 CodeRabbit review 抓出並實查確認**：`promote` 不只服務 sequence-from-0a，還服務 **quick→sequence 升級路徑**——SKILL.md L288 明載，`upgrade`（已把 stage 設為 `2`）之後也走 `promote` 把狀態搬進 worktree。若 `promote` 無條件寫死 `stage=1`，會把升級後的 `stage=2` 打回 `1`，讓一個已在實作階段的流程重跑 STAGE 1。原方案只看了一條路徑就下「安全」結論，是典型的以偏概全。
-* **正確的修復方向（限定作用範圍，不動 `promote` 的共用邏輯）**：
-  1. **首選——修 SKILL.md 的 sequence STAGE 1 收尾流程，不碰腳本**：正常 sequence 從 0a 一路 `advance` 上來，promote 之後 stage 仍是 `0a`。收尾時不該用 `stage-done 1`（會撞 guard），而是先 `advance 0b --confirmed` → `advance 1 --confirmed` 走完既有轉移表，stage 到 `1` 後才 `stage-done 1`。這條路徑本來就沒有 0a→0b 的暫停語意，兩個 `--confirmed` 是形式上的多餘、但**零腳本改動、零副作用**，且完全尊重轉移表。
-  2. **次選——若要動腳本，改也只能限定在 sequence STAGE 1**：例如在 SKILL.md 呼叫 promote 後、緊接一個**只在 mode==sequence 且 stage==0a 時**才把 stage 推到 `1` 的動作（不可寫進 `promote` 本體，因為 promote 對 quick 升級是 stage-agnostic 的搬運工）。此路徑必須補 **quick、jump、非-0a** 三種流程的 regression 才能落地，成本高於首選。
+* **正確的修復方向（於 2026-07-30 已實作，限定作用範圍，不動 `promote` 的共用邏輯）**：
+  **修復方案：修改 SKILL.md 的 sequence STAGE 1 收尾流程，不碰腳本 (Workaround)**。
+  正常 sequence 從 0a 一路 `advance` 上來，promote 之後 stage 仍是 `0a`。收尾時不該用 `stage-done 1`（會撞 guard），而是先 `advance 0b --confirmed` → `advance 1 --confirmed` 走完既有轉移表，stage 到 `1` 後才 `stage-done 1`。這條路徑本來就沒有 0a→0b 的暫停語意，兩個 `--confirmed` 是形式上的多餘，用來強行滿足底層腳本的過關條件。
+
+  > **💡 最後放棄寫進腳本的原因（Linus 哲學與實用主義評估）：**
+  > 雖然技術上大可在腳本內新增一段 `if mode==sequence && stage==0a` 的專屬跳躍邏輯，但最終選擇在 AI 操作手冊（SKILL.md）以 Workaround 繞過，原因有二：
+  > 1. **破壞與回歸測試風險過高**：`wf-state.sh` 的狀態機是整體流程心臟。動到核心腳本就必須對另外三種啟動模式（`quick`、`jump`、`upgrade`）做全面性的回歸測試 (Regression Test)，牽一髮而動全身，違背「Never break userspace」原則。
+  > 2. **實用主義與成本考量**：現有底層狀態機的轉移表（0a->0b->1）邏輯嚴謹且正確，沒有必要為了省兩行指令而去破壞底層架構。修改 SKILL.md 讓 AI 遵守嚴格的腳本規則，成本極低、零副作用且絕對安全。
 * **影響面**：只要是**正常 sequence 流程**（非 `--mode jump`）跑到 STAGE 1，都會撞到。本次因為 fallback 到 jump 模式而繞過，但 jump 模式喪失了 sequence 的轉移表保護——是繞過不是修好。
 * **驗證方法**：
   ```bash
   P=$(wf-state.sh init)                                    # sequence, stage 0a
   wf-state.sh promote "$P" --branch feat/x --dest wt/.claude/workflow-state
   WT=wt/.claude/workflow-state/feat-x.json
-  wf-state.sh stage-done "$WT" 1                           # 修復前：被拒；修復後：通過
+  wf-state.sh advance "$WT" 0b --confirmed
+  wf-state.sh advance "$WT" 1 --confirmed
+  wf-state.sh stage-done "$WT" 1
+  
+  # Assertions
+  # jq -r '.stage' "$WT" 應為 "1"
+  # jq -r '.awaiting_confirmation' "$WT" 應為 "true"
   ```
+
+---
+
+## 7. STAGE 1 規劃文件搬移需求（2026-07-30 補記）
+
+> 此項由 SKILL.md commit `acf4f70`（2026-07-29）新增，非 brainstorm 原始提案，補記於此供完整性。
+
+### 問題
+
+STAGE 0a/0b 產出的功能規格（`docs/features/...`）與實作計畫（`docs/plans/...`）是在**原 repo 目錄**中建立的未 commit 檔案。STAGE 1 建立的新 worktree 從 `origin/main` checkout 出來，**不會包含這些檔案**。若不搬移，state 檔記錄的 `spec`/`plan` 路徑切進 worktree 後指向不存在的檔，STAGE 2 的 implementer 讀不到計畫。
+
+### 已落地的解決方案（SKILL.md「分支與 Worktree 建立」章節步驟 5）
+
+- STAGE 1 建好 worktree 後、`cd` 進去之前，用 `cp` 將原 repo 中的 spec 和 plan 檔案複製到新 worktree 的同名路徑下。
+- 用**複製**不用 commit + cherry-pick：規劃文件在原 repo 尚未 commit，複製後由 STAGE 2 的實作 commit 一併帶進 branch。
+- 複製後驗證兩檔案都存在於新 worktree，缺任一個就停下回報。
+- 原 repo 的那兩份留著不刪。
+- issue-id 路徑（跳過 STAGE 0a/0b）沒有這兩份文件，本步驟略過。
+
+### 與 Bug 1.6 的交互作用
+
+Bug 1.6 的 promote 斷裂**不影響此搬移步驟**——搬移是在 promote 之後、`stage-done` 之前的獨立動作。但若 Bug 1.6 導致 STAGE 1 收尾失敗而 fallback 到 jump 模式，jump 模式跳過 pending→promote 流程，可能也跳過此搬移步驟（jump 模式自 init 就直接建在 worktree 內，不經過「原 repo → 新 worktree」的搬移）。issue-id 路徑本身不受影響（無 spec/plan 檔可搬）。

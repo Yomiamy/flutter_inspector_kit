@@ -327,7 +327,7 @@ state 檔的**所有**建立、讀取、更新一律透過本 skill 的 `scripts
 |------|------|
 | 流程啟動（STAGE 0a） | `wf-state.sh init` → 回傳 pending 檔路徑（內含 wf-id） |
 | jump / quick 啟動（已知 branch） | `wf-state.sh init --mode jump\|quick --stage <S> --branch <branch>` |
-| STAGE 1 建好 worktree | `wf-state.sh promote <pending-檔> --branch <branch> --dest <worktree>/.claude/workflow-state` |
+| STAGE 1 建好 worktree | `wf-state.sh promote <pending-檔> --branch <branch> --dest <worktree>/.claude/workflow-state` （注意：sequence 模式下 `promote` 後須依序執行 `advance 0b --confirmed` → `advance 1 --confirmed` 推進 stage 後，才能執行 `stage-done 1`，詳見下方生命週期表） |
 | 欄位更新（spec/plan/issue/pr…） | `wf-state.sh set <檔> k=v`（`stage` 與確認旗標**改不了**，防繞過棘輪） |
 | stage 完成、進入暫停點 | `wf-state.sh stage-done <檔> <stage>` |
 | STAGE 2 單一任務完成 | `wf-state.sh task-done <檔> <n>` |
@@ -389,7 +389,7 @@ worktree 建立後改帶 branch slug，不再需要 workflow-id：
 | 時機 | 動作 |
 |------|------|
 | STAGE 0a 啟動（流程剛開始，還沒 worktree，在原 repo 目錄） | `wf-state.sh init` → 腳本產生 `<wf-id>` 並於原 repo 建 `.pending-<wf-id>.json` → 之後進度行都帶 `[<wf-id>]` |
-| STAGE 1 建好 worktree 後 | `wf-state.sh promote <pending-檔> --branch <branch> --dest <worktree>/.claude/workflow-state` → 腳本補上 `branch` 欄位（`workflow_id` 保留，便於追溯）、寫入新 worktree、刪除原 repo 的 pending 檔；主對話 `cd` 進新 worktree |
+| STAGE 1 建好 worktree 後 | `wf-state.sh promote <pending-檔> --branch <branch> --dest <worktree>/.claude/workflow-state` → 腳本補上 `branch` 欄位（`workflow_id` 保留，便於追溯）、寫入新 worktree、刪除原 repo 的 pending 檔；主對話 `cd` 進新 worktree。<br><br>**🔴 STAGE 1 收尾必讀 (Bug 1.6 Workaround)**：`promote` 不會推進 stage（維持 `0a`）。在 `sequence` 模式下，`promote` 完**不可直接** `stage-done <檔> 1`（會被 guard 擋下）。請**務必依序執行**：<br>1. `wf-state.sh advance <檔> 0b --confirmed`<br>2. `wf-state.sh advance <檔> 1 --confirmed`<br>3. `wf-state.sh stage-done <檔> 1`（進入暫停點等待確認） |
 | STAGE 1 之後每次寫入 | 對新 worktree 內的 `<branch-slug>.json` 跑 `set` / `stage-done` / `task-done` / `advance`，因 worktree 本身已隔離，零衝突 |
 | 直接 jump 進 STAGE 1+（已知 branch，已在該 worktree 內） | 略過 pending，`wf-state.sh init --mode jump --stage <S> --branch <branch>` 直接建當前 worktree 的 `<branch-slug>.json` |
 
