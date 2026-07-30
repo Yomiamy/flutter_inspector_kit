@@ -238,7 +238,13 @@
 * **我最初的誤判（記錄下來以免重蹈）**：當下我把 `&&` 鏈的中斷誤讀成「`promote` 把 state 檔吃掉了」，還推測是 `--dest` 指向不存在目錄 + EXIT trap 所致。**這個診斷是錯的**——事後隔離重現證明 `promote` 對不存在的 dest 目錄運作完全正常（`mkdir -p` + `claim_new` 會建好），檔案該寫的有寫、該刪的 pending 有刪。真正的失敗是後續 `stage-done 1` 被 sequence guard 擋下，中斷了我串起來的 `&&` 鏈，而我沒往下追就 fallback 到 `init --mode jump` 重建。**教訓：`&&` 鏈中斷要逐段定位是哪一段 exit 非零，不要看到 `get` 報 pending 路徑就腦補整條鏈的因果。**
 * **⚠️ 一個被否決的錯誤修復方向（記錄下來以免重蹈）**：本文件初稿曾提議「讓 `promote` 一併 `.stage = "1"`」，並自稱「promote 不受轉移表約束，安全」。**這是錯的，經 PR #100 的 CodeRabbit review 抓出並實查確認**：`promote` 不只服務 sequence-from-0a，還服務 **quick→sequence 升級路徑**——SKILL.md L288 明載，`upgrade`（已把 stage 設為 `2`）之後也走 `promote` 把狀態搬進 worktree。若 `promote` 無條件寫死 `stage=1`，會把升級後的 `stage=2` 打回 `1`，讓一個已在實作階段的流程重跑 STAGE 1。原方案只看了一條路徑就下「安全」結論，是典型的以偏概全。
 * **正確的修復方向（於 2026-07-30 已實作，限定作用範圍，不動 `promote` 的共用邏輯）**：
-  **首選——修 SKILL.md 的 sequence STAGE 1 收尾流程，不碰腳本**：正常 sequence 從 0a 一路 `advance` 上來，promote 之後 stage 仍是 `0a`。收尾時不該用 `stage-done 1`（會撞 guard），而是先 `advance 0b --confirmed` → `advance 1 --confirmed` 走完既有轉移表，stage 到 `1` 後才 `stage-done 1`。這條路徑本來就沒有 0a→0b 的暫停語意，兩個 `--confirmed` 是形式上的多餘、但**零腳本改動、零副作用**，且完全尊重轉移表。
+  **修復方案：修改 SKILL.md 的 sequence STAGE 1 收尾流程，不碰腳本 (Workaround)**。
+  正常 sequence 從 0a 一路 `advance` 上來，promote 之後 stage 仍是 `0a`。收尾時不該用 `stage-done 1`（會撞 guard），而是先 `advance 0b --confirmed` → `advance 1 --confirmed` 走完既有轉移表，stage 到 `1` 後才 `stage-done 1`。這條路徑本來就沒有 0a→0b 的暫停語意，兩個 `--confirmed` 是形式上的多餘，用來強行滿足底層腳本的過關條件。
+
+  > **💡 最後放棄寫進腳本的原因（Linus 哲學與實用主義評估）：**
+  > 雖然技術上大可在腳本內新增一段 `if mode==sequence && stage==0a` 的專屬跳躍邏輯，但最終選擇在 AI 操作手冊（SKILL.md）以 Workaround 繞過，原因有二：
+  > 1. **破壞與回歸測試風險過高**：`wf-state.sh` 的狀態機是整體流程心臟。動到核心腳本就必須對另外三種啟動模式（`quick`、`jump`、`upgrade`）做全面性的回歸測試 (Regression Test)，牽一髮而動全身，違背「Never break userspace」原則。
+  > 2. **實用主義與成本考量**：現有底層狀態機的轉移表（0a->0b->1）邏輯嚴謹且正確，沒有必要為了省兩行指令而去破壞底層架構。修改 SKILL.md 讓 AI 遵守嚴格的腳本規則，成本極低、零副作用且絕對安全。
 * **影響面**：只要是**正常 sequence 流程**（非 `--mode jump`）跑到 STAGE 1，都會撞到。本次因為 fallback 到 jump 模式而繞過，但 jump 模式喪失了 sequence 的轉移表保護——是繞過不是修好。
 * **驗證方法**：
   ```bash
