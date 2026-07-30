@@ -88,7 +88,7 @@
 
 | AC | 由哪個任務保證 |
 |---|---|
-| AC-1 sequence STAGE 1 promote 後能正確收尾 | T1（SKILL.md workaround 指引） |
+| AC-1 sequence STAGE 1 promote 後能正確收尾 | T1（SKILL.md workaround 指引）+ 人工驗證紀錄（已成功執行 advance 0b, advance 1, stage-done 1 並驗證通過） |
 | AC-2 其他模式不受影響 | T1（不動腳本，零影響） |
 | AC-3 SKILL.md 清楚可執行 | T1（兩處醒目標記） |
 | AC-4 Brainstorm 文件如實記錄 | T2 + T3 |

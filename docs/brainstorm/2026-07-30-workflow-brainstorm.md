@@ -1,7 +1,7 @@
 # gen-dev-workflow 流程優化與架構調整腦力激盪文件
 
 > **📝 更新紀錄 (Changelog)**：
-> * **2026-07-30**：同步審查 SKILL.md（含 `acf4f70` 新增的 STAGE 1 規劃文件搬移步驟）——確認 Bug 1.6 仍未修復（`promote` 不推進 stage，`stage-done 1` 在 sequence 模式下仍會被擋），其餘 Bug 1.1–1.5 與 Gap 2.1–2.5 的修復狀態均無變動。新增 §7 記錄 STAGE 1 規劃文件搬移需求。
+> * **2026-07-30**：同步審查 SKILL.md（含 `acf4f70` 新增的 STAGE 1 規劃文件搬移步驟）——確認 Bug 1.6 在這之前未修復，現已透過修改 SKILL.md 工作流指示 (Workaround) 解決，其餘 Bug 1.1–1.5 與 Gap 2.1–2.5 的修復狀態均無變動。新增 §7 記錄 STAGE 1 規劃文件搬移需求。
 > * **2026-07-25**：記錄 Bug 1.6（`promote` 後 `stage-done 1` 恆遭拒），含實查過程與被否決的錯誤修復方向。
 > * **2026-07-21**：Bug 1.1–1.5 及 Gap 2.1–2.5 全數修復。
 
@@ -9,7 +9,7 @@
 
 ---
 
-## 0. 完成度總覽（截至 2026-07-21）
+## 0. 完成度總覽（截至 2026-07-30）
 
 > 狀態依 [`docs/architecture/2026-07-30-gen-dev-workflow-analysis.md`](../architecture/2026-07-30-gen-dev-workflow-analysis.md) 與 `wf-state.sh` 原始碼核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。
 
@@ -251,7 +251,13 @@
   P=$(wf-state.sh init)                                    # sequence, stage 0a
   wf-state.sh promote "$P" --branch feat/x --dest wt/.claude/workflow-state
   WT=wt/.claude/workflow-state/feat-x.json
-  wf-state.sh stage-done "$WT" 1                           # 修復前：被拒；修復後：通過
+  wf-state.sh advance "$WT" 0b --confirmed
+  wf-state.sh advance "$WT" 1 --confirmed
+  wf-state.sh stage-done "$WT" 1
+  
+  # Assertions
+  # jq -r '.stage' "$WT" 應為 "1"
+  # jq -r '.awaiting_confirmation' "$WT" 應為 "true"
   ```
 
 ---

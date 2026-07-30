@@ -327,7 +327,7 @@ state 檔的**所有**建立、讀取、更新一律透過本 skill 的 `scripts
 |------|------|
 | 流程啟動（STAGE 0a） | `wf-state.sh init` → 回傳 pending 檔路徑（內含 wf-id） |
 | jump / quick 啟動（已知 branch） | `wf-state.sh init --mode jump\|quick --stage <S> --branch <branch>` |
-| STAGE 1 建好 worktree | `wf-state.sh promote <pending-檔> --branch <branch> --dest <worktree>/.claude/workflow-state` （注意：sequence 模式下 `promote` 後須依序 `advance 0b` → `advance 1` 推進 stage 後，才能 `stage-done 1`） |
+| STAGE 1 建好 worktree | `wf-state.sh promote <pending-檔> --branch <branch> --dest <worktree>/.claude/workflow-state` （注意：sequence 模式下 `promote` 後須依序執行 `advance 0b --confirmed` → `advance 1 --confirmed` 推進 stage 後，才能執行 `stage-done 1`，詳見下方生命週期表） |
 | 欄位更新（spec/plan/issue/pr…） | `wf-state.sh set <檔> k=v`（`stage` 與確認旗標**改不了**，防繞過棘輪） |
 | stage 完成、進入暫停點 | `wf-state.sh stage-done <檔> <stage>` |
 | STAGE 2 單一任務完成 | `wf-state.sh task-done <檔> <n>` |
