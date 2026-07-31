@@ -9,6 +9,7 @@ import '../../../models/network_entry.dart';
 import '../../../models/timestamped_entry.dart';
 import '../../../extensions/log_level_color_extension.dart';
 import '../../../observers/inspector_route_names.dart';
+import '../../../utils/network_utils.dart';
 import '../../theme/theme.dart';
 import 'console/log_detail_view.dart';
 import 'network/network_detail_view.dart';
@@ -195,7 +196,34 @@ class _NetworkEntryRow extends StatelessWidget {
       tileColor: entry.isFailed ? _kErrorRowTint : null,
       title: Text('${entry.method} ${entry.statusCode ?? '-'} ${entry.url}'),
       subtitle: Text(entry.displayTime),
-      trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (entry.duration != null &&
+              entry.duration! >= kSlowRequestThreshold)
+            Container(
+              margin: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: ThemeSpacing.spacing4,
+                vertical: 2.0,
+              ),
+              decoration: BoxDecoration(
+                color: ThemeColor.colorFF9800.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+                border: Border.all(color: ThemeColor.colorFF9800),
+              ),
+              child: const Text(
+                '🐢 SLOW',
+                style: TextStyle(
+                  fontSize: ThemeFontSize.fontSize10,
+                  color: ThemeColor.colorFF9800,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          const Icon(Icons.chevron_right, size: ThemeSize.size18),
+        ],
+      ),
       onTap: () => pushInspectorRoute(
         context,
         kInspectorNetworkDetailRoute,

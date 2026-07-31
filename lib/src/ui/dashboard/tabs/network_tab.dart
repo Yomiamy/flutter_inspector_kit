@@ -265,7 +265,34 @@ class _EntryTile extends StatelessWidget {
         '${formatBytes(totalSize)} · ${timeOf(entry.timestamp)}',
         style: TextStyle(color: entry.error != null ? statusColor : null),
       ),
-      trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (entry.duration != null &&
+              entry.duration! >= kSlowRequestThreshold)
+            Container(
+              margin: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: ThemeSpacing.spacing4,
+                vertical: 2.0,
+              ),
+              decoration: BoxDecoration(
+                color: ThemeColor.colorFF9800.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+                border: Border.all(color: ThemeColor.colorFF9800),
+              ),
+              child: const Text(
+                '🐢 SLOW',
+                style: TextStyle(
+                  fontSize: ThemeFontSize.fontSize10,
+                  color: ThemeColor.colorFF9800,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          const Icon(Icons.chevron_right, size: ThemeSize.size18),
+        ],
+      ),
       onTap: () => pushInspectorRoute(
         context,
         kInspectorNetworkDetailRoute,
@@ -327,7 +354,14 @@ class _ErrorSummaryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final groups = aggregateNetworkErrors(entries);
-    if (groups.isEmpty) return const SizedBox.shrink();
+    final slowCount = entries
+        .where(
+          (e) => e.duration != null && e.duration! >= kSlowRequestThreshold,
+        )
+        .length;
+    final slowText = slowCount > 0 ? ' | 🐢 $slowCount slow' : '';
+
+    if (groups.isEmpty && slowCount == 0) return const SizedBox.shrink();
 
     if (!expanded) {
       return InkWell(
@@ -336,17 +370,24 @@ class _ErrorSummaryBanner extends StatelessWidget {
           padding: ThemePadding.paddingAll8,
           child: Row(
             children: [
-              const Icon(
-                Icons.warning_amber_rounded,
-                size: ThemeSize.size16,
-                color: ThemeColor.colorFF9800,
-              ),
-              const SizedBox(width: ThemeSpacing.spacing8),
-              Text(
-                '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
-                '(${groups.length} types)',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              if (groups.isNotEmpty) ...[
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  size: ThemeSize.size16,
+                  color: ThemeColor.colorFF9800,
+                ),
+                const SizedBox(width: ThemeSpacing.spacing8),
+                Text(
+                  '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
+                  '(${groups.length} types)$slowText',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ] else if (slowCount > 0) ...[
+                Text(
+                  '🐢 $slowCount slow requests',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
               const Spacer(),
               const Icon(Icons.expand_more, size: ThemeSize.size16),
             ],
@@ -370,7 +411,9 @@ class _ErrorSummaryBanner extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Error Summary',
+                groups.isNotEmpty
+                    ? 'Error Summary$slowText'
+                    : '🐢 $slowCount slow requests',
                 style: Theme.of(context).textTheme.labelSmall,
               ),
               InkWell(
