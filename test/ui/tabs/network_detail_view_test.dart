@@ -260,16 +260,26 @@ void main() {
 
   group('statusColorFor', () {
     test('semantics by range', () {
-      expect(ThemeColor.statusColor(200, hasError: false),
-          ThemeColor.color4CAF50);
-      expect(ThemeColor.statusColor(301, hasError: false),
-          ThemeColor.color2196F3);
-      expect(ThemeColor.statusColor(404, hasError: false),
-          ThemeColor.colorFF9800);
-      expect(ThemeColor.statusColor(500, hasError: false),
-          ThemeColor.colorF44336);
-      expect(ThemeColor.statusColor(null, hasError: true),
-          ThemeColor.colorF44336);
+      expect(
+        ThemeColor.statusColor(200, hasError: false),
+        ThemeColor.color4CAF50,
+      );
+      expect(
+        ThemeColor.statusColor(301, hasError: false),
+        ThemeColor.color2196F3,
+      );
+      expect(
+        ThemeColor.statusColor(404, hasError: false),
+        ThemeColor.colorFF9800,
+      );
+      expect(
+        ThemeColor.statusColor(500, hasError: false),
+        ThemeColor.colorF44336,
+      );
+      expect(
+        ThemeColor.statusColor(null, hasError: true),
+        ThemeColor.colorF44336,
+      );
     });
   });
 

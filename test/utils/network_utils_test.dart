@@ -219,13 +219,25 @@ void main() {
 
   group('errorTypeLabel', () {
     test('映射正確', () {
-      expect(errorTypeLabel(DioExceptionType.connectionTimeout), 'Connection Timeout');
+      expect(
+        errorTypeLabel(DioExceptionType.connectionTimeout),
+        'Connection Timeout',
+      );
       expect(errorTypeLabel(DioExceptionType.sendTimeout), 'Send Timeout');
-      expect(errorTypeLabel(DioExceptionType.receiveTimeout), 'Receive Timeout');
-      expect(errorTypeLabel(DioExceptionType.badCertificate), 'Bad Certificate');
+      expect(
+        errorTypeLabel(DioExceptionType.receiveTimeout),
+        'Receive Timeout',
+      );
+      expect(
+        errorTypeLabel(DioExceptionType.badCertificate),
+        'Bad Certificate',
+      );
       expect(errorTypeLabel(DioExceptionType.badResponse), 'Bad Response');
       expect(errorTypeLabel(DioExceptionType.cancel), 'Cancelled');
-      expect(errorTypeLabel(DioExceptionType.connectionError), 'Connection Error');
+      expect(
+        errorTypeLabel(DioExceptionType.connectionError),
+        'Connection Error',
+      );
       expect(errorTypeLabel(DioExceptionType.unknown), 'Unknown Error');
       // 可以測 _ default 如果有 enum 其他值，但 Dio 基本上就這些。
     });

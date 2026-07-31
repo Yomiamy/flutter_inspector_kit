@@ -7,7 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('NavigatorActiveStackView', () {
-    testWidgets('displays active stack top-first with two cards', (tester) async {
+    testWidgets('displays active stack top-first with two cards', (
+      tester,
+    ) async {
       final inspector = FlutterInspector();
       // Push A
       inspector.registry.navigator.add(
@@ -54,73 +56,82 @@ void main() {
       expect(bTopLeft.dy, lessThan(aTopLeft.dy));
     });
 
-    testWidgets('cards display displayName and routeName, but do not show arguments', (tester) async {
-      final inspector = FlutterInspector();
-      inspector.registry.navigator.add(
-        NavigatorEntry(
-          action: NavigatorAction.push,
-          routeName: '/routeWithArgs',
-          widgetType: Scaffold,
-          arguments: 'secret_argument_value',
-        ),
-      );
+    testWidgets(
+      'cards display displayName and routeName, but do not show arguments',
+      (tester) async {
+        final inspector = FlutterInspector();
+        inspector.registry.navigator.add(
+          NavigatorEntry(
+            action: NavigatorAction.push,
+            routeName: '/routeWithArgs',
+            widgetType: Scaffold,
+            arguments: 'secret_argument_value',
+          ),
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: NavigatorTab(inspector: inspector)),
-        ),
-      );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: NavigatorTab(inspector: inspector)),
+          ),
+        );
 
-      await tester.tap(find.text('Active Stack'));
-      await tester.pump();
+        await tester.tap(find.text('Active Stack'));
+        await tester.pump();
 
-      expect(find.text('Scaffold'), findsOneWidget);
-      expect(find.text('/routeWithArgs'), findsOneWidget);
-      expect(find.textContaining('secret_argument_value'), findsNothing);
-    });
+        expect(find.text('Scaffold'), findsOneWidget);
+        expect(find.text('/routeWithArgs'), findsOneWidget);
+        expect(find.textContaining('secret_argument_value'), findsNothing);
+      },
+    );
 
-    testWidgets('empty navigatorEntries displays empty placeholder without crashing', (tester) async {
-      final inspector = FlutterInspector();
+    testWidgets(
+      'empty navigatorEntries displays empty placeholder without crashing',
+      (tester) async {
+        final inspector = FlutterInspector();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: NavigatorTab(inspector: inspector)),
-        ),
-      );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: NavigatorTab(inspector: inspector)),
+          ),
+        );
 
-      await tester.tap(find.text('Active Stack'));
-      await tester.pump();
+        await tester.tap(find.text('Active Stack'));
+        await tester.pump();
 
-      expect(find.text('Empty stack history'), findsOneWidget);
-      expect(find.byType(Card), findsNothing);
-    });
+        expect(find.text('Empty stack history'), findsOneWidget);
+        expect(find.byType(Card), findsNothing);
+      },
+    );
 
-    testWidgets('clearing navigator syncs the active stack view to empty placeholder', (tester) async {
-      final inspector = FlutterInspector();
-      inspector.registry.navigator.add(
-        NavigatorEntry(
-          action: NavigatorAction.push,
-          routeName: '/routeToClear',
-        ),
-      );
+    testWidgets(
+      'clearing navigator syncs the active stack view to empty placeholder',
+      (tester) async {
+        final inspector = FlutterInspector();
+        inspector.registry.navigator.add(
+          NavigatorEntry(
+            action: NavigatorAction.push,
+            routeName: '/routeToClear',
+          ),
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: NavigatorTab(inspector: inspector)),
-        ),
-      );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: NavigatorTab(inspector: inspector)),
+          ),
+        );
 
-      await tester.tap(find.text('Active Stack'));
-      await tester.pump();
+        await tester.tap(find.text('Active Stack'));
+        await tester.pump();
 
-      expect(find.text('/routeToClear'), findsNWidgets(2));
+        expect(find.text('/routeToClear'), findsNWidgets(2));
 
-      // Click delete button
-      await tester.tap(find.byIcon(Icons.delete));
-      await tester.pump();
+        // Click delete button
+        await tester.tap(find.byIcon(Icons.delete));
+        await tester.pump();
 
-      expect(find.text('/routeToClear'), findsNothing);
-      expect(find.text('Empty stack history'), findsOneWidget);
-    });
+        expect(find.text('/routeToClear'), findsNothing);
+        expect(find.text('Empty stack history'), findsOneWidget);
+      },
+    );
   });
 }

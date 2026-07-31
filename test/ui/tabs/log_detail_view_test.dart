@@ -16,15 +16,13 @@ void main() {
     timestamp: t,
   );
 
-  LogEntry minimalEntry() => LogEntry(
-    message: 'Just a message',
-    level: LogLevel.info,
-    timestamp: t,
-  );
+  LogEntry minimalEntry() =>
+      LogEntry(message: 'Just a message', level: LogLevel.info, timestamp: t);
 
   group('LogDetailView', () {
-    testWidgets('renders message, level, timestamp, stackTrace and data',
-        (tester) async {
+    testWidgets('renders message, level, timestamp, stackTrace and data', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1200, 4000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -67,8 +65,9 @@ void main() {
       expect(find.text('(no data)'), findsOneWidget);
     });
 
-    testWidgets('Copy as text writes buildLogPlainText to clipboard',
-        (tester) async {
+    testWidgets('Copy as text writes buildLogPlainText to clipboard', (
+      tester,
+    ) async {
       String? clipboardText;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
@@ -96,8 +95,9 @@ void main() {
       expect(clipboardText, contains('=== Data ==='));
     });
 
-    testWidgets('share menu contains Copy as text and Share items',
-        (tester) async {
+    testWidgets('share menu contains Copy as text and Share items', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(home: LogDetailView(entry: fullEntry())),
       );

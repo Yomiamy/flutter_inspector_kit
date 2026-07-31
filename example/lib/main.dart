@@ -197,9 +197,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const _BrokenWidgetPage(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const _BrokenWidgetPage()),
                 );
               },
               child: const Text('Trigger Widget Build Error'),

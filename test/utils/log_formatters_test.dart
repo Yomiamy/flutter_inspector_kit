@@ -84,10 +84,7 @@ void main() {
     });
 
     test('does not have trailing newlines', () {
-      final entry = LogEntry(
-        message: 'Test message',
-        level: LogLevel.verbose,
-      );
+      final entry = LogEntry(message: 'Test message', level: LogLevel.verbose);
 
       final result = buildLogPlainText(entry);
 
@@ -96,10 +93,7 @@ void main() {
 
     test('formats all log levels correctly', () {
       for (final level in LogLevel.values) {
-        final entry = LogEntry(
-          message: 'Test',
-          level: level,
-        );
+        final entry = LogEntry(message: 'Test', level: level);
 
         final result = buildLogPlainText(entry);
 
