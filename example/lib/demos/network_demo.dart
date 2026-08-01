@@ -45,4 +45,15 @@ class NetworkDemo {
       _inspector.log('Network request failed: $e', level: LogLevel.error);
     }
   }
+
+  /// Fires a GET request to httpbin.org/delay/3, which simulates a slow response
+  /// taking 3 seconds. This will trigger the 🐢 SLOW visual indicator in the UI.
+  Future<void> makeSlowRequest() async {
+    try {
+      await _dio.get('https://httpbin.org/delay/3');
+      _inspector.log('Slow network request successful', level: LogLevel.info);
+    } catch (e) {
+      _inspector.log('Slow network request failed: $e', level: LogLevel.error);
+    }
+  }
 }
