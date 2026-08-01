@@ -136,8 +136,6 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               const Text('You have pushed the button this many times:'),
               Text(
