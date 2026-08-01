@@ -277,7 +277,7 @@ class _EntryTile extends StatelessWidget {
                 vertical: 2.0,
               ),
               decoration: BoxDecoration(
-                color: ThemeColor.colorFF9800.withValues(alpha: 0.15),
+                color: ThemeColor.colorFF9800.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(ThemeRadius.radius4),
                 border: Border.all(color: ThemeColor.colorFF9800),
               ),
@@ -318,7 +318,7 @@ class _MethodBadge extends StatelessWidget {
       width: ThemeSize.size56,
       padding: const EdgeInsets.symmetric(vertical: ThemeSpacing.spacing4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(ThemeRadius.radius4),
         border: Border.all(color: color),
       ),

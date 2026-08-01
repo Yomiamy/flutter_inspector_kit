@@ -17,7 +17,7 @@ import 'network/network_detail_view.dart';
 /// Row background applied to error logs and failed network calls so they stand
 /// out while scrolling a long merged timeline. Kept faint on purpose: the tint
 /// marks the row without competing with the level-coloured text.
-final Color _kErrorRowTint = ThemeColor.colorF44336.withValues(alpha: 0.08);
+final Color _kErrorRowTint = ThemeColor.colorF44336.withOpacity(0.08);
 
 /// Tab for displaying a cross-layer merged timeline (logs, network, navigation,
 /// database) with a source filter and per-type row dispatch.
@@ -208,7 +208,7 @@ class _NetworkEntryRow extends StatelessWidget {
                 vertical: 2.0,
               ),
               decoration: BoxDecoration(
-                color: ThemeColor.colorFF9800.withValues(alpha: 0.15),
+                color: ThemeColor.colorFF9800.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(ThemeRadius.radius4),
                 border: Border.all(color: ThemeColor.colorFF9800),
               ),
