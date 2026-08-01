@@ -42,7 +42,7 @@
 ```
 
 ### 1. 基礎核心層 (Core Engine)
-- **`FlutterInspector`**：全域單例管理器（Facade）。負責協調各子系統、掛載控制台 UI、接收各類數據輸入，並委託各專屬 Inspector 儲存數據。
+- **`FlutterInspector`**：全域單例管理器（Facade）。負責協調各子系統、掛載控制台 UI、接收各類數據輸入，並委託各專屬 Inspector 儲存數據。提供 `slowRequestThreshold` 配置參數（預設 `const Duration(seconds: 2)`，並具有非負數驗證），用於定義慢速網路請求之判定門檻（`entry.duration >= slowRequestThreshold`）。
 - **`InspectorRegistry`**：中央緩衝註冊表，集中持有與管理四個領域的專屬 Inspector。
 - **`RingBuffer`**：最核心的底層資料結構，為一個固定容量的 FIFO 快取。提供就地更替（`replace`）與刪除最舊數據的功能，是所有資料儲存的基石。
 - **`InspectorOverlayManager`**：獨立的核心懸浮 Overlay 生命週期管理器。負責 FAB 飄移按鈕在 Overlay 上的掛載與卸載。它與 Facade（`FlutterInspector`）完全解耦，僅藉由建構子傳入的 `onFabTap` 回呼來傳遞點擊事件，不逆向依賴任何特定的 Inspector 業務。
@@ -65,17 +65,15 @@
 
 ### 4. 表現層 (Presentation Layer) & 工具類
 - **`InspectorFab`**：支援拖曳的安全區域內懸浮按鈕。
-- **`DashboardModal`**：全螢幕控制台儀表板，封裝了四大 Tab（Console, Network, Navigator, Database）與自訂頁。
+- **`DashboardModal`**：全螢幕控制台儀表板，封裝了四大 Tab（Console, Network, Navigator, Database）與自訂頁。其中 `ConsoleTab` 與 `NetworkTab` 整合慢速網路請求偵測，當請求耗時 `entry.duration >= slowRequestThreshold` 時於列表項目（`_EntryTile` / `_NetworkEntryRow`）顯示 **`🐢 SLOW`** 警示 Badge；`NetworkTab` 頂部摘要列（`_ErrorSummaryBanner`）亦同步彙整慢速請求數量與時間門檻（如 `| 🐢 N slow (>Xs)`）。
 - **`MagicalTap`**：靜默連擊偵測元件，可在隱藏 FAB 時喚醒控制台。
 - **`ExportReportSheet`**：展示層的診斷報告導出與分享 Bottom Sheet。提供 Include 篩選、時間區間與 errors-only 選項，並整合了 async try-catch、`shareText` 及 clipboard fallback 的容錯分享流程。
 - **`DiagnosticReport`** (`buildDiagnosticReport`)：位於無狀態工具層的純粹且同步的 Markdown 報告產生器（Builder）。與 Flutter UI 完全解耦，不依賴 `BuildContext` 與 `dart:io`。
 - **集中化設計 Tokens 系統 (`lib/src/ui/theme/`)**：
   - **`theme.dart`**：Barrel 檔案，統一導出所有 Token 類別。
   - **`theme_color.dart`** (`ThemeColor`)：定義調色盤常數。並提供 `statusColor` 方法，根據 HTTP status code 返回調試用語意配色。
-  - **`theme_padding.dart`** (`ThemePadding`)：定義 EdgeInsets Tokens（`paddingAll8`, `paddingAll12`, `paddingAll16`, `paddingH8`, `paddingH16V8`）。
-  - **`theme_radius.dart`** (`ThemeRadius`)：圓角半徑 Tokens（`radius4`, `radius8`）。
-  - **`theme_size.dart`** (`ThemeSize`)：佈局尺寸 Tokens（如Badge寬度、Spinner尺寸、標籤欄寬等）。
-  - **`theme_spacing.dart`** (`ThemeSpacing`)：排版與 gap 間距 Tokens。
+  - **`theme_padding.dart`** (`ThemePadding`)：定義 EdgeInsets Tokens（`paddingAll8`, `paddingAll12`, `paddingAll16`, `paddingH8`, `paddingH16V8`），內部基於 `ThemeSize.space*` 常數建構。
+  - **`theme_size.dart`** (`ThemeSize`)：核心尺寸 Tokens 抽象類別（`abstract final class ThemeSize`），整合並統一管理間距（`space2`..`space16`）、圓角（`radius4`, `radius8`）與尺寸（`size16`..`size140`）常數。
   - **`theme_textstyle.dart`** (`ThemeTextStyle` / `ThemeFontSize`)：文字字型與粗細 Tokens，並包含 `ThemeFontSize`（`fontSize10`, `fontSize11`, `fontSize12`）字體大小常數。
 
 ---

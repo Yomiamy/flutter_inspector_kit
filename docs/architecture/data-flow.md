@@ -8,34 +8,55 @@
 
 ## 1. 網路請求攔截與更新流程 (HTTP Interception & Completion)
 
-在網路請求的生命週期中，數據被低干涉地捕獲兩次：發出請求時（用於即時顯示 pending 狀態）與響應/失敗時（更新狀態碼、時長與 Body）。
+在網路請求的生命週期中，數據被低干涉地捕獲兩次：發出請求時（用於即時顯示 pending 狀態）與響應/失敗時（更新狀態碼、時長與 Body）。同時，完成的請求會與設定的慢請求閾值（`slowRequestThreshold`）比對，以提供 UI 層視覺標示與統計。
 
 ### 數據流時序圖
 
 網絡請求純淨寫入 `NetworkInspector` 的環形快取中，不產生任何日誌鏡射。
 
 ```text
-  Dio Client (App)            DioInterceptor               FlutterInspector & Registry
-       │                           │                                    │
-       │─── 1. 發起 Request ──────>│                                    │
-       │                           │─── 2. 建立 Incomplete Entry ──────>│
-       │                           │    (記錄 startTime)                │
-       │                           │<── 3. 返回 pendingEntry ───────────│
-       │                           │                                    │
-       │                           │─── 4. 存入 options.extra ──────────│
-       │<── 5. 放行 Request ───────│                                    │
-       │                           │                                    │
-       ~   ( 網絡傳輸中... )        ~                                    ~
-       │                           │                                    │
-       │─── 6. 響應/失敗 ─────────>│                                    │
-       │                           │─── 7. 從 options.extra 取得 pending│
-       │                           │─── 8. 原地更替為 Completed Entry ─>│
-       │                           │    (透過 RingBuffer.replace())     │
-       │                           │                                    │
-       │                           │─── 9. [選用] 發送平台自適應通知 ──>│
-       │                           │    (經 AlertThrottler 靜默限制)    │
-       │<── 10. 返回 Response ─────│                                    │
+  Dio Client (App)            DioInterceptor               FlutterInspector & Registry                 UI (NetworkTab / ConsoleTab)
+       │                           │                                    │                                           │
+       │─── 1. 發起 Request ──────>│                                    │                                           │
+       │                           │─── 2. 建立 Incomplete Entry ──────>│                                           │
+       │                           │    (記錄 startTime)                │                                           │
+       │                           │<── 3. 返回 pendingEntry ───────────│                                           │
+       │                           │                                    │                                           │
+       │                           │─── 4. 存入 options.extra ──────────│                                           │
+       │<── 5. 放行 Request ───────│                                    │                                           │
+       │                           │                                    │                                           │
+       ~   ( 網絡傳輸中... )        ~                                    ~                                           ~
+       │                           │                                    │                                           │
+       │─── 6. 響應/失敗 ─────────>│                                    │                                           │
+       │                           │─── 7. 從 options.extra 取得 pending│                                           │
+       │                           │       與 startTime，計算 duration  │                                           │
+       │                           │       (DateTime.now - startTime)   │                                           │
+       │                           │─── 8. 原地更替為 Completed Entry ─>│                                           │
+       │                           │    (含 duration, 經 RingBuffer)    │                                           │
+       │                           │                                    │                                           │
+       │                           │─── 9. [選用] 發送平台自適應通知 ──>│                                           │
+       │                           │    (經 AlertThrottler 靜默限制)    │                                           │
+       │<── 10. 返回 Response ─────│                                    │                                           │
+       │                           │                                    │                                           │
+       │                           │                                    │─── 11. 傳遞 entries & slowRequestThreshold ─>│
+       │                           │                                    │                                           │
+       │                           │                                    │                                           ├── 12. 動態評估 duration >= threshold
+       │                           │                                    │                                           │    ├─ 繪製 🐢 SLOW 標籤 (Row Entry)
+       │                           │                                    │                                           │    └─ 彙整 🐢 slowCount (Summary Banner)
 ```
+
+### 關鍵細節：慢請求閾值配置與耗時判定 (Slow Request Threshold & Duration Evaluation)
+1. **閾值配置與驗證**：`FlutterInspector` 提供了 `slowRequestThreshold` 參數（型態 `Duration`，預設值為 `Duration(seconds: 2)`），用於判定網路請求是否過慢。在建構時會檢查 `slowRequestThreshold.isNegative`，若傳入負數則拋出 `ArgumentError.value(slowRequestThreshold, 'slowRequestThreshold', 'must not be negative')` 阻斷不合法配置。
+2. **耗時精確計算**：`FlutterInspectorDioInterceptor` 於 `onRequest` 階段記錄發起時間（在 `options.extra` 注入 `_inspector_start_time = DateTime.now()`），並於 `onResponse` 及 `onError` 觸發時計算 `duration = DateTime.now().difference(startTime)`，寫入 Completed `NetworkEntry`。
+3. **純淨模型解耦 (Model Decoupling)**：`NetworkEntry` 本身僅儲存完成時計算的原始 round-trip 時長 `duration`（`Duration?`），不將 `isSlow` 布林值寫死於資料模型中。此解耦設計確保數據模型之純潔性，即使閾值動態變更亦無須異動已儲存的條目。
+
+### 關鍵細節：UI 慢請求視覺標記與摘要橫幅 (UI Slow Request Presentation & Summary Banner)
+1. **動態判定標準**：UI 層統一以 `entry.duration != null && entry.duration! >= slowRequestThreshold` 作為慢請求判定條件。
+2. **列表列慢標籤 (`🐢 SLOW` Badge)**：在 `NetworkTab`（`_EntryTile`）與 `ConsoleTab`（`_NetworkEntryRow`）的請求列表項中，若請求符合慢請求條件，會在右側 trailing 區域（chevron 箭頭前）渲染橘色（`ThemeColor.colorFF9800`，15% 透明背景與 1px 邊框）`🐢 SLOW` 徽章。
+3. **效能與錯誤摘要橫幅 (`_ErrorSummaryBanner`)**：
+   - 橫幅會在包含錯誤群組或慢請求（`groups.isNotEmpty || slowCount > 0`）時顯示。
+   - 動態計算滿足 `entry.duration! >= slowRequestThreshold` 的慢請求數量 `slowCount` 與秒數閾值 `thresholdSec = (slowRequestThreshold.inMilliseconds / 1000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')`。
+   - 當同時存在網路錯誤與慢請求時，橫幅標題與折疊狀態附加 `| 🐢 {slowCount} slow (>{thresholdSec}s)`；當無網路錯誤但存在慢請求時，橫幅標題顯示 `🐢 {slowCount} slow requests (>{thresholdSec}s)`。
 
 ### 關鍵細節：請求重發 (Replay Request)
 在 `NetworkDetailView` 中點擊「重發」按鈕時：
