@@ -62,6 +62,30 @@ void main() {
       final inspector = FlutterInspector(redactSensitiveData: false);
       expect(inspector.redactSensitiveData, isFalse);
     });
+
+    test('rejects negative slowRequestThreshold', () {
+      expect(
+        () => FlutterInspector(
+          slowRequestThreshold: const Duration(seconds: -1),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('accepts zero and positive slowRequestThreshold', () {
+      final inspectorZero = FlutterInspector(
+        slowRequestThreshold: Duration.zero,
+      );
+      expect(inspectorZero.slowRequestThreshold, Duration.zero);
+
+      final inspectorPositive = FlutterInspector(
+        slowRequestThreshold: const Duration(seconds: 5),
+      );
+      expect(
+        inspectorPositive.slowRequestThreshold,
+        const Duration(seconds: 5),
+      );
+    });
   });
 
   group('Database Browser Sources API', () {

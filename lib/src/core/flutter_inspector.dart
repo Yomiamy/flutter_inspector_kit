@@ -163,6 +163,9 @@ class FlutterInspector {
   ///
   /// This should typically be instantiated once at app startup and retained
   /// globally. It maintains its own internal buffers and state.
+  ///
+  /// [slowRequestThreshold] marks completed requests as slow when their
+  /// duration is greater than or equal to this value. Defaults to 2 seconds.
   FlutterInspector({
     this.customTab,
     this.customTabTitle = 'Custom',
@@ -178,6 +181,13 @@ class FlutterInspector {
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
   }) {
+    if (slowRequestThreshold.isNegative) {
+      throw ArgumentError.value(
+        slowRequestThreshold,
+        'slowRequestThreshold',
+        'must not be negative',
+      );
+    }
     _overlayManager = InspectorOverlayManager(
       onFabTap: (context) => openDashboard(context),
     );
