@@ -11,7 +11,7 @@
 | 檔案路徑 | 關鍵類別/列舉 | 單一職責 (Single Responsibility) |
 | :--- | :--- | :--- |
 | [`lib/flutter_inspector_kit.dart`](../../lib/flutter_inspector_kit.dart) | - | Barrel 檔案，導出本套件對外公開的 API。 |
-| [`lib/src/core/flutter_inspector.dart`](../../lib/src/core/flutter_inspector.dart) | `FlutterInspector` | 套件的主入口。管理初始化、接收各項日誌與資料輸入，並與各個領域 Inspector 進行協調。含 `_currentTopPageLabel()`——為 `LifecycleHandler` 提供當前 top-most page 標籤（走 `NavigatorStackResolver` best-effort 重播，推不出來回傳 `null`）。 |
+| [`lib/src/core/flutter_inspector.dart`](../../lib/src/core/flutter_inspector.dart) | `FlutterInspector` | 套件的主入口。管理初始化、接收各項日誌與資料輸入，並與各個領域 Inspector 進行協調。支援配置 `slowRequestThreshold` 慢速請求時間門檻（預設 2 秒），影響 Dashboard 視覺標籤與慢速請求指標。含 `_currentTopPageLabel()`——為 `LifecycleHandler` 提供當前 top-most page 標籤（走 `NavigatorStackResolver` best-effort 重播，推不出來回傳 `null`）。 |
 | [`lib/src/core/inspector_registry.dart`](../../lib/src/core/inspector_registry.dart) | `InspectorRegistry` | 中央緩衝註冊表，集中持有並管理四個領域的 RingBuffer，同時實裝多源歸併排序。 |
 | [`lib/src/core/ring_buffer.dart`](../../lib/src/core/ring_buffer.dart) | `RingBuffer<T>` | 基礎 FIFO 環形快取。提供固定容量的資料寫入、刪除最舊數據及原地取代（`replace`）功能。 |
 | [`lib/src/core/uncaught_error_handler.dart`](../../lib/src/core/uncaught_error_handler.dart) | `UncaughtErrorHandler` | 獨立的錯誤監聽類別，無 Inspector 逆向依賴。透過建構子接收回呼並安全鏈接至三大系統錯誤鉤子。同一 build 崩潰以 object-identity 去重，避免重複記錄（PR #96）。 |
@@ -79,7 +79,7 @@
 | [`lib/src/ui/dashboard/dashboard_modal.dart`](../../lib/src/ui/dashboard/dashboard_modal.dart) | `DashboardModal` | 控制台全螢幕 Dialog 元件，包裝 TabBarView 結構。 |
 | [`lib/src/ui/dashboard/tabs/console_tab.dart`](../../lib/src/ui/dashboard/tabs/console_tab.dart) | `ConsoleTab` | 顯示混合時序軸（Console, Network, Nav, DB 等多源時序歸併）並依類型分頁展示。 |
 | [`lib/src/ui/dashboard/tabs/console/log_detail_view.dart`](../../lib/src/ui/dashboard/tabs/console/log_detail_view.dart) | `LogDetailView` | 展示單條日誌詳細資訊與 Stack Trace 的卡片。 |
-| [`lib/src/ui/dashboard/tabs/network_tab.dart`](../../lib/src/ui/dashboard/tabs/network_tab.dart) | `NetworkTab` | 提供網絡請求列表、搜尋過濾與 Status 晶片篩選。 |
+| [`lib/src/ui/dashboard/tabs/network_tab.dart`](../../lib/src/ui/dashboard/tabs/network_tab.dart) | `NetworkTab` | 提供網絡請求列表、搜尋過濾與 Status 晶片篩選；支援慢速請求視覺標籤（`🐢 SLOW`）以及在 `_ErrorSummaryBanner` 中展示 slow request 統計指標與時間門檻資訊。 |
 | [`lib/src/ui/dashboard/tabs/network/network_detail_view.dart`](../../lib/src/ui/dashboard/tabs/network/network_detail_view.dart) | `NetworkDetailView` | 展現詳細的請求/響應 headers 與 body，並整合 Replay、cURL 複製與分享。 |
 | [`lib/src/ui/dashboard/tabs/navigator_tab.dart`](../../lib/src/ui/dashboard/tabs/navigator_tab.dart) | `NavigatorTab` | 以時間軸列表展示路由事件與傳參。 |
 | [`lib/src/ui/dashboard/tabs/database_tab.dart`](../../lib/src/ui/dashboard/tabs/database_tab.dart) | `DatabaseTab` | 數據庫瀏覽器 Tab。支援動態下拉切換不同的 `DatabaseBrowserSource`。 |
@@ -98,9 +98,7 @@
 | [`lib/src/ui/theme/theme.dart`](../../lib/src/ui/theme/theme.dart) | - | **[新增]** Barrel 檔案，導出所有的主題樣式設計 Token。 |
 | [`lib/src/ui/theme/theme_color.dart`](../../lib/src/ui/theme/theme_color.dart) | `ThemeColor` | **[新增]** 定義配色與 HTTP status code 語意配色映射方法。 |
 | [`lib/src/ui/theme/theme_padding.dart`](../../lib/src/ui/theme/theme_padding.dart) | `ThemePadding` | **[新增]** 定義 EdgeInsets 邊距 Tokens（如 `paddingAll8`, `paddingAll12`, `paddingAll16`, `paddingH8`, `paddingH16V8`）。 |
-| [`lib/src/ui/theme/theme_radius.dart`](../../lib/src/ui/theme/theme_radius.dart) | `ThemeRadius` | **[新增]** 定義邊框圓角 Tokens（如 `radius4`, `radius8`）。 |
-| [`lib/src/ui/theme/theme_size.dart`](../../lib/src/ui/theme/theme_size.dart) | `ThemeSize` | **[新增]** 定義佈局大小與特定元件固定寬高 Tokens。 |
-| [`lib/src/ui/theme/theme_spacing.dart`](../../lib/src/ui/theme/theme_spacing.dart) | `ThemeSpacing` | **[新增]** 定義 Gap 寬度/高度與空白間距 Tokens。 |
+| [`lib/src/ui/theme/theme_size.dart`](../../lib/src/ui/theme/theme_size.dart) | `ThemeSize` | **[新增]** 統一收納尺寸 Token，包含間距 (`space*`)、邊框圓角 (`radius*`) 與元件固定寬高 (`size*`)，取代原先獨立的 `theme_spacing.dart` 與 `theme_radius.dart`。 |
 | [`lib/src/ui/theme/theme_textstyle.dart`](../../lib/src/ui/theme/theme_textstyle.dart) | `ThemeTextStyle`<br>`ThemeFontSize` | **[新增]** 定義文字字型與粗細 Tokens。並包含 `ThemeFontSize`（`fontSize10`, `fontSize11`, `fontSize12`）字體大小常數。 |
 
 ### 8. 擴充方法與版本定義 (`lib/src/extensions/` 及其他)

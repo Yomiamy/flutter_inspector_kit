@@ -1,4 +1,4 @@
-# Flutter Inspector 架構與代碼風格對比報告 (更新於 2026-07-19)
+# Flutter Inspector 架構與代碼風格對比報告 (更新於 2026-08-01)
 
 本報告參考 **對照組專案** 的工程準則與架構設計，對比當前 `flutter_inspector`（下稱**當前專案**）的 `lib` 與 `example/lib` 目錄，旨在評估其代碼品味、職責拆分、命名慣例，並記錄已落地的架構調整、重構實作與核心設計權衡。
 
@@ -15,7 +15,7 @@
 * **超級上帝類別 (God Class) 的徹底解耦**：原本 `FlutterInspector` 同時管理 core Registry、初始化、錯誤攔截與 FAB UI Overlay，違反了 **單一職責原則 (SRP)**。現已將錯誤處理與 UI Overlay 邏輯解耦至 `UncaughtErrorHandler` 與 `InspectorOverlayManager`（均位於 `lib/src/core/`），兩者完全藉由 callback 注入與 `FlutterInspector` 溝通，無任何反向依賴，使 `FlutterInspector` 收斂為極其乾淨的 Facade API。
 * **UI 與業務邏輯緊密耦合 (UI Tab 解耦)**：原本各個 Tab Widget 內部充斥著大量的 `_buildXxx` 等輔助方法（Helper Methods），使得單一類別的縮排與複雜度過高。現已完全移除 `ConsoleTab`、`NetworkTab`、`NavigatorTab`、`DatabaseTab`、`TableRowsView` 內部的 Helper Methods，改以獨立的私有 Widget 類別替代，顯著降低了嵌套層次。
 * **跨檔案代碼拷貝的消除**：為消除 `LogDetailView`、`NetworkDetailView` 等視圖中重複手寫的卡片與鍵值佈局，我們建立了共用 UI Widget：`DetailSection`（與 `DetailKeyValueRow`）以及 `ErrorCard`（用於錯誤與重試 UI），徹底消除了跨檔案的 UI 拷貝。
-* **樣式硬編碼的消除**：原本 UI 代碼中散落了大量的 const 顏色與邊距值。我們在 `lib/src/ui/theme/` 下建立了 `theme.dart` barrel 檔案，並將設計代幣（design tokens）細分實作至 6 個樣式類別（`ThemeColor`、`ThemePadding`、`ThemeRadius`、`ThemeSize`、`ThemeSpacing` 與 `ThemeTextStyle`），統一了視覺風格的管理。
+* **樣式硬編碼的消除與 Design Tokens 收樓**：原本 UI 代碼中散落了大量的 const 顏色與邊距值。我們在 `lib/src/ui/theme/` 下建立了 `theme.dart` barrel 檔案。隨後在代碼演進中，為了消除過度碎裂的代幣類別，我們進一步將 `ThemeRadius`（`theme_radius.dart`）與 `ThemeSpacing`（`theme_spacing.dart`）廢除並合併收樓至 `ThemeSize`（`theme_size.dart`），將設計代幣精簡實作為 4 個權責分明的樣式類別（`ThemeColor`、`ThemePadding`、`ThemeSize` 與 `ThemeTextStyle`），統一並簡化了視覺風格與邊距圓角的管理。
 
 ---
 
@@ -84,7 +84,7 @@ graph TD
 
 * **Helper Methods 的消除**：
   * **ConsoleTab**：移除 `_buildRow` 等 5 個 Helper Methods，改為 `_EntryRowDispatcher` 與 4 個對應 Entry 類別的私有 Row Widget（如 `_LogEntryRow`）。
-  * **NetworkTab**：移除 Helper Methods，解耦為獨立 Widget：`_SearchBar`、`_FilterChips` 與 `_EntryTile`。
+  * **NetworkTab**：移除 Helper Methods，解耦為獨立 Widget：`_SearchBar`、`_FilterChips` 與 `_EntryTile`；同時新增慢速請求視覺標記 `🐢 SLOW`（當 `duration >= slowRequestThreshold` 時於 `_EntryTile` 尾部顯示）以及 `_ErrorSummaryBanner` 頂部動態摘要統計資訊。
   * **NavigatorTab**：解耦出 `_ActiveStackView` 與 `_CurrentBadge`。
   * **DatabaseTab & TableRowsView**：將主體佈局分別解耦為 `_DatabaseTabBody` 與 `_TableRowsBody`，並抽離出 `_CellDetailsBottomSheet` 與 `_StatusBar`。
 * **共用元件提取**：
@@ -115,6 +115,19 @@ graph TD
 * **Hostile Input Hardening (敵意輸入防護)**：
   * 秉持「絕不破壞用戶空間」的鐵律，我們將 WebView 的 payload 視為不可信的敵意輸入。
   * 在 JS 端實施字串長度截斷（MAX_CHARS），在 Dart 端設置 256KB 的解碼上限，並透過嚴謹的邊界與 `try-catch` 防護，確保 Flutter UI Isolate 不會因為惡意的 Web payload 而遭遇 OOM 或崩潰。這反映了極高的安全默認與系統穩定性品味。
+
+### 5. 網路請求慢回應監控與視覺標示 (Slow Request Feature)
+
+為使開發者能即時發覺過慢的網路請求並進行效能調優，我們在 Facade 與 UI 兩端建立了慢速請求診斷機制：
+
+* **`FlutterInspector` 門檻配置與防禦性驗證**：
+  * 在 `FlutterInspector` 建構函式中新增 `slowRequestThreshold` 參數（預設為 `const Duration(seconds: 2)`）。
+  * 為秉持「絕不破壞用戶空間」的鐵律，加入防禦性驗證：若 `slowRequestThreshold.isNegative` 則拋出 `ArgumentError.value(slowRequestThreshold, 'slowRequestThreshold', 'must not be negative')`。
+* **UI 列表慢速標籤標示 (`NetworkTab` & `ConsoleTab`)**：
+  * 當 completed network request 的 `duration != null` 且 `duration! >= slowRequestThreshold` 時，於 `NetworkTab`（`_EntryTile`）與 `ConsoleTab`（`_NetworkEntryRow`）右側顯示橘色 (`ThemeColor.colorFF9800`) **`🐢 SLOW`** 警示 Badge（帶有 0.15 透明度背景與邊框）。
+* **頂部儀表板動態統計彙整 (`_ErrorSummaryBanner`)**：
+  * 計算符合 `duration! >= slowRequestThreshold` 的筆數 `slowCount`，並格式化顯示秒數 `thresholdSec`（如 2 秒格式化為 `"2"`）。
+  * 當無錯誤但有慢速請求時提示 `🐢 Z slow requests (>Ns)`；有錯誤且有慢速請求時於橫幅呈現 `⚠ X errors (Y types) | 🐢 Z slow (>Ns)`，提供即時的效能瓶頸統計資訊。
 
 ---
 
