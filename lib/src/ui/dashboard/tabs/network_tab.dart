@@ -281,7 +281,7 @@ class _EntryTile extends StatelessWidget {
               margin: const EdgeInsets.only(right: ThemeSpacing.spacing8),
               padding: const EdgeInsets.symmetric(
                 horizontal: ThemeSpacing.spacing4,
-                vertical: 2.0,
+                vertical: ThemeSpacing.spacing2,
               ),
               decoration: BoxDecoration(
                 color: ThemeColor.colorFF9800.withOpacity(0.15),
