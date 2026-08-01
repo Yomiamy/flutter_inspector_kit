@@ -74,6 +74,7 @@ class _NetworkTabState extends State<NetworkTab> {
           entries: filteredEntries,
           selectedGroup: _selectedErrorGroup,
           expanded: _errorSummaryExpanded,
+          slowRequestThreshold: widget.inspector.slowRequestThreshold,
           onGroupTap: (group) => setState(() {
             _selectedErrorGroup = _selectedErrorGroup == group ? null : group;
           }),
@@ -105,6 +106,7 @@ class _NetworkTabState extends State<NetworkTab> {
                   itemBuilder: (context, index) => _EntryTile(
                     entry: entries[index],
                     redactSensitiveData: widget.inspector.redactSensitiveData,
+                    slowRequestThreshold: widget.inspector.slowRequestThreshold,
                   ),
                 ),
         ),
@@ -240,10 +242,15 @@ class _FilterChips extends StatelessWidget {
 
 /// A single network request row that opens [NetworkDetailView] on tap.
 class _EntryTile extends StatelessWidget {
-  const _EntryTile({required this.entry, required this.redactSensitiveData});
+  const _EntryTile({
+    required this.entry,
+    required this.redactSensitiveData,
+    required this.slowRequestThreshold,
+  });
 
   final NetworkEntry entry;
   final bool redactSensitiveData;
+  final Duration slowRequestThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -269,7 +276,7 @@ class _EntryTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (entry.duration != null &&
-              entry.duration! >= kSlowRequestThreshold)
+              entry.duration! >= slowRequestThreshold)
             Container(
               margin: const EdgeInsets.only(right: ThemeSpacing.spacing8),
               padding: const EdgeInsets.symmetric(
@@ -341,6 +348,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
     required this.entries,
     required this.selectedGroup,
     required this.expanded,
+    required this.slowRequestThreshold,
     required this.onGroupTap,
     required this.onExpandToggle,
   });
@@ -348,6 +356,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
   final List<NetworkEntry> entries;
   final NetworkErrorGroup? selectedGroup;
   final bool expanded;
+  final Duration slowRequestThreshold;
   final ValueChanged<NetworkErrorGroup> onGroupTap;
   final VoidCallback onExpandToggle;
 
@@ -356,10 +365,14 @@ class _ErrorSummaryBanner extends StatelessWidget {
     final groups = aggregateNetworkErrors(entries);
     final slowCount = entries
         .where(
-          (e) => e.duration != null && e.duration! >= kSlowRequestThreshold,
+          (e) => e.duration != null && e.duration! >= slowRequestThreshold,
         )
         .length;
-    final slowText = slowCount > 0 ? ' | 🐢 $slowCount slow' : '';
+    final thresholdSec = (slowRequestThreshold.inMilliseconds / 1000)
+        .toStringAsFixed(1)
+        .replaceAll(RegExp(r'\.0$'), '');
+    final slowText =
+        slowCount > 0 ? ' | 🐢 $slowCount slow (>$thresholdSec' 's)' : '';
 
     if (groups.isEmpty && slowCount == 0) return const SizedBox.shrink();
 
@@ -384,7 +397,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
                 ),
               ] else if (slowCount > 0) ...[
                 Text(
-                  '🐢 $slowCount slow requests',
+                  '🐢 $slowCount slow requests (>$thresholdSec' 's)',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -413,7 +426,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
               Text(
                 groups.isNotEmpty
                     ? 'Error Summary$slowText'
-                    : '🐢 $slowCount slow requests',
+                    : '🐢 $slowCount slow requests (>$thresholdSec' 's)',
                 style: Theme.of(context).textTheme.labelSmall,
               ),
               InkWell(

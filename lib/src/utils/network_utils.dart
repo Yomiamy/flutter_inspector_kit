@@ -9,9 +9,6 @@ String timeOf(DateTime t) =>
     '${t.minute.toString().padLeft(2, '0')}:'
     '${t.second.toString().padLeft(2, '0')}';
 
-/// The default duration threshold for considering a request "slow".
-const Duration kSlowRequestThreshold = Duration(seconds: 2);
-
 /// HTTP methods offered as quick filter chips in the Network tab.
 const List<String> httpMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 

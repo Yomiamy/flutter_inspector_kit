@@ -115,6 +115,7 @@ class _ConsoleTabState extends State<ConsoleTab> {
             itemBuilder: (context, index) => _EntryRowDispatcher(
               entry: entries[index],
               redactSensitiveData: widget.inspector.redactSensitiveData,
+              slowRequestThreshold: widget.inspector.slowRequestThreshold,
             ),
           ),
         ),
@@ -128,10 +129,12 @@ class _EntryRowDispatcher extends StatelessWidget {
   const _EntryRowDispatcher({
     required this.entry,
     required this.redactSensitiveData,
+    required this.slowRequestThreshold,
   });
 
   final TimestampedEntry entry;
   final bool redactSensitiveData;
+  final Duration slowRequestThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -142,6 +145,7 @@ class _EntryRowDispatcher extends StatelessWidget {
         return _NetworkEntryRow(
           entry: e,
           redactSensitiveData: redactSensitiveData,
+          slowRequestThreshold: slowRequestThreshold,
         );
       case final NavigatorEntry e:
         return _NavigatorEntryRow(entry: e);
@@ -185,10 +189,12 @@ class _NetworkEntryRow extends StatelessWidget {
   const _NetworkEntryRow({
     required this.entry,
     required this.redactSensitiveData,
+    required this.slowRequestThreshold,
   });
 
   final NetworkEntry entry;
   final bool redactSensitiveData;
+  final Duration slowRequestThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +206,7 @@ class _NetworkEntryRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (entry.duration != null &&
-              entry.duration! >= kSlowRequestThreshold)
+              entry.duration! >= slowRequestThreshold)
             Container(
               margin: const EdgeInsets.only(right: ThemeSpacing.spacing8),
               padding: const EdgeInsets.symmetric(
