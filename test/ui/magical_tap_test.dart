@@ -20,9 +20,13 @@ void main() {
 
       final finder = find.byType(SizedBox);
       await tester.tap(finder, warnIfMissed: false);
-      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 10)));
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.tap(finder, warnIfMissed: false);
-      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 10)));
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.tap(finder, warnIfMissed: false);
 
       expect(tapped, isTrue);
@@ -44,11 +48,15 @@ void main() {
 
       final finder = find.byType(SizedBox);
       await tester.tap(finder, warnIfMissed: false);
-      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 10)));
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.tap(finder, warnIfMissed: false);
 
       // exceed timeout
-      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 150)));
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 150)),
+      );
 
       await tester.tap(finder, warnIfMissed: false); // tap 3
 

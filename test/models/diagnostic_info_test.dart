@@ -24,7 +24,10 @@ void main() {
     test('has value equality', () {
       const a = DiagnosticInfo(appVersion: '1.0.0', deviceModel: 'Pixel 8');
       const b = DiagnosticInfo(appVersion: '1.0.0', deviceModel: 'Pixel 8');
-      const different = DiagnosticInfo(appVersion: '1.0.1', deviceModel: 'Pixel 8');
+      const different = DiagnosticInfo(
+        appVersion: '1.0.1',
+        deviceModel: 'Pixel 8',
+      );
 
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));

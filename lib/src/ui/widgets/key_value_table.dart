@@ -22,7 +22,7 @@ class KeyValueTable extends StatelessWidget {
     final entries = data?.entries.toList() ?? const [];
     if (entries.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: ThemeSpacing.spacing4),
+        padding: const EdgeInsets.symmetric(vertical: ThemeSize.space4),
         child: Text(
           emptyLabel,
           style: TextStyle(
@@ -43,7 +43,7 @@ class KeyValueTable extends StatelessWidget {
         for (final e in entries)
           Padding(
             padding: const EdgeInsets.symmetric(
-              vertical: ThemeSpacing.spacing2,
+              vertical: ThemeSize.space2,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +57,7 @@ class KeyValueTable extends StatelessWidget {
                     child: SelectableText('${e.key}:', style: keyStyle),
                   ),
                 ),
-                const SizedBox(width: ThemeSpacing.spacing8),
+                const SizedBox(width: ThemeSize.space8),
                 Expanded(child: SelectableText('${e.value}')),
               ],
             ),

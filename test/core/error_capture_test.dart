@@ -72,8 +72,9 @@ void main() {
 
       FlutterError.onError!(buildDetails(StateError('build boom')));
 
-      final errors =
-          inspector.logEntries.where((e) => e.level == LogLevel.error).toList();
+      final errors = inspector.logEntries
+          .where((e) => e.level == LogLevel.error)
+          .toList();
       expect(errors, hasLength(1));
       expect(errors.first.message, contains('build boom'));
       expect(errors.first.stackTrace, isNotNull);
@@ -116,8 +117,9 @@ void main() {
 
       expect(handled, isTrue);
       expect(hostCalled, isTrue);
-      final errors =
-          inspector.logEntries.where((e) => e.level == LogLevel.error).toList();
+      final errors = inspector.logEntries
+          .where((e) => e.level == LogLevel.error)
+          .toList();
       expect(errors, hasLength(1));
       expect(errors.first.data?['source'], 'platformDispatcher');
     });
@@ -170,8 +172,9 @@ void main() {
       expect(widget, isA<Widget>());
       expect(widget.runtimeType, originalBuilder(details).runtimeType);
 
-      final errors =
-          inspector.logEntries.where((e) => e.level == LogLevel.error).toList();
+      final errors = inspector.logEntries
+          .where((e) => e.level == LogLevel.error)
+          .toList();
       expect(errors, hasLength(1));
       expect(errors.first.data?['source'], 'errorWidget');
     });
@@ -194,8 +197,7 @@ void main() {
   });
 
   group('dedup (T2)', () {
-    test(
-        'captureUncaughtErrors:true then a manual setupErrorHandlers attaches '
+    test('captureUncaughtErrors:true then a manual setupErrorHandlers attaches '
         'hooks once', () {
       FlutterError.onError = (_) {};
       final inspector = FlutterInspector(captureUncaughtErrors: true);

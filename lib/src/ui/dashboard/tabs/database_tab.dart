@@ -174,7 +174,7 @@ class _DatabaseTabBody extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(rowCountText, style: ThemeTextStyle.mutedSmallStyle),
-              const SizedBox(width: ThemeSpacing.spacing4),
+              const SizedBox(width: ThemeSize.space4),
               const Icon(Icons.chevron_right, color: ThemeColor.color9E9E9E),
             ],
           ),

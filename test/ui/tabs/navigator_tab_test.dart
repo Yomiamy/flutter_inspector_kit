@@ -34,9 +34,7 @@ void main() {
       expect(find.text('PUSH /home'), findsNothing);
     });
 
-    testWidgets('shows ChoiceChips with both mode labels', (
-      tester,
-    ) async {
+    testWidgets('shows ChoiceChips with both mode labels', (tester) async {
       final inspector = FlutterInspector();
       inspector.registry.navigator.add(
         NavigatorEntry(
@@ -82,32 +80,33 @@ void main() {
       expect(find.byType(Card), findsNothing);
     });
 
-    testWidgets('switching to activeStack shows resolved stack and hides events', (
-      tester,
-    ) async {
-      final inspector = FlutterInspector();
-      inspector.registry.navigator.add(
-        NavigatorEntry(
-          action: NavigatorAction.push,
-          routeName: '/switch',
-          arguments: null,
-        ),
-      );
+    testWidgets(
+      'switching to activeStack shows resolved stack and hides events',
+      (tester) async {
+        final inspector = FlutterInspector();
+        inspector.registry.navigator.add(
+          NavigatorEntry(
+            action: NavigatorAction.push,
+            routeName: '/switch',
+            arguments: null,
+          ),
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: NavigatorTab(inspector: inspector)),
-        ),
-      );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: NavigatorTab(inspector: inspector)),
+          ),
+        );
 
-      // Tap the "Active Stack" chip
-      await tester.tap(find.text('Active Stack'));
-      await tester.pump();
+        // Tap the "Active Stack" chip
+        await tester.tap(find.text('Active Stack'));
+        await tester.pump();
 
-      // Resolved active stack card is visible
-      expect(find.text('/switch'), findsNWidgets(2));
-      // Event history text gone
-      expect(find.text('PUSH /switch'), findsNothing);
-    });
+        // Resolved active stack card is visible
+        expect(find.text('/switch'), findsNWidgets(2));
+        // Event history text gone
+        expect(find.text('PUSH /switch'), findsNothing);
+      },
+    );
   });
 }

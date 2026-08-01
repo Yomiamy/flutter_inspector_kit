@@ -5,7 +5,5 @@ library;
 
 export 'theme_color.dart';
 export 'theme_padding.dart';
-export 'theme_radius.dart';
 export 'theme_size.dart';
-export 'theme_spacing.dart';
 export 'theme_textstyle.dart';

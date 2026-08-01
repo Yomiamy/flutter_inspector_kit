@@ -134,77 +134,83 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _networkDemo.makeRequest,
-              child: const Text('Make Network Request'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _runSeed(_sqliteDemo.seed),
-              child: const Text('Seed SQLite Demo'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _runSeed(_objectBoxDemo.seed),
-              child: const Text('Seed ObjectBox Demo'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _webViewDemo.open(context),
-              child: const Text('Open WebView Demo'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _inAppWebViewDemo.open(context),
-              child: const Text('Open InAppWebView Demo'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('Second Page')),
-                      body: const Center(child: Text('Second Page')),
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Push New Route'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              // Throws an uncaught async error. With captureUncaughtErrors
-              // enabled it is caught by PlatformDispatcher.instance.onError and
-              // surfaces as a red error log in the Console tab — tap it to
-              // expand the stack trace.
-              onPressed: () => Future<void>.error(
-                StateError('Demo: uncaught async error'),
-                StackTrace.current,
+        child: SingleChildScrollView(
+          child: Column(
+            children: <Widget>[
+              const Text('You have pushed the button this many times:'),
+              Text(
+                '$_counter',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-              child: const Text('Throw Uncaught Error'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const _BrokenWidgetPage(),
-                  ),
-                );
-              },
-              child: const Text('Trigger Widget Build Error'),
-            ),
-          ],
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _networkDemo.makeRequest,
+                child: const Text('Make Network Request'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _networkDemo.makeSlowRequest,
+                child: const Text('Make Slow Network Request (3s)'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _runSeed(_sqliteDemo.seed),
+                child: const Text('Seed SQLite Demo'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _runSeed(_objectBoxDemo.seed),
+                child: const Text('Seed ObjectBox Demo'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _webViewDemo.open(context),
+                child: const Text('Open WebView Demo'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _inAppWebViewDemo.open(context),
+                child: const Text('Open InAppWebView Demo'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(title: const Text('Second Page')),
+                        body: const Center(child: Text('Second Page')),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Push New Route'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                // Throws an uncaught async error. With captureUncaughtErrors
+                // enabled it is caught by PlatformDispatcher.instance.onError and
+                // surfaces as a red error log in the Console tab — tap it to
+                // expand the stack trace.
+                onPressed: () => Future<void>.error(
+                  StateError('Demo: uncaught async error'),
+                  StackTrace.current,
+                ),
+                child: const Text('Throw Uncaught Error'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const _BrokenWidgetPage(),
+                    ),
+                  );
+                },
+                child: const Text('Trigger Widget Build Error'),
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(

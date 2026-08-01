@@ -114,6 +114,11 @@ class FlutterInspector {
   /// that want a populated header implement [DiagnosticInfoSource] themselves.
   final DiagnosticInfoSource? diagnosticInfoSource;
 
+  /// The duration threshold for considering a network request as "slow".
+  /// Slow requests receive visual indicators in the dashboard.
+  /// Defaults to 2 seconds.
+  final Duration slowRequestThreshold;
+
   late final UncaughtErrorHandler _uncaughtErrorHandler;
   late final LifecycleHandler _lifecycleHandler;
   late final InspectorRegistry _registry;
@@ -158,6 +163,9 @@ class FlutterInspector {
   ///
   /// This should typically be instantiated once at app startup and retained
   /// globally. It maintains its own internal buffers and state.
+  ///
+  /// [slowRequestThreshold] marks completed requests as slow when their
+  /// duration is greater than or equal to this value. Defaults to 2 seconds.
   FlutterInspector({
     this.customTab,
     this.customTabTitle = 'Custom',
@@ -168,10 +176,18 @@ class FlutterInspector {
     this.captureLifecycleEvents = false,
     this.redactSensitiveData = true,
     this.diagnosticInfoSource,
+    this.slowRequestThreshold = const Duration(seconds: 2),
     int bufferSize = 500,
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
   }) {
+    if (slowRequestThreshold.isNegative) {
+      throw ArgumentError.value(
+        slowRequestThreshold,
+        'slowRequestThreshold',
+        'must not be negative',
+      );
+    }
     _overlayManager = InspectorOverlayManager(
       onFabTap: (context) => openDashboard(context),
     );

@@ -4,18 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('redactHeaders', () {
     test('masks Authorization regardless of case', () {
-      expect(
-        redactHeaders({'Authorization': 'Bearer secret'}),
-        {'Authorization': '••••'},
-      );
-      expect(
-        redactHeaders({'authorization': 'Bearer secret'}),
-        {'authorization': '••••'},
-      );
-      expect(
-        redactHeaders({'AUTHORIZATION': 'Bearer secret'}),
-        {'AUTHORIZATION': '••••'},
-      );
+      expect(redactHeaders({'Authorization': 'Bearer secret'}), {
+        'Authorization': '••••',
+      });
+      expect(redactHeaders({'authorization': 'Bearer secret'}), {
+        'authorization': '••••',
+      });
+      expect(redactHeaders({'AUTHORIZATION': 'Bearer secret'}), {
+        'AUTHORIZATION': '••••',
+      });
     });
 
     test('masks cookie, set-cookie and x-api-key', () {
@@ -25,11 +22,7 @@ void main() {
           'Set-Cookie': 'session=abc; HttpOnly',
           'X-Api-Key': 'k-123',
         }),
-        {
-          'Cookie': '••••',
-          'Set-Cookie': '••••',
-          'X-Api-Key': '••••',
-        },
+        {'Cookie': '••••', 'Set-Cookie': '••••', 'X-Api-Key': '••••'},
       );
     });
 

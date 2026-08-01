@@ -16,7 +16,7 @@ import 'network/network_detail_view.dart';
 /// Row background applied to error logs and failed network calls so they stand
 /// out while scrolling a long merged timeline. Kept faint on purpose: the tint
 /// marks the row without competing with the level-coloured text.
-final Color _kErrorRowTint = ThemeColor.colorF44336.withValues(alpha: 0.08);
+final Color _kErrorRowTint = ThemeColor.colorF44336.withOpacity(0.08);
 
 /// Tab for displaying a cross-layer merged timeline (logs, network, navigation,
 /// database) with a source filter and per-type row dispatch.
@@ -76,21 +76,21 @@ class _ConsoleTabState extends State<ConsoleTab> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    const SizedBox(width: ThemeSpacing.spacing8),
+                    const SizedBox(width: ThemeSize.space8),
                     FilterChip(
                       label: const Text('All'),
                       selected: _isAll,
                       onSelected: (_) => _selectAll(),
                     ),
                     for (final source in TimelineSource.values) ...[
-                      const SizedBox(width: ThemeSpacing.spacing8),
+                      const SizedBox(width: ThemeSize.space8),
                       FilterChip(
                         label: Text(_sourceLabels[source] ?? ''),
                         selected: !_isAll && _selected.contains(source),
                         onSelected: (_) => _selectOnly(source),
                       ),
                     ],
-                    const SizedBox(width: ThemeSpacing.spacing8),
+                    const SizedBox(width: ThemeSize.space8),
                   ],
                 ),
               ),
@@ -114,6 +114,7 @@ class _ConsoleTabState extends State<ConsoleTab> {
             itemBuilder: (context, index) => _EntryRowDispatcher(
               entry: entries[index],
               redactSensitiveData: widget.inspector.redactSensitiveData,
+              slowRequestThreshold: widget.inspector.slowRequestThreshold,
             ),
           ),
         ),
@@ -127,10 +128,12 @@ class _EntryRowDispatcher extends StatelessWidget {
   const _EntryRowDispatcher({
     required this.entry,
     required this.redactSensitiveData,
+    required this.slowRequestThreshold,
   });
 
   final TimestampedEntry entry;
   final bool redactSensitiveData;
+  final Duration slowRequestThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +144,7 @@ class _EntryRowDispatcher extends StatelessWidget {
         return _NetworkEntryRow(
           entry: e,
           redactSensitiveData: redactSensitiveData,
+          slowRequestThreshold: slowRequestThreshold,
         );
       case final NavigatorEntry e:
         return _NavigatorEntryRow(entry: e);
@@ -184,10 +188,12 @@ class _NetworkEntryRow extends StatelessWidget {
   const _NetworkEntryRow({
     required this.entry,
     required this.redactSensitiveData,
+    required this.slowRequestThreshold,
   });
 
   final NetworkEntry entry;
   final bool redactSensitiveData;
+  final Duration slowRequestThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -195,7 +201,34 @@ class _NetworkEntryRow extends StatelessWidget {
       tileColor: entry.isFailed ? _kErrorRowTint : null,
       title: Text('${entry.method} ${entry.statusCode ?? '-'} ${entry.url}'),
       subtitle: Text(entry.displayTime),
-      trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (entry.duration != null &&
+              entry.duration! >= slowRequestThreshold)
+            Container(
+              margin: const EdgeInsets.only(right: ThemeSize.space8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: ThemeSize.space4,
+                vertical: 2.0,
+              ),
+              decoration: BoxDecoration(
+                color: ThemeColor.colorFF9800.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(ThemeSize.radius4),
+                border: Border.all(color: ThemeColor.colorFF9800),
+              ),
+              child: const Text(
+                '🐢 SLOW',
+                style: TextStyle(
+                  fontSize: ThemeFontSize.fontSize10,
+                  color: ThemeColor.colorFF9800,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          const Icon(Icons.chevron_right, size: ThemeSize.size18),
+        ],
+      ),
       onTap: () => pushInspectorRoute(
         context,
         kInspectorNetworkDetailRoute,

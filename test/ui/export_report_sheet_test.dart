@@ -31,7 +31,10 @@ void main() {
     );
   }
 
-  Future<void> pumpSheet(WidgetTester tester, FlutterInspector inspector) async {
+  Future<void> pumpSheet(
+    WidgetTester tester,
+    FlutterInspector inspector,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -79,8 +82,9 @@ void main() {
       expect(checkbox.value, isFalse);
     });
 
-    testWidgets('sharing hands the report to the platform share sheet once',
-        (tester) async {
+    testWidgets('sharing hands the report to the platform share sheet once', (
+      tester,
+    ) async {
       mockShareSheet(tester);
       final inspector = FlutterInspector()..log('hello from the log');
 
@@ -95,8 +99,9 @@ void main() {
       expect(find.text('Share report'), findsNothing);
     });
 
-    testWidgets('unchecking a source drops it from the shared report',
-        (tester) async {
+    testWidgets('unchecking a source drops it from the shared report', (
+      tester,
+    ) async {
       mockShareSheet(tester);
       final inspector = FlutterInspector()..log('log line');
 
@@ -110,8 +115,9 @@ void main() {
       expect(shared.single, contains('## Timeline'));
     });
 
-    testWidgets('errors-only strips info logs from the shared report',
-        (tester) async {
+    testWidgets('errors-only strips info logs from the shared report', (
+      tester,
+    ) async {
       mockShareSheet(tester);
       final inspector = FlutterInspector()
         ..log('just-fyi')
@@ -136,8 +142,9 @@ void main() {
       expect(shared.single, contains('| Time range | last 5m |'));
     });
 
-    testWidgets('picking a different time range changes the report window',
-        (tester) async {
+    testWidgets('picking a different time range changes the report window', (
+      tester,
+    ) async {
       mockShareSheet(tester);
       // An old log falls outside the default 5m window but inside "All".
       final inspector = FlutterInspector();
@@ -158,7 +165,9 @@ void main() {
       expect(shared.single, contains('ancient-history'));
     });
 
-    testWidgets('the report inherits the host redaction setting', (tester) async {
+    testWidgets('the report inherits the host redaction setting', (
+      tester,
+    ) async {
       mockShareSheet(tester);
       await pumpSheet(tester, FlutterInspector(redactSensitiveData: false));
       await tester.tap(find.text('Share report'));
@@ -167,8 +176,9 @@ void main() {
       expect(shared.single, contains('| Redaction | disabled |'));
     });
 
-    testWidgets('an injected DiagnosticInfoSource populates the header',
-        (tester) async {
+    testWidgets('an injected DiagnosticInfoSource populates the header', (
+      tester,
+    ) async {
       mockShareSheet(tester);
       await pumpSheet(
         tester,
@@ -207,22 +217,29 @@ void main() {
         expect(clipboard, isNotNull);
         expect(clipboard, contains('# Diagnostic Report'));
         expect(clipboard, contains('needle'));
-        expect(find.text('Share unavailable — copied to clipboard'),
-            findsOneWidget);
+        expect(
+          find.text('Share unavailable — copied to clipboard'),
+          findsOneWidget,
+        );
       },
     );
 
-    testWidgets('a throwing DiagnosticInfoSource degrades to N/A, not a lost report',
-        (tester) async {
-      mockShareSheet(tester);
+    testWidgets(
+      'a throwing DiagnosticInfoSource degrades to N/A, not a lost report',
+      (tester) async {
+        mockShareSheet(tester);
 
-      await pumpSheet(tester, FlutterInspector(diagnosticInfoSource: _BrokenSource()));
-      await tester.tap(find.text('Share report'));
-      await tester.pumpAndSettle();
+        await pumpSheet(
+          tester,
+          FlutterInspector(diagnosticInfoSource: _BrokenSource()),
+        );
+        await tester.tap(find.text('Share report'));
+        await tester.pumpAndSettle();
 
-      expect(shared, hasLength(1));
-      expect(shared.single, contains('| Device | N/A |'));
-    });
+        expect(shared, hasLength(1));
+        expect(shared.single, contains('| Device | N/A |'));
+      },
+    );
 
     testWidgets('a failed share does not brick the button', (tester) async {
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -253,7 +270,9 @@ void main() {
       expect(button.onPressed, isNotNull, reason: 'button bricked by _busy');
     });
 
-    testWidgets('sharing is disabled when no source is selected', (tester) async {
+    testWidgets('sharing is disabled when no source is selected', (
+      tester,
+    ) async {
       await pumpSheet(tester, FlutterInspector());
 
       for (final source in ['Logs', 'Network', 'Navigation', 'Database']) {
@@ -267,8 +286,9 @@ void main() {
   });
 
   group('DashboardModal export action (AC-19)', () {
-    testWidgets('the AppBar exposes an export action that opens the sheet',
-        (tester) async {
+    testWidgets('the AppBar exposes an export action that opens the sheet', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(home: DashboardModal(inspector: FlutterInspector())),
       );

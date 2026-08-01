@@ -117,12 +117,12 @@ class _CurrentBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: ThemeSpacing.spacing8,
-        vertical: ThemeSpacing.spacing2,
+        horizontal: ThemeSize.space8,
+        vertical: ThemeSize.space2,
       ),
       decoration: BoxDecoration(
         color: ThemeColor.color2196F3.withAlpha(50),
-        borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+        borderRadius: BorderRadius.circular(ThemeSize.radius4),
       ),
       child: const Text(
         'Current',
@@ -149,7 +149,7 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: ThemeSpacing.spacing8),
+      padding: const EdgeInsets.only(left: ThemeSize.space8),
       child: ChoiceChip(
         label: Text(label),
         selected: selected,

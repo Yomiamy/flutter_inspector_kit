@@ -74,6 +74,7 @@ class _NetworkTabState extends State<NetworkTab> {
           entries: filteredEntries,
           selectedGroup: _selectedErrorGroup,
           expanded: _errorSummaryExpanded,
+          slowRequestThreshold: widget.inspector.slowRequestThreshold,
           onGroupTap: (group) => setState(() {
             _selectedErrorGroup = _selectedErrorGroup == group ? null : group;
           }),
@@ -105,6 +106,7 @@ class _NetworkTabState extends State<NetworkTab> {
                   itemBuilder: (context, index) => _EntryTile(
                     entry: entries[index],
                     redactSensitiveData: widget.inspector.redactSensitiveData,
+                    slowRequestThreshold: widget.inspector.slowRequestThreshold,
                   ),
                 ),
         ),
@@ -145,10 +147,10 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        ThemeSpacing.spacing8,
-        ThemeSpacing.spacing8,
-        ThemeSpacing.spacing4,
-        ThemeSpacing.spacing4,
+        ThemeSize.space8,
+        ThemeSize.space8,
+        ThemeSize.space4,
+        ThemeSize.space4,
       ),
       child: Row(
         children: [
@@ -214,17 +216,17 @@ class _FilterChips extends StatelessWidget {
         children: [
           for (final method in httpMethods)
             Padding(
-              padding: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+              padding: const EdgeInsets.only(right: ThemeSize.space8),
               child: FilterChip(
                 label: Text(method),
                 selected: selectedMethods.contains(method),
                 onSelected: (selected) => onMethodSelected(method, selected),
               ),
             ),
-          const SizedBox(width: ThemeSpacing.spacing8),
+          const SizedBox(width: ThemeSize.space8),
           for (final group in statusLabels.keys)
             Padding(
-              padding: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+              padding: const EdgeInsets.only(right: ThemeSize.space8),
               child: FilterChip(
                 label: Text(statusLabels[group] ?? ''),
                 selected: selectedStatusGroups.contains(group),
@@ -240,10 +242,15 @@ class _FilterChips extends StatelessWidget {
 
 /// A single network request row that opens [NetworkDetailView] on tap.
 class _EntryTile extends StatelessWidget {
-  const _EntryTile({required this.entry, required this.redactSensitiveData});
+  const _EntryTile({
+    required this.entry,
+    required this.redactSensitiveData,
+    required this.slowRequestThreshold,
+  });
 
   final NetworkEntry entry;
   final bool redactSensitiveData;
+  final Duration slowRequestThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +272,34 @@ class _EntryTile extends StatelessWidget {
         '${formatBytes(totalSize)} · ${timeOf(entry.timestamp)}',
         style: TextStyle(color: entry.error != null ? statusColor : null),
       ),
-      trailing: const Icon(Icons.chevron_right, size: ThemeSize.size18),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (entry.duration != null &&
+              entry.duration! >= slowRequestThreshold)
+            Container(
+              margin: const EdgeInsets.only(right: ThemeSize.space8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: ThemeSize.space4,
+                vertical: ThemeSize.space2,
+              ),
+              decoration: BoxDecoration(
+                color: ThemeColor.colorFF9800.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(ThemeSize.radius4),
+                border: Border.all(color: ThemeColor.colorFF9800),
+              ),
+              child: const Text(
+                '🐢 SLOW',
+                style: TextStyle(
+                  fontSize: ThemeFontSize.fontSize10,
+                  color: ThemeColor.colorFF9800,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          const Icon(Icons.chevron_right, size: ThemeSize.size18),
+        ],
+      ),
       onTap: () => pushInspectorRoute(
         context,
         kInspectorNetworkDetailRoute,
@@ -289,10 +323,10 @@ class _MethodBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: ThemeSize.size56,
-      padding: const EdgeInsets.symmetric(vertical: ThemeSpacing.spacing4),
+      padding: const EdgeInsets.symmetric(vertical: ThemeSize.space4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(ThemeSize.radius4),
         border: Border.all(color: color),
       ),
       child: Text(
@@ -314,6 +348,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
     required this.entries,
     required this.selectedGroup,
     required this.expanded,
+    required this.slowRequestThreshold,
     required this.onGroupTap,
     required this.onExpandToggle,
   });
@@ -321,13 +356,25 @@ class _ErrorSummaryBanner extends StatelessWidget {
   final List<NetworkEntry> entries;
   final NetworkErrorGroup? selectedGroup;
   final bool expanded;
+  final Duration slowRequestThreshold;
   final ValueChanged<NetworkErrorGroup> onGroupTap;
   final VoidCallback onExpandToggle;
 
   @override
   Widget build(BuildContext context) {
     final groups = aggregateNetworkErrors(entries);
-    if (groups.isEmpty) return const SizedBox.shrink();
+    final slowCount = entries
+        .where(
+          (e) => e.duration != null && e.duration! >= slowRequestThreshold,
+        )
+        .length;
+    final thresholdSec = (slowRequestThreshold.inMilliseconds / 1000)
+        .toStringAsFixed(1)
+        .replaceAll(RegExp(r'\.0$'), '');
+    final slowText =
+        slowCount > 0 ? ' | 🐢 $slowCount slow (>$thresholdSec' 's)' : '';
+
+    if (groups.isEmpty && slowCount == 0) return const SizedBox.shrink();
 
     if (!expanded) {
       return InkWell(
@@ -336,17 +383,24 @@ class _ErrorSummaryBanner extends StatelessWidget {
           padding: ThemePadding.paddingAll8,
           child: Row(
             children: [
-              const Icon(
-                Icons.warning_amber_rounded,
-                size: ThemeSize.size16,
-                color: ThemeColor.colorFF9800,
-              ),
-              const SizedBox(width: ThemeSpacing.spacing8),
-              Text(
-                '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
-                '(${groups.length} types)',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              if (groups.isNotEmpty) ...[
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  size: ThemeSize.size16,
+                  color: ThemeColor.colorFF9800,
+                ),
+                const SizedBox(width: ThemeSize.space8),
+                Text(
+                  '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
+                  '(${groups.length} types)$slowText',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ] else if (slowCount > 0) ...[
+                Text(
+                  '🐢 $slowCount slow requests (>$thresholdSec' 's)',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
               const Spacer(),
               const Icon(Icons.expand_more, size: ThemeSize.size16),
             ],
@@ -361,16 +415,18 @@ class _ErrorSummaryBanner extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            ThemeSpacing.spacing12,
-            ThemeSpacing.spacing8,
-            ThemeSpacing.spacing12,
+            ThemeSize.space12,
+            ThemeSize.space8,
+            ThemeSize.space12,
             0,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Error Summary',
+                groups.isNotEmpty
+                    ? 'Error Summary$slowText'
+                    : '🐢 $slowCount slow requests (>$thresholdSec' 's)',
                 style: Theme.of(context).textTheme.labelSmall,
               ),
               InkWell(
@@ -410,7 +466,7 @@ class _ErrorGroupCard extends StatelessWidget {
 
   // Special case: inner bar radius is the card radius (radiusMd=8) minus the
   // 1px border, so the color bar's rounded corner sits flush inside the frame.
-  static const double _colorBarBorderRadius = ThemeRadius.radius8 - 1;
+  static const double _colorBarBorderRadius = ThemeSize.radius8 - 1;
 
   final NetworkErrorGroup group;
   final bool selected;
@@ -421,10 +477,10 @@ class _ErrorGroupCard extends StatelessWidget {
     final color = ThemeColor.statusColor(group.statusCode, hasError: true);
 
     return Padding(
-      padding: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+      padding: const EdgeInsets.only(right: ThemeSize.space8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(ThemeRadius.radius8),
+        borderRadius: BorderRadius.circular(ThemeSize.radius8),
         child: Container(
           width: ThemeSize.size140,
           decoration: BoxDecoration(
@@ -432,13 +488,13 @@ class _ErrorGroupCard extends StatelessWidget {
               color: selected ? color : Theme.of(context).dividerColor,
               width: selected ? 2 : 1,
             ),
-            borderRadius: BorderRadius.circular(ThemeRadius.radius8),
+            borderRadius: BorderRadius.circular(ThemeSize.radius8),
             color: selected ? color.withValues(alpha: 0.1) : null,
           ),
           child: Row(
             children: [
               Container(
-                width: ThemeSpacing.spacing4,
+                width: ThemeSize.space4,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: const BorderRadius.only(
@@ -474,7 +530,7 @@ class _ErrorGroupCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: ThemeSpacing.spacing4),
+                      const SizedBox(height: ThemeSize.space4),
                       Text(
                         '${timeOf(group.firstSeen)} - ${timeOf(group.lastSeen)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(

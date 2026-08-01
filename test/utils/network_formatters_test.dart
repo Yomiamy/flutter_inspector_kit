@@ -193,17 +193,20 @@ void main() {
       expect(text.contains('#0 foo\n#1 bar'), isTrue);
     });
 
-    test('does not include Error or Stack Trace sections for success entry', () {
-      final entry = NetworkEntry(
-        method: 'GET',
-        url: 'https://api.test/items',
-        statusCode: 200,
-        timestamp: fixedTime,
-      );
-      final text = buildPlainText(entry);
-      expect(text.contains('=== Error ==='), isFalse);
-      expect(text.contains('=== Stack Trace ==='), isFalse);
-    });
+    test(
+      'does not include Error or Stack Trace sections for success entry',
+      () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/items',
+          statusCode: 200,
+          timestamp: fixedTime,
+        );
+        final text = buildPlainText(entry);
+        expect(text.contains('=== Error ==='), isFalse);
+        expect(text.contains('=== Stack Trace ==='), isFalse);
+      },
+    );
 
     test('redact does not affect errorType or errorStackTrace', () {
       final entry = NetworkEntry(

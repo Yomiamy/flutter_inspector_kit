@@ -41,7 +41,7 @@ void main() {
         callCount++;
       },
     );
-    
+
     FlutterError.onError = (_) {};
 
     handler.attach();
@@ -75,11 +75,17 @@ void main() {
     FlutterError.onError!(buildDetails(StateError('boom')));
     expect(hostFlutterCalled, isTrue);
 
-    PlatformDispatcher.instance.onError!(StateError('boom'), StackTrace.current);
+    PlatformDispatcher.instance.onError!(
+      StateError('boom'),
+      StackTrace.current,
+    );
     expect(hostPlatformCalled, isTrue);
 
     final widget = ErrorWidget.builder(buildDetails(StateError('boom')));
-    expect(widget.runtimeType, originalBuilder(buildDetails(StateError('boom'))).runtimeType);
+    expect(
+      widget.runtimeType,
+      originalBuilder(buildDetails(StateError('boom'))).runtimeType,
+    );
 
     expect(onLogCalledCount, 3);
   });
@@ -116,7 +122,10 @@ void main() {
     expect(handled, isTrue);
 
     final widget = ErrorWidget.builder(buildDetails(StateError('boom')));
-    expect(widget.runtimeType, originalBuilder(buildDetails(StateError('boom'))).runtimeType);
+    expect(
+      widget.runtimeType,
+      originalBuilder(buildDetails(StateError('boom'))).runtimeType,
+    );
   });
 
   test('dedup: same FlutterErrorDetails logged once across both hooks', () {

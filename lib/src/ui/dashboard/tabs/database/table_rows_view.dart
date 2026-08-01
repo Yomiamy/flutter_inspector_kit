@@ -207,7 +207,7 @@ class _CellDetailsBottomSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: ThemeSpacing.spacing16),
+            const SizedBox(height: ThemeSize.space16),
             ElevatedButton.icon(
               icon: const Icon(Icons.copy),
               label: const Text('Copy Value'),
@@ -334,7 +334,7 @@ class _TableRowsBody extends StatelessWidget {
                         scrollDirection: Axis.horizontal,
                         child: Padding(
                           padding: const EdgeInsets.only(
-                            bottom: ThemeSpacing.spacing16,
+                            bottom: ThemeSize.space16,
                           ),
                           child: DataTable(
                             sortColumnIndex: sortColumnIndex,

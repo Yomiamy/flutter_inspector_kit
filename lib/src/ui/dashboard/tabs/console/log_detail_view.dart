@@ -76,7 +76,7 @@ class LogDetailView extends StatelessWidget {
         padding: ThemePadding.paddingAll8,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+          borderRadius: BorderRadius.circular(ThemeSize.radius4),
         ),
         child: SelectableText(
           entry.stackTrace!,
