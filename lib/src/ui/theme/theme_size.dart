@@ -1,10 +1,27 @@
-/// Component-size tokens — fixed width/height units shared across pages so
-/// layout dimensions have a single source of truth.
+/// Core size tokens (spacing, radius, dimensions).
 ///
 /// Naming convention: the numeric value goes straight into the name
-/// (`size44`). The same unit may serve different roles per page; comments
-/// list current uses, not a contract.
-class ThemeSize {
+/// (`space8`, `radius8`, `size44`).
+abstract final class ThemeSize {
+  // ────────────────────────────────────────────
+  // 間距 (Spacing)
+  // ────────────────────────────────────────────
+  static const double zero = 0;
+  static const double space2 = 2.0;
+  static const double space4 = 4.0;
+  static const double space8 = 8.0;
+  static const double space12 = 12.0;
+  static const double space16 = 16.0;
+
+  // ────────────────────────────────────────────
+  // 圓角 (Radius)
+  // ────────────────────────────────────────────
+  static const double radius4 = 4.0;
+  static const double radius8 = 8.0;
+
+  // ────────────────────────────────────────────
+  // 尺寸 (Dimensions)
+  // ────────────────────────────────────────────
   static const double size16 = 16.0; // inline action icon
   static const double size18 = 18.0; // small inline spinner / action icon
   static const double size20 = 20.0; // cell / status spinner

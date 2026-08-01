@@ -147,10 +147,10 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        ThemeSpacing.spacing8,
-        ThemeSpacing.spacing8,
-        ThemeSpacing.spacing4,
-        ThemeSpacing.spacing4,
+        ThemeSize.space8,
+        ThemeSize.space8,
+        ThemeSize.space4,
+        ThemeSize.space4,
       ),
       child: Row(
         children: [
@@ -216,17 +216,17 @@ class _FilterChips extends StatelessWidget {
         children: [
           for (final method in httpMethods)
             Padding(
-              padding: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+              padding: const EdgeInsets.only(right: ThemeSize.space8),
               child: FilterChip(
                 label: Text(method),
                 selected: selectedMethods.contains(method),
                 onSelected: (selected) => onMethodSelected(method, selected),
               ),
             ),
-          const SizedBox(width: ThemeSpacing.spacing8),
+          const SizedBox(width: ThemeSize.space8),
           for (final group in statusLabels.keys)
             Padding(
-              padding: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+              padding: const EdgeInsets.only(right: ThemeSize.space8),
               child: FilterChip(
                 label: Text(statusLabels[group] ?? ''),
                 selected: selectedStatusGroups.contains(group),
@@ -278,14 +278,14 @@ class _EntryTile extends StatelessWidget {
           if (entry.duration != null &&
               entry.duration! >= slowRequestThreshold)
             Container(
-              margin: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+              margin: const EdgeInsets.only(right: ThemeSize.space8),
               padding: const EdgeInsets.symmetric(
-                horizontal: ThemeSpacing.spacing4,
-                vertical: ThemeSpacing.spacing2,
+                horizontal: ThemeSize.space4,
+                vertical: ThemeSize.space2,
               ),
               decoration: BoxDecoration(
                 color: ThemeColor.colorFF9800.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+                borderRadius: BorderRadius.circular(ThemeSize.radius4),
                 border: Border.all(color: ThemeColor.colorFF9800),
               ),
               child: const Text(
@@ -323,10 +323,10 @@ class _MethodBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: ThemeSize.size56,
-      padding: const EdgeInsets.symmetric(vertical: ThemeSpacing.spacing4),
+      padding: const EdgeInsets.symmetric(vertical: ThemeSize.space4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+        borderRadius: BorderRadius.circular(ThemeSize.radius4),
         border: Border.all(color: color),
       ),
       child: Text(
@@ -389,7 +389,7 @@ class _ErrorSummaryBanner extends StatelessWidget {
                   size: ThemeSize.size16,
                   color: ThemeColor.colorFF9800,
                 ),
-                const SizedBox(width: ThemeSpacing.spacing8),
+                const SizedBox(width: ThemeSize.space8),
                 Text(
                   '⚠ ${groups.fold(0, (sum, g) => sum + g.count)} errors '
                   '(${groups.length} types)$slowText',
@@ -415,9 +415,9 @@ class _ErrorSummaryBanner extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            ThemeSpacing.spacing12,
-            ThemeSpacing.spacing8,
-            ThemeSpacing.spacing12,
+            ThemeSize.space12,
+            ThemeSize.space8,
+            ThemeSize.space12,
             0,
           ),
           child: Row(
@@ -466,7 +466,7 @@ class _ErrorGroupCard extends StatelessWidget {
 
   // Special case: inner bar radius is the card radius (radiusMd=8) minus the
   // 1px border, so the color bar's rounded corner sits flush inside the frame.
-  static const double _colorBarBorderRadius = ThemeRadius.radius8 - 1;
+  static const double _colorBarBorderRadius = ThemeSize.radius8 - 1;
 
   final NetworkErrorGroup group;
   final bool selected;
@@ -477,10 +477,10 @@ class _ErrorGroupCard extends StatelessWidget {
     final color = ThemeColor.statusColor(group.statusCode, hasError: true);
 
     return Padding(
-      padding: const EdgeInsets.only(right: ThemeSpacing.spacing8),
+      padding: const EdgeInsets.only(right: ThemeSize.space8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(ThemeRadius.radius8),
+        borderRadius: BorderRadius.circular(ThemeSize.radius8),
         child: Container(
           width: ThemeSize.size140,
           decoration: BoxDecoration(
@@ -488,13 +488,13 @@ class _ErrorGroupCard extends StatelessWidget {
               color: selected ? color : Theme.of(context).dividerColor,
               width: selected ? 2 : 1,
             ),
-            borderRadius: BorderRadius.circular(ThemeRadius.radius8),
+            borderRadius: BorderRadius.circular(ThemeSize.radius8),
             color: selected ? color.withValues(alpha: 0.1) : null,
           ),
           child: Row(
             children: [
               Container(
-                width: ThemeSpacing.spacing4,
+                width: ThemeSize.space4,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: const BorderRadius.only(
@@ -530,7 +530,7 @@ class _ErrorGroupCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: ThemeSpacing.spacing4),
+                      const SizedBox(height: ThemeSize.space4),
                       Text(
                         '${timeOf(group.firstSeen)} - ${timeOf(group.lastSeen)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(

@@ -129,7 +129,7 @@ class NetworkDetailView extends StatelessWidget {
           ),
           if (entry.isTruncated)
             Padding(
-              padding: const EdgeInsets.only(top: ThemeSpacing.spacing4),
+              padding: const EdgeInsets.only(top: ThemeSize.space4),
               child: Text(
                 '⚠ Body truncated — size reflects the truncated value',
                 style: TextStyle(
@@ -158,7 +158,7 @@ class NetworkDetailView extends StatelessWidget {
         padding: ThemePadding.paddingAll8,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+          borderRadius: BorderRadius.circular(ThemeSize.radius4),
         ),
         child: SelectableText(rendered, style: ThemeTextStyle.monospaceStyle),
       ),
@@ -194,20 +194,20 @@ class NetworkDetailView extends StatelessWidget {
             ),
           if (entry.errorStackTrace != null &&
               entry.errorStackTrace!.isNotEmpty) ...[
-            const SizedBox(height: ThemeSpacing.spacing12),
+            const SizedBox(height: ThemeSize.space12),
             Text(
               'Stack Trace',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: ThemeSpacing.spacing8),
+            const SizedBox(height: ThemeSize.space8),
             Container(
               width: double.infinity,
               padding: ThemePadding.paddingAll8,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(ThemeRadius.radius4),
+                borderRadius: BorderRadius.circular(ThemeSize.radius4),
               ),
               child: SelectableText(
                 entry.errorStackTrace!,
