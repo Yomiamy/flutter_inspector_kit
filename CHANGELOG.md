@@ -1,3 +1,12 @@
+## 1.9.0
+
+### Added
+* **Slow network request indicator**: Network requests exceeding a configurable time threshold are now visually marked with a `🐢 SLOW` indicator in the Network tab to easily spot performance bottlenecks.
+* **Configurable slow request threshold**: The threshold for marking a request as slow can now be configured via the `slowRequestThreshold` parameter on the `FlutterInspector` constructor (defaults to 2 seconds).
+
+### Fixed
+* **Constructor validation**: `FlutterInspector` now rejects negative `slowRequestThreshold` values.
+
 ## 1.8.0
 
 ### Added

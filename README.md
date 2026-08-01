@@ -15,6 +15,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🧵 **Merged Timeline** | Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips; error logs and failed network calls carry a faint red row tint so they stand out while scrolling | Continuing the checkout case — switch the source chip to "All" and scroll back along the timeline to inspect the request that got 401: check what token was in the `Authorization` header, what params were sent, and compare with backend expectations to pinpoint why the server rejected it — all without switching tabs or manually comparing timestamps |
 | 📡 **Network** | Intercept HTTP traffic via Dio; inspect structured request/response details; search/filter by URL, method, or status; share as cURL | A page shows up completely blank — open the Network tab to find the API returned an error, so there's no data to display; tap in to inspect request params and response body, then copy as a runnable cURL command and paste it into a bug ticket for the backend team to reproduce |
 | 🔄 **Network Replay** | Resend a captured request using the original Dio instance (same headers, base URL, interceptors); replayed entries are auto-labeled | Re-trigger a failed API call on-device to verify a server-side hotfix without restarting the app or rebuilding the user flow |
+| 🐢 **Slow Request Indicator** | Network requests that exceed a configurable time threshold are flagged with a `🐢 SLOW` visual marker in the Network tab | Easily spot endpoints that are slowing down your app, and track down performance bottlenecks without digging through logs manually |
 | 🚨 **Structured Network Errors** | Failed requests show an **Exception Details** section distinguishing transport-layer failures (device offline / DNS / timeout) from server-side errors (4xx/5xx), with copyable stack traces | Instantly tell whether "Failed" means the device lost connectivity or the server returned 500 — no more guessing during QA |
 | 📊 **Error Aggregation Summary** | Network tab shows a collapsible banner that groups failed/errored requests by status code (or error type for transport failures), with per-group counts and time range; tap a group to filter the call list down to just that error | A page is flooded with dozens of failed calls — glance at the summary banner to see "12× 401", "3× timeout", tap the 401 group to isolate exactly those calls instead of scrolling through the full list |
 | 🩺 **Diagnostic Report** | Export a single Markdown report — device/app header, current route stack, and the logs / network / navigation / database sections — filtered by time window (5m / 1h / all), source, and an optional errors-only toggle; straight to the share sheet, nothing written to disk | QA reproduces a bug and, instead of screenshotting four tabs and hand-typing the OS version, taps Export once and pastes a complete report into the Jira ticket |
@@ -48,7 +49,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.8.0
+  flutter_inspector_kit: ^1.9.0
 ```
 
 Then run `flutter pub get`.
@@ -61,7 +62,10 @@ Create a single shared `FlutterInspector` instance and wire it into your app. Re
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 
-final inspector = FlutterInspector();
+final inspector = FlutterInspector(
+  // Optional: configure threshold for marking requests as "🐢 SLOW" (defaults to 2s)
+  slowRequestThreshold: const Duration(seconds: 3),
+);
 
 void main() => runApp(const MyApp());
 
