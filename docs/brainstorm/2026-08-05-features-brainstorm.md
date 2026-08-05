@@ -21,7 +21,7 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-07-27 · v1.8.0）
+## 📊 完成度總覽（截至 2026-08-05 · v1.9.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
@@ -425,7 +425,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 > **附帶更正**：原文提到的 `NavigatorStackResolver.currentStack` **這個 API 不存在**——實際只有純函式 `resolve(List<NavigatorEntry> entries)`，不持有狀態、無快取、無 getter。此更正對其他章節仍有效（勿再引用該 API 名稱）。
 
-### §P3. Timeline 書籤 / 標記（Bookmark / Pin）— 🆕
+### §P3. Timeline 書籤 / 標記（Bookmark / Pin）— ✅ 已完成（PR #115）
 
 > **痛點**：QA 重現 bug 時，想在 timeline 上標記「就是這裡出問題」，但匯出報告後，那個關鍵時刻淹沒在幾百筆事件裡。
 
@@ -516,7 +516,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | ~~3~~ | ~~錯誤上下文快照~~ — ❌ 已否決（2026-07-24，理由見 §P2） | §P2 新提案 | — | — |
 | ~~4~~ | 未捕捉例外去重修復 — ✅ 已完成（PR #96） | §D2（#1 缺陷） | low | ⭐⭐⭐⭐ |
 | ~~5~~ | ~~Detail View ±5s 同時段側欄~~ — ❌ 已否決（2026-07-24，理由見 §D3） | §D3（#2 做法 A） | med | — |
-| **6** | Timeline 書籤 / 標記 | §P3 新提案 | low | ⭐⭐⭐⭐ |
+| ~~6~~ | Timeline 書籤 / 標記 — ✅ 已完成（PR #115） | §P3 新提案 | low | ⭐⭐⭐⭐ |
 | **7** | Dashboard 錯誤計數 Badge | §P6 新提案 | low | ⭐⭐⭐ |
 | ~~8~~ | Error 高亮強化 — ✅ 已完成（PR #101） | §P7 新提案 | trivial | ⭐⭐⭐ |
 | **9** | 快速複製 Diagnostic Snippet | §P4 新提案 | low | ⭐⭐⭐ |
@@ -740,7 +740,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | 項目 | 內容 | 寫入路徑 | Effort |
 |------|------|----------|:---:|
 | **§D1 + §P5**（**合併**） | 過濾 + 點擊清過濾並捲回主時間軸 | `console_tab.dart` + 可選 `console_utils.dart` | med |
-| **§P3** Timeline 書籤 | 長按標記 + bookmark-only 過濾 + 報告前綴 | `console_tab.dart` + `diagnostic_report.dart` | low |
+| ~~**§P3** Timeline 書籤~~ | 長按標記 + bookmark-only 過濾 + 報告前綴 — ✅ 已完成（PR #115） | `console_tab.dart` + `diagnostic_report.dart` | low |
 
 > **§D1 與 §P5 應合併為一項**，不該分居原 Phase 1 與 Phase 4：單獨的過濾切斷前後文，單獨的 §P5 只能跳最新 error；合起來才完整——搜到 → 點擊 → 清過濾並捲到該位置 → 站回完整時間軸看前後。這也是 §D3 ±5s 側欄想解決卻解錯的問題（見 §D1 重新定性 ③）。
 >
