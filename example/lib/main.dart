@@ -53,7 +53,7 @@ class MyApp extends StatelessWidget {
 
             if (context == null) return;
 
-            inspector.openDashboard(context);
+            inspector.openDashboard();
           },
           child: child ?? const SizedBox.shrink(),
         );

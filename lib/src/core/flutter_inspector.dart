@@ -208,7 +208,7 @@ class FlutterInspector {
       );
     }
     _overlayManager = InspectorOverlayManager(
-      onFabTap: (context) => openDashboard(context),
+      onFabTap: (_) => openDashboard(),
     );
     _registry = InspectorRegistry(bufferSize: bufferSize);
     _uncaughtErrorHandler = UncaughtErrorHandler(onLog: log);
@@ -351,16 +351,16 @@ class FlutterInspector {
   ///
   /// [initialIndex] selects the starting tab: Console (0), Network (1),
   /// Navigator (2), Database (3).
-  void openDashboard(BuildContext context, {int initialIndex = 0}) {
+  void openDashboard({int initialIndex = 0}) {
+    final context = navigatorKey?.currentContext;
+    if (context == null) return;
     DashboardModal.show(context, this, initialIndex: initialIndex);
   }
 
   /// Opens the dashboard on the Network tab in response to a notification tap.
   /// Requires [navigatorKey] to have a mounted context; otherwise a no-op.
   void _openNetworkFromNotification() {
-    final context = navigatorKey?.currentContext;
-    if (context == null) return;
-    openDashboard(context, initialIndex: 1);
+    openDashboard(initialIndex: 1);
   }
 
   /// Clears all console logs.
