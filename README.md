@@ -12,6 +12,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | Feature | Description | Use Case Example |
 |---|---|---|
 | 🪵 **Console** | Capture logs across five severity levels (`verbose` / `debug` / `info` / `warning` / `error`), with optional structured data and stack traces | QA says "tapping checkout does nothing" — open Console, spot a red error entry in the timeline; tap in to see the structured error detail, response body, and full stack trace to understand what went wrong |
+| 📌 **Timeline Bookmark** | Long-press any timeline entry to bookmark it with a visual indicator, then quickly filter the view to show only bookmarked items | Found a suspicious request while scrolling through hundreds of logs? Bookmark it, then toggle the "Bookmarks" chip to isolate it alongside other key events without losing track of your place in the timeline |
 | 🧵 **Merged Timeline** | Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips; error logs and failed network calls carry a faint red row tint so they stand out while scrolling | Continuing the checkout case — switch the source chip to "All" and scroll back along the timeline to inspect the request that got 401: check what token was in the `Authorization` header, what params were sent, and compare with backend expectations to pinpoint why the server rejected it — all without switching tabs or manually comparing timestamps |
 | 📡 **Network** | Intercept HTTP traffic via Dio; inspect structured request/response details; search/filter by URL, method, or status; share as cURL | A page shows up completely blank — open the Network tab to find the API returned an error, so there's no data to display; tap in to inspect request params and response body, then copy as a runnable cURL command and paste it into a bug ticket for the backend team to reproduce |
 | 🔄 **Network Replay** | Resend a captured request using the original Dio instance (same headers, base URL, interceptors); replayed entries are auto-labeled | Re-trigger a failed API call on-device to verify a server-side hotfix without restarting the app or rebuilding the user flow |
@@ -49,7 +50,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.9.0
+  flutter_inspector_kit: ^2.0.0
 ```
 
 Then run `flutter pub get`.
@@ -80,7 +81,7 @@ class MyApp extends StatelessWidget {
       // 2. A hidden gesture opens the dashboard from anywhere
       builder: (context, child) {
         return FlutterInspectorMagicalTap(
-          onTap: () => inspector.openDashboard(context),
+          onTap: () => inspector.openDashboard(),
           child: child ?? const SizedBox.shrink(),
         );
       },

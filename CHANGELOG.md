@@ -1,3 +1,11 @@
+## 2.0.0
+
+### Added
+* **Timeline Bookmark**: Long-press any timeline entry in the Console tab to bookmark it. A push-pin indicator is displayed, and a new "Bookmarks" filter chip allows isolating bookmarked entries. Diagnostic reports now prefix bookmarked entries with a 📌 icon.
+
+### Changed
+* **openDashboard method**: Removed the `BuildContext` parameter from the `openDashboard` method as it is no longer required for opening the inspector.
+
 ## 1.9.0
 
 ### Added
