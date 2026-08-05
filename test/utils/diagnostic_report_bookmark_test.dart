@@ -62,9 +62,9 @@ void main() {
       );
 
       expect(report.contains('- 📌 ['), true);
-      expect(report.contains('[NET] 📌 GET https://example.com/api'), true);
-      expect(report.contains('[NAV] 📌 push `/details`'), true);
-      expect(report.contains('[DB] 📌 query `users` (5 rows)'), true);
+      expect(report.contains('[NET] GET /api → 200 (150ms)'), true);
+      expect(report.contains('[NAV] push `/details`'), true);
+      expect(report.contains('[DB] query `users` (5 rows)'), true);
     });
   });
 }
