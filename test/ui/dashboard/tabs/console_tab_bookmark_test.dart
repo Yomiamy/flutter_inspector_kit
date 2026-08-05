@@ -37,4 +37,33 @@ void main() {
 
     expect(find.text('No bookmarked entries'), findsOneWidget);
   });
+
+  testWidgets('Selecting a source chip restores visibility of non-bookmarked entries', (tester) async {
+    final inspector = FlutterInspector();
+    inspector.log('Test message 1');
+    inspector.log('Test message 2');
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ConsoleTab(inspector: inspector),
+      ),
+    ));
+
+    // Toggle bookmark on message 1
+    await tester.longPress(find.text('Test message 1'));
+    await tester.pumpAndSettle();
+
+    // Enable bookmarks filter
+    await tester.tap(find.text('📌 Bookmarks'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Test message 2'), findsNothing);
+
+    // Tap All chip
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+
+    // Verify filter is reset and message 2 is visible again
+    expect(find.text('Test message 2'), findsOneWidget);
+  });
 }

@@ -60,10 +60,15 @@ class _ConsoleTabState extends State<ConsoleTab> {
   /// Whether the filter currently equals "All" (every source selected).
   bool get _isAll => _selected.length == _all.length;
 
-  void _selectAll() => setState(() => _selected = {..._all});
+  void _selectAll() => setState(() {
+        _selected = {..._all};
+        _showOnlyBookmarks = false;
+      });
 
-  void _selectOnly(TimelineSource source) =>
-      setState(() => _selected = {source});
+  void _selectOnly(TimelineSource source) => setState(() {
+        _selected = {source};
+        _showOnlyBookmarks = false;
+      });
 
   @override
   Widget build(BuildContext context) {

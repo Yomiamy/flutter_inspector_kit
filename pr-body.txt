@@ -1,0 +1,16 @@
+## Summary
+Resolves #114
+
+This PR introduces the Timeline Bookmark feature, allowing developers to mark specific timeline entries in the Console tab and highlight them in the exported diagnostic report. It maintains an $O(1)$ lookup state in memory without altering the immutable event models.
+
+## Changes
+- **Core**: Added `_bookmarkedEntries` state management in `FlutterInspector` and synchronized clearance during log flush events (`043039e`).
+- **Report**: Extended `buildDiagnosticReport` with a `bookmarkedEntries` parameter to prefix bookmarked lines with `📌 ` while preserving backward compatibility (`517e543`).
+- **UI**: Implemented `onLongPress` gesture on console entries to toggle bookmarks, added a `📌` indicator icon on marked entries, and introduced a `📌 Bookmarks` `FilterChip` for rapid filtering (`b4afbba`).
+- **Docs**: Added implementation plan and feature spec (`3adfd35`).
+
+## Verification
+- Added core logic unit tests in `test/core/flutter_inspector_bookmark_test.dart`.
+- Added report formatting unit tests in `test/utils/diagnostic_report_bookmark_test.dart`.
+- Added UI interaction widget tests in `test/ui/dashboard/tabs/console_tab_bookmark_test.dart`.
+- All tests pass (0 failures).
