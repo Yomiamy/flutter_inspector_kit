@@ -144,6 +144,11 @@ description: |
     STAGE 6：清理 Worktree（獨立入口，由你手動觸發）
     ──────────────────────────────────────────────────
     觸發方式：PR **實際合併後**，你說「PR #42 合併了，清理 worktree」
+    → 【文件同步】先呼叫 gen-sync-docs-by-branchs skill，
+      以當前處理的分支為目標，將該分支的實際變更回寫到
+      docs 下的發想／結構說明文件（brainstorm、architecture 等）
+    → 【提交同步結果】同步完成後呼叫 gen-commit skill 將
+      文件變更 commit 進 git（避免同步結果在清理 worktree 時遺失）
     → 呼叫 worktree-close-cleanup skill 移除 STAGE 1 建立的 worktree
     → 只移除 worktree 本身，**對應 branch 一律保留、不刪除**
       （worktree-close-cleanup 的既有規則，不因併入此流程而改變）
@@ -609,7 +614,7 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），本�
 | 3 審查 | reviewer | 最強推論 | — | 根因判斷需最強推論，且不該讓產出代碼的同源 model 自審 |
 | 4 發布 | publisher（內部用 gen-pr skill） | 輕量 | ✦ Diff 分析 → PR 草稿（Claude 校對）| PR 描述由 gen-pr 產（Summary + 修正問題/修正方式），publisher 負責 push + gh pr create；重活已委派 agy，且發布前有暫停點人肉把關 |
 | 5 回覆 PR Review | responder（→ reviewer → publisher） | responder: 輕量；reviewer: 最強推論；publisher: 輕量 | — | responder 逐條意見判斷用輕量即可；中間 reviewer 是交叉驗證的把關點，吃重推論不降級 |
-| 6 清理 Worktree | worktree-close-cleanup skill | —（skill 於主對話執行） | ✦ git worktree remove | 純 IO，且只移除 worktree、不刪 branch，決策成本低 |
+| 6 清理 Worktree | gen-sync-docs-by-branchs → gen-commit → worktree-close-cleanup skill | —（skill 於主對話執行） | ✦ git worktree remove | 先同步文件再 commit，確保 docs 反映分支最終狀態；之後純 IO 移除 worktree、不刪 branch |
 
 ### STAGE 2 implementer 內部的 model 分級
 
@@ -827,6 +832,8 @@ const findings = (await parallel([
 # PR 合併後清理 worktree（STAGE 6）
 /gen-dev-workflow cleanup <branch-name>
 → 寫入狀態檔 { stage: 6, mode: "jump", branch: "<branch-name>" }
+→ 呼叫 gen-sync-docs-by-branchs skill，以 <branch-name> 為目標同步文件
+→ 同步完成後呼叫 gen-commit skill 將文件變更 commit（避免清理 worktree 時遺失）
 → 呼叫 worktree-close-cleanup skill 移除該 branch 對應的 worktree
 → 只移除 worktree，branch 本身保留不刪除（純 IO，無 model/effort 可調）
 ```
