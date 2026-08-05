@@ -126,6 +126,25 @@ class FlutterInspector {
   late final OperationLogSource _operationLogSource;
   final List<DatabaseBrowserSource> _customDatabaseSources = [];
   late final InspectorOverlayManager _overlayManager;
+  final Set<TimestampedEntry> _bookmarkedEntries = <TimestampedEntry>{};
+
+  /// Unmodifiable view of currently bookmarked entries.
+  Set<TimestampedEntry> get bookmarkedEntries => Set.unmodifiable(_bookmarkedEntries);
+
+  /// Checks if an entry is bookmarked.
+  bool isBookmarked(TimestampedEntry entry) => _bookmarkedEntries.contains(entry);
+
+  /// Toggles bookmark state for an entry.
+  void toggleBookmark(TimestampedEntry entry) {
+    if (_bookmarkedEntries.contains(entry)) {
+      _bookmarkedEntries.remove(entry);
+    } else {
+      _bookmarkedEntries.add(entry);
+    }
+  }
+
+  /// Clears all bookmarks.
+  void clearBookmarks() => _bookmarkedEntries.clear();
 
   /// The observer to be added to MaterialApp's navigatorObservers.
   FlutterInspectorNavigatorObserver get navigatorObserver => _navigatorObserver;
@@ -345,14 +364,26 @@ class FlutterInspector {
   }
 
   /// Clears all console logs.
-  void clearLogs() => _registry.log.clear();
+  void clearLogs() {
+    _registry.log.clear();
+    clearBookmarks();
+  }
 
   /// Clears all network logs.
-  void clearNetwork() => _registry.network.clear();
+  void clearNetwork() {
+    _registry.network.clear();
+    clearBookmarks();
+  }
 
   /// Clears all navigator history.
-  void clearNavigator() => _registry.navigator.clear();
+  void clearNavigator() {
+    _registry.navigator.clear();
+    clearBookmarks();
+  }
 
   /// Clears all database logs.
-  void clearDatabase() => _registry.database.clear();
+  void clearDatabase() {
+    _registry.database.clear();
+    clearBookmarks();
+  }
 }

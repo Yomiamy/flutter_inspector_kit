@@ -78,6 +78,7 @@ class _ExportReportSheetState extends State<ExportReportSheet> {
         navigatorEntries: inspector.navigatorEntries,
         databaseEntries: inspector.databaseEntries,
         now: DateTime.now(),
+        bookmarkedEntries: inspector.bookmarkedEntries,
         info: info,
         timeRange: _ranges[_rangeIndex].$2,
         sections: _sections,

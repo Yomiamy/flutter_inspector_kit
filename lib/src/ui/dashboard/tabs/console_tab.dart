@@ -39,6 +39,8 @@ class _ConsoleTabState extends State<ConsoleTab> {
     TimelineSource.db,
   };
 
+  bool _showOnlyBookmarks = false;
+
   static const Set<TimelineSource> _all = {
     TimelineSource.log,
     TimelineSource.network,
@@ -58,14 +60,23 @@ class _ConsoleTabState extends State<ConsoleTab> {
   /// Whether the filter currently equals "All" (every source selected).
   bool get _isAll => _selected.length == _all.length;
 
-  void _selectAll() => setState(() => _selected = {..._all});
+  void _selectAll() => setState(() {
+        _selected = {..._all};
+        _showOnlyBookmarks = false;
+      });
 
-  void _selectOnly(TimelineSource source) =>
-      setState(() => _selected = {source});
+  void _selectOnly(TimelineSource source) => setState(() {
+        _selected = {source};
+        _showOnlyBookmarks = false;
+      });
 
   @override
   Widget build(BuildContext context) {
-    final entries = widget.inspector.mergedTimeline(sources: _selected);
+    var entries = widget.inspector.mergedTimeline(sources: _selected);
+    if (_showOnlyBookmarks) {
+      entries =
+          entries.where((e) => widget.inspector.isBookmarked(e)).toList();
+    }
 
     return Column(
       children: [
@@ -91,6 +102,14 @@ class _ConsoleTabState extends State<ConsoleTab> {
                       ),
                     ],
                     const SizedBox(width: ThemeSize.space8),
+                    FilterChip(
+                      label: const Text('📌 Bookmarks'),
+                      selected: _showOnlyBookmarks,
+                      onSelected: (_) => setState(() {
+                        _showOnlyBookmarks = !_showOnlyBookmarks;
+                      }),
+                    ),
+                    const SizedBox(width: ThemeSize.space8),
                   ],
                 ),
               ),
@@ -109,14 +128,18 @@ class _ConsoleTabState extends State<ConsoleTab> {
           ],
         ),
         Expanded(
-          child: ListView.builder(
-            itemCount: entries.length,
-            itemBuilder: (context, index) => _EntryRowDispatcher(
-              entry: entries[index],
-              redactSensitiveData: widget.inspector.redactSensitiveData,
-              slowRequestThreshold: widget.inspector.slowRequestThreshold,
-            ),
-          ),
+          child: _showOnlyBookmarks && entries.isEmpty
+              ? const Center(child: Text('No bookmarked entries'))
+              : ListView.builder(
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) => _EntryRowDispatcher(
+                    entry: entries[index],
+                    inspector: widget.inspector,
+                    onToggleBookmark: () => setState(() {
+                      widget.inspector.toggleBookmark(entries[index]);
+                    }),
+                  ),
+                ),
         ),
       ],
     );
@@ -127,29 +150,41 @@ class _ConsoleTabState extends State<ConsoleTab> {
 class _EntryRowDispatcher extends StatelessWidget {
   const _EntryRowDispatcher({
     required this.entry,
-    required this.redactSensitiveData,
-    required this.slowRequestThreshold,
+    required this.inspector,
+    required this.onToggleBookmark,
   });
 
   final TimestampedEntry entry;
-  final bool redactSensitiveData;
-  final Duration slowRequestThreshold;
+  final FlutterInspector inspector;
+  final VoidCallback onToggleBookmark;
 
   @override
   Widget build(BuildContext context) {
     switch (entry) {
       case final LogEntry e:
-        return _LogEntryRow(entry: e);
+        return _LogEntryRow(
+          entry: e,
+          inspector: inspector,
+          onToggleBookmark: onToggleBookmark,
+        );
       case final NetworkEntry e:
         return _NetworkEntryRow(
           entry: e,
-          redactSensitiveData: redactSensitiveData,
-          slowRequestThreshold: slowRequestThreshold,
+          inspector: inspector,
+          onToggleBookmark: onToggleBookmark,
         );
       case final NavigatorEntry e:
-        return _NavigatorEntryRow(entry: e);
+        return _NavigatorEntryRow(
+          entry: e,
+          inspector: inspector,
+          onToggleBookmark: onToggleBookmark,
+        );
       case final DatabaseEntry e:
-        return _DatabaseEntryRow(entry: e);
+        return _DatabaseEntryRow(
+          entry: e,
+          inspector: inspector,
+          onToggleBookmark: onToggleBookmark,
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -157,29 +192,51 @@ class _EntryRowDispatcher extends StatelessWidget {
 }
 
 class _LogEntryRow extends StatelessWidget {
-  const _LogEntryRow({required this.entry});
+  const _LogEntryRow({
+    required this.entry,
+    required this.inspector,
+    required this.onToggleBookmark,
+  });
 
   final LogEntry entry;
+  final FlutterInspector inspector;
+  final VoidCallback onToggleBookmark;
 
   @override
   Widget build(BuildContext context) {
     final canTap =
         (entry.stackTrace?.isNotEmpty ?? false) ||
         (entry.data?.isNotEmpty ?? false);
+    final isBookmarked = inspector.isBookmarked(entry);
     return ListTile(
       tileColor: entry.level == LogLevel.error ? _kErrorRowTint : null,
-      title: Text(entry.message, style: TextStyle(color: entry.level.color)),
+      title: Row(
+        children: [
+          if (isBookmarked) ...[
+            const Icon(Icons.push_pin,
+                size: ThemeSize.size18, color: ThemeColor.colorFF9800),
+            const SizedBox(width: ThemeSize.space4),
+          ],
+          Expanded(
+            child: Text(
+              entry.message,
+              style: TextStyle(color: entry.level.color),
+            ),
+          ),
+        ],
+      ),
       subtitle: Text(entry.displayTime),
       trailing: canTap
           ? const Icon(Icons.chevron_right, size: ThemeSize.size18)
           : null,
       onTap: canTap
           ? () => pushInspectorRoute(
-              context,
-              kInspectorLogDetailRoute,
-              (_) => LogDetailView(entry: entry),
-            )
+                context,
+                kInspectorLogDetailRoute,
+                (_) => LogDetailView(entry: entry),
+              )
           : null,
+      onLongPress: onToggleBookmark,
     );
   }
 }
@@ -187,25 +244,40 @@ class _LogEntryRow extends StatelessWidget {
 class _NetworkEntryRow extends StatelessWidget {
   const _NetworkEntryRow({
     required this.entry,
-    required this.redactSensitiveData,
-    required this.slowRequestThreshold,
+    required this.inspector,
+    required this.onToggleBookmark,
   });
 
   final NetworkEntry entry;
-  final bool redactSensitiveData;
-  final Duration slowRequestThreshold;
+  final FlutterInspector inspector;
+  final VoidCallback onToggleBookmark;
 
   @override
   Widget build(BuildContext context) {
+    final isBookmarked = inspector.isBookmarked(entry);
     return ListTile(
       tileColor: entry.isFailed ? _kErrorRowTint : null,
-      title: Text('${entry.method} ${entry.statusCode ?? '-'} ${entry.url}'),
+      title: Row(
+        children: [
+          if (isBookmarked) ...[
+            const Icon(Icons.push_pin,
+                size: ThemeSize.size18, color: ThemeColor.colorFF9800),
+            const SizedBox(width: ThemeSize.space4),
+          ],
+          Expanded(
+            child: Text(
+              '${entry.method} ${entry.statusCode ?? '-'} ${entry.url}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
       subtitle: Text(entry.displayTime),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (entry.duration != null &&
-              entry.duration! >= slowRequestThreshold)
+              entry.duration! >= inspector.slowRequestThreshold)
             Container(
               margin: const EdgeInsets.only(right: ThemeSize.space8),
               padding: const EdgeInsets.symmetric(
@@ -234,37 +306,76 @@ class _NetworkEntryRow extends StatelessWidget {
         kInspectorNetworkDetailRoute,
         (_) => NetworkDetailView(
           entry: entry,
-          redactSensitiveData: redactSensitiveData,
+          redactSensitiveData: inspector.redactSensitiveData,
         ),
       ),
+      onLongPress: onToggleBookmark,
     );
   }
 }
 
 class _NavigatorEntryRow extends StatelessWidget {
-  const _NavigatorEntryRow({required this.entry});
+  const _NavigatorEntryRow({
+    required this.entry,
+    required this.inspector,
+    required this.onToggleBookmark,
+  });
 
   final NavigatorEntry entry;
+  final FlutterInspector inspector;
+  final VoidCallback onToggleBookmark;
 
   @override
   Widget build(BuildContext context) {
+    final isBookmarked = inspector.isBookmarked(entry);
     return ListTile(
-      title: Text('${entry.action.name} ${entry.displayName}'),
+      title: Row(
+        children: [
+          if (isBookmarked) ...[
+            const Icon(Icons.push_pin,
+                size: ThemeSize.size18, color: ThemeColor.colorFF9800),
+            const SizedBox(width: ThemeSize.space4),
+          ],
+          Expanded(
+            child: Text('${entry.action.name} ${entry.displayName}'),
+          ),
+        ],
+      ),
       subtitle: Text(entry.displayTime),
+      onLongPress: onToggleBookmark,
     );
   }
 }
 
 class _DatabaseEntryRow extends StatelessWidget {
-  const _DatabaseEntryRow({required this.entry});
+  const _DatabaseEntryRow({
+    required this.entry,
+    required this.inspector,
+    required this.onToggleBookmark,
+  });
 
   final DatabaseEntry entry;
+  final FlutterInspector inspector;
+  final VoidCallback onToggleBookmark;
 
   @override
   Widget build(BuildContext context) {
+    final isBookmarked = inspector.isBookmarked(entry);
     return ListTile(
-      title: Text('${entry.operation.name} ${entry.tableName}'),
+      title: Row(
+        children: [
+          if (isBookmarked) ...[
+            const Icon(Icons.push_pin,
+                size: ThemeSize.size18, color: ThemeColor.colorFF9800),
+            const SizedBox(width: ThemeSize.space4),
+          ],
+          Expanded(
+            child: Text('${entry.operation.name} ${entry.tableName}'),
+          ),
+        ],
+      ),
       subtitle: Text(entry.displayTime),
+      onLongPress: onToggleBookmark,
     );
   }
 }
