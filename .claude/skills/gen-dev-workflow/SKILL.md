@@ -210,8 +210,8 @@ STAGE 1 建立分支與工作區時，**不論從哪個入口進來**，最後�
    cp "<repo-root>/<spec 路徑>" "<worktree-path>/<spec 路徑>"
    cp "<repo-root>/<plan 路徑>" "<worktree-path>/<plan 路徑>"
    ```
-   - 用**複製**不用 commit + cherry-pick：規劃文件在原 repo 尚未 commit，複製過去後由 STAGE 2 的實作 commit 一併帶進 branch，不需在 base branch 上多留一個 commit。
-   - 複製後**驗證兩個檔案都存在於新 worktree**，缺任一個就停下回報，不要帶著壞掉的路徑進 STAGE 2。
+   - 用**複製**不用 commit + cherry-pick：規劃文件在原 repo 尚未 commit，複製過去後在 worktree 中呼叫 `gen-commit` 將文件 commit，不需在 base branch 上多留一個 commit。
+   - 複製後**驗證兩個檔案都存在於新 worktree**，缺任一個就停下回報，並於確認存在後執行 `gen-commit`，不要帶著未 commit 的狀態進 STAGE 2。
    - 路徑維持 repo 相對路徑不變（例 `docs/plans/2026-05-03-cart.md`），所以 state 檔的 `spec`/`plan` 欄位**不需改寫**，切目錄後自然指向新 worktree 內的同名檔。
    - **原 repo 的那兩份留著不刪**：它們是規劃階段的產物，刪除等於在使用者還沒確認流程走完前銷毀資料。
    - issue-id 路徑（跳過 STAGE 0a/0b）沒有這兩份文件，本步驟略過。
