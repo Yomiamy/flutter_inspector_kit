@@ -57,6 +57,15 @@ class MySingleton {
 
 ## 5. 程式碼結構 (Code Structure)
 
+### 5.0. 複雜度與長度限制 (DCM Metrics)
+
+為避免過度工程 (over-engineering)，我們採用以下務實的程式碼指標：
+- **限制複雜度 (Cyclomatic Complexity)**：保持邏輯單純，避免單一函式處理過多的 `if/else` 或 `switch` 分支。
+- **限制函式長度 (Lines of Code)**：單一函式（不含註解）儘量保持在 50 行以內，太長應拆解。
+- **限制巢狀深度 (Nesting Level)**：最深不超過 4 層（請搭配 5.3 early-return 使用）。
+- **參數數量限制 (Number of Parameters)**：當參數過多（如大於 4 個）時，應考慮重構為資料類別 (Data Class)。
+- **參數排序約定 (Arguments Ordering)**：建構式與方法參數應維持一致的邏輯排序（例如：必填參數 -> 具名參數 -> 回呼函式）。
+
 ### 5.1. 類別成員順序
 
 常數 → 靜態變數 → 實例變數 → 建構函式 → 公共方法 → 私有方法 → `build` 方法（Widget）。
@@ -70,7 +79,7 @@ class MySingleton {
 
 ### 5.3. 避免深層巢狀
 
-以提取方法、衛語句 (guard clauses) 等方式降低巢狀深度。
+建議採用 **early-return (提早返回)** 與衛語句 (guard clauses) 處理邊界條件，並適時提取方法以降低巢狀深度。
 
 ```dart
 // Good
@@ -96,6 +105,7 @@ void func() {
 選擇 **BLoC** 作為主要狀態管理方案。
 
 - 每個 BLoC 專注單一職責 (SRP)；以 Events 觸發狀態變更、以 State 表示 UI 狀態；BLoC 與 UI 分離。
+- **避免在 BLoC 中宣告公開屬性 (avoid-bloc-public-fields)**：狀態只能透過 `State` 往外發布，勿讓外部直接存取 BLoC 內的變數。
 - BLoC 命名具描述性（`GetCartCountBloc`）。
 - 為每個 BLoC 編寫單元測試，使用 `bloc_test`。
 - **BLoC Events**：
