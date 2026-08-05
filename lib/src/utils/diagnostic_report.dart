@@ -41,6 +41,7 @@ String buildDiagnosticReport({
   required List<NavigatorEntry> navigatorEntries,
   required List<DatabaseEntry> databaseEntries,
   required DateTime now,
+  Set<TimestampedEntry> bookmarkedEntries = const {},
   DiagnosticInfo? info,
   Duration? timeRange,
   Set<TimelineSource> sections = const {
@@ -96,7 +97,7 @@ String buildDiagnosticReport({
     b,
     errorsOnly ? 'Timeline (errors & warnings only)' : 'Timeline',
     visibleTimeline,
-    _timelineLine,
+    (e) => _timelineLine(e, isBookmarked: bookmarkedEntries.contains(e)),
   );
 
   if (sections.contains(TimelineSource.network)) {
@@ -213,17 +214,18 @@ bool _isError(TimestampedEntry e) {
 /// Renders one timeline entry as a single-line Markdown list item. Nav/DB use
 /// inline formatting matching their detail sections; log/network delegate to
 /// their dedicated one-liner formatters.
-String _timelineLine(TimestampedEntry e) {
-  if (e is LogEntry) return '- ${buildLogOneLiner(e)}';
-  if (e is NetworkEntry) return '- ${buildNetworkOneLiner(e)}';
+String _timelineLine(TimestampedEntry e, {bool isBookmarked = false}) {
+  final prefix = isBookmarked ? '📌 ' : '';
+  if (e is LogEntry) return '- $prefix${buildLogOneLiner(e)}';
+  if (e is NetworkEntry) return '- $prefix${buildNetworkOneLiner(e)}';
   if (e is NavigatorEntry) {
-    return '- [${e.displayTime}] [NAV] ${e.action.name} ${_routeLabel(e)}';
+    return '- $prefix[${e.displayTime}] [NAV] ${e.action.name} ${_routeLabel(e)}';
   }
   if (e is DatabaseEntry) {
     final rows = e.affectedRows == null ? '' : ' (${e.affectedRows} rows)';
-    return '- [${e.displayTime}] [DB] ${e.operation.name} `${e.tableName}`$rows';
+    return '- $prefix[${e.displayTime}] [DB] ${e.operation.name} `${e.tableName}`$rows';
   }
-  return '- [${e.displayTime}] [UNKNOWN]';
+  return '- $prefix[${e.displayTime}] [UNKNOWN]';
 }
 
 String _orNA(String? value) => (value == null || value.isEmpty) ? 'N/A' : value;
