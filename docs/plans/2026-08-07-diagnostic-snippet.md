@@ -6,7 +6,7 @@
 
 無新資料模型。純粹是既有 `NetworkEntry` 的一種新輸出格式：
 
-```
+```text
 NetworkEntry ──► buildDiagnosticSnippet(entry, redact:) ──► String (Markdown)
                         │
                         ├─► buildCurl(entry, redact:)   （既有，不改）

@@ -282,7 +282,7 @@ void main() {
 
       final out = buildDiagnosticSnippet(entry);
 
-      expect(out, startsWith('**[GET] https://api.test/cart**'));
+      expect(out, startsWith('**[GET] `https://api.test/cart`**'));
       expect(out, contains('- Time: ${fixedTime.toIso8601String()}'));
       expect(out, contains('- Status: 500'));
       expect(out, contains('- Duration: 1243ms'));

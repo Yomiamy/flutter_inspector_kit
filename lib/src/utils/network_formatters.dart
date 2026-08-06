@@ -141,7 +141,7 @@ String buildCurl(NetworkEntry entry, {bool redact = true}) {
 /// the `curl` section delegates to [buildCurl], which already honours it.
 String buildDiagnosticSnippet(NetworkEntry entry, {bool redact = true}) {
   final b = StringBuffer()
-    ..writeln('**[${entry.method}] ${entry.url}**')
+    ..writeln('**[${entry.method}] `${entry.url}`**')
     ..writeln('- Time: ${entry.timestamp.toIso8601String()}');
 
   final status = entry.statusCode;
