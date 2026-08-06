@@ -62,6 +62,7 @@ class DashboardModal extends StatelessWidget {
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(kTextTabBarHeight),
             child: _DashboardTabBar(
+              inspector: inspector,
               hasCustomTab: hasCustomTab,
               customTabTitle: inspector.customTabTitle,
             ),
@@ -81,11 +82,49 @@ class DashboardModal extends StatelessWidget {
   }
 }
 
-class _DashboardTabBar extends StatelessWidget {
-  const _DashboardTabBar({required this.hasCustomTab, this.customTabTitle});
+/// The dashboard's TabBar. Subscribes to [FlutterInspector.registry]'s
+/// revision notifier so the Console/Network error badges update live while
+/// the dashboard is open.
+///
+/// This is the *only* reactive piece of the dashboard: each tab's own list
+/// still refreshes manually (see the tab widgets' refresh buttons). That
+/// split is intentional — a list mid-scroll must not be reflowed underneath
+/// the user, but a summary badge should never lie. Do not extend this
+/// notifier to drive tab list rebuilds.
+class _DashboardTabBar extends StatefulWidget {
+  const _DashboardTabBar({
+    required this.inspector,
+    required this.hasCustomTab,
+    this.customTabTitle,
+  });
 
+  final FlutterInspector inspector;
   final bool hasCustomTab;
   final String? customTabTitle;
+
+  @override
+  State<_DashboardTabBar> createState() => _DashboardTabBarState();
+}
+
+class _DashboardTabBarState extends State<_DashboardTabBar> {
+  @override
+  void initState() {
+    super.initState();
+    // FlutterInspector.registry is @visibleForTesting because it exposes the
+    // full InspectorRegistry surface; revision itself is intentionally not
+    // public API (see feature spec). This is the one non-test call site.
+    // ignore: invalid_use_of_visible_for_testing_member
+    widget.inspector.registry.revision.addListener(_onRevisionChanged);
+  }
+
+  @override
+  void dispose() {
+    // ignore: invalid_use_of_visible_for_testing_member
+    widget.inspector.registry.revision.removeListener(_onRevisionChanged);
+    super.dispose();
+  }
+
+  void _onRevisionChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +136,7 @@ class _DashboardTabBar extends StatelessWidget {
         const Tab(text: 'Network'),
         const Tab(text: 'Navigator'),
         const Tab(text: 'Database'),
-        if (hasCustomTab) Tab(text: customTabTitle ?? 'Custom'),
+        if (widget.hasCustomTab) Tab(text: widget.customTabTitle ?? 'Custom'),
       ],
     );
   }
