@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../core/ring_buffer.dart';
 import '../models/database_entry.dart';
 import '../models/database_operation.dart';
@@ -5,8 +7,9 @@ import '../models/database_operation.dart';
 /// Manages a ring buffer of [DatabaseEntry] items.
 class DatabaseInspector {
   /// Creates a database inspector with the given [bufferCapacity].
-  DatabaseInspector({int bufferCapacity = 500})
-    : _buffer = RingBuffer<DatabaseEntry>(bufferCapacity);
+  /// [onMutate], if given, is forwarded to the underlying [RingBuffer].
+  DatabaseInspector({int bufferCapacity = 500, VoidCallback? onMutate})
+    : _buffer = RingBuffer<DatabaseEntry>(bufferCapacity, onMutate: onMutate);
 
   final RingBuffer<DatabaseEntry> _buffer;
 

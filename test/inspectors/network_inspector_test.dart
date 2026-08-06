@@ -120,5 +120,19 @@ void main() {
 
       expect(calls, [('/1', 1), ('/1', 1)]);
     });
+
+    test('onMutate and onAdd both fire independently', () {
+      var mutateCount = 0;
+      final addCalls = <String>[];
+      final withMutate = NetworkInspector(
+        bufferCapacity: 3,
+        onMutate: () => mutateCount++,
+      )..onAdd = (entry, total) => addCalls.add(entry.url);
+
+      withMutate.add(NetworkEntry(method: 'GET', url: '/1'));
+
+      expect(mutateCount, 1);
+      expect(addCalls, ['/1']);
+    });
   });
 }
