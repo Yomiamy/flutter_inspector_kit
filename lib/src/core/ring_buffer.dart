@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// A fixed-capacity FIFO buffer.
 ///
 /// When [length] reaches [capacity], adding a new item evicts the oldest one.
@@ -9,11 +11,18 @@
 class RingBuffer<T> {
   /// Creates a ring buffer holding at most [capacity] items.
   ///
-  /// [capacity] must be greater than zero.
-  RingBuffer(this.capacity) : assert(capacity > 0, 'capacity must be > 0');
+  /// [capacity] must be greater than zero. [onMutate], if given, is invoked
+  /// after every mutation ([add], a successful [replace], or [clear]) — this
+  /// is the single choke point all buffer writes pass through, regardless of
+  /// which inspector owns the buffer.
+  RingBuffer(this.capacity, {this.onMutate})
+    : assert(capacity > 0, 'capacity must be > 0');
 
   /// Maximum number of retained items.
   final int capacity;
+
+  /// Invoked after every mutation. See constructor doc.
+  final VoidCallback? onMutate;
 
   // Oldest item first, newest last.
   final List<T> _items = <T>[];
@@ -26,6 +35,7 @@ class RingBuffer<T> {
     }
     _items.add(item);
     _cachedItems = null;
+    onMutate?.call();
   }
 
   /// Replaces the first occurrence of [oldItem] (by `==`) with [newItem],
@@ -36,6 +46,7 @@ class RingBuffer<T> {
     if (index < 0) return false;
     _items[index] = newItem;
     _cachedItems = null;
+    onMutate?.call();
     return true;
   }
 
@@ -49,6 +60,7 @@ class RingBuffer<T> {
   void clear() {
     _items.clear();
     _cachedItems = null;
+    onMutate?.call();
   }
 
   /// The current number of buffered items.

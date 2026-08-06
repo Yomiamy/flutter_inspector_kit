@@ -83,4 +83,38 @@ void main() {
       expect(buffer.items, [10]);
     });
   });
+
+  group('RingBuffer onMutate', () {
+    test('onMutate fires on add', () {
+      var count = 0;
+      final buffer = RingBuffer<int>(3, onMutate: () => count++);
+      buffer.add(1);
+      buffer.add(2);
+      expect(count, 2);
+    });
+
+    test('onMutate fires on clear', () {
+      var count = 0;
+      final buffer = RingBuffer<int>(3, onMutate: () => count++)..add(1);
+      count = 0;
+      buffer.clear();
+      expect(count, 1);
+    });
+
+    test('onMutate fires on successful replace', () {
+      var count = 0;
+      final buffer = RingBuffer<int>(3, onMutate: () => count++)..add(1);
+      count = 0;
+      buffer.replace(1, 10);
+      expect(count, 1);
+    });
+
+    test('onMutate does not fire when replace misses', () {
+      var count = 0;
+      final buffer = RingBuffer<int>(3, onMutate: () => count++)..add(1);
+      count = 0;
+      buffer.replace(9, 90);
+      expect(count, 0);
+    });
+  });
 }
