@@ -10,6 +10,7 @@ import 'dart:convert';
 
 import '../models/timestamped_entry.dart';
 import '../version.dart';
+import 'markdown_fence.dart';
 import 'log_formatters.dart';
 import 'network_formatters.dart';
 import 'redaction.dart';
@@ -105,7 +106,7 @@ String buildDiagnosticReport({
       b,
       'Network',
       networkEntries.where(inWindow),
-      (e) => _fenced(buildPlainText(e, redact: redact)),
+      (e) => fencedBlock(buildPlainText(e, redact: redact)),
     );
   }
 
@@ -149,7 +150,7 @@ String buildDiagnosticReport({
       if (data != null) {
         final payload = redact ? redactHeaders(data) : data;
         row +=
-            '\n${_fenced(const JsonEncoder.withIndent('  ').convert(payload))}';
+            '\n${fencedBlock(const JsonEncoder.withIndent('  ').convert(payload))}';
       }
       return row;
     });
@@ -178,25 +179,6 @@ void _writeSection<T extends TimestampedEntry>(
   for (final e in visible) {
     b.writeln(render(e));
   }
-}
-
-/// Wraps [body] in a fence long enough to survive its own content.
-///
-/// A log message or response body can itself contain a ``` fence (LLM output,
-/// CMS content, a pasted snippet). With a fixed 3-backtick fence that closes
-/// the block early and leaks the payload into the rendered Markdown — and an
-/// odd number of fences swallows every heading that follows. CommonMark says
-/// the fence must be longer than any backtick run inside it, so measure first.
-String _fenced(String body) {
-  final text = body.trimRight();
-  final longest = RegExp('`+')
-      .allMatches(text)
-      .fold<int>(
-        0,
-        (max, m) => (m[0]?.length ?? 0) > max ? (m[0]?.length ?? 0) : max,
-      );
-  final fence = '`' * (longest < 3 ? 3 : longest + 1);
-  return '$fence\n$text\n$fence\n';
 }
 
 /// Whether [e] carries an error signal, for the errors-only timeline filter.
