@@ -19,6 +19,7 @@
 *.swp
 .buildlog/
 .history
+.DS_Store
 
 
 
