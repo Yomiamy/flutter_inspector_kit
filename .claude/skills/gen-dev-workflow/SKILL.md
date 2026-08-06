@@ -854,35 +854,28 @@ const findings = (await parallel([
 
 | Command | Stage | Action |
 |---------|-------|--------|
-| `/gen-dev-workflow` | — | 查看目前流程狀態 / 開始新流程 |
-| `/gen-dev-workflow quick <描述或 #issue>` | — | 小修正快速通道（單暫停點，見「Quick 模式」章節） |
-| `/gen-dev-workflow batch <項目1> <項目2> ...` | — | 批次佇列：多項各自 worktree/branch/PR 依序執行（見「批次模式」章節） |
-| `繼續批次` | — | 新 session 接續批次的下一項 |
+### 一、啟動型（決定 mode）
 
-### 選項語法（`--pause-level`）
+| Command | Mode | Action |
+|---------|------|--------|
+| `幫我做 <描述>` ／ `/gen-dev-workflow` | `sequence` | 完整流程 0a→4（**預設**）：產 spec+plan、建 worktree、拆任務、verifier 驗收、多 lens 審查 |
+| `開發 issue #<id>` ／ `處理 #<id>` | `sequence` | 同上，但跳過 0a/0b（規格已在 issue 內） |
+| `/gen-dev-workflow quick <描述或 #issue>` | `quick` | 小修正快速通道：單暫停點、不建 worktree、不產規劃文件。限 ≤3 檔（見「Quick 模式」章節） |
+| `/gen-dev-workflow batch <項目1> <項目2> ...` | — | 批次佇列：多項**各自** worktree/branch/PR 依序執行（見「批次模式」章節） |
 
-任何**啟動型**指令都可在最後加 `--pause-level strict|balanced|autonomous`（省略 → `strict`）：
+### 二、續接／管理型
 
-```bash
-幫我做 §P4 快速複製 Diagnostic Snippet --pause-level balanced
-/gen-dev-workflow batch "§P4 ..." "§P6 ..." --pause-level balanced
-/gen-dev-workflow quick #54 --pause-level autonomous
-開發 issue #42 --pause-level balanced
-```
+| Command | Action |
+|---------|--------|
+| `繼續` ／ `繼續上次` | 接續本 session 或當前 branch 的未完成流程 |
+| `繼續批次` | `/clear` 後於新 session 接續批次的下一項 |
+| `停止批次` | 中止批次（只刪佇列檔，branch/PR/worktree 保留） |
+| `PR #<id> 合併了，清理 worktree` | STAGE 6：同步文件 → commit → 移除 worktree（branch 保留） |
 
-**等價的自然語言**（不想打選項時，下列說法一律解析為對應 level）：
+### 三、跳入型（`mode: jump`）
 
-| 使用者說 | 解析為 |
-|---|---|
-| 「中途不要問我」「不要停」「一路跑完」 | `balanced` |
-| 「完全不要問」「全自動」「無人值守」 | `autonomous`（⚠️ 須先警示 PR 會直接發出，見下） |
-| 「每步都讓我確認」「盯緊一點」 | `strict` |
-
-**流程中途改變粒度**：使用者說「接下來不要再問了」→ `wf-state.sh set <檔> pause_level=balanced`，即刻生效於後續暫停點。
-
-🔴 **選 `autonomous` 前必須先警示一次**：「這會讓 `gh pr create` 不經你過目直接執行，確定嗎？」——獲明確同意才寫入。這是唯一在設定階段就要確認的 level，因為它關掉的是對外動作的最後一道關卡。
-
-⚠️ **`quick` + `pause_level` 幾乎無作用**：quick 不拆任務（無 task 迴圈可關）、stage 是自由標籤（不匹配 `0b`/`2`/`4`），故 `balanced`/`strict` 行為相同。只有 `autonomous` 有實效——關掉它唯一的 PR 暫停點。使用者若對 quick 指定 `balanced`，直接告知無差別，不要假裝有效果。
+| Command | Stage | Action |
+|---------|-------|--------|
 | `/gen-dev-workflow spec <description>` | 0a | 撰寫功能規格 |
 | `/gen-dev-workflow plan <spec-path>` | 0b | 產出實作計畫 |
 | `/gen-dev-workflow branch <issue>` | 1 | 建立 Issue + Worktree |
@@ -890,6 +883,46 @@ const findings = (await parallel([
 | `/gen-dev-workflow code-review <branch>` | 3 | 執行代碼審查 |
 | `/gen-dev-workflow publish <branch>` | 4 | 建立 PR |
 | `/gen-dev-workflow review #<PR>` | 5 | 處理 PR review 意見 |
+| `/gen-dev-workflow cleanup <branch>` | 6 | PR 合併後清理 worktree（branch 保留）|
+
+### 四、選項：`--pause-level`（決定停幾次）
+
+**與 mode 正交**——mode 決定「有哪些階段」，`pause_level` 決定「這些階段跑完要不要問使用者」。任何**啟動型**指令都可在最後加 `--pause-level strict|balanced|autonomous`（省略 → `strict`）：
+
+```bash
+幫我做 §P4 快速複製 Diagnostic Snippet --pause-level balanced
+開發 issue #42 --pause-level balanced
+/gen-dev-workflow batch "§P4 ..." "§P6 ..." --pause-level balanced
+```
+
+| level | Stage 關卡 | 任務間 | 停幾次 |
+|---|---|---|:---:|
+| `strict`（預設） | 全停 | 每個任務都停 | 2＋N |
+| `balanced` | 只停 `0b` 計畫／`2` 實作整體／`4` PR 前 | 不停 | 3 |
+| `autonomous` | 全不停 | 不停 | 0 |
+
+**等價的自然語言**（不想打選項時，下列說法一律解析為對應 level）：
+
+| 使用者說 | 解析為 |
+|---|---|
+| 「中途不要問我」「不要停」「一路跑完」 | `balanced` |
+| 「完全不要問」「全自動」「無人值守」 | `autonomous`（⚠️ 須先警示，見下） |
+| 「每步都讓我確認」「盯緊一點」 | `strict` |
+
+**流程中途改變粒度**：使用者說「接下來不要再問了」→ `wf-state.sh set <檔> pause_level=balanced`，即刻生效於後續暫停點。
+
+🔴 **選 `autonomous` 前必須先警示一次**：「這會讓 `gh pr create` 不經你過目直接執行，確定嗎？」——獲明確同意才寫入。這是唯一在設定階段就要確認的 level，因為它關掉的是對外動作的最後一道關卡。
+
+⚠️ **`quick` + `balanced` 無作用**：quick 不拆任務（無 task 迴圈可關）、stage 是自由標籤（不匹配 `0b`/`2`/`4`），腳本會明示短路回 `strict`（`wf-state.sh:146-148`）。只有 `autonomous` 對 quick 有實效——關掉它唯一的 PR 暫停點。使用者若對 quick 指定 `balanced`，**直接告知無差別**，不要假裝有效果。
+
+### 組合速查
+
+| 需求 | 指令 |
+|---|---|
+| 改個字串、≤3 檔 | `/gen-dev-workflow quick <描述>` |
+| 新功能，想全程盯著 | `幫我做 <描述>`（什麼都不加） |
+| 新功能，計畫看過就放手 | `幫我做 <描述> --pause-level balanced` |
+| 多個獨立需求、各自 PR | `/gen-dev-workflow batch "<A>" "<B>" --pause-level balanced` |
 | `/gen-dev-workflow cleanup <branch>` | 6 | PR 合併後清理 worktree（branch 保留）|
 
 ---
