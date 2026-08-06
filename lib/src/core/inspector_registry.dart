@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../inspectors/database_inspector.dart';
 import '../inspectors/log_inspector.dart';
 import '../inspectors/navigator_inspector.dart';
@@ -7,23 +9,39 @@ import '../models/timestamped_entry.dart';
 /// Internal registry holding instances of the four fixed inspectors.
 class InspectorRegistry {
   /// Creates a registry with inspectors initialized to the given [bufferSize].
-  InspectorRegistry({int bufferSize = 500})
-    : log = LogInspector(bufferSize: bufferSize),
-      network = NetworkInspector(bufferCapacity: bufferSize),
-      navigator = NavigatorInspector(bufferCapacity: bufferSize),
-      database = DatabaseInspector(bufferCapacity: bufferSize);
+  ///
+  /// Each inspector's [onMutate] is wired to [_bump], so [revision] increments
+  /// on every mutation of any of the four buffers.
+  InspectorRegistry({int bufferSize = 500}) {
+    log = LogInspector(bufferSize: bufferSize, onMutate: _bump);
+    network = NetworkInspector(bufferCapacity: bufferSize, onMutate: _bump);
+    navigator = NavigatorInspector(bufferCapacity: bufferSize, onMutate: _bump);
+    database = DatabaseInspector(bufferCapacity: bufferSize, onMutate: _bump);
+  }
 
   /// Inspector for console logs.
-  final LogInspector log;
+  late final LogInspector log;
 
   /// Inspector for network requests.
-  final NetworkInspector network;
+  late final NetworkInspector network;
 
   /// Inspector for navigation events.
-  final NavigatorInspector navigator;
+  late final NavigatorInspector navigator;
 
   /// Inspector for database operations.
-  final DatabaseInspector database;
+  late final DatabaseInspector database;
+
+  // Not disposed: this registry (and the inspector that owns it) is a
+  // long-lived, app-scoped object with no dispose lifecycle. Leak protection
+  // is the subscriber's responsibility (see _DashboardTabBar.dispose).
+  final ValueNotifier<int> _revision = ValueNotifier<int>(0);
+
+  /// Bumped on every mutation of any of the four buffers (add, successful
+  /// replace, or clear). Read-only to callers; not part of the package's
+  /// public API surface.
+  ValueListenable<int> get revision => _revision;
+
+  void _bump() => _revision.value++;
 
   /// Merges the four buffers into a single timeline, filtered by [sources] and
   /// sorted by [TimestampedEntry.timestamp] descending (newest first).
