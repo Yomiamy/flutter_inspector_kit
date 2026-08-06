@@ -265,4 +265,94 @@ void main() {
       expect(req.body, "it's a 'test'");
     });
   });
+
+  group('buildDiagnosticSnippet', () {
+    test('failed call carries status, duration, error and curl', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/cart',
+        statusCode: 500,
+        duration: const Duration(milliseconds: 1243),
+        error: 'Http status error [500]',
+        errorType: DioExceptionType.badResponse,
+        responseBody: '{"error":"boom"}',
+        responseHeaders: {'content-type': 'application/json'},
+        timestamp: fixedTime,
+      );
+
+      final out = buildDiagnosticSnippet(entry);
+
+      expect(out, startsWith('**[GET] https://api.test/cart**'));
+      expect(out, contains('- Time: ${fixedTime.toIso8601String()}'));
+      expect(out, contains('- Status: 500'));
+      expect(out, contains('- Duration: 1243ms'));
+      expect(out, contains('- Error type: badResponse'));
+      expect(out, contains('- Error: Http status error [500]'));
+      expect(out, contains('curl -X GET'));
+      expect(out, contains('"error": "boom"'));
+    });
+
+    test('successful call omits the error rows entirely', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/ok',
+        statusCode: 200,
+        duration: const Duration(milliseconds: 12),
+        timestamp: fixedTime,
+      );
+
+      final out = buildDiagnosticSnippet(entry);
+
+      expect(out, contains('- Status: 200'));
+      expect(out, isNot(contains('Error')));
+      expect(out, isNot(contains('Response:')));
+    });
+
+    test('pending call omits status and duration instead of printing "-"', () {
+      final entry = NetworkEntry(
+        method: 'POST',
+        url: 'https://api.test/slow',
+        timestamp: fixedTime,
+      );
+
+      final out = buildDiagnosticSnippet(entry);
+
+      expect(out, isNot(contains('- Status:')));
+      expect(out, isNot(contains('- Duration:')));
+      expect(out, contains('curl -X POST'));
+    });
+
+    test('a fence inside the response body cannot break the block', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/md',
+        statusCode: 200,
+        responseBody: 'wrapped ``` inside',
+        timestamp: fixedTime,
+      );
+
+      final out = buildDiagnosticSnippet(entry);
+
+      // fencedBlock must outgrow the longest run it contains.
+      expect(out, contains('````\nwrapped ``` inside\n````'));
+    });
+
+    test('redact masks sensitive headers in the curl section', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/secure',
+        requestHeaders: {'Authorization': 'Bearer supersecret'},
+        timestamp: fixedTime,
+      );
+
+      expect(
+        buildDiagnosticSnippet(entry),
+        isNot(contains('supersecret')),
+      );
+      expect(
+        buildDiagnosticSnippet(entry, redact: false),
+        contains('supersecret'),
+      );
+    });
+  });
 }

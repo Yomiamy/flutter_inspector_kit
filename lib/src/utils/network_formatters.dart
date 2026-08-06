@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../models/network_entry.dart';
 import '../models/timestamped_entry.dart';
+import 'markdown_fence.dart';
 import 'redaction.dart';
 
 /// Pure formatting helpers for the Network inspector. No Flutter dependencies,
@@ -126,6 +127,46 @@ String buildCurl(NetworkEntry entry, {bool redact = true}) {
   final escapedUrl = req.url.replaceAll("'", r"'\''");
   buffer.write(" '$escapedUrl'");
   return buffer.toString();
+}
+
+/// Builds a paste-ready Markdown snippet for reporting [entry] as a bug.
+///
+/// Unlike [buildPlainText] (a full transcript of one call), this is the
+/// condensed set a reader needs to act on a failure: what was called, when,
+/// how it failed, and the `curl` to reproduce it. Rows whose data is absent
+/// are omitted rather than rendered as `-`, so a healthy call produces a
+/// short snippet instead of a table of blanks.
+///
+/// When [redact] is true (the secure default), sensitive headers are masked —
+/// the `curl` section delegates to [buildCurl], which already honours it.
+String buildDiagnosticSnippet(NetworkEntry entry, {bool redact = true}) {
+  final b = StringBuffer()
+    ..writeln('**[${entry.method}] ${entry.url}**')
+    ..writeln('- Time: ${entry.timestamp.toIso8601String()}');
+
+  final status = entry.statusCode;
+  final ms = entry.duration?.inMilliseconds;
+  if (status != null) b.writeln('- Status: $status');
+  if (ms != null) b.writeln('- Duration: ${ms}ms');
+  if (entry.errorType != null) {
+    b.writeln('- Error type: ${entry.errorType!.name}');
+  }
+  if (entry.error != null) b.writeln('- Error: ${entry.error}');
+
+  b
+    ..writeln()
+    ..writeln('Reproduce:')
+    ..write(fencedBlock(buildCurl(entry, redact: redact)));
+
+  final body = entry.responseBody;
+  if (body != null && body.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln('Response:')
+      ..write(fencedBlock(entry.isResponseJson ? prettyJson(body) : body));
+  }
+
+  return b.toString();
 }
 
 /// Builds a full plain-text export of [entry] covering general info, request,
