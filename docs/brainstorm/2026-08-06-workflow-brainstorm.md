@@ -3,7 +3,13 @@
 > **📝 合併紀錄**：
 > 本文件整併了 `2026-07-17` 與 `2026-07-30` 的腦力激盪記錄。依據時間軸與完成度，前半部記錄歷史遺留 Bug、流程漏洞的分析與修復；後半部基於系統穩固的基礎，進行開源多 Agent 框架的深度比對，並提出 2.0 架構的具體優化提案。
 >
-> **2026-08-06 補記**：SKILL.md STAGE 6（清理 Worktree）新增「文件同步」前置步驟——執行清理前先呼叫 gen-sync-docs-by-branchs（以當前分支為目標同步文件）→ gen-commit（將同步結果 commit），確保 worktree 移除前 docs 已反映分支最終狀態。此為已落地的流程變更，不影響本文件提出的待實作優化提案。
+> **2026-08-06 補記**：SKILL.md STAGE 6（清理 Worktree）新增「文件同步」前置步驟——執行清理前先呼叫 gen-sync-docs-by-branchs（以當前分支為目標同步文件）→ gen-commit（將同步結果 commit），確保 worktree 移除前 docs 已反映分支最終狀態。此為已落地的流程變更。
+>
+> **⚠️ 2026-08-06 狀態校正（重要）**：本文件 §5 的 5 項 teamwork-preview 借鏡提案，
+> **實查確認全數已落地**（多數走 Claude `Workflow` 工具，而非提案設想的實作形式），
+> 文件此前仍將其列為「待實施藍圖」。實際剩餘待辦僅 §3 的 4 支基礎腳本，
+> 其中提案 4（`wf-exec.sh`）的前提存疑。**逐項實查證據見文末「📊 落地現況」表**，
+> 各節內文亦已加上校正註記。閱讀本文件時請以該表為狀態依據，勿直接採信各節原標。
 
 ---
 
@@ -11,7 +17,12 @@
 
 ## 0. 完成度總覽（截至 2026-07-21）
 
-> 狀態依 [`docs/features/2026-07-18-gen-dev-workflow-analysis.md`](../features/2026-07-18-gen-dev-workflow-analysis.md) 核對標注（`wf-state.sh` 屬 `gen-dev-workflow` skill，不在本 repo，無法直接讀原始碼，故以該份 analysis 為權威來源）。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。
+> 狀態依 [`docs/features/2026-07-18-gen-dev-workflow-analysis.md`](../features/2026-07-18-gen-dev-workflow-analysis.md) 核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。
+>
+> **🔍 實查校正 (2026-08-06)**：本註記原寫「`wf-state.sh` 不在本 repo，無法直接讀原始碼，
+> 故以該份 analysis 為權威來源」——**此前提已不成立**。該腳本就在本 repo 的
+> `.claude/skills/gen-dev-workflow/scripts/wf-state.sh`，**可也應直接讀原始碼核對**，
+> 不需再以二手 analysis 文件為權威來源。後續核對本表請以腳本本身為準。
 
 | 項目 | 狀態 | 依據 |
 |------|:---:|------|
@@ -364,7 +375,11 @@ Bug 1.6 的 promote 斷裂**不影響此搬移步驟**——搬移是在 promote
 
 ---
 
-### 提案 1：動態暫停粒度與狀態機白名單擴展 (`pause_level`)
+### 提案 1：動態暫停粒度與狀態機白名單擴展 (`pause_level`) — ✅ 已完成（2026-08-06 · `9bce068`）
+
+> **落地位置**：`wf-state.sh:141` `should_pause()`（單一判定來源）、`:172` enum 校驗、
+> `:269`/`:286` 兩個呼叫端；使用者介面見 SKILL.md:179「暫停粒度」與 :872「選項語法」。
+> 三處刻意偏離原設計的說明見文末「落地現況」節。下方規格保留作決策紀錄。
 
 #### 1. 設計規格
 - **支援三段式枚舉 (`pause_level`)**：
@@ -741,9 +756,24 @@ fi
 > 從其多智能體協作引擎中萃取出可直接移植至 `gen-dev-workflow` 的 5 項具體改善方向。
 > 每一項皆遵循「Never break userspace」原則，確保既有流程零破壞。
 
-### 5.1 STAGE 0a 平行化勘查 (Parallel Context Survey)
+### 5.1 STAGE 0a 平行化勘查 (Parallel Context Survey) — ✅ 已完成（2026-08-06 實查確認）
 
-**現況痛點**：
+> **🔍 實查校正 (2026-08-06)**：本節此前列為待實施，**實際已落地**，但**載體與原提案不同**——
+> 不是「主 Agent 逐個 `invoke_subagent`」，而是走 **Claude `Workflow` 工具的 `parallel()` fan-out**。
+> 證據：`.claude/skills/gen-dev-workflow/SKILL.md:722-725` 已有雙線平行 `agent()` 呼叫
+> （`收集專案 context：讀 README / pubspec / 近期 git log` + `調查與「<需求>」相似的既有實作`），
+> 皆以 `agentType: 'Explore'`（唯讀搜尋）搭配 `model: 'sonnet'` / `effort: 'high'` 執行。
+> 另 SKILL.md:21 明列此為 Workflow 三個適用點之一。
+>
+> **與原提案的三處差異**（皆為刻意調整，非未完成）：
+> 1. **2 線而非 3 線**——原提案的 Explorer 1（讀 GitHub Issue）在實際流程中不屬 STAGE 0a
+>    的平行範圍（issue 建立在 STAGE 1），故收斂為「專案 context」+「相似實作調查」兩線。
+> 2. **不寫 `.agent-output/context/<issue-id>/survey-<n>.md`**——改由 Workflow 的 `schema`
+>    直接回傳結構化結果給主指揮聚合，省掉中間檔案的讀寫往返。
+> 3. **Model 用 `sonnet` 而非 `flash`**——Claude 側無 `flash` 別名，對應等級見 SKILL.md 的
+>    「推論等級表」（唯讀勘查歸「輕量」級）。
+
+**現況痛點**（以下為 2026-07-31 提案當時的分析，保留作決策紀錄）：
 STAGE 0a（Issue 分析與 Context 收集）目前由單一 Agent 序列執行：讀 Issue → 搜程式碼 → 查文檔 → 檢查測試覆蓋。這些步驟彼此無相依，卻被迫排隊等待，浪費時間。
 
 **teamwork-preview 怎麼做**：
@@ -767,9 +797,25 @@ STAGE 0a (改良後):
 
 ---
 
-### 5.2 STAGE 2 Fresh Subagent Per Task (每任務全新子智能體)
+### 5.2 STAGE 2 Fresh Subagent Per Task (每任務全新子智能體) — ✅ 已完成（2026-08-06 實查確認）
 
-**現況痛點**：
+> **🔍 實查校正 (2026-08-06)**：本節此前列為待實施，**實際已落地**，且比原提案更進一步——
+> 原提案是「逐 task 序列 spawn 全新 Worker」，實作走 **Workflow 的 `pipeline()` 並行**：
+> 同一批內寫入路徑不重疊的任務同時派發，每個任務一個全新 subagent。
+> 證據：`SKILL.md:739` 的
+> `task => agent(task.prompt, {label: task.id, model: task.model, effort: task.effort, isolation: 'worktree', schema: TASK_SCHEMA})`
+> ——`isolation: 'worktree'` 即「每任務獨立工作區、零歷史包袱」的 Fresh Worker 語意，
+> 且比原提案多解決了「並行任務互相踩檔案」的問題。
+>
+> **與原提案的差異**：
+> 1. **未新增 `execution_mode` 欄位**——原提案設想以 `inline` | `subagent` 切換新舊行為，
+>    實作直接讓 Workflow 成為 STAGE 2 的可選加速層（SKILL.md:21 的「可選加速層」定位），
+>    不需要在 `wf-state.sh` 增欄位。**這也是為什麼 `wf-state.sh` 的 key 白名單裡查無此欄位——
+>    是設計決定，不是漏做。**
+> 2. **驗收與實作 model 分離**——SKILL.md:631-637 額外規定驗收固定走 `verifier` agent
+>    （`effort: 'xhigh'`），不讓同源 model 自審。這是原提案沒有的加碼。
+
+**現況痛點**（以下為 2026-07-31 提案當時的分析，保留作決策紀錄）：
 STAGE 2 在同一個 Session 中依序執行所有任務。到了 Task 5 或 Task 6 時，Context Window 已經被前面 4 個任務的實作細節（diff、測試輸出、commit message）塞滿，導致 Agent 注意力分散、品質下降、甚至觸發 Token Budget Gate 強制中斷。
 
 **teamwork-preview 怎麼做**：
@@ -801,9 +847,25 @@ STAGE 2 (改良後):
 
 ---
 
-### 5.3 STAGE 3 對抗式 Challenger 驗證 (Adversarial Challenge Gate)
+### 5.3 STAGE 3 對抗式 Challenger 驗證 (Adversarial Challenge Gate) — ✅ 已完成（2026-08-06 實查確認）
 
-**現況痛點**：
+> **🔍 實查校正 (2026-08-06)**：本節此前列為待實施，**實際已落地**，形式為
+> 「STAGE 3 多 angle 對抗式審查」（`SKILL.md:747-749`，Workflow 三個適用點之三）。
+> 對抗立場已寫進 agent 定義：`.claude/agents/verifier.md:11` —— 「立場是對抗式的——
+> 預設實作有問題，盡力證明它錯」。
+>
+> **與原提案的兩處差異**（皆為刻意調整）：
+> 1. **多 lens 平行，而非單一 Challenger 串接**——原提案是 Reviewer PASS 後再跑一個
+>    Challenger；實作改為多個 verifier **各帶不同 lens**（correctness / security /
+>    回歸風險 / 測試覆蓋 / 過度工程）平行找 bug。理由：對抗式驗證的價值在**視角多樣性**，
+>    N 個相同提示的 Challenger 抓到的是同一類問題。
+> 2. **verifier 是助手，reviewer 仍是最終判斷者**——不設 `CHALLENGE_PASS` / `CHALLENGE_FAIL`
+>    這種獨立閘門，verifier 的 verdict 是輸入，reviewer 收斂後親自寫審查報告
+>    （SKILL.md:644 明訂「審查報告 reviewer 親自判斷，不可委派」）。故
+>    **`challenge_enabled` 旗標未實作也不需實作**——它是 Workflow 的可選加速層，
+>    由主指揮視情況決定是否啟用，不是 state 檔的持久欄位。
+
+**現況痛點**（以下為 2026-07-31 提案當時的分析，保留作決策紀錄）：
 STAGE 3 目前只有單一 Reviewer 進行程式碼審查。Reviewer 的心態是「檢查程式碼是否符合規格」，但這無法發現：
 - 規格本身沒考慮到的邊界情況
 - 實作正確但架構方向有隱患的設計
@@ -837,9 +899,27 @@ STAGE 3 (改良後):
 
 ---
 
-### 5.4 動態 Model 分級 (Dynamic Model Tiering)
+### 5.4 動態 Model 分級 (Dynamic Model Tiering) — ✅ 已完成（2026-08-06 實查確認）
 
-**現況痛點**：
+> **🔍 實查校正 (2026-08-06)**：本節此前列為待實施，**實際已落地**且比原提案完整——
+> `SKILL.md:584-601` 已有正式的**推論等級表**，`SKILL.md:614` 有各 stage 的等級對照，
+> `SKILL.md:619-637` 有 STAGE 2 implementer 內部的逐任務分級與「驗收 model 與實作 model 分離」規則。
+>
+> **與原提案的三處差異**：
+> 1. **等級名而非 model 名**——文件只寫「最強推論 / 標準 / 輕量 / 快便宜」四個**角色等級**，
+>    實際 model 別名綁在各 `.claude/agents/*.md` 的 frontmatter。這是刻意的：
+>    **換代時只動 agent 檔一行**，不必回頭改流程文件（SKILL.md:584 明述此為降低維護成本的核心）。
+>    原提案的 `flash` / `inherit` / `pro` 是 teamwork-preview 的 model 名，Claude 側不適用。
+> 2. **effort 與 model 拆成兩個維度**——原提案只有 model 一維；實作額外把 `effort`
+>    （`xhigh` / `max` / `high`）從 frontmatter 移出、改為派發時顯式帶入，
+>    形成 model × effort 的二維分級。
+> 3. **未使用 `model_hint` 欄位名**——plan 文件標的是「複雜度等級」，由 STAGE 2 對照
+>    推論等級表換算，語意等價。
+>
+> ⚠️ **已知風險（SKILL.md:603 記載，未完全排除）**：`effort: 'xhigh'` 在 thinking 未開啟時，
+> 於 Opus 4.8 上曾實際遇到 `400 output_config.effort 'xhigh' is not supported`。
+
+**現況痛點**（以下為 2026-07-31 提案當時的分析，保留作決策紀錄）：
 `gen-dev-workflow` 在所有階段、所有任務都使用相同的 Model。但實際上：
 - 建立 boilerplate 檔案、跑格式化、簡單重命名 → 殺雞用牛刀
 - 跨檔案架構整合、複雜邏輯實作 → 需要最強推理能力
@@ -878,9 +958,31 @@ STAGE 2 的主 Agent 讀取 `model_hint` 後，在 `invoke_subagent` 時傳入�
 
 ---
 
-### 5.5 結構化跨 Session Handoff 文件 (Structured Handoff Protocol)
+### 5.5 結構化跨 Session Handoff 文件 (Structured Handoff Protocol) — ✅ 需求已覆蓋 · ❌ 不採用 `HANDOFF.md` 形式（2026-08-06 實查確認）
 
-**現況痛點**：
+> **🔍 實查校正 (2026-08-06)**：全專案**查無 `HANDOFF.md`**，但本節要解決的問題
+> **已由另一套機制覆蓋**：`SKILL.md:545-575` 的「context 超標切 session 閉環」。
+> 該機制以 **per-branch state 檔 + `interrupted_by=context_budget` + 帶交接筆記的 WIP commit**
+> 達成同一目的，且續接時自動辨識、不問使用者「繼續還是開新流程」。
+>
+> **為何不另建 `HANDOFF.md`（品味判斷）**：原提案的四個區塊，三個在既有 state 檔裡**已經有了**——
+>
+> | HANDOFF.md 區塊 | 既有覆蓋處 |
+> |:---|:---|
+> | 狀態快照（stage / mode / completed_tasks） | state JSON 的同名欄位，`wf-state.sh get` 直接讀 |
+> | 已完成工作摘要（task → commit） | `completed_tasks` + git log |
+> | 檔案路徑索引（state / worktree / spec / plan） | state JSON 的 `spec` / `plan` / `branch` 欄位 |
+> | **關鍵決策記錄** | **WIP commit message 的交接筆記**（SKILL.md:561：「做到哪、下一步打算做什麼、為什麼選這個作法」） |
+>
+> 另開一份 `HANDOFF.md` 等於把同一份狀態寫成兩份，兩份必然漂移——
+> 而漂移的交接文件比沒有交接文件更危險（新 session 會信任它）。
+> 唯一原本沒有的「關鍵決策記錄」已收進 WIP commit message，
+> 理由是**決策與產生它的那次 commit 綁在一起才不會失聯**，比獨立檔案更不容易腐爛。
+>
+> **結論**：本節**不列入待辦**。若未來 state JSON 的欄位確實不夠用，正確做法是**擴充 state schema**
+> （單一事實來源），而非新增第二份文件。
+
+**現況痛點**（以下為 2026-07-31 提案當時的分析，保留作決策紀錄）：
 當 Token Budget Gate 觸發（>150k）時，`gen-dev-workflow` 會執行 WIP commit 並「交接給新 Session」。但交接內容是 ad-hoc 的——新 Session 的 Agent 需要從 `wf-state.sh get` 的 JSON、git log、和散落的 spec/plan 檔案中自行拼湊出「目前進度到哪了」。這個拼湊過程本身就消耗大量 Context，且容易遺漏關鍵決策記錄。
 
 **teamwork-preview 怎麼做**：
@@ -929,13 +1031,22 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 
 ### 5.6 借鏡總結：teamwork-preview vs gen-dev-workflow 改善對照表
 
-| 維度 | gen-dev-workflow 現況 | teamwork-preview 做法 | 建議改善 | 預期效果 |
-|:-----|:---------------------|:---------------------|:---------|:---------|
-| **STAGE 0a 勘查** | 單 Agent 序列 | 3 Explorer 平行 | §5.1 平行勘查 | 勘查耗時降 60%+ |
-| **STAGE 2 執行** | 同 Session 序列累積 | Fresh Worker per Task | §5.2 SDD 整合 | 消滅 Context 污染 |
-| **STAGE 3 驗證** | 單 Reviewer | Reviewer + Challenger | §5.3 對抗式驗證 | PR 退回率降低 |
-| **Model 選擇** | 全程同一 Model | 動態 flash/inherit/pro | §5.4 Model 分級 | Token 成本降 40~60% |
-| **跨 Session 交接** | Ad-hoc 拼湊 | 結構化 progress.md | §5.5 HANDOFF.md | 接手成本趨近零 |
+> **🔍 實查校正 (2026-08-06)**：本表原記錄的是 2026-07-31 的「現況 vs 建議」。
+> 逐項實查 `.claude/skills/gen-dev-workflow/` 後確認 **5 項全數已處理**，
+> 下表已改為「提案 → 實際落地形式」對照。原始的痛點分析保留在各節內文。
+
+| 維度 | 2026-07-31 提案 | **實際落地形式（2026-08-06 實查）** | 狀態 |
+|:-----|:---------------|:----------------------------------|:---:|
+| **STAGE 0a 勘查** | 3 Explorer 平行 + 寫 survey 檔 | Workflow `parallel()` 雙線 `agent()`，`agentType: 'Explore'`，結構化 schema 直接回傳（SKILL.md:722-725） | ✅ |
+| **STAGE 2 執行** | 逐 task 序列 spawn Fresh Worker | Workflow `pipeline()` 並行 + `isolation: 'worktree'` 每任務獨立工作區（SKILL.md:739） | ✅ |
+| **STAGE 3 驗證** | Reviewer 後串接單一 Challenger | 多 verifier **各帶不同 lens** 平行對抗，reviewer 收斂後親自判斷（SKILL.md:747-749、verifier.md:11） | ✅ |
+| **Model 選擇** | `model_hint` → flash/inherit/pro | 推論等級表（4 級），model 綁 agent frontmatter + effort 派發時帶入的**二維**分級（SKILL.md:584-637） | ✅ |
+| **跨 Session 交接** | 獨立 `HANDOFF.md` | **改以 state 檔 + WIP commit 交接筆記覆蓋**，不另建文件（避免雙份狀態漂移，見 §5.5） | ✅ 需求已覆蓋 |
+
+> **共通模式**：5 項中有 4 項的落地載體是 **Claude `Workflow` 工具**而非原提案設想的
+> bash 腳本或 `invoke_subagent` 迴圈。這是提案後才出現的能力，回頭看反而更貼合需求——
+> 並行、結構化回傳、worktree 隔離都是內建的，不必自己造。
+> **教訓：架構提案寫的是「要解決什麼」，落地時該重新挑當下最省的載體，不必照抄提案的實作形式。**
 
 > **刻意不借鏡的部分**（Linus 式實用主義判斷）：
 > - ❌ **Sentinel 監護層**：gen-dev-workflow 的主 Agent 本身就是 Coordinator，額外加一層 Sentinel 是浪費。
@@ -952,4 +1063,53 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 2. **開源框架比對與優化提案**（2026-07-30）：借鏡 MetaGPT、AutoGen、SWE-agent、ChatDev，提出 4 項含完整 Bash 實作的架構優化（`pause_level`、`cmd_rollback.sh`、`wf-truncate.sh`、`wf-exec.sh`）。
 3. **teamwork-preview 逆向工程啟示**（2026-07-31）：從實測 transcript 還原其多智能體架構，萃取出 5 項可直接移植至 `gen-dev-workflow` 的改善方向（平行勘查、Fresh Worker、對抗式 Challenger、Model 分級、結構化 Handoff）。
 
-上述 9 項優化提案（§3 的 4 項 + §5 的 5 項）構成了 `gen-dev-workflow` 2.0 的完整架構升級藍圖，將依 Phase 1 至 Phase 3 逐步實施落地。
+上述 9 項優化提案（§3 的 4 項 + §5 的 5 項）構成了 `gen-dev-workflow` 2.0 的完整架構升級藍圖。
+
+---
+
+### 📊 落地現況（2026-08-06 實查於 `.claude/skills/gen-dev-workflow/`）
+
+| 提案 | 狀態 | 實查證據 |
+|:-----|:---:|:---------|
+| §5.1 平行勘查 | ✅ 已完成 | SKILL.md:722-725 Workflow 雙線 `agent()` |
+| §5.2 Fresh Worker | ✅ 已完成 | SKILL.md:739 `pipeline()` + `isolation: 'worktree'` |
+| §5.3 對抗式驗證 | ✅ 已完成 | SKILL.md:747-749、`.claude/agents/verifier.md:11` |
+| §5.4 Model 分級 | ✅ 已完成 | SKILL.md:584-637 推論等級表 |
+| §5.5 Handoff | ✅ 需求已覆蓋 | SKILL.md:545-575 state 檔 + WIP commit 交接（不採 `HANDOFF.md`） |
+| §3 提案 1 `pause_level` | ✅ **已完成**（2026-08-06 · `9bce068`） | `wf-state.sh:141` `should_pause()` 單一判定來源；`:172` `apply_sets()` 白名單含 `pause_level` + enum 校驗；`:269`/`:286` 為 `stage-done`/`task-done` 兩個呼叫端；SKILL.md:179 暫停粒度章節、:872 選項語法 |
+| **批次佇列**（非原提案，2026-08-06 新增） | ✅ **已完成**（`9bce068`） | `wf-state.sh:349-430` `batch-init`/`batch-get`/`batch-next`/`batch-done`/`batch-fail`/`batch-abort`；獨立 schema + `batch_write` 原子寫入；SKILL.md:328 批次模式章節 |
+| §3 提案 2 `cmd_rollback.sh` | ⬜ **未實作** | 全專案查無此檔；SKILL.md 內 `rollback` / `回滾` 零命中 |
+| §3 提案 3 `wf-truncate.sh` | ⬜ **未實作** | `scripts/` 下僅有 `wf-state.sh` |
+| §3 提案 4 `wf-exec.sh` | ⚠️ **建議重新定性** | 同上查無此檔。但其目的是「`agy` CLI 退出碼保留 + fallback」，而 `agy` headless 實際已不可用、委派一律走 fallback 路徑——**為一條已不走的路徑寫轉接層，是在解決不存在的問題**。動工前應先確認前提是否還成立 |
+
+**修正結論**：§5 的 5 項（teamwork-preview 借鏡）**全數已處理**，本文件此前仍將其列為
+「待實施藍圖」，屬狀態欄漂移。§3 的提案 1（`pause_level`）已於 2026-08-06 落地，
+**剩餘待辦為提案 2 `cmd_rollback.sh` 與提案 3 `wf-truncate.sh` 兩支腳本**，提案 4 前提存疑。
+§4 的「3 階段實作藍圖」與「4 層驗證協定」是為 §3 那些腳本設計的，僅在動工時適用；
+§5 各項已用 Claude `Workflow` 落地，不走該藍圖。
+
+> **📝 §3 提案 1 的落地差異（2026-08-06 · `9bce068`）**：整體採用原設計的三段式
+> enum 與安全備援策略，但有三處刻意偏離，記錄供後續參考——
+> 1. **判定收斂為單一 `should_pause()` 函式**，而非原提案在 `stage-done` 與 `task-done`
+>    內各寫一份 `case`。理由與 features 側 §P7 的 `NetworkEntry.isFailed` 完全同構：
+>    同一判定寫兩份，遲早漂移。
+> 2. **quick 模式對 `balanced` 明示短路回 `strict`**（原提案未涉及 mode 交互）。
+>    quick 不拆任務（無 task 迴圈）、stage 為自由標籤（不匹配 `0b`/`2`/`4`），
+>    套 `balanced` 只會落空退化；明示短路讓讀腳本的人不會誤判為 bug。
+> 3. **schema 接受 `pause_level == null`**——舊 state 檔無此欄位仍須通過校驗，
+>    否則既有流程會在 `validate()` 全數卡死（never break userspace）。
+>
+> **另新增批次佇列**（非原提案範圍）：原四項提案全是**單一 workflow 內**的基礎腳本，
+> 未涵蓋「多個獨立需求各自 worktree/branch/PR 依序執行」的外層編排需求。
+> 該能力與 `pause_level` 正交——前者決定跑幾個 workflow，後者決定每個 workflow 停幾次；
+> 批次要能順跑，內層仍需 `pause_level=balanced`，故兩者同批實作。
+> ⚠️ **已知邊界**：Claude 無法自行清空 context，故批次為「自動接續 + 使用者 `/clear` 換場」
+> 而非全自動。真無人值守需走 cron 驅動（每次喚醒即全新 context），未實作。
+
+> **流程教訓**：本文件與 `2026-08-05-features-brainstorm.md` 兩份腦力激盪文件，
+> 累計已出現 **6 次「標為待辦、實際已完成」**（features 側：§D6、§P8；workflow 側：§5.1~§5.4 四項），
+> 以及 **1 次反向漂移**（features 側 §P7 的教訓段落被誤讀為現存問題，已於 2026-08-06 補時間錨註記）。
+> **兩個方向的根源相同：狀態敘述沒有綁定時間點。** 本次更新即為預防第 7 次——
+> `pause_level` 完成後立刻回寫，不等下次盤點。
+> 建議每次 release 或每月固定跑一次 `/gen-list-work-item-by-priority` 的實查核對，
+> 別讓狀態欄持續漂移——漂移的待辦清單會讓人去做已經做完的事。

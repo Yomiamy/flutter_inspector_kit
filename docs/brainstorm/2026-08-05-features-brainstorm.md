@@ -25,6 +25,15 @@
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
+> **📝 實查校正 (2026-08-06)**：對照 codebase 逐項核對 Tier 4，修正兩處與實況不符的記載——
+> * **§P8 慢請求標記**：文件原標 🆕 待辦，**實為已完成**（PR #111 / Issue #110）。
+>   `slowRequestThreshold` 已參數化（預設 2s、拒絕負值），NetworkTab 與 ConsoleTab
+>   混合時間軸兩處皆有 `🐢 SLOW` 標記。Tier 4 因此由 5 項降為 4 項。
+> * **§P4 快速複製 Diagnostic Snippet**：仍未實作（無任何組合式 snippet builder），
+>   但 effort 由 low 下修為 **trivial~low**——`buildCurl` / `buildPlainText` / `shareText`
+>   皆已存在且已接 redaction，`PopupMenuButton<_ShareAction>` 選單也已就位，
+>   真正缺的只有一個組裝 formatter。現為 Tier 4 最低成本入口。
+>
 > **📝 版本更新與確認 (v1.8.0 - 2026-07-27)**：
 > * **新功能與缺陷修復 (Tier 1 & 2)**：
 >   * **§D6 (Inspector 自身頁面污染 NavigatorTab)**：查核確認已實作 (`pushInspectorRoute` 方案)。
@@ -446,6 +455,21 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
   - 格式：Markdown fenced block（直接貼到 GitHub Issue / Slack）
 * **重用**：`buildCurl()`、`buildPlainText()`、`share_text.dart`
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐
+* **🔍 實查現況（2026-08-06）**：**仍未實作**，但既有零件比原估計更完整，effort 應下修為 trivial~low。
+  - **已存在且可直接重用**：`network_formatters.dart:101` 的 `buildCurl(entry, redact:)`、
+    同檔的 `buildPlainText(entry, redact:)`、`share_text.dart` 的 `shareText()`——三者皆已
+    接上 `redactSensitiveData` 旗標，新按鈕沿用即可，不需自行處理遮罩。
+  - **已存在的相鄰 UI**：`lib/src/ui/dashboard/tabs/network/network_detail_view.dart:38-50`
+    已有 `PopupMenuButton<_ShareAction>` 含三個選項（`curl` / `text` / `share`，enum 定義於 `:13`），
+    本項是**在既有選單多加一個 `_ShareAction` 值**，不是新建按鈕；
+    `line 170` 的 'Exception Details' section 已備妥 error payload 的呈現面。
+    ⚠️ **路徑校正 (2026-08-06)**：此檔曾位於 `ui/dashboard/views/`，現已搬至
+    `ui/dashboard/tabs/network/`（`log_detail_view.dart` 同步搬至 `tabs/console/`）。
+    本文件其餘處若出現 `views/` 路徑均已過期，動工時以 `tabs/<domain>/` 為準。
+  - **真正缺的只有**：把 cURL + status + error body + errorType + timestamp 組成單一
+    Markdown fenced block 的 formatter（`network_formatters.dart` 新增一個函式）。
+  - ⚠️ 注意 `diagnostic_report.dart:186` 已記載「固定 3-backtick fence 會被內容中的 fence 打斷」
+    的既有教訓，新 formatter 產 fenced block 時沿用該處的處理方式，勿重寫一份。
 
 ### §P5. Console Timeline 自動跳轉最新 Error（Jump to Latest Error）— 🆕
 
@@ -485,7 +509,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
   - **一併修掉的既有 bug**：只帶 `errorType` 的傳輸失敗原本**不會產生 Error Summary 群組卡片**，在網路 tab 的錯誤摘要裡靜默消失（`aggregateNetworkErrors` 的判定漏了 `errorType`）。收斂後修正，已加測試鎖住。目前內建的 dio interceptor 一律同時寫 `error` 與 `errorType`，故走不到該分歧；但 `NetworkEntry` 建構式與 `logNetwork()` 都是公開 API，接非 dio 網路層的使用者即可觸發。
   - **未採納的 review 意見兩則**（皆經實測查證後 pushback）：① 建議把 `isFailed` 的 `errorType` 收窄以排除 `cancel`——在本 codebase 是 no-op，因 interceptor 一律同時寫 `error`，`error != null` 那項會先短路；真要處理應在 interceptor 決定記不記，而非在最下游的 getter 加 enum 白名單。② 建議 tint 改走 theme 衍生以支援 dark mode——本 package 全 `lib/` 對 `Brightness`/`ThemeMode` 的引用為 **0**，整套 design system 就是固定 hex token，且半透明 tint 本就會適應底色。
 
-### §P8. 網路請求耗時慢查詢標記（Slow Request Indicator）— 🆕
+### §P8. 網路請求耗時慢查詢標記（Slow Request Indicator）— ✅ 已完成（PR #111 · Issue #110）
 
 > **痛點**：API 回了 200 但花了 8 秒——不是 error 但確實是問題。目前無法快速識別慢請求。
 
@@ -494,6 +518,16 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
   - `_ErrorSummaryBanner` 可選顯示慢請求計數
   - 不修改 entry model，純 presentation 層判斷
 * **Effort**：trivial ｜ **排查價值**：⭐⭐
+* **✅ 實作現況（PR #111）**：與原構想有兩處差異——
+  1. **閾值可設定且預設 2s**（非構想舉例的 3000ms）：`kSlowRequestThreshold` 常數被替換為
+     `FlutterInspector` 建構式的 `slowRequestThreshold` 參數（commit `5d9cd21`），並在
+     `e167954` 補上負值拒絕。NetworkTab 直接把當前閾值顯示在 UI（`>2.0s`），讓使用者
+     知道判定條件而不需翻文件。
+  2. **標記同時上了兩個 tab**：不只 `network_tab.dart:279-292`，`console_tab.dart:280-293`
+     的混合時間軸也套用同一判定（`entry.duration! >= slowRequestThreshold` → `🐢 SLOW`）——
+     時間軸是排查主場，只標在 NetworkTab 會讓慢請求在混合流裡消失。
+  - **未做**：`_ErrorSummaryBanner` 的慢請求計數。慢請求不是 error，塞進錯誤摘要會混淆兩種語意；
+    列表標記已足夠達成「快速識別」的目的。
 
 ### §P9. Diagnostic Report JSON 結構化輸出 — 🆕
 
@@ -519,11 +553,14 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | ~~6~~ | Timeline 書籤 / 標記 — ✅ 已完成（PR #115） | §P3 新提案 | low | ⭐⭐⭐⭐ |
 | **7** | Dashboard 錯誤計數 Badge | §P6 新提案 | low | ⭐⭐⭐ |
 | ~~8~~ | Error 高亮強化 — ✅ 已完成（PR #101） | §P7 新提案 | trivial | ⭐⭐⭐ |
-| **9** | 快速複製 Diagnostic Snippet | §P4 新提案 | low | ⭐⭐⭐ |
+| **9** | 快速複製 Diagnostic Snippet | §P4 新提案 | trivial–low | ⭐⭐⭐ |
 | **10** | Jump to Latest Error FAB | §P5 新提案 | low | ⭐⭐⭐ |
 | **11** | DatabaseTab 搜尋 / 過濾 | §D4 缺口 | low | ⭐⭐⭐ |
-| **12** | 慢請求標記 | §P8 新提案 | trivial | ⭐⭐ |
+| ~~12~~ | 慢請求標記 — ✅ 已完成（PR #111 / Issue #110） | §P8 新提案 | trivial | ⭐⭐ |
 | **13** | Diagnostic Report JSON 輸出 | §P9 新提案 | med | ⭐⭐ |
+
+> **注意：本表為 2026-07-23 的舊排序，已被「下一步實作路徑」的 Tier 分層取代**（重排理由見該節）。
+> 此處保留作為決策紀錄，實際動工順序請以 Tier 表為準。狀態欄則兩處同步維護。
 
 ---
 
@@ -748,13 +785,22 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 ### Tier 4 · 打磨（依回饋排程，寫入路徑互不重疊）
 
-| 項目 | 內容 |
-|------|------|
-| **§P4** 快速複製 Diagnostic Snippet | NetworkDetailView 一鍵 cURL + error payload |
-| **§D4** DatabaseTab 搜尋/過濾 | 搜尋 + operation FilterChip |
-| **§P10** Rebuild 異常偵測 | 全清單唯一需逐 widget 接線，非 app 層級 flag |
-| **§P8** 慢請求標記 | NetworkTab 的 duration 閾值 + 🐢 標記 |
-| **§P9** Diagnostic Report JSON | 結構化 JSON 匯出格式 |
+| 項目 | 內容 | Effort | 狀態 |
+|------|------|:---:|:---:|
+| ~~**§P8** 慢請求標記~~ | NetworkTab 的 duration 閾值 + 🐢 標記 — ✅ 已完成（PR #111） | trivial | ✅ |
+| **§P4** 快速複製 Diagnostic Snippet | NetworkDetailView 一鍵 cURL + error payload | trivial~low | ⬜ |
+| **§D4** DatabaseTab 搜尋/過濾 | 搜尋 + operation FilterChip | low~med | ⬜ |
+| **§P9** Diagnostic Report JSON | 結構化 JSON 匯出格式 | med | ⬜ |
+| **§P10** Rebuild 異常偵測 | 全清單唯一需逐 widget 接線，非 app 層級 flag | med | ⬜ |
+
+> **§P8 已完成**（PR #111 / Issue #110，v1.9.0 週期）——閾值改為 `FlutterInspector.slowRequestThreshold`
+> 可設定（預設 2s）並顯示於 UI，且 NetworkTab 與 ConsoleTab 混合時間軸**兩處都標**。本層剩 4 項。
+>
+> **§P4 的 effort 下修為 trivial~low**（2026-08-06 實查）：`buildCurl` / `buildPlainText` / `shareText`
+> 皆已存在且已接 redaction 旗標，`PopupMenuButton<_ShareAction>` 選單也已在 detail view 就位——
+> 本項實為「既有選單多加一個 enum 值 + 一個組裝 formatter」，非從零新建 UI。本層現以它為最低成本入口。
+>
+> **本層排序已改為 effort 升序**（原順序無排序意義）。四項寫入路徑仍互不重疊，可任意挑選或並行。
 
 ### 不排程
 
@@ -768,9 +814,18 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 ---
 
+> **收尾補記（2026-08-06 實查校正）**：Tier 4 的 **§P8 慢請求標記實際已於 PR #111 完成**，
+> 文件此前仍列為待辦——本層由 5 項降為 4 項（§P4 / §D4 / §P9 / §P10）。同時查明 §P4 的既有
+> 可重用零件比原估計完整（`buildCurl` / `buildPlainText` / `shareText` 皆已接 redaction、
+> `_ShareAction` 選單已存在），effort 下修為 trivial~low，成為本層最低成本入口。
+> **這是同一份文件第二次出現「標為待辦、實際已完成」**（前一次為 §D6，於 2026-07-27 查核發現）——
+> 建議每次 release 後回頭跑一次 Tier 表的實查核對，別讓狀態欄漂移。
+>
 > **收尾建議（2026-07-25 二次更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**Tier 1（§P13）已於 PR #100 完成**——真正往 timeline 加上原本拿不到的維度（前景/背景 + 切換頁面），且動工前逐項實查、無隱藏成本坑到。**Tier 2 的 §P7 已於 PR #101 完成**（error 行淡紅底，只染 error 不染 warning）。**下一步：§P11 → §P1 錯誤爆發偵測**（綁定排程，§P11 先行），Tier 2 剩餘另有 §P6 Dashboard Badge。原被列為最高優先的 §D1 仍在 Tier 3 並與 §P5 合併，§P2 整項否決，理由見各節。
 >
 > **§P7 帶出的一條估計偏差**：trivial 項目的 effort 估在「要寫的程式碼」上是準的（高亮本體只有兩行 `tileColor`），但**低估了「會動到幾份既有判定」**——實作時發現「網路請求是否失敗」在三個檔案各手寫一份且已漂移各漏一種失敗類型，收斂它才是 diff 的主體，並順帶修掉一個靜默的既有 bug（errorType-only 的傳輸失敗不產生錯誤群組卡片）。文件其餘標為 trivial/low 的項目，建議動工前先 grep 一次「這個判斷在幾個地方被重寫過」，那才是真實成本所在。
+>
+> ⚠️ **本段是 PR #101 動工當下的歷史狀況，非現存問題**（2026-08-06 實查確認）。該次收斂已完成：單一判定來源為 `network_entry.dart:109` 的 `NetworkEntry.isFailed`，四個消費端（`network_tab.dart:51`、`console_tab.dart:259`、`diagnostic_report.dart:209`、`network_utils.dart:184`）全數走它，`lib/` 內無殘留的手寫失敗判定。（`theme_color.dart:17` 的 `>= 400` 是 status code 配色分級、`network_utils.dart:56` 的 `>= 400 && < 500` 是 4xx/5xx 錯誤分組，皆非失敗判定，勿誤認為漏網。）**引用本段教訓時請連同本註記一起讀**，別把已修好的案例當待辦。
 >
 > **本輪的一條共通判準**（§D3 / §P2 均據此否決）：**不要替排查者預先決定「什麼跟這個錯誤相關」**。固定時間窗（§D3）、固定維度（§P2）都是工具在猜，而真實錯誤常是綜合因素——完整時間軸把所有維度攤平、由人邊看邊判斷，才是對的形狀。凡是提案想在 error 旁另闢一塊「相關資訊」的，先用這條判準檢驗。
 >
