@@ -22,6 +22,9 @@ class RingBuffer<T> {
   final int capacity;
 
   /// Invoked after every mutation. See constructor doc.
+  ///
+  /// Must not call [add], [replace], or [clear] on this same buffer —
+  /// doing so re-enters the mutation that is still on the call stack.
   final VoidCallback? onMutate;
 
   // Oldest item first, newest last.
