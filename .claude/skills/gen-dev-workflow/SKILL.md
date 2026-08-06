@@ -5,7 +5,9 @@ description: |
   也可用既有 GitHub issue id 直接進入 STAGE 1（跳過 STAGE 0a/0b 規劃），例如「開發 issue #42」「處理 #54」。
   PR 實際合併後，可另外觸發 STAGE 6 清理該 PR 對應的 worktree（branch 一律保留不刪除）。
   小修正可走 quick 模式（單暫停點、不建 worktree），例如「快速修正 <描述>」「/gen-dev-workflow quick #54」。
-  觸發條件：dev workflow, 開始開發, 新功能開發, 幫我做 X 功能, 繼續, 繼續上次, 繼續開發, /gen-dev-workflow, 開發 issue #<id>, 處理 #<id>, 快速修正, quick fix, PR #<id> 合併了 清理 worktree
+  多個獨立需求可走 batch 模式（各自 worktree/branch/PR 依序執行，每項間需使用者 /clear 換新 context），例如「依序做完這幾項」「/gen-dev-workflow batch §P4 §P6 #42」「繼續批次」。
+  暫停頻率可用 pause_level 調整（strict 預設全停／balanced 只停關鍵三點／autonomous 全不停）。
+  觸發條件：dev workflow, 開始開發, 新功能開發, 幫我做 X 功能, 繼續, 繼續上次, 繼續開發, /gen-dev-workflow, 開發 issue #<id>, 處理 #<id>, 快速修正, quick fix, PR #<id> 合併了 清理 worktree, batch, 批次, 依序做完, 繼續批次, 不要中途問我
 ---
 
 # Dev Workflow（自動編排模式）
@@ -174,6 +176,22 @@ description: |
 
 **不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見「並行執行契約」章節）。
 
+### 暫停粒度（`pause_level`）
+
+上表是 `strict`（預設）的行為。使用者可在流程啟動時選擇較鬆的粒度——`wf-state.sh init --pause-level <L>`，或流程中途 `wf-state.sh set <檔> pause_level=<L>`：
+
+| level | Stage 關卡 | STAGE 2 任務間 | 適用 |
+|:---|:---|:---|:---|
+| `strict`（預設） | 全停（上表七項） | **每個任務都停** | 不熟的功能、要盯著看 |
+| `balanced` | 只停 `0b` 計畫確認 / `2` 實作整體完成 / `4` PR 發布前 | **不停** | 計畫已看過，想一路跑到 PR |
+| `autonomous` | 全不停 | 不停 | 批次佇列、純機械性改動 |
+
+**判定的唯一來源是腳本的 `should_pause()`**，你不需要自己判斷該不該停——照常在每個暫停點呼叫 `stage-done` / `task-done`，看它回傳的訊息：印「等待使用者確認」就停下來問，印「自動推進 / 自動繼續下個任務」就直接繼續。
+
+🔴 **`pause_level` 只關掉「等使用者點頭」，不關掉任何守衛**：stage 轉移表、任務數校驗（`completed_tasks` vs `total_tasks`）、schema 校驗一律照常生效。欄位缺失或值異常一律退回 `strict`——壞掉的方向偏向多停一次，不偏向少停一次。
+
+⚠️ **`autonomous` 會讓 `gh pr create` 不經你過目就執行**（STAGE 4 暫停點被關掉）。發 PR 是對外動作，除非使用者明確要求無人值守，否則優先建議 `balanced`。
+
 **主動中斷（非暫停）：** context > 150k 時依 Token Budget Gate 主動保存並切 session，這不是暫停點，是保護性中斷。
 
 ---
@@ -305,6 +323,74 @@ quick <描述或 #issue>
 
 ---
 
+## 批次模式（多個獨立 workflow 依序執行）
+
+**觸發**：`/gen-dev-workflow batch <項目1> <項目2> ...`，或使用者說「依序做完這幾項」。
+
+**與 STAGE 2 多任務的區別**（最常見的誤解，先釐清）：
+
+| | STAGE 2 的 T1/T2/T3 | 批次模式的項目 1/2/3 |
+|:---|:---|:---|
+| 來源 | **同一份**實作計畫拆出的子任務 | **各自獨立**的需求 / issue |
+| worktree | 共用一個 | **各自一個** |
+| branch / PR | 共用一個，最後合成一個 PR | **各自一個 branch、各自一個 PR** |
+| 控制粒度 | `pause_level` | 批次佇列 |
+
+使用者說「一次做多個任務」時，**先確認是哪一種**——若他要的是各自獨立的 PR，那是批次模式，`pause_level` 解決不了。
+
+### 🔴 核心限制：Claude 無法自行清空 context
+
+批次的每一項都要**全新 context** 才不會累積爆掉，但清 context 是 session 層級操作，**只有使用者能做**。所以批次模式不是「全自動」，而是**自動接續 + 使用者按兩下鍵盤**：
+
+```text
+/gen-dev-workflow batch §P4 §P6 #42
+  │
+  ▼
+wf-state.sh batch-init "§P4..." "§P6..." "#42" --pause-level balanced
+  → 產生 .batch-<id>.json（存原 repo .claude/workflow-state/）
+  ▼
+wf-state.sh batch-next → 取得第 1 項
+  ▼
+跑完整 sequence 流程（0a→4）：各自 issue / worktree / branch / PR
+  ├─ 用批次檔記的 pause_level 建該項的 state 檔
+  └─ cd 進該項的 worktree 執行
+  ▼
+PR 開好 → wf-state.sh batch-done --pr <url> --branch <branch>
+  ▼
+⏸ 輸出交接提示，流程在此停止：
+   「§P4 完成 ✦ PR: <url>
+     批次剩餘 2 項（§P6、#42）。
+     請 /clear 後輸入「繼續批次」，會自動接下一項。」
+  ▼
+使用者 /clear + 輸入「繼續批次」
+  ▼
+新 session：wf-state.sh batch-next → 取得第 2 項 → 重複上述
+  ▼
+batch-next 回傳 DONE → 輸出總結（各項 status / PR 連結），刪除批次檔
+```
+
+**規則：**
+
+- **批次檔永遠留在原 repo** 的 `.claude/workflow-state/`，不隨 worktree 移動——它是跨 workflow 的，不屬於任何單一 branch。
+- **`cd` 紀律**：每項跑完必須 `cd` 回原 repo 再收尾，否則下一項的 `batch-next` 會在錯誤的工作目錄找不到批次檔。
+- **建議搭配 `--pause-level balanced`**：批次的意義是減少打斷，每項若還停五次就失去意義。但**不建議 `autonomous`**——那會讓三個 PR 都不經過目就發出去。
+- **失敗處理**：某項失敗（STAGE 3 審查連續退回、tier 升級後仍失敗）→ `batch-fail --note "<原因>"`，游標照常前進到下一項。**一項失敗不中止整個批次**——各項獨立，沒有理由讓後面的陪葬。最終總結會列出失敗項讓使用者決定要不要重跑。
+- **中止**：使用者說「停止批次」→ `batch-abort`。只刪批次檔，**已建立的 branch / PR / worktree 一律保留**（沿用「branch 永不自動刪除」的既有紀律）。
+- **`batch-next` 回傳 DONE 後**才刪批次檔，並輸出總結表（項目 / status / PR 連結 / 失敗原因）。
+
+**「繼續批次」的定位流程**（新 session 進來時）：
+
+```
+→ .claude/workflow-state/.batch-*.json
+   ├─ 0 個 → 告知「找不到進行中的批次」，不自行猜測
+   ├─ 1 個 → 讀取，batch-next 取下一項，繼續
+   └─ ≥2 個 → 列出讓使用者選（腳本本身也會 die 要求明示）
+```
+
+> ⚠️ 批次檔與「本 session 的 state 檔以外，一律不碰」不衝突——批次檔是**使用者明確建立的佇列**，不是別的流程的 workflow state。但同樣的紀律適用：**不因為看到某個批次檔就自行接續它**，要使用者說「繼續批次」才動。
+
+---
+
 ## 狀態追蹤
 
 每個 stage 開始前，輸出一行進度提示。**前綴帶流程識別**（pending 階段帶 `<wf-id>`，已建 branch 後帶 branch slug），讓多個並行 workflow 的輸出能一眼分辨：
@@ -317,6 +403,34 @@ quick <描述或 #issue>
 [feature-202605-42-cart] [4/5] 發布準備中...
 [feature-202605-42-cart] [5/5] 完成 ✦ PR: <URL>
 ```
+
+### 狀態機腳本（唯一存取入口，強制）
+
+state 檔的**所有**建立、讀取、更新一律透過本 skill 的 `scripts/wf-state.sh`，**絕不手寫或手改 JSON**。guard 在腳本裡，不在本文件裡：
+
+- **schema 校驗 + 原子寫入**：先寫 tmp、`jq` 驗過才 `mv`——壞資料進不了磁碟，寫到一半中斷也不會留下半套 state。
+- **stage 轉移合法性**：sequence 模式只接受 `0a→0b→1→2→3→4`、`3→2`（審查退回）、`4→done`，非法跳段直接 exit 1。quick/jump 模式不套用轉移表（quick 的階段本來就非正式、jump 是使用者明示跳段），但校驗與棘輪照常生效。
+- **暫停點棘輪**：`stage-done` / `task-done` 之後 `awaiting_confirmation=true`，未帶 `--confirmed` 的 `advance` 一律拒絕。`--confirmed` 只能在**使用者真的在對話中確認後**帶上——跳過暫停點從「無聲遺忘」變成必須蓄意加旗標、在 Bash 歷史留下痕跡的動作。
+
+| 時機 | 指令 |
+|------|------|
+| 流程啟動（STAGE 0a） | `wf-state.sh init` → 回傳 pending 檔路徑（內含 wf-id） |
+| jump / quick 啟動（已知 branch） | `wf-state.sh init --mode jump\|quick --stage <S> --branch <branch>` |
+| STAGE 1 建好 worktree | `wf-state.sh promote <pending-檔> --branch <branch> --dest <worktree>/.claude/workflow-state` （注意：sequence 模式下 `promote` 後須依序執行 `advance 0b --confirmed` → `advance 1 --confirmed` 推進 stage 後，才能執行 `stage-done 1`，詳見下方生命週期表） |
+| 欄位更新（spec/plan/issue/pr…） | `wf-state.sh set <檔> k=v`（`stage` 與確認旗標**改不了**，防繞過棘輪） |
+| stage 完成、進入暫停點 | `wf-state.sh stage-done <檔> <stage>` |
+| STAGE 2 單一任務完成 | `wf-state.sh task-done <檔> <n>` |
+| 使用者確認（stage 不變，如 STAGE 2 任務間） | `wf-state.sh confirm <檔>` |
+| 使用者確認並推進 stage | `wf-state.sh advance <檔> <next> --confirmed` |
+| quick 升級完整流程 | `wf-state.sh upgrade <檔> [--confirmed]`（單向 quick→sequence，stage 落在 2；有暫停點等待確認時須帶 `--confirmed`） |
+| 設定暫停粒度 | `wf-state.sh init --pause-level strict\|balanced\|autonomous`，或中途 `wf-state.sh set <檔> pause_level=<L>`（見「暫停粒度」章節） |
+| 建立批次佇列 | `wf-state.sh batch-init <項目> ... [--pause-level <L>]` → 回傳批次檔路徑 |
+| 取批次下一項 | `wf-state.sh batch-next [<檔>]`（全跑完回傳 `DONE`；省略檔名自動定位唯一批次） |
+| 批次項目完成 / 失敗 | `wf-state.sh batch-done [<檔>] [--pr <url>] [--branch <b>]` ／ `batch-fail [<檔>] [--note <s>]` |
+| 中止批次 | `wf-state.sh batch-abort [<檔>]`（只刪批次檔，branch/PR/worktree 保留） |
+| 續接時讀取 | `wf-state.sh get <檔>`（讀取即校驗，腐壞檔立即失敗而非靜默續接） |
+
+> 腳本路徑：`.claude/skills/gen-dev-workflow/scripts/wf-state.sh`（相對當前工作目錄的 repo root；`cd` 進 worktree 後用 worktree 內的同路徑 checkout）。
 
 ### 狀態檔：每個 workflow 一個檔，用 branch 命名
 
@@ -533,6 +647,8 @@ worktree 建立後改帶 branch slug，不再需要 workflow-id：
 5. 停止，不再繼續任何 stage
 ```
 
+> **批次模式下的 Token Gate**：批次的每一項本來就靠使用者 `/clear` 換全新 context，所以正常情況不該在單項內撞到 150k。若真的撞到（單項過大），照上述閉環處理**該項自己的 state 檔**即可——批次檔不動、游標不前進，使用者續接後會接回同一項的 STAGE N，而不是跳到下一項。**絕不因為 context 超標就 `batch-done`**，那會把做到一半的項目標記成完成。
+
 續接時（新 session 讀到 `"interrupted_by": "context_budget"`）：
 ```
 → 定位本 workflow 的 state 檔（已建 branch 靠當前 branch；尚無 branch 靠使用者帶回的 <wf-id>，
@@ -740,6 +856,33 @@ const findings = (await parallel([
 |---------|-------|--------|
 | `/gen-dev-workflow` | — | 查看目前流程狀態 / 開始新流程 |
 | `/gen-dev-workflow quick <描述或 #issue>` | — | 小修正快速通道（單暫停點，見「Quick 模式」章節） |
+| `/gen-dev-workflow batch <項目1> <項目2> ...` | — | 批次佇列：多項各自 worktree/branch/PR 依序執行（見「批次模式」章節） |
+| `繼續批次` | — | 新 session 接續批次的下一項 |
+
+### 選項語法（`--pause-level`）
+
+任何**啟動型**指令都可在最後加 `--pause-level strict|balanced|autonomous`（省略 → `strict`）：
+
+```bash
+幫我做 §P4 快速複製 Diagnostic Snippet --pause-level balanced
+/gen-dev-workflow batch "§P4 ..." "§P6 ..." --pause-level balanced
+/gen-dev-workflow quick #54 --pause-level autonomous
+開發 issue #42 --pause-level balanced
+```
+
+**等價的自然語言**（不想打選項時，下列說法一律解析為對應 level）：
+
+| 使用者說 | 解析為 |
+|---|---|
+| 「中途不要問我」「不要停」「一路跑完」 | `balanced` |
+| 「完全不要問」「全自動」「無人值守」 | `autonomous`（⚠️ 須先警示 PR 會直接發出，見下） |
+| 「每步都讓我確認」「盯緊一點」 | `strict` |
+
+**流程中途改變粒度**：使用者說「接下來不要再問了」→ `wf-state.sh set <檔> pause_level=balanced`，即刻生效於後續暫停點。
+
+🔴 **選 `autonomous` 前必須先警示一次**：「這會讓 `gh pr create` 不經你過目直接執行，確定嗎？」——獲明確同意才寫入。這是唯一在設定階段就要確認的 level，因為它關掉的是對外動作的最後一道關卡。
+
+⚠️ **`quick` + `pause_level` 幾乎無作用**：quick 不拆任務（無 task 迴圈可關）、stage 是自由標籤（不匹配 `0b`/`2`/`4`），故 `balanced`/`strict` 行為相同。只有 `autonomous` 有實效——關掉它唯一的 PR 暫停點。使用者若對 quick 指定 `balanced`，直接告知無差別，不要假裝有效果。
 | `/gen-dev-workflow spec <description>` | 0a | 撰寫功能規格 |
 | `/gen-dev-workflow plan <spec-path>` | 0b | 產出實作計畫 |
 | `/gen-dev-workflow branch <issue>` | 1 | 建立 Issue + Worktree |
