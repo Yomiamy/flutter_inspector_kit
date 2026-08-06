@@ -119,6 +119,16 @@ class _DashboardTabBarState extends State<_DashboardTabBar> {
   }
 
   @override
+  void didUpdateWidget(covariant _DashboardTabBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.inspector == oldWidget.inspector) return;
+    // ignore: invalid_use_of_visible_for_testing_member
+    oldWidget.inspector.registry.revision.removeListener(_onRevisionChanged);
+    // ignore: invalid_use_of_visible_for_testing_member
+    widget.inspector.registry.revision.addListener(_onRevisionChanged);
+  }
+
+  @override
   void dispose() {
     // ignore: invalid_use_of_visible_for_testing_member
     widget.inspector.registry.revision.removeListener(_onRevisionChanged);
