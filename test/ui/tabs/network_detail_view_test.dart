@@ -102,6 +102,35 @@ void main() {
       expect(clipboardText!.startsWith('curl -X POST'), isTrue);
     });
 
+    testWidgets('copy diagnostic snippet writes markdown to clipboard', (
+      tester,
+    ) async {
+      String? clipboardText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardText = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: NetworkDetailView(entry: sample())),
+      );
+
+      await tester.tap(find.byIcon(Icons.share));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy diagnostic snippet'));
+      await tester.pumpAndSettle();
+
+      expect(clipboardText, isNotNull);
+      expect(clipboardText, startsWith('**[POST]'));
+      expect(clipboardText, contains('curl -X POST'));
+      expect(find.text('Diagnostic snippet copied'), findsOneWidget);
+    });
+
     testWidgets(
       'opt-out: redactSensitiveData false leaves Authorization unmasked in cURL',
       (tester) async {

@@ -10,7 +10,7 @@ import '../../../widgets/key_value_table.dart';
 import '../../../theme/theme.dart';
 
 /// Actions exposed in the detail view's share menu.
-enum _ShareAction { curl, text, share }
+enum _ShareAction { curl, snippet, text, share }
 
 /// A full-screen, structured view of a single [NetworkEntry], showing request
 /// and response sections plus sharing (cURL / plain text / system share).
@@ -42,6 +42,10 @@ class NetworkDetailView extends StatelessWidget {
               PopupMenuItem(
                 value: _ShareAction.curl,
                 child: Text('Copy as cURL'),
+              ),
+              PopupMenuItem(
+                value: _ShareAction.snippet,
+                child: Text('Copy diagnostic snippet'),
               ),
               PopupMenuItem(
                 value: _ShareAction.text,
@@ -236,6 +240,15 @@ class NetworkDetailView extends StatelessWidget {
         );
         messenger.showSnackBar(
           const SnackBar(content: Text('cURL copied to clipboard')),
+        );
+      case _ShareAction.snippet:
+        await Clipboard.setData(
+          ClipboardData(
+            text: buildDiagnosticSnippet(entry, redact: redactSensitiveData),
+          ),
+        );
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Diagnostic snippet copied')),
         );
       case _ShareAction.text:
         await Clipboard.setData(
