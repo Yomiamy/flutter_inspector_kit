@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/flutter_inspector.dart';
+import '../../models/log_level.dart';
 import '../../observers/inspector_route_names.dart';
 import 'export_report_sheet.dart';
 import 'tabs/console_tab.dart';
@@ -128,16 +129,50 @@ class _DashboardTabBarState extends State<_DashboardTabBar> {
 
   @override
   Widget build(BuildContext context) {
+    // Network count must reuse NetworkEntry.isFailed — the single source of
+    // truth for "did this call fail" shared with the error-summary banner,
+    // the console timeline and the diagnostic report.
+    final networkErrorCount = widget.inspector.networkEntries
+        .where((e) => e.isFailed)
+        .length;
+    // Console counts only log-level error/warning, not failed network calls
+    // surfaced in the merged timeline — those are already counted by the
+    // Network badge, and double-counting would make the two numbers lie.
+    final consoleErrorCount =
+        widget.inspector.logInspector.entriesAtLevel(LogLevel.error).length +
+        widget.inspector.logInspector.entriesAtLevel(LogLevel.warning).length;
+
     return TabBar(
       isScrollable: true,
       tabAlignment: TabAlignment.start,
       tabs: [
-        const Tab(text: 'Console'),
-        const Tab(text: 'Network'),
+        Tab(
+          child: _BadgeTabLabel(count: consoleErrorCount, label: 'Console'),
+        ),
+        Tab(
+          child: _BadgeTabLabel(count: networkErrorCount, label: 'Network'),
+        ),
         const Tab(text: 'Navigator'),
         const Tab(text: 'Database'),
         if (widget.hasCustomTab) Tab(text: widget.customTabTitle ?? 'Custom'),
       ],
+    );
+  }
+}
+
+/// A tab label with an error-count badge, hidden when [count] is zero.
+class _BadgeTabLabel extends StatelessWidget {
+  const _BadgeTabLabel({required this.count, required this.label});
+
+  final int count;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Badge(
+      isLabelVisible: count > 0,
+      label: Text('$count'),
+      child: Text(label),
     );
   }
 }
