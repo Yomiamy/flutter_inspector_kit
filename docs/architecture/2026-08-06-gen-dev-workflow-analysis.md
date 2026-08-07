@@ -355,7 +355,7 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 | **錯誤傳播** | 早期 stage 錯誤會放大 | 🟡 中 | 如果 STAGE 0a 的功能規格就有偏差，使用者確認了（可能沒仔細看），後面所有 stage 都在錯誤基礎上工作。flow 沒有後期發現早期問題的回溯機制 |
 <<<<<<<< HEAD:docs/architecture/2026-07-21-gen-dev-workflow-analysis.md
 ========
-| **STAGE 1 斷裂** | ~~`promote` 後 `stage-done 1` 恆遭拒（Bug 1.6）~~ | ✅ 已解決 | 2026-07-30 已透過修改 SKILL.md 工作流指示 (Workaround) 解決。正常 sequence 流程如今會依序執行 `advance 0b` 與 `advance 1`，強行推進 stage 來滿足 guard 的要求，而不去改動 `promote` 共用底層腳本。詳見 [`docs/brainstorm/2026-08-06-workflow-brainstorm.md`](../brainstorm/2026-08-06-workflow-brainstorm.md) §6。 |
+| **STAGE 1 斷裂** | ~~`promote` 後 `stage-done 1` 恆遭拒（Bug 1.6）~~ | ✅ 已解決 | 2026-07-30 已透過修改 SKILL.md 工作流指示 (Workaround) 解決。正常 sequence 流程如今會依序執行 `advance 0b` 與 `advance 1`，強行推進 stage 來滿足 guard 的要求，而不去改動 `promote` 共用底層腳本。詳見 [`docs/brainstorm/2026-08-07-workflow-brainstorm.md`](../brainstorm/2026-08-07-workflow-brainstorm.md) §6。 |
 >>>>>>>> 78ff737 (docs(workflow): update doc for STAGE 6 before worktree cleanup):docs/architecture/2026-08-06-gen-dev-workflow-analysis.md
 | **狀態機漏洞** | ~~缺少任務完成與 STAGE 5 閉環校驗~~ | ✅ 已解決 | 2026-07-21 已在 `wf-state.sh` 補齊 `completed_tasks` 數量是否與 `total_tasks` 吻合的檢查，並於 STAGE 5 轉移表加上 `reviewer -> responder` 退回規則，防堵漏洞。（註：該校驗初版誤在頂層 `case` 分支用 `local`，一觸發即 `set -e` crash，已由「腳本脆弱性」列的 Bug 1.5 修正。） |
 | **腳本脆弱性** | ~~`wf-state.sh` 隱含多個 Bash Bug~~ | ✅ 已解決 | 2026-07-21 修復了 5 個 Bash 執行階段漏洞：參數不足導致 `shift 2` crash、無 `=` 的 `set` 參數致 JSON 損毀、負數被錯誤轉為字串、原子寫入失敗時殘留暫存檔，以及 `advance` 任務校驗誤用函式外 `local` 致 `set -e` crash（Bug 1.5，曾堵死 STAGE 2→3 主流程，屬「狀態機漏洞」修復引入的回歸）。 |
