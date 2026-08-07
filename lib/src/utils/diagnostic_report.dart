@@ -196,10 +196,39 @@ bool _isError(TimestampedEntry e) {
 /// Renders one timeline entry as a single-line Markdown list item. Nav/DB use
 /// inline formatting matching their detail sections; log/network delegate to
 /// their dedicated one-liner formatters.
+///
+/// The log/network one-liners embed arbitrary content (log messages, URL
+/// paths) that commonly contains underscores Markdown reads as emphasis
+/// markers — corrupting the rendered line when pasted into GitHub/Slack, the
+/// same failure [buildDiagnosticSnippet]'s header already had (see
+/// `ba4fc65`). The fix is the same: backtick-wrap the dynamic part. Nav/DB
+/// need no such wrapping: their only dynamic field is
+/// [_routeLabel]/`tableName`, already backtick-wrapped at the source, and
+/// `displayTime`/`.name` enum values are fixed formats with no
+/// Markdown-special characters.
+///
+/// [buildLogOneLiner] only wraps its first line — a code span can't safely
+/// cross the `\n`-separated stack-trace frames it may append (CommonMark
+/// collapses embedded line endings to a single space inside a code span,
+/// which would flatten the intentionally multi-line stack trace).
+/// [buildNetworkOneLiner] is always single-line, so it wraps in full. Both
+/// use [inlineCodeSpan] rather than a bare backtick pair: a log message can
+/// itself contain backticks (e.g. `` the `id` field was null ``), which
+/// would otherwise close the span early and leak stray backticks into the
+/// rendered line.
 String _timelineLine(TimestampedEntry e, {bool isBookmarked = false}) {
   final prefix = isBookmarked ? '📌 ' : '';
-  if (e is LogEntry) return '- $prefix${buildLogOneLiner(e)}';
-  if (e is NetworkEntry) return '- $prefix${buildNetworkOneLiner(e)}';
+  if (e is LogEntry) {
+    final oneLiner = buildLogOneLiner(e);
+    final newline = oneLiner.indexOf('\n');
+    if (newline == -1) return '- $prefix${inlineCodeSpan(oneLiner)}';
+    final head = oneLiner.substring(0, newline);
+    final rest = oneLiner.substring(newline);
+    return '- $prefix${inlineCodeSpan(head)}$rest';
+  }
+  if (e is NetworkEntry) {
+    return '- $prefix${inlineCodeSpan(buildNetworkOneLiner(e))}';
+  }
   if (e is NavigatorEntry) {
     return '- $prefix[${e.displayTime}] [NAV] ${e.action.name} ${_routeLabel(e)}';
   }

@@ -390,6 +390,57 @@ void main() {
     });
   });
 
+  group('markdown integrity: underscores in timeline one-liners', () {
+    // A URL path or log message commonly contains underscores (snake_case
+    // segments, identifiers). Markdown reads a pair of underscores as an
+    // emphasis marker, so `/v1/user_profile/get_by_id` renders with
+    // "user_profile" and "get_by_id" turned partially italic once pasted into
+    // GitHub/Slack — unless the dynamic content is wrapped in a code span.
+    test(
+      'a network one-liner with underscored path segments is backtick-wrapped',
+      () {
+        final report = _report(
+          network: [
+            NetworkEntry(
+              method: 'GET',
+              url: 'https://api.test/v1/user_profile/get_by_id',
+              statusCode: 500,
+              timestamp: _minutesAgo(1),
+            ),
+          ],
+          sections: {TimelineSource.network},
+        );
+
+        expect(
+          report,
+          contains(
+            '`[11:59:00.000] [NET] GET /v1/user_profile/get_by_id → 500`',
+          ),
+        );
+      },
+    );
+
+    test('a log one-liner with an underscored message is backtick-wrapped', () {
+      final report = _report(
+        logInspector: LogInspector()
+          ..add(
+            LogEntry(
+              message: 'loaded user_profile for get_by_id',
+              timestamp: _minutesAgo(1),
+            ),
+          ),
+        sections: {TimelineSource.log},
+      );
+
+      expect(
+        report,
+        contains(
+          '`[11:59:00.000] [LOG/info] loaded user_profile for get_by_id`',
+        ),
+      );
+    });
+  });
+
   group('errors-only (AC-10, AC-11, AC-12, AC-13)', () {
     // The warning is deliberately NEWER than the error. errors-only merges two
     // entriesAtLevel() calls, each newest-first on its own; concatenating them

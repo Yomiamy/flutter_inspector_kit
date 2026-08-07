@@ -7,12 +7,28 @@
 /// the fence must be longer than any backtick run inside it, so measure first.
 String fencedBlock(String body) {
   final text = body.trimRight();
+  final fence = '`' * _delimiterLength(text, min: 3);
+  return '$fence\n$text\n$fence\n';
+}
+
+/// Wraps [text] in an inline code span long enough to survive its own
+/// backticks — the same CommonMark rule as [fencedBlock] (the delimiter must
+/// be longer than any backtick run inside), just without the surrounding
+/// newlines a block fence needs. For content that already contains no
+/// backticks this is just a single pair, e.g. `` `text` ``.
+String inlineCodeSpan(String text) {
+  final fence = '`' * _delimiterLength(text, min: 1);
+  return '$fence$text$fence';
+}
+
+/// The shortest run of backticks longer than any backtick run already inside
+/// [text], no shorter than [min].
+int _delimiterLength(String text, {required int min}) {
   final longest = RegExp('`+')
       .allMatches(text)
       .fold<int>(
         0,
         (max, m) => (m[0]?.length ?? 0) > max ? (m[0]?.length ?? 0) : max,
       );
-  final fence = '`' * (longest < 3 ? 3 : longest + 1);
-  return '$fence\n$text\n$fence\n';
+  return longest < min ? min : longest + 1;
 }
