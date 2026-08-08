@@ -124,6 +124,7 @@ Inject your own widget as a 5th dashboard tab, sitting alongside the built-in Co
 
 ```dart
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   customTab: const MyDebugPanel(),
   customTabTitle: 'Flags', // defaults to 'Custom'
 );
@@ -190,10 +191,13 @@ This is controlled by the `redactSensitiveData` constructor flag, which defaults
 
 ```dart
 // Secure by default — sensitive headers are masked in shared/exported output.
-final inspector = FlutterInspector();
+final inspector = FlutterInspector(navigatorKey: navigatorKey);
 
 // Opt out (e.g. internal builds where you need the raw values).
-final inspector = FlutterInspector(redactSensitiveData: false);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  redactSensitiveData: false,
+);
 ```
 
 The flag only affects shared/exported text — the headers shown live inside the dashboard are always the real values.
@@ -271,7 +275,10 @@ WebView network entries are ordinary `NetworkEntry` objects flowing through the 
 A continuously-updated system notification can summarise the latest call and the running total. It is **disabled by default** — enable it explicitly:
 
 ```dart
-final inspector = FlutterInspector(showNetworkNotification: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  showNetworkNotification: true,
+);
 ```
 
 Once enabled, the inspector requests notification permission for you when it initialises — the host app does not need to add any permission-handling code.
@@ -406,7 +413,10 @@ By default you have to log errors yourself. Enable **uncaught error capture** to
 It is **disabled by default** so the package never touches your error handling unless you ask. Enable it on the constructor:
 
 ```dart
-final inspector = FlutterInspector(captureUncaughtErrors: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureUncaughtErrors: true,
+);
 ```
 
 This wires three standard Flutter hooks — `FlutterError.onError` (build/layout/paint errors), `PlatformDispatcher.instance.onError` (uncaught async errors, including unawaited `Future` errors), and `ErrorWidget.builder` (which widget failed to build). Together they cover framework, asynchronous and build-time errors without wrapping `runApp` in a custom zone, so there is no `Zone mismatch` to manage.
@@ -420,7 +430,10 @@ Captured errors appear as red logs in the **Console** tab. Tap any log that carr
 Enable **lifecycle capture** to record every foreground/background transition as an `info`-level Console log, so a crash or a stalled request can be read against whether the app was in the foreground at that moment:
 
 ```dart
-final inspector = FlutterInspector(captureLifecycleEvents: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureLifecycleEvents: true,
+);
 ```
 
 It is **disabled by default**, and `detach()` removes the observer again. Each transition (`resumed` / `inactive` / `paused` / `detached`, plus `hidden` on Flutter 3.13+) becomes one entry, which the merged Timeline interleaves with network, navigation and database events automatically.
@@ -620,6 +633,7 @@ You can register these sources when initializing `FlutterInspector` or dynamical
 ```dart
 // At initialization
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   databaseSources: [SqfliteBrowserSource(db)],
 );
 
@@ -694,6 +708,7 @@ Then pass it in:
 
 ```dart
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   diagnosticInfoSource: AppDiagnosticInfoSource(),
 );
 ```

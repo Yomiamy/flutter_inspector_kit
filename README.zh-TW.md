@@ -122,6 +122,7 @@ void initState() {
 
 ```dart
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   customTab: const MyDebugPanel(),
   customTabTitle: 'Flags', // defaults to 'Custom'
 );
@@ -188,10 +189,13 @@ Network 詳情頁的每一條分享／匯出路徑——複製為 `cURL`、複�
 
 ```dart
 // Secure by default — sensitive headers are masked in shared/exported output.
-final inspector = FlutterInspector();
+final inspector = FlutterInspector(navigatorKey: navigatorKey);
 
 // Opt out (e.g. internal builds where you need the raw values).
-final inspector = FlutterInspector(redactSensitiveData: false);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  redactSensitiveData: false,
+);
 ```
 
 這個 flag 只影響分享／匯出的文字——dashboard 內即時顯示的 headers 永遠是真實值。
@@ -269,7 +273,10 @@ WebView network 項目是流經與 Dio 擷取流量相同 buffer 的一般 `Netw
 一則持續更新的系統通知可摘要最新一筆呼叫與累計總數。它**預設停用**——請明確啟用：
 
 ```dart
-final inspector = FlutterInspector(showNetworkNotification: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  showNetworkNotification: true,
+);
 ```
 
 一旦啟用，inspector 會在初始化時替你請求通知權限——host App 不需要加任何權限處理程式碼。
@@ -404,7 +411,10 @@ for (final entry in entries) {
 它**預設停用**，所以除非你主動要求，本套件絕不碰你的錯誤處理。在建構參數上啟用：
 
 ```dart
-final inspector = FlutterInspector(captureUncaughtErrors: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureUncaughtErrors: true,
+);
 ```
 
 這會接上三個標準 Flutter hook——`FlutterError.onError`（build/layout/paint 錯誤）、`PlatformDispatcher.instance.onError`（未捕捉的 async 錯誤，包含未 await 的 `Future` 錯誤）與 `ErrorWidget.builder`（哪個 widget build 失敗）。三者合起來涵蓋 framework、非同步與 build-time 錯誤，且不需要把 `runApp` 包進自訂 zone，所以沒有 `Zone mismatch` 要處理。
@@ -418,7 +428,10 @@ final inspector = FlutterInspector(captureUncaughtErrors: true);
 啟用 **lifecycle capture**，把每一次前景／背景轉換記錄成 `info` 等級的 Console log，這樣崩潰或卡住的請求就能對照當下 App 是否在前景來判讀：
 
 ```dart
-final inspector = FlutterInspector(captureLifecycleEvents: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureLifecycleEvents: true,
+);
 ```
 
 它**預設停用**，而 `detach()` 會把 observer 移除。每一次轉換（`resumed` / `inactive` / `paused` / `detached`，Flutter 3.13+ 另有 `hidden`）都會成為一筆項目，並自動被合併時間軸與 network、navigation、database 事件交錯排列。
@@ -618,6 +631,7 @@ class ObjectBoxBrowserSource implements DatabaseBrowserSource {
 ```dart
 // At initialization
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   databaseSources: [SqfliteBrowserSource(db)],
 );
 
@@ -680,6 +694,7 @@ class AppDiagnosticInfoSource implements DiagnosticInfoSource {
 
 ```dart
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   diagnosticInfoSource: AppDiagnosticInfoSource(),
 );
 ```
