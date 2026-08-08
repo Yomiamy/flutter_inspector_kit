@@ -185,13 +185,17 @@ inspector.logNetwork(completedEntry, replaces: pending);
 
 Network 詳情頁的每一條分享／匯出路徑——複製為 `cURL`、複製為文字、以及系統分享面板——**預設都會遮罩敏感 headers**，讓 secret 絕不外洩到剪貼簿、分享面板或截圖。被遮罩的 key 是 `Authorization`、`Cookie`、`Set-Cookie` 與 `X-Api-Key`（不分大小寫比對）；其值會被替換成 `••••`。
 
-這由 `redactSensitiveData` 這個建構參數控制，預設為 `true`：
+這由 `redactSensitiveData` 這個建構參數控制，預設為 `true`。以下兩種配置擇一使用。
+
+預設即安全——敏感 headers 在分享／匯出的輸出中會被遮罩：
 
 ```dart
-// Secure by default — sensitive headers are masked in shared/exported output.
 final inspector = FlutterInspector(navigatorKey: navigatorKey);
+```
 
-// Opt out (e.g. internal builds where you need the raw values).
+或選擇退出（例如需要原始值的內部建置版）：
+
+```dart
 final inspector = FlutterInspector(
   navigatorKey: navigatorKey,
   redactSensitiveData: false,

@@ -187,13 +187,17 @@ inspector.logNetwork(completedEntry, replaces: pending);
 
 Every share/export path in the Network detail view — copy as `cURL`, copy as text, and the system share sheet — **masks sensitive headers by default**, so secrets never leak to the clipboard, a share sheet, or a screenshot. The masked keys are `Authorization`, `Cookie`, `Set-Cookie`, and `X-Api-Key` (matched case-insensitively); their values are replaced with `••••`.
 
-This is controlled by the `redactSensitiveData` constructor flag, which defaults to `true`:
+This is controlled by the `redactSensitiveData` constructor flag, which defaults to `true`. Pick one of the two configurations below.
+
+Secure by default — sensitive headers are masked in shared/exported output:
 
 ```dart
-// Secure by default — sensitive headers are masked in shared/exported output.
 final inspector = FlutterInspector(navigatorKey: navigatorKey);
+```
 
-// Opt out (e.g. internal builds where you need the raw values).
+Or opt out (e.g. internal builds where you need the raw values):
+
+```dart
 final inspector = FlutterInspector(
   navigatorKey: navigatorKey,
   redactSensitiveData: false,
