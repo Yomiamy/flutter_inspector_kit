@@ -40,7 +40,9 @@ void main() {
     testWidgets('ConsoleTab log row does not record navigation', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.log('boom', level: LogLevel.error, stackTrace: '#0 main');
       await pumpObserved(tester, inspector, ConsoleTab(inspector: inspector));
 
@@ -56,7 +58,9 @@ void main() {
     testWidgets('ConsoleTab network row does not record navigation', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: 'https://x.test/a', statusCode: 200),
       );
@@ -72,7 +76,9 @@ void main() {
     });
 
     testWidgets('NetworkTab row does not record navigation', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: 'https://x.test/b', statusCode: 200),
       );
@@ -90,7 +96,9 @@ void main() {
     testWidgets('DatabaseTab table row does not record navigation', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.database(DatabaseOperation.insert, 'users');
       await pumpObserved(tester, inspector, DatabaseTab(inspector: inspector));
       await tester.pumpAndSettle();
@@ -107,7 +115,9 @@ void main() {
     testWidgets('TableRowsView cell details sheet does not record navigation', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       await pumpObserved(
         tester,
         inspector,
@@ -121,7 +131,9 @@ void main() {
     });
 
     testWidgets('ExportReportSheet does not record navigation', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       await pumpObserved(
         tester,
         inspector,
@@ -139,7 +151,9 @@ void main() {
     });
 
     testWidgets('host app navigation is still recorded', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       await pumpObserved(tester, inspector, const SizedBox());
       final navigator = tester.state<NavigatorState>(find.byType(Navigator));
 

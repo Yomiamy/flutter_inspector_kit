@@ -6,7 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('DashboardModal', () {
     testWidgets('renders 4 tabs by default', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
 
       await tester.pumpWidget(
         MaterialApp(home: DashboardModal(inspector: inspector)),
@@ -19,7 +21,9 @@ void main() {
     testWidgets('opens on the Network tab when initialIndex is 1', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -36,7 +40,9 @@ void main() {
     testWidgets('clamps an out-of-range initialIndex to the last tab', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -52,6 +58,7 @@ void main() {
 
     testWidgets('renders 5 tabs when customTab is provided', (tester) async {
       final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
         customTab: const Text('My Custom Tab Content'),
         customTabTitle: 'MyTab',
       );

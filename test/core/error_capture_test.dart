@@ -43,7 +43,7 @@ void main() {
       final beforePlatform = PlatformDispatcher.instance.onError;
       final beforeWidget = ErrorWidget.builder;
 
-      FlutterInspector();
+      FlutterInspector(navigatorKey: GlobalKey<NavigatorState>());
 
       expect(FlutterError.onError, same(beforeFlutter));
       expect(PlatformDispatcher.instance.onError, same(beforePlatform));
@@ -55,7 +55,10 @@ void main() {
       final beforePlatform = PlatformDispatcher.instance.onError;
       final beforeWidget = ErrorWidget.builder;
 
-      FlutterInspector(captureUncaughtErrors: true);
+      FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
 
       expect(FlutterError.onError, isNot(same(beforeFlutter)));
       expect(PlatformDispatcher.instance.onError, isNot(same(beforePlatform)));
@@ -68,7 +71,10 @@ void main() {
       // Host handler set to a no-op so the default test binding does not
       // re-report the error as test noise.
       FlutterError.onError = (_) {};
-      final inspector = FlutterInspector(captureUncaughtErrors: true);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
 
       FlutterError.onError!(buildDetails(StateError('build boom')));
 
@@ -88,7 +94,10 @@ void main() {
       var hostCalled = false;
       FlutterError.onError = (_) => hostCalled = true;
 
-      final inspector = FlutterInspector(captureUncaughtErrors: true);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
       FlutterError.onError!(buildDetails(StateError('boom')));
 
       expect(hostCalled, isTrue);
@@ -108,7 +117,10 @@ void main() {
         hostCalled = true;
         return true;
       };
-      final inspector = FlutterInspector(captureUncaughtErrors: true);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
 
       final handled = PlatformDispatcher.instance.onError!(
         StateError('async boom'),
@@ -132,7 +144,10 @@ void main() {
         hostCalled = true;
         return false;
       };
-      final inspector = FlutterInspector(captureUncaughtErrors: true);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
 
       final handled = PlatformDispatcher.instance.onError!(
         StateError('async boom'),
@@ -149,7 +164,10 @@ void main() {
 
     test('returns false when host has no handler (never swallows)', () {
       PlatformDispatcher.instance.onError = null;
-      FlutterInspector(captureUncaughtErrors: true);
+      FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
 
       final handled = PlatformDispatcher.instance.onError!(
         StateError('async boom'),
@@ -163,7 +181,10 @@ void main() {
   group('ErrorWidget.builder wrap', () {
     test('logs then delegates to original builder', () {
       final originalBuilder = ErrorWidget.builder;
-      final inspector = FlutterInspector(captureUncaughtErrors: true);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
 
       final details = buildDetails(StateError('widget boom'));
       final widget = ErrorWidget.builder(details);
@@ -183,7 +204,10 @@ void main() {
   group('dedup flag', () {
     test('calling setupErrorHandlers twice attaches hooks only once', () {
       FlutterError.onError = (_) {};
-      final inspector = FlutterInspector(captureUncaughtErrors: true);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
       // Second explicit call must be a no-op.
       inspector.setupErrorHandlers();
 
@@ -200,7 +224,10 @@ void main() {
     test('captureUncaughtErrors:true then a manual setupErrorHandlers attaches '
         'hooks once', () {
       FlutterError.onError = (_) {};
-      final inspector = FlutterInspector(captureUncaughtErrors: true);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureUncaughtErrors: true,
+      );
 
       // A second setupErrorHandlers call must be a no-op; the flag must prevent
       // re-attaching the hooks.

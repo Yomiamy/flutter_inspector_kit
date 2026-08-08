@@ -42,11 +42,22 @@ class FlutterInspector {
   /// prompts they didn't ask for).
   final bool showNetworkNotification;
 
-  /// Optional navigator key used to open the dashboard from a notification tap
-  /// (US-3). When supplied alongside [showNetworkNotification], tapping the
-  /// network notification opens the dashboard on the Network tab. Without it,
-  /// the tap is a no-op since there is no [BuildContext] to route from.
-  final GlobalKey<NavigatorState>? navigatorKey;
+  /// Navigator key used to route to the dashboard.
+  ///
+  /// This is **required**: [openDashboard] resolves its [BuildContext] from
+  /// this key, so the dashboard cannot be opened without it — by a magical
+  /// tap, by the floating button, or by a notification tap.
+  ///
+  /// The same key must also be passed to your [MaterialApp] (or [WidgetsApp]),
+  /// otherwise it never gets a mounted context:
+  ///
+  /// ```dart
+  /// final navigatorKey = GlobalKey<NavigatorState>();
+  /// final inspector = FlutterInspector(navigatorKey: navigatorKey);
+  ///
+  /// MaterialApp(navigatorKey: navigatorKey, /* ... */);
+  /// ```
+  final GlobalKey<NavigatorState> navigatorKey;
 
   /// Whether to capture uncaught errors from the three standard Flutter hooks
   /// ([FlutterError.onError], [PlatformDispatcher.instance.onError],
@@ -129,10 +140,12 @@ class FlutterInspector {
   final Set<TimestampedEntry> _bookmarkedEntries = <TimestampedEntry>{};
 
   /// Unmodifiable view of currently bookmarked entries.
-  Set<TimestampedEntry> get bookmarkedEntries => Set.unmodifiable(_bookmarkedEntries);
+  Set<TimestampedEntry> get bookmarkedEntries =>
+      Set.unmodifiable(_bookmarkedEntries);
 
   /// Checks if an entry is bookmarked.
-  bool isBookmarked(TimestampedEntry entry) => _bookmarkedEntries.contains(entry);
+  bool isBookmarked(TimestampedEntry entry) =>
+      _bookmarkedEntries.contains(entry);
 
   /// Toggles bookmark state for an entry.
   void toggleBookmark(TimestampedEntry entry) {
@@ -190,7 +203,7 @@ class FlutterInspector {
     this.customTabTitle = 'Custom',
     this.magicalTapCount = 5,
     this.showNetworkNotification = false,
-    this.navigatorKey,
+    required this.navigatorKey,
     this.captureUncaughtErrors = false,
     this.captureLifecycleEvents = false,
     this.redactSensitiveData = true,
@@ -207,9 +220,7 @@ class FlutterInspector {
         'must not be negative',
       );
     }
-    _overlayManager = InspectorOverlayManager(
-      onFabTap: (_) => openDashboard(),
-    );
+    _overlayManager = InspectorOverlayManager(onFabTap: (_) => openDashboard());
     _registry = InspectorRegistry(bufferSize: bufferSize);
     _uncaughtErrorHandler = UncaughtErrorHandler(onLog: log);
     if (captureUncaughtErrors) setupErrorHandlers();
@@ -352,13 +363,14 @@ class FlutterInspector {
   /// [initialIndex] selects the starting tab: Console (0), Network (1),
   /// Navigator (2), Database (3).
   void openDashboard({int initialIndex = 0}) {
-    final context = navigatorKey?.currentContext;
+    // navigatorKey is required, but its context is only mounted once the app
+    // has built its Navigator — a call before first frame is still a no-op.
+    final context = navigatorKey.currentContext;
     if (context == null) return;
     DashboardModal.show(context, this, initialIndex: initialIndex);
   }
 
   /// Opens the dashboard on the Network tab in response to a notification tap.
-  /// Requires [navigatorKey] to have a mounted context; otherwise a no-op.
   void _openNetworkFromNotification() {
     openDashboard(initialIndex: 1);
   }

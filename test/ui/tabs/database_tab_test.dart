@@ -30,7 +30,9 @@ void main() {
     testWidgets('displays database tables grouped and supports clearing', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.database(
         DatabaseOperation.insert,
         'users',
@@ -76,7 +78,9 @@ void main() {
     });
 
     testWidgets('shows empty state for empty sources', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -92,7 +96,10 @@ void main() {
       tester,
     ) async {
       final customSource = FakeCustomSource();
-      final inspector = FlutterInspector(databaseSources: [customSource]);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        databaseSources: [customSource],
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -129,7 +136,9 @@ void main() {
     testWidgets('dropdown is not shown for single source, only text name', (
       tester,
     ) async {
-      final inspector = FlutterInspector(); // Only default Operation log
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      ); // Only default Operation log
 
       await tester.pumpWidget(
         MaterialApp(
@@ -144,7 +153,9 @@ void main() {
     });
 
     testWidgets('tapping table pushes TableRowsView', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.database(DatabaseOperation.insert, 'users');
 
       await tester.pumpWidget(

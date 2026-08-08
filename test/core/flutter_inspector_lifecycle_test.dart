@@ -16,7 +16,9 @@ void main() {
   });
 
   test('default off: no lifecycle log in logEntries', () {
-    final inspector = FlutterInspector();
+    final inspector = FlutterInspector(
+      navigatorKey: GlobalKey<NavigatorState>(),
+    );
     currentInspector = inspector;
 
     WidgetsBinding.instance.handleAppLifecycleStateChanged(
@@ -27,7 +29,10 @@ void main() {
   });
 
   test('opt-in: lifecycle transition appears in logEntries', () {
-    final inspector = FlutterInspector(captureLifecycleEvents: true);
+    final inspector = FlutterInspector(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      captureLifecycleEvents: true,
+    );
     currentInspector = inspector;
 
     WidgetsBinding.instance.handleAppLifecycleStateChanged(
@@ -44,7 +49,10 @@ void main() {
   });
 
   test('detach stops lifecycle logging', () {
-    final inspector = FlutterInspector(captureLifecycleEvents: true);
+    final inspector = FlutterInspector(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      captureLifecycleEvents: true,
+    );
     currentInspector = inspector;
 
     WidgetsBinding.instance.handleAppLifecycleStateChanged(
@@ -61,7 +69,10 @@ void main() {
   });
 
   test('lifecycle log names the current top page from the nav stack', () {
-    final inspector = FlutterInspector(captureLifecycleEvents: true);
+    final inspector = FlutterInspector(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      captureLifecycleEvents: true,
+    );
     currentInspector = inspector;
 
     // 推一筆 push 進 navigator buffer，讓 resolver 有 top page 可推導。
@@ -80,7 +91,10 @@ void main() {
   });
 
   test('empty nav stack yields a bare lifecycle message', () {
-    final inspector = FlutterInspector(captureLifecycleEvents: true);
+    final inspector = FlutterInspector(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      captureLifecycleEvents: true,
+    );
     currentInspector = inspector;
 
     // 未推任何 navigator 事件 → resolver 回空 → 不加尾巴。

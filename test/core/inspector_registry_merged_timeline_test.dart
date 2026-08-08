@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/core/inspector_registry.dart';
 import 'package:flutter_inspector_kit/src/models/database_entry.dart';
@@ -40,7 +41,9 @@ void main() {
 
   group('InspectorRegistry.mergedTimeline', () {
     test('default returns all four entries sorted by timestamp descending', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       seedAll(inspector.registry);
 
       final result = inspector.registry.mergedTimeline();
@@ -53,7 +56,9 @@ void main() {
     });
 
     test('single source {network} returns only the network entry', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       seedAll(inspector.registry);
 
       final result = inspector.registry.mergedTimeline(
@@ -66,7 +71,9 @@ void main() {
     });
 
     test('sources {log, nav} returns two entries, still descending', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       seedAll(inspector.registry);
 
       final result = inspector.registry.mergedTimeline(
@@ -81,7 +88,9 @@ void main() {
     });
 
     test('empty buffers return an empty list', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
 
       expect(inspector.registry.mergedTimeline(), isEmpty);
     });
@@ -89,7 +98,9 @@ void main() {
 
   group('FlutterInspector.mergedTimeline thin forward', () {
     test('default returns all four entries sorted descending', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       seedAll(inspector.registry);
 
       final result = inspector.mergedTimeline();
@@ -100,7 +111,9 @@ void main() {
     });
 
     test('single source {network} returns only the network entry', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       seedAll(inspector.registry);
 
       final result = inspector.mergedTimeline(
@@ -112,13 +125,17 @@ void main() {
     });
 
     test('empty buffers return an empty list', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
 
       expect(inspector.mergedTimeline(), isEmpty);
     });
 
     test('forward is equivalent to registry.mergedTimeline (default)', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       seedAll(inspector.registry);
 
       final viaInspector = inspector.mergedTimeline();

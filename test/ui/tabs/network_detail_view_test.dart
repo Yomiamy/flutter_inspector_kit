@@ -330,7 +330,9 @@ void main() {
     testWidgets('resend success records replay entry and shows snackbar', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       final dio = Dio()
         ..httpClientAdapter = _StubAdapter(
           (_) async => ResponseBody.fromString(
@@ -377,7 +379,9 @@ void main() {
     testWidgets(
       'resend badResponse (500) records error entry and shows request resent',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         final dio = Dio()
           ..httpClientAdapter = _StubAdapter(
             (_) async => ResponseBody.fromString('err', 500),
@@ -416,7 +420,9 @@ void main() {
     testWidgets('resend connection failure shows resend failed', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       final dio = Dio()
         ..httpClientAdapter = _StubAdapter(
           (_) async => throw DioException(
@@ -473,7 +479,9 @@ void main() {
     // Test 5: double-tap guard during in-flight request
     testWidgets('disabled while request is in-flight', (tester) async {
       final completer = Completer<ResponseBody>();
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       final dio = Dio()
         ..httpClientAdapter = _StubAdapter((_) => completer.future);
       dio.interceptors.add(

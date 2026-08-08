@@ -10,7 +10,9 @@ void main() {
     testWidgets('displays navigator entries and supports clearing', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.registry.navigator.add(
         NavigatorEntry(
           action: NavigatorAction.push,
@@ -35,7 +37,9 @@ void main() {
     });
 
     testWidgets('shows ChoiceChips with both mode labels', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.registry.navigator.add(
         NavigatorEntry(
           action: NavigatorAction.push,
@@ -58,7 +62,9 @@ void main() {
     testWidgets('defaults to eventHistory mode showing event list', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.registry.navigator.add(
         NavigatorEntry(
           action: NavigatorAction.push,
@@ -83,7 +89,9 @@ void main() {
     testWidgets(
       'switching to activeStack shows resolved stack and hides events',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         inspector.registry.navigator.add(
           NavigatorEntry(
             action: NavigatorAction.push,
