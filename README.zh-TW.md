@@ -55,13 +55,21 @@ dependencies:
 
 ### 初始化
 
-建立單一個共用的 `FlutterInspector` 實例並接進你的 App。註冊 navigator observer 以追蹤 route，並用 `FlutterInspectorMagicalTap` 包住你的 App，讓隱藏手勢能從任何地方打開 dashboard。
+建立單一個共用的 `FlutterInspector` 實例並接進你的 App。`navigatorKey` 是**必填**的——inspector 透過它路由到 dashboard——所以請建立一把 key，傳給 inspector，並把**同一把 key** 也傳給你的 `MaterialApp`。接著註冊 navigator observer 以追蹤 route，並用 `FlutterInspectorMagicalTap` 包住你的 App，讓隱藏手勢能從任何地方打開 dashboard。
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 
-final inspector = FlutterInspector();
+// 1. 一把 key，inspector 與 MaterialApp 共用。
+final navigatorKey = GlobalKey<NavigatorState>();
+
+final inspector = FlutterInspector(
+  // 必填：dashboard 透過這把 key 開啟。
+  navigatorKey: navigatorKey,
+  // 選填：設定判定為「🐢 SLOW」的門檻（預設 2 秒）
+  slowRequestThreshold: const Duration(seconds: 3),
+);
 
 void main() => runApp(const MyApp());
 
@@ -71,12 +79,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // 1. Track navigation events
+      // 2. 同一把 key——少了這行，dashboard 就沒有可開啟的 context。
+      navigatorKey: navigatorKey,
+      // 3. 追蹤導航事件
       navigatorObservers: [inspector.navigatorObserver],
-      // 2. A hidden gesture opens the dashboard from anywhere
+      // 4. 隱藏手勢可從任何地方打開 dashboard
       builder: (context, child) {
         return FlutterInspectorMagicalTap(
-          onTap: () => inspector.openDashboard(context),
+          onTap: () => inspector.openDashboard(),
           child: child ?? const SizedBox.shrink(),
         );
       },
@@ -87,6 +97,8 @@ class MyApp extends StatelessWidget {
 ```
 
 就這樣？對，就這樣。
+
+> **兩個步驟缺一不可。** `navigatorKey` 在建構子上是編譯期強制的，但「有沒有傳給 `MaterialApp`」編譯器檢查不到。漏了第二步，這把 key 永遠拿不到已掛載的 context，`openDashboard()` 就會靜默無反應——不論是 magical tap、浮動按鈕，還是點通知都一樣。
 
 ### Floating button
 
@@ -268,20 +280,16 @@ final inspector = FlutterInspector(showNetworkNotification: true);
 - **iOS / macOS**：新的 API 呼叫抵達時顯示前景橫幅，節流方式與 Android 相同。**這需要在你的 `AppDelegate` 加一行設定——見下方 [必要的 iOS / macOS 設定](#必要的-ios--macos-設定)。** 少了它，iOS 會靜默地抑制前景橫幅（該項目仍會送達 Notification Center）。
 - 通知使用專屬的高優先權 Android channel（`flutter_inspector_network_v2`）——若你從較早的版本升級，舊的通知 channel 會自動被刪除，不會出現在系統設定中。
 
-要讓**點通知就打開 dashboard 並停在 Network 分頁**，請傳入一個同時也接進你 `MaterialApp` 的 `navigatorKey`：
+**點通知就會打開 dashboard 並停在 Network 分頁**——這用的是你在[初始化](#初始化)時已經接好的那把必填 `navigatorKey`，不需要額外設定：
 
 ```dart
-final navigatorKey = GlobalKey<NavigatorState>();
-
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey, // 必填——初始化時已設定
   showNetworkNotification: true,
-  navigatorKey: navigatorKey,
 );
-
-MaterialApp(navigatorKey: navigatorKey, /* ... */);
 ```
 
-沒有 `navigatorKey` 時通知仍會顯示；只是點它會是 no-op，因為沒有可路由的 navigation context。
+與其他 dashboard 入口一樣，只有在同一把 key 也傳給了 `MaterialApp` 時，這個點擊才會真的路由過去。
 
 <details>
 <summary>Android 設定（必要）</summary>

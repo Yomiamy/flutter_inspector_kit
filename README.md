@@ -57,13 +57,18 @@ Then run `flutter pub get`.
 
 ### Initialize
 
-Create a single shared `FlutterInspector` instance and wire it into your app. Register the navigator observer to track routes, and wrap your app in `FlutterInspectorMagicalTap` so a hidden gesture can open the dashboard from anywhere.
+Create a single shared `FlutterInspector` instance and wire it into your app. A `navigatorKey` is **required** — the inspector routes to the dashboard through it — so create one, pass it to the inspector, and pass **the same key** to your `MaterialApp`. Then register the navigator observer to track routes, and wrap your app in `FlutterInspectorMagicalTap` so a hidden gesture can open the dashboard from anywhere.
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 
+// 1. One key, shared by the inspector and the MaterialApp.
+final navigatorKey = GlobalKey<NavigatorState>();
+
 final inspector = FlutterInspector(
+  // Required: the dashboard is opened through this key.
+  navigatorKey: navigatorKey,
   // Optional: configure threshold for marking requests as "🐢 SLOW" (defaults to 2s)
   slowRequestThreshold: const Duration(seconds: 3),
 );
@@ -76,9 +81,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // 1. Track navigation events
+      // 2. The same key — without this the dashboard has no context to open in.
+      navigatorKey: navigatorKey,
+      // 3. Track navigation events
       navigatorObservers: [inspector.navigatorObserver],
-      // 2. A hidden gesture opens the dashboard from anywhere
+      // 4. A hidden gesture opens the dashboard from anywhere
       builder: (context, child) {
         return FlutterInspectorMagicalTap(
           onTap: () => inspector.openDashboard(),
@@ -92,6 +99,8 @@ class MyApp extends StatelessWidget {
 ```
 
 That's it? Yes, that's it.
+
+> **Both halves are required.** `navigatorKey` is a compile-time requirement on the constructor, but passing it to `MaterialApp` is not something the compiler can check. Miss that second step and the key never gets a mounted context, so `openDashboard()` silently does nothing — via magical tap, floating button, or notification tap alike.
 
 ### Floating button
 
@@ -273,20 +282,16 @@ Once enabled, the inspector requests notification permission for you when it ini
 - **iOS / macOS**: displays a foreground banner when a new API call arrives, throttled the same way as Android. **This requires one line of setup in your `AppDelegate` — see [Required iOS / macOS setup](#required-ios--macos-setup) below.** Without it, iOS silently suppresses the foreground banner (the entry is still delivered to Notification Center).
 - The notification uses a dedicated high-priority Android channel (`flutter_inspector_network_v2`) — if you upgrade from an earlier version, the old notification channel is automatically deleted and will not appear in system settings.
 
-To make **tapping the notification open the dashboard on the Network tab**, pass a `navigatorKey` that is also wired into your `MaterialApp`:
+**Tapping the notification opens the dashboard on the Network tab** — this uses the same required `navigatorKey` you already wired up in [Initialize](#initialize), so there is nothing extra to configure:
 
 ```dart
-final navigatorKey = GlobalKey<NavigatorState>();
-
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey, // required — already set up during Initialize
   showNetworkNotification: true,
-  navigatorKey: navigatorKey,
 );
-
-MaterialApp(navigatorKey: navigatorKey, /* ... */);
 ```
 
-Without a `navigatorKey` the notification still shows; tapping it is simply a no-op since there is no navigation context to route from.
+As with any dashboard entry point, the tap only routes if that same key was also passed to your `MaterialApp`.
 
 <details>
 <summary>Android setup (required)</summary>
