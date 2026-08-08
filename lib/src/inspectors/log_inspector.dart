@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../core/ring_buffer.dart';
 import '../models/log_entry.dart';
 import '../models/log_level.dart';
@@ -5,8 +7,9 @@ import '../models/log_level.dart';
 /// Stores console log entries in a bounded buffer for the Console tab.
 class LogInspector {
   /// Creates a log inspector retaining at most [bufferSize] entries.
-  LogInspector({int bufferSize = 500})
-    : _buffer = RingBuffer<LogEntry>(bufferSize);
+  /// [onMutate], if given, is forwarded to the underlying [RingBuffer].
+  LogInspector({int bufferSize = 500, VoidCallback? onMutate})
+    : _buffer = RingBuffer<LogEntry>(bufferSize, onMutate: onMutate);
 
   final RingBuffer<LogEntry> _buffer;
 

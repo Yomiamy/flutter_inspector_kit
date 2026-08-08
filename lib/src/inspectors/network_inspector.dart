@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../core/ring_buffer.dart';
 import '../models/network_entry.dart';
 
@@ -8,8 +10,9 @@ typedef NetworkAddListener = void Function(NetworkEntry entry, int totalCount);
 /// Manages a ring buffer of [NetworkEntry] items.
 class NetworkInspector {
   /// Creates a network inspector with the given [bufferCapacity].
-  NetworkInspector({int bufferCapacity = 500})
-    : _buffer = RingBuffer<NetworkEntry>(bufferCapacity);
+  /// [onMutate], if given, is forwarded to the underlying [RingBuffer].
+  NetworkInspector({int bufferCapacity = 500, VoidCallback? onMutate})
+    : _buffer = RingBuffer<NetworkEntry>(bufferCapacity, onMutate: onMutate);
 
   final RingBuffer<NetworkEntry> _buffer;
 

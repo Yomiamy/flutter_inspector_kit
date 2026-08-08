@@ -1,11 +1,14 @@
+import 'package:flutter/foundation.dart';
+
 import '../core/ring_buffer.dart';
 import '../models/navigator_entry.dart';
 
 /// Manages a ring buffer of [NavigatorEntry] items.
 class NavigatorInspector {
   /// Creates a navigator inspector with the given [bufferCapacity].
-  NavigatorInspector({int bufferCapacity = 500})
-    : _buffer = RingBuffer<NavigatorEntry>(bufferCapacity);
+  /// [onMutate], if given, is forwarded to the underlying [RingBuffer].
+  NavigatorInspector({int bufferCapacity = 500, VoidCallback? onMutate})
+    : _buffer = RingBuffer<NavigatorEntry>(bufferCapacity, onMutate: onMutate);
 
   final RingBuffer<NavigatorEntry> _buffer;
 
