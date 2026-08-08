@@ -48,7 +48,7 @@
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.8.0
+  flutter_inspector_kit: ^2.1.0
 ```
 
 接著執行 `flutter pub get`。
