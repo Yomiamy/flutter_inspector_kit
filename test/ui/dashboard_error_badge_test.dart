@@ -20,7 +20,9 @@ Finder _badgeCountUnderTab(String tabLabel, String countText) {
 void main() {
   group('DashboardModal error badges', () {
     testWidgets('Network tab shows 2 when two entries failed', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(NetworkEntry(method: 'GET', url: '/ok'));
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/fail1', statusCode: 500),
@@ -41,7 +43,9 @@ void main() {
     testWidgets('Network tab shows no badge when all requests succeeded', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/ok1', statusCode: 200),
       );
@@ -60,7 +64,9 @@ void main() {
     testWidgets('Console tab shows 2 for one error and one warning', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.log('error msg', level: LogLevel.error);
       inspector.log('warning msg', level: LogLevel.warning);
       inspector.log('info 1', level: LogLevel.info);
@@ -78,7 +84,9 @@ void main() {
     testWidgets('empty inspector renders no badges on either tab', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
 
       await tester.pumpWidget(
         MaterialApp(home: DashboardModal(inspector: inspector)),
@@ -93,7 +101,9 @@ void main() {
     testWidgets(
       'badge appears without any refresh when a failed request arrives',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
 
         await tester.pumpWidget(
           MaterialApp(home: DashboardModal(inspector: inspector)),
@@ -112,7 +122,9 @@ void main() {
     );
 
     testWidgets('badge disappears after the buffer is cleared', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/fail', statusCode: 500),
       );
@@ -132,7 +144,9 @@ void main() {
     testWidgets(
       'rebuilding with a new inspector re-subscribes to its revision',
       (tester) async {
-        final oldInspector = FlutterInspector();
+        final oldInspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         oldInspector.logNetwork(
           NetworkEntry(method: 'GET', url: '/old-fail', statusCode: 500),
         );
@@ -142,7 +156,9 @@ void main() {
         );
         expect(find.text('1'), findsOneWidget);
 
-        final newInspector = FlutterInspector();
+        final newInspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         // Same widget position/type with no key: State is preserved and
         // didUpdateWidget fires instead of a fresh initState.
         await tester.pumpWidget(

@@ -10,7 +10,9 @@ void main() {
     testWidgets('displays active stack top-first with two cards', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       // Push A
       inspector.registry.navigator.add(
         NavigatorEntry(
@@ -59,7 +61,9 @@ void main() {
     testWidgets(
       'cards display displayName and routeName, but do not show arguments',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         inspector.registry.navigator.add(
           NavigatorEntry(
             action: NavigatorAction.push,
@@ -87,7 +91,9 @@ void main() {
     testWidgets(
       'empty navigatorEntries displays empty placeholder without crashing',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
 
         await tester.pumpWidget(
           MaterialApp(
@@ -106,7 +112,9 @@ void main() {
     testWidgets(
       'clearing navigator syncs the active stack view to empty placeholder',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         inspector.registry.navigator.add(
           NavigatorEntry(
             action: NavigatorAction.push,

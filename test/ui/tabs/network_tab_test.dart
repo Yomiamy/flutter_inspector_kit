@@ -10,7 +10,9 @@ void main() {
     testWidgets('displays network entries and supports clearing', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/api/test', statusCode: 200),
       );
@@ -30,7 +32,9 @@ void main() {
     });
 
     testWidgets('keyword search filters the list', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/api/users', statusCode: 200),
       );
@@ -55,7 +59,9 @@ void main() {
     });
 
     testWidgets('method filter chip narrows results', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/api/users', statusCode: 200),
       );
@@ -77,7 +83,9 @@ void main() {
     });
 
     testWidgets('tapping an entry opens the detail view', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(
           method: 'GET',
@@ -103,7 +111,9 @@ void main() {
     testWidgets(
       'Error Summary banner is not rendered when there are no errors',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         inspector.logNetwork(
           NetworkEntry(method: 'GET', url: '/ok', statusCode: 200),
         );
@@ -122,7 +132,9 @@ void main() {
     testWidgets('Error Summary banner appears when there are errors', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/err', statusCode: 502),
       );
@@ -143,7 +155,9 @@ void main() {
     });
 
     testWidgets('Tapping error group card filters the list', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/ok', statusCode: 200),
       );
@@ -170,7 +184,9 @@ void main() {
     testWidgets('Tapping the same group card again clears the filter', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/ok', statusCode: 200),
       );
@@ -198,7 +214,9 @@ void main() {
     testWidgets('Clearing buffer hides the error summary banner', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/err', statusCode: 502),
       );
@@ -217,7 +235,9 @@ void main() {
     });
 
     testWidgets('Collapsing the banner shows summary text', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(method: 'GET', url: '/err1', statusCode: 502),
       );

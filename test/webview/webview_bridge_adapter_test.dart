@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_origin.dart';
@@ -9,7 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('WebViewBridgeAdapter · log 路徑', () {
     test('console.error 成為 error 級 LogEntry 並帶 webview provenance', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       final adapter = WebViewBridgeAdapter(inspector);
       adapter.handleMessage(_Data.consoleError);
       final e = inspector.logEntries.single;
@@ -28,7 +31,9 @@ void main() {
         'weird': LogLevel.info,
       };
       for (final entry in cases.entries) {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         WebViewBridgeAdapter(
           inspector,
         ).handleMessage(_Data.consoleMethod(entry.key));
@@ -41,7 +46,9 @@ void main() {
     });
 
     test('window.onerror 成為 error 級 entry 且帶 JS stack', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       WebViewBridgeAdapter(inspector).handleMessage(_Data.windowOnError);
       final e = inspector.logEntries.single;
       expect(e.level, LogLevel.error);
@@ -49,13 +56,17 @@ void main() {
     });
 
     test('page 欄位缺省時 data 不塞 pageUrl', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       WebViewBridgeAdapter(inspector).handleMessage(_Data.consoleNoPage);
       expect(inspector.logEntries.single.data, {'origin': 'webview'});
     });
 
     test('malformed / unknown 訊息靜默丟棄不 throw', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       final adapter = WebViewBridgeAdapter(inspector);
       for (final raw in ['not json{', '{"t":"log"', '{"t":"weird"}']) {
         expect(() => adapter.handleMessage(raw), returnsNormally);
@@ -66,7 +77,9 @@ void main() {
 
   group('WebViewBridgeAdapter · network 路徑', () {
     test('WebView fetch 成為非 Dio NetworkEntry：欄位正確對應', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       WebViewBridgeAdapter(inspector).handleMessage(_Data.fetch502);
       final e = inspector.networkEntries.single;
       expect(e.method, 'POST');
@@ -84,7 +97,9 @@ void main() {
     });
 
     test('傳輸失敗：statusCode null 且 error 保留', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       WebViewBridgeAdapter(inspector).handleMessage(_Data.fetchTransportError);
       final e = inspector.networkEntries.single;
       expect(e.statusCode, isNull);
@@ -94,7 +109,9 @@ void main() {
     });
 
     test('redaction parity：Authorization 遮罩與 native 同一 code path', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       WebViewBridgeAdapter(inspector).handleMessage(_Data.fetchWithAuth);
       final e = inspector.networkEntries.single;
       expect(buildPlainText(e, redact: true), contains('••••'));
@@ -102,28 +119,36 @@ void main() {
     });
 
     test('CRLF 訊息經既有 one-liner formatter 被壓平', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       WebViewBridgeAdapter(inspector).handleMessage(_Data.consoleWithCrlf);
       final oneLiner = buildLogOneLiner(inspector.logEntries.single);
       expect(oneLiner, isNot(contains('\n')));
     });
 
     test('malformed URL 的 net 事件經既有 formatter 不外洩 query', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       WebViewBridgeAdapter(inspector).handleMessage(_Data.fetchMalformedUrl);
       final oneLiner = buildNetworkOneLiner(inspector.networkEntries.single);
       expect(oneLiner, isNot(contains('secret=1')));
     });
 
     test('超出 DateTime 範圍的 ts 靜默丟棄不 throw（敵意輸入）', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       final adapter = WebViewBridgeAdapter(inspector);
       expect(() => adapter.handleMessage(_Data.fetchHugeTs), returnsNormally);
       expect(inspector.networkEntries, isEmpty);
     });
 
     test('超過大小上限的 raw 訊息在 decode 前被丟棄（敵意輸入）', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       final adapter = WebViewBridgeAdapter(inspector);
       // 合法 JSON 但整體超過 256KB 上限——若無 guard 會成為一筆 entry。
       final oversized =

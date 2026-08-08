@@ -50,20 +50,25 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^2.0.0
+  flutter_inspector_kit: ^2.1.0
 ```
 
 Then run `flutter pub get`.
 
 ### Initialize
 
-Create a single shared `FlutterInspector` instance and wire it into your app. Register the navigator observer to track routes, and wrap your app in `FlutterInspectorMagicalTap` so a hidden gesture can open the dashboard from anywhere.
+Create a single shared `FlutterInspector` instance and wire it into your app. A `navigatorKey` is **required** — the inspector routes to the dashboard through it — so create one, pass it to the inspector, and pass **the same key** to your `MaterialApp`. Then register the navigator observer to track routes, and wrap your app in `FlutterInspectorMagicalTap` so a hidden gesture can open the dashboard from anywhere.
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 
+// 1. One key, shared by the inspector and the MaterialApp.
+final navigatorKey = GlobalKey<NavigatorState>();
+
 final inspector = FlutterInspector(
+  // Required: the dashboard is opened through this key.
+  navigatorKey: navigatorKey,
   // Optional: configure threshold for marking requests as "🐢 SLOW" (defaults to 2s)
   slowRequestThreshold: const Duration(seconds: 3),
 );
@@ -76,9 +81,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // 1. Track navigation events
+      // 2. The same key — without this the dashboard has no context to open in.
+      navigatorKey: navigatorKey,
+      // 3. Track navigation events
       navigatorObservers: [inspector.navigatorObserver],
-      // 2. A hidden gesture opens the dashboard from anywhere
+      // 4. A hidden gesture opens the dashboard from anywhere
       builder: (context, child) {
         return FlutterInspectorMagicalTap(
           onTap: () => inspector.openDashboard(),
@@ -92,6 +99,8 @@ class MyApp extends StatelessWidget {
 ```
 
 That's it? Yes, that's it.
+
+> **Both halves are required.** `navigatorKey` is a compile-time requirement on the constructor, but passing it to `MaterialApp` is not something the compiler can check. Miss that second step and the key never gets a mounted context, so `openDashboard()` silently does nothing — via magical tap, floating button, or notification tap alike.
 
 ### Floating button
 
@@ -115,6 +124,7 @@ Inject your own widget as a 5th dashboard tab, sitting alongside the built-in Co
 
 ```dart
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   customTab: const MyDebugPanel(),
   customTabTitle: 'Flags', // defaults to 'Custom'
 );
@@ -177,14 +187,21 @@ inspector.logNetwork(completedEntry, replaces: pending);
 
 Every share/export path in the Network detail view — copy as `cURL`, copy as text, and the system share sheet — **masks sensitive headers by default**, so secrets never leak to the clipboard, a share sheet, or a screenshot. The masked keys are `Authorization`, `Cookie`, `Set-Cookie`, and `X-Api-Key` (matched case-insensitively); their values are replaced with `••••`.
 
-This is controlled by the `redactSensitiveData` constructor flag, which defaults to `true`:
+This is controlled by the `redactSensitiveData` constructor flag, which defaults to `true`. Pick one of the two configurations below.
+
+Secure by default — sensitive headers are masked in shared/exported output:
 
 ```dart
-// Secure by default — sensitive headers are masked in shared/exported output.
-final inspector = FlutterInspector();
+final inspector = FlutterInspector(navigatorKey: navigatorKey);
+```
 
-// Opt out (e.g. internal builds where you need the raw values).
-final inspector = FlutterInspector(redactSensitiveData: false);
+Or opt out (e.g. internal builds where you need the raw values):
+
+```dart
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  redactSensitiveData: false,
+);
 ```
 
 The flag only affects shared/exported text — the headers shown live inside the dashboard are always the real values.
@@ -262,7 +279,10 @@ WebView network entries are ordinary `NetworkEntry` objects flowing through the 
 A continuously-updated system notification can summarise the latest call and the running total. It is **disabled by default** — enable it explicitly:
 
 ```dart
-final inspector = FlutterInspector(showNetworkNotification: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  showNetworkNotification: true,
+);
 ```
 
 Once enabled, the inspector requests notification permission for you when it initialises — the host app does not need to add any permission-handling code.
@@ -273,20 +293,16 @@ Once enabled, the inspector requests notification permission for you when it ini
 - **iOS / macOS**: displays a foreground banner when a new API call arrives, throttled the same way as Android. **This requires one line of setup in your `AppDelegate` — see [Required iOS / macOS setup](#required-ios--macos-setup) below.** Without it, iOS silently suppresses the foreground banner (the entry is still delivered to Notification Center).
 - The notification uses a dedicated high-priority Android channel (`flutter_inspector_network_v2`) — if you upgrade from an earlier version, the old notification channel is automatically deleted and will not appear in system settings.
 
-To make **tapping the notification open the dashboard on the Network tab**, pass a `navigatorKey` that is also wired into your `MaterialApp`:
+**Tapping the notification opens the dashboard on the Network tab** — this uses the same required `navigatorKey` you already wired up in [Initialize](#initialize), so there is nothing extra to configure:
 
 ```dart
-final navigatorKey = GlobalKey<NavigatorState>();
-
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey, // required — already set up during Initialize
   showNetworkNotification: true,
-  navigatorKey: navigatorKey,
 );
-
-MaterialApp(navigatorKey: navigatorKey, /* ... */);
 ```
 
-Without a `navigatorKey` the notification still shows; tapping it is simply a no-op since there is no navigation context to route from.
+As with any dashboard entry point, the tap only routes if that same key was also passed to your `MaterialApp`.
 
 <details>
 <summary>Android setup (required)</summary>
@@ -401,7 +417,10 @@ By default you have to log errors yourself. Enable **uncaught error capture** to
 It is **disabled by default** so the package never touches your error handling unless you ask. Enable it on the constructor:
 
 ```dart
-final inspector = FlutterInspector(captureUncaughtErrors: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureUncaughtErrors: true,
+);
 ```
 
 This wires three standard Flutter hooks — `FlutterError.onError` (build/layout/paint errors), `PlatformDispatcher.instance.onError` (uncaught async errors, including unawaited `Future` errors), and `ErrorWidget.builder` (which widget failed to build). Together they cover framework, asynchronous and build-time errors without wrapping `runApp` in a custom zone, so there is no `Zone mismatch` to manage.
@@ -415,7 +434,10 @@ Captured errors appear as red logs in the **Console** tab. Tap any log that carr
 Enable **lifecycle capture** to record every foreground/background transition as an `info`-level Console log, so a crash or a stalled request can be read against whether the app was in the foreground at that moment:
 
 ```dart
-final inspector = FlutterInspector(captureLifecycleEvents: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureLifecycleEvents: true,
+);
 ```
 
 It is **disabled by default**, and `detach()` removes the observer again. Each transition (`resumed` / `inactive` / `paused` / `detached`, plus `hidden` on Flutter 3.13+) becomes one entry, which the merged Timeline interleaves with network, navigation and database events automatically.
@@ -615,6 +637,7 @@ You can register these sources when initializing `FlutterInspector` or dynamical
 ```dart
 // At initialization
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   databaseSources: [SqfliteBrowserSource(db)],
 );
 
@@ -689,6 +712,7 @@ Then pass it in:
 
 ```dart
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   diagnosticInfoSource: AppDiagnosticInfoSource(),
 );
 ```

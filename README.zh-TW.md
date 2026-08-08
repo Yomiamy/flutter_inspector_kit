@@ -48,20 +48,28 @@
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^1.8.0
+  flutter_inspector_kit: ^2.1.0
 ```
 
 接著執行 `flutter pub get`。
 
 ### 初始化
 
-建立單一個共用的 `FlutterInspector` 實例並接進你的 App。註冊 navigator observer 以追蹤 route，並用 `FlutterInspectorMagicalTap` 包住你的 App，讓隱藏手勢能從任何地方打開 dashboard。
+建立單一個共用的 `FlutterInspector` 實例並接進你的 App。`navigatorKey` 是**必填**的——inspector 透過它路由到 dashboard——所以請建立一把 key，傳給 inspector，並把**同一把 key** 也傳給你的 `MaterialApp`。接著註冊 navigator observer 以追蹤 route，並用 `FlutterInspectorMagicalTap` 包住你的 App，讓隱藏手勢能從任何地方打開 dashboard。
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 
-final inspector = FlutterInspector();
+// 1. 一把 key，inspector 與 MaterialApp 共用。
+final navigatorKey = GlobalKey<NavigatorState>();
+
+final inspector = FlutterInspector(
+  // 必填：dashboard 透過這把 key 開啟。
+  navigatorKey: navigatorKey,
+  // 選填：設定判定為「🐢 SLOW」的門檻（預設 2 秒）
+  slowRequestThreshold: const Duration(seconds: 3),
+);
 
 void main() => runApp(const MyApp());
 
@@ -71,12 +79,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // 1. Track navigation events
+      // 2. 同一把 key——少了這行，dashboard 就沒有可開啟的 context。
+      navigatorKey: navigatorKey,
+      // 3. 追蹤導航事件
       navigatorObservers: [inspector.navigatorObserver],
-      // 2. A hidden gesture opens the dashboard from anywhere
+      // 4. 隱藏手勢可從任何地方打開 dashboard
       builder: (context, child) {
         return FlutterInspectorMagicalTap(
-          onTap: () => inspector.openDashboard(context),
+          onTap: () => inspector.openDashboard(),
           child: child ?? const SizedBox.shrink(),
         );
       },
@@ -87,6 +97,8 @@ class MyApp extends StatelessWidget {
 ```
 
 就這樣？對，就這樣。
+
+> **兩個步驟缺一不可。** `navigatorKey` 在建構子上是編譯期強制的，但「有沒有傳給 `MaterialApp`」編譯器檢查不到。漏了第二步，這把 key 永遠拿不到已掛載的 context，`openDashboard()` 就會靜默無反應——不論是 magical tap、浮動按鈕，還是點通知都一樣。
 
 ### Floating button
 
@@ -110,6 +122,7 @@ void initState() {
 
 ```dart
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   customTab: const MyDebugPanel(),
   customTabTitle: 'Flags', // defaults to 'Custom'
 );
@@ -172,14 +185,21 @@ inspector.logNetwork(completedEntry, replaces: pending);
 
 Network 詳情頁的每一條分享／匯出路徑——複製為 `cURL`、複製為文字、以及系統分享面板——**預設都會遮罩敏感 headers**，讓 secret 絕不外洩到剪貼簿、分享面板或截圖。被遮罩的 key 是 `Authorization`、`Cookie`、`Set-Cookie` 與 `X-Api-Key`（不分大小寫比對）；其值會被替換成 `••••`。
 
-這由 `redactSensitiveData` 這個建構參數控制，預設為 `true`：
+這由 `redactSensitiveData` 這個建構參數控制，預設為 `true`。以下兩種配置擇一使用。
+
+預設即安全——敏感 headers 在分享／匯出的輸出中會被遮罩：
 
 ```dart
-// Secure by default — sensitive headers are masked in shared/exported output.
-final inspector = FlutterInspector();
+final inspector = FlutterInspector(navigatorKey: navigatorKey);
+```
 
-// Opt out (e.g. internal builds where you need the raw values).
-final inspector = FlutterInspector(redactSensitiveData: false);
+或選擇退出（例如需要原始值的內部建置版）：
+
+```dart
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  redactSensitiveData: false,
+);
 ```
 
 這個 flag 只影響分享／匯出的文字——dashboard 內即時顯示的 headers 永遠是真實值。
@@ -257,7 +277,10 @@ WebView network 項目是流經與 Dio 擷取流量相同 buffer 的一般 `Netw
 一則持續更新的系統通知可摘要最新一筆呼叫與累計總數。它**預設停用**——請明確啟用：
 
 ```dart
-final inspector = FlutterInspector(showNetworkNotification: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  showNetworkNotification: true,
+);
 ```
 
 一旦啟用，inspector 會在初始化時替你請求通知權限——host App 不需要加任何權限處理程式碼。
@@ -268,20 +291,16 @@ final inspector = FlutterInspector(showNetworkNotification: true);
 - **iOS / macOS**：新的 API 呼叫抵達時顯示前景橫幅，節流方式與 Android 相同。**這需要在你的 `AppDelegate` 加一行設定——見下方 [必要的 iOS / macOS 設定](#必要的-ios--macos-設定)。** 少了它，iOS 會靜默地抑制前景橫幅（該項目仍會送達 Notification Center）。
 - 通知使用專屬的高優先權 Android channel（`flutter_inspector_network_v2`）——若你從較早的版本升級，舊的通知 channel 會自動被刪除，不會出現在系統設定中。
 
-要讓**點通知就打開 dashboard 並停在 Network 分頁**，請傳入一個同時也接進你 `MaterialApp` 的 `navigatorKey`：
+**點通知就會打開 dashboard 並停在 Network 分頁**——這用的是你在[初始化](#初始化)時已經接好的那把必填 `navigatorKey`，不需要額外設定：
 
 ```dart
-final navigatorKey = GlobalKey<NavigatorState>();
-
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey, // 必填——初始化時已設定
   showNetworkNotification: true,
-  navigatorKey: navigatorKey,
 );
-
-MaterialApp(navigatorKey: navigatorKey, /* ... */);
 ```
 
-沒有 `navigatorKey` 時通知仍會顯示；只是點它會是 no-op，因為沒有可路由的 navigation context。
+與其他 dashboard 入口一樣，只有在同一把 key 也傳給了 `MaterialApp` 時，這個點擊才會真的路由過去。
 
 <details>
 <summary>Android 設定（必要）</summary>
@@ -396,7 +415,10 @@ for (final entry in entries) {
 它**預設停用**，所以除非你主動要求，本套件絕不碰你的錯誤處理。在建構參數上啟用：
 
 ```dart
-final inspector = FlutterInspector(captureUncaughtErrors: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureUncaughtErrors: true,
+);
 ```
 
 這會接上三個標準 Flutter hook——`FlutterError.onError`（build/layout/paint 錯誤）、`PlatformDispatcher.instance.onError`（未捕捉的 async 錯誤，包含未 await 的 `Future` 錯誤）與 `ErrorWidget.builder`（哪個 widget build 失敗）。三者合起來涵蓋 framework、非同步與 build-time 錯誤，且不需要把 `runApp` 包進自訂 zone，所以沒有 `Zone mismatch` 要處理。
@@ -410,7 +432,10 @@ final inspector = FlutterInspector(captureUncaughtErrors: true);
 啟用 **lifecycle capture**，把每一次前景／背景轉換記錄成 `info` 等級的 Console log，這樣崩潰或卡住的請求就能對照當下 App 是否在前景來判讀：
 
 ```dart
-final inspector = FlutterInspector(captureLifecycleEvents: true);
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureLifecycleEvents: true,
+);
 ```
 
 它**預設停用**，而 `detach()` 會把 observer 移除。每一次轉換（`resumed` / `inactive` / `paused` / `detached`，Flutter 3.13+ 另有 `hidden`）都會成為一筆項目，並自動被合併時間軸與 network、navigation、database 事件交錯排列。
@@ -610,6 +635,7 @@ class ObjectBoxBrowserSource implements DatabaseBrowserSource {
 ```dart
 // At initialization
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   databaseSources: [SqfliteBrowserSource(db)],
 );
 
@@ -672,6 +698,7 @@ class AppDiagnosticInfoSource implements DiagnosticInfoSource {
 
 ```dart
 final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
   diagnosticInfoSource: AppDiagnosticInfoSource(),
 );
 ```

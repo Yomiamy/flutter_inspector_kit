@@ -53,7 +53,10 @@ void main() {
 
   group('ExportReportSheet (AC-19, AC-20)', () {
     testWidgets('offers all three filter dimensions', (tester) async {
-      await pumpSheet(tester, FlutterInspector());
+      await pumpSheet(
+        tester,
+        FlutterInspector(navigatorKey: GlobalKey<NavigatorState>()),
+      );
 
       // Sources.
       expect(find.text('Logs'), findsOneWidget);
@@ -71,7 +74,10 @@ void main() {
     });
 
     testWidgets('errors-only is off by default', (tester) async {
-      await pumpSheet(tester, FlutterInspector());
+      await pumpSheet(
+        tester,
+        FlutterInspector(navigatorKey: GlobalKey<NavigatorState>()),
+      );
 
       final checkbox = tester.widget<CheckboxListTile>(
         find.ancestor(
@@ -86,7 +92,9 @@ void main() {
       tester,
     ) async {
       mockShareSheet(tester);
-      final inspector = FlutterInspector()..log('hello from the log');
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      )..log('hello from the log');
 
       await pumpSheet(tester, inspector);
       await tester.tap(find.text('Share report'));
@@ -103,7 +111,9 @@ void main() {
       tester,
     ) async {
       mockShareSheet(tester);
-      final inspector = FlutterInspector()..log('log line');
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      )..log('log line');
 
       await pumpSheet(tester, inspector);
       await tester.tap(find.text('Network'));
@@ -119,9 +129,10 @@ void main() {
       tester,
     ) async {
       mockShareSheet(tester);
-      final inspector = FlutterInspector()
-        ..log('just-fyi')
-        ..log('boom', level: LogLevel.error);
+      final inspector =
+          FlutterInspector(navigatorKey: GlobalKey<NavigatorState>())
+            ..log('just-fyi')
+            ..log('boom', level: LogLevel.error);
 
       await pumpSheet(tester, inspector);
       await tester.tap(find.text('Errors & warnings only'));
@@ -135,7 +146,10 @@ void main() {
 
     testWidgets('defaults to the last-5m window', (tester) async {
       mockShareSheet(tester);
-      await pumpSheet(tester, FlutterInspector());
+      await pumpSheet(
+        tester,
+        FlutterInspector(navigatorKey: GlobalKey<NavigatorState>()),
+      );
       await tester.tap(find.text('Share report'));
       await tester.pumpAndSettle();
 
@@ -147,7 +161,9 @@ void main() {
     ) async {
       mockShareSheet(tester);
       // An old log falls outside the default 5m window but inside "All".
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.registry.log.add(
         LogEntry(
           message: 'ancient-history',
@@ -169,7 +185,13 @@ void main() {
       tester,
     ) async {
       mockShareSheet(tester);
-      await pumpSheet(tester, FlutterInspector(redactSensitiveData: false));
+      await pumpSheet(
+        tester,
+        FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          redactSensitiveData: false,
+        ),
+      );
       await tester.tap(find.text('Share report'));
       await tester.pumpAndSettle();
 
@@ -182,7 +204,10 @@ void main() {
       mockShareSheet(tester);
       await pumpSheet(
         tester,
-        FlutterInspector(diagnosticInfoSource: _FakeSource()),
+        FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          diagnosticInfoSource: _FakeSource(),
+        ),
       );
       await tester.tap(find.text('Share report'));
       await tester.pumpAndSettle();
@@ -210,7 +235,11 @@ void main() {
           },
         );
 
-        await pumpSheet(tester, FlutterInspector()..log('needle'));
+        await pumpSheet(
+          tester,
+          FlutterInspector(navigatorKey: GlobalKey<NavigatorState>())
+            ..log('needle'),
+        );
         await tester.tap(find.text('Share report'));
         await tester.pumpAndSettle();
 
@@ -231,7 +260,10 @@ void main() {
 
         await pumpSheet(
           tester,
-          FlutterInspector(diagnosticInfoSource: _BrokenSource()),
+          FlutterInspector(
+            navigatorKey: GlobalKey<NavigatorState>(),
+            diagnosticInfoSource: _BrokenSource(),
+          ),
         );
         await tester.tap(find.text('Share report'));
         await tester.pumpAndSettle();
@@ -259,7 +291,10 @@ void main() {
         },
       );
 
-      await pumpSheet(tester, FlutterInspector());
+      await pumpSheet(
+        tester,
+        FlutterInspector(navigatorKey: GlobalKey<NavigatorState>()),
+      );
       await tester.tap(find.text('Share report'));
       await tester.pumpAndSettle();
 
@@ -273,7 +308,10 @@ void main() {
     testWidgets('sharing is disabled when no source is selected', (
       tester,
     ) async {
-      await pumpSheet(tester, FlutterInspector());
+      await pumpSheet(
+        tester,
+        FlutterInspector(navigatorKey: GlobalKey<NavigatorState>()),
+      );
 
       for (final source in ['Logs', 'Network', 'Navigation', 'Database']) {
         await tester.tap(find.text(source));
@@ -290,7 +328,13 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(home: DashboardModal(inspector: FlutterInspector())),
+        MaterialApp(
+          home: DashboardModal(
+            inspector: FlutterInspector(
+              navigatorKey: GlobalKey<NavigatorState>(),
+            ),
+          ),
+        ),
       );
 
       expect(find.byIcon(Icons.ios_share), findsOneWidget);

@@ -1,10 +1,40 @@
+## 2.1.0
+
+### Added
+* **Dashboard error badges**: The Console and Network tabs now show a badge with the current error count, so problems are visible without opening each tab. Badges update live as new entries arrive.
+
+### Fixed
+* **`navigatorKey` is now declared `required`**, matching the behaviour that [2.0.0](#200) already introduced. The parameter has been mandatory since the dashboard started routing through it, but the constructor still accepted its omission — so the failure surfaced as a dashboard that silently would not open, rather than as an error. It is now caught at compile time. Code that already passes a `navigatorKey` is unaffected.
+* **Reported package version**: `FlutterInspector.version` and the header of every exported diagnostic report reported `1.9.0` on the 2.0.0 release. The version constant is now in sync with the published package version.
+
+### Docs
+* **`navigatorKey` wiring is now shown in both READMEs' Initialize example** — previously neither did, so following them produced an inspector whose dashboard could not open. Both now also note that passing the same key to `MaterialApp` is required and not compiler-checkable.
+* The Traditional Chinese README additionally had a stale `openDashboard(context)` call (an API removed in 2.0.0) and an outdated install version — both corrected.
+* The 2.0.0 entry below has been expanded: it described the `openDashboard` signature change but not the resulting `navigatorKey` requirement.
+
 ## 2.0.0
+
+### BREAKING CHANGES
+* **`openDashboard()` no longer takes a `BuildContext`, and `navigatorKey` became mandatory as a result.** The dashboard now resolves its context from `navigatorKey` instead of receiving one at the call site, so an inspector constructed without that key cannot open the dashboard at all — magical tap, floating button, and notification tap each become a silent no-op.
+
+  The constructor still accepted its omission in this release, so the requirement was enforced only at runtime, without an error explaining the failure. It is declared `required` from 2.1.0 onward.
+
+  **Migration** — pass a key to the inspector, and the *same* key to your `MaterialApp`:
+
+  ```dart
+  final navigatorKey = GlobalKey<NavigatorState>();
+
+  final inspector = FlutterInspector(navigatorKey: navigatorKey);
+
+  MaterialApp(navigatorKey: navigatorKey, /* ... */);
+  ```
+
+  Also drop the argument at every call site: `openDashboard(context)` → `openDashboard()`.
+
+  > This entry was expanded in 2.1.0. It originally read only "Removed the `BuildContext` parameter … as it is no longer required for opening the inspector", which described the signature change but omitted that the context requirement had moved to `navigatorKey` rather than disappeared.
 
 ### Added
 * **Timeline Bookmark**: Long-press any timeline entry in the Console tab to bookmark it. A push-pin indicator is displayed, and a new "Bookmarks" filter chip allows isolating bookmarked entries. Diagnostic reports now prefix bookmarked entries with a 📌 icon.
-
-### Changed
-* **openDashboard method**: Removed the `BuildContext` parameter from the `openDashboard` method as it is no longer required for opening the inspector.
 
 ## 1.9.0
 

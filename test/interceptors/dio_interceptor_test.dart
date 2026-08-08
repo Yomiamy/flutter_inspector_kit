@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
@@ -9,7 +10,7 @@ void main() {
     late FlutterInspectorDioInterceptor interceptor;
 
     setUp(() {
-      inspector = FlutterInspector();
+      inspector = FlutterInspector(navigatorKey: GlobalKey<NavigatorState>());
       interceptor = FlutterInspectorDioInterceptor(inspector);
     });
 

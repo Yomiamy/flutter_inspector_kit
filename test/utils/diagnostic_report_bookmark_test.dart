@@ -33,38 +33,41 @@ void main() {
       expect(report.contains('- ['), true);
     });
 
-    test('renders 📌 prefix for bookmarked network, navigator, and database entries', () {
-      final logInspector = LogInspector(bufferSize: 100);
-      final netEntry = NetworkEntry(
-        url: 'https://example.com/api',
-        method: 'GET',
-        statusCode: 200,
-        duration: const Duration(milliseconds: 150),
-      );
-      final navEntry = NavigatorEntry(
-        action: NavigatorAction.push,
-        routeName: '/details',
-      );
-      final dbEntry = DatabaseEntry(
-        operation: DatabaseOperation.query,
-        tableName: 'users',
-        affectedRows: 5,
-      );
+    test(
+      'renders 📌 prefix for bookmarked network, navigator, and database entries',
+      () {
+        final logInspector = LogInspector(bufferSize: 100);
+        final netEntry = NetworkEntry(
+          url: 'https://example.com/api',
+          method: 'GET',
+          statusCode: 200,
+          duration: const Duration(milliseconds: 150),
+        );
+        final navEntry = NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/details',
+        );
+        final dbEntry = DatabaseEntry(
+          operation: DatabaseOperation.query,
+          tableName: 'users',
+          affectedRows: 5,
+        );
 
-      final now = DateTime.now();
-      final report = buildDiagnosticReport(
-        logInspector: logInspector,
-        networkEntries: [netEntry],
-        navigatorEntries: [navEntry],
-        databaseEntries: [dbEntry],
-        now: now,
-        bookmarkedEntries: {netEntry, navEntry, dbEntry},
-      );
+        final now = DateTime.now();
+        final report = buildDiagnosticReport(
+          logInspector: logInspector,
+          networkEntries: [netEntry],
+          navigatorEntries: [navEntry],
+          databaseEntries: [dbEntry],
+          now: now,
+          bookmarkedEntries: {netEntry, navEntry, dbEntry},
+        );
 
-      expect(report.contains('- 📌 ['), true);
-      expect(report.contains('[NET] GET /api → 200 (150ms)'), true);
-      expect(report.contains('[NAV] push `/details`'), true);
-      expect(report.contains('[DB] query `users` (5 rows)'), true);
-    });
+        expect(report.contains('- 📌 ['), true);
+        expect(report.contains('[NET] GET /api → 200 (150ms)'), true);
+        expect(report.contains('[NAV] push `/details`'), true);
+        expect(report.contains('[DB] query `users` (5 rows)'), true);
+      },
+    );
   });
 }

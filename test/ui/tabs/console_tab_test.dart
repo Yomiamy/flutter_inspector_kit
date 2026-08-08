@@ -18,7 +18,9 @@ void main() {
     // ---- Preserved log-only tests (still valid under default All filter) ----
 
     testWidgets('displays logs and supports clearing', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.log('Test message 1', level: LogLevel.info);
       inspector.log('Test message 2', level: LogLevel.error);
 
@@ -41,7 +43,9 @@ void main() {
     testWidgets(
       'clearing wipes all four merged-timeline sources, not just logs',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         inspector.log('log msg', level: LogLevel.info);
         inspector.registry.navigator.add(
           NavigatorEntry(action: NavigatorAction.push, routeName: '/home'),
@@ -85,7 +89,9 @@ void main() {
     testWidgets('tapping error log with stackTrace opens LogDetailView', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.log(
         'Error occurred',
         level: LogLevel.error,
@@ -110,7 +116,9 @@ void main() {
     testWidgets('tapping error log with data opens LogDetailView', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.log(
         'Error with data',
         level: LogLevel.error,
@@ -133,7 +141,9 @@ void main() {
     });
 
     testWidgets('shows a chevron only on expandable rows', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       // Expandable: has a stackTrace.
       inspector.log('Expandable', level: LogLevel.error, stackTrace: 'x');
       // Non-expandable: plain info with neither stackTrace nor data.
@@ -163,7 +173,9 @@ void main() {
     testWidgets(
       'tapping pure info log without stackTrace or data does not navigate',
       (tester) async {
-        final inspector = FlutterInspector();
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
         inspector.log('Pure info', level: LogLevel.info);
 
         await tester.pumpWidget(
@@ -188,7 +200,9 @@ void main() {
     // ---- New merged-timeline tests ----
 
     testWidgets('filter chip Network shows only network rows', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.log('a log', level: LogLevel.info);
       inspector.logNetwork(
         NetworkEntry(
@@ -220,7 +234,9 @@ void main() {
     testWidgets('All filter shows mixed sources sorted newest-first', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       final tLog = DateTime(2026, 6, 26, 10, 0, 0); // oldest
       final tNav = DateTime(2026, 6, 26, 10, 0, 1);
       final tNet = DateTime(2026, 6, 26, 10, 0, 2);
@@ -277,7 +293,9 @@ void main() {
     });
 
     testWidgets('network row taps into NetworkDetailView', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.logNetwork(
         NetworkEntry(
           method: 'GET',
@@ -302,7 +320,10 @@ void main() {
     });
 
     testWidgets('network row tap forwards redactSensitiveData', (tester) async {
-      final inspector = FlutterInspector(redactSensitiveData: false);
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: false,
+      );
       inspector.logNetwork(
         NetworkEntry(
           method: 'GET',
@@ -330,7 +351,9 @@ void main() {
     testWidgets('tints only error logs and failed network rows', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.log('boom', level: LogLevel.error);
       inspector.log('heads up', level: LogLevel.warning);
       inspector.log('all good', level: LogLevel.info);
@@ -383,7 +406,9 @@ void main() {
     testWidgets('nav and db rows are not tappable (no chevron)', (
       tester,
     ) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.registry.navigator.add(
         NavigatorEntry(action: NavigatorAction.push, routeName: '/home'),
       );
@@ -414,7 +439,9 @@ void main() {
     });
 
     testWidgets('each row shows displayTime (HH:mm:ss.mmm)', (tester) async {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       inspector.registry.log.add(
         LogEntry(
           message: 'tm',

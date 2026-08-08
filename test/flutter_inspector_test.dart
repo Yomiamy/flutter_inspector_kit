@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 import 'package:flutter_inspector_kit/src/version.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,7 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('FlutterInspector', () {
     test('can be instantiated', () {
-      final inspector = FlutterInspector();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
       expect(inspector, isA<FlutterInspector>());
     });
 

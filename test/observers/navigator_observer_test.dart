@@ -11,7 +11,7 @@ void main() {
     late FlutterInspectorNavigatorObserver observer;
 
     setUp(() {
-      inspector = FlutterInspector();
+      inspector = FlutterInspector(navigatorKey: GlobalKey<NavigatorState>());
       observer = inspector.navigatorObserver;
     });
 
