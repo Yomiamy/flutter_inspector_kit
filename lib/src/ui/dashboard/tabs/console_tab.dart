@@ -61,21 +61,20 @@ class _ConsoleTabState extends State<ConsoleTab> {
   bool get _isAll => _selected.length == _all.length;
 
   void _selectAll() => setState(() {
-        _selected = {..._all};
-        _showOnlyBookmarks = false;
-      });
+    _selected = {..._all};
+    _showOnlyBookmarks = false;
+  });
 
   void _selectOnly(TimelineSource source) => setState(() {
-        _selected = {source};
-        _showOnlyBookmarks = false;
-      });
+    _selected = {source};
+    _showOnlyBookmarks = false;
+  });
 
   @override
   Widget build(BuildContext context) {
     var entries = widget.inspector.mergedTimeline(sources: _selected);
     if (_showOnlyBookmarks) {
-      entries =
-          entries.where((e) => widget.inspector.isBookmarked(e)).toList();
+      entries = entries.where((e) => widget.inspector.isBookmarked(e)).toList();
     }
 
     return Column(
@@ -213,8 +212,11 @@ class _LogEntryRow extends StatelessWidget {
       title: Row(
         children: [
           if (isBookmarked) ...[
-            const Icon(Icons.push_pin,
-                size: ThemeSize.size18, color: ThemeColor.colorFF9800),
+            const Icon(
+              Icons.push_pin,
+              size: ThemeSize.size18,
+              color: ThemeColor.colorFF9800,
+            ),
             const SizedBox(width: ThemeSize.space4),
           ],
           Expanded(
@@ -231,10 +233,10 @@ class _LogEntryRow extends StatelessWidget {
           : null,
       onTap: canTap
           ? () => pushInspectorRoute(
-                context,
-                kInspectorLogDetailRoute,
-                (_) => LogDetailView(entry: entry),
-              )
+              context,
+              kInspectorLogDetailRoute,
+              (_) => LogDetailView(entry: entry),
+            )
           : null,
       onLongPress: onToggleBookmark,
     );
@@ -260,8 +262,11 @@ class _NetworkEntryRow extends StatelessWidget {
       title: Row(
         children: [
           if (isBookmarked) ...[
-            const Icon(Icons.push_pin,
-                size: ThemeSize.size18, color: ThemeColor.colorFF9800),
+            const Icon(
+              Icons.push_pin,
+              size: ThemeSize.size18,
+              color: ThemeColor.colorFF9800,
+            ),
             const SizedBox(width: ThemeSize.space4),
           ],
           Expanded(
@@ -332,13 +337,14 @@ class _NavigatorEntryRow extends StatelessWidget {
       title: Row(
         children: [
           if (isBookmarked) ...[
-            const Icon(Icons.push_pin,
-                size: ThemeSize.size18, color: ThemeColor.colorFF9800),
+            const Icon(
+              Icons.push_pin,
+              size: ThemeSize.size18,
+              color: ThemeColor.colorFF9800,
+            ),
             const SizedBox(width: ThemeSize.space4),
           ],
-          Expanded(
-            child: Text('${entry.action.name} ${entry.displayName}'),
-          ),
+          Expanded(child: Text('${entry.action.name} ${entry.displayName}')),
         ],
       ),
       subtitle: Text(entry.displayTime),
@@ -365,13 +371,14 @@ class _DatabaseEntryRow extends StatelessWidget {
       title: Row(
         children: [
           if (isBookmarked) ...[
-            const Icon(Icons.push_pin,
-                size: ThemeSize.size18, color: ThemeColor.colorFF9800),
+            const Icon(
+              Icons.push_pin,
+              size: ThemeSize.size18,
+              color: ThemeColor.colorFF9800,
+            ),
             const SizedBox(width: ThemeSize.space4),
           ],
-          Expanded(
-            child: Text('${entry.operation.name} ${entry.tableName}'),
-          ),
+          Expanded(child: Text('${entry.operation.name} ${entry.tableName}')),
         ],
       ),
       subtitle: Text(entry.displayTime),

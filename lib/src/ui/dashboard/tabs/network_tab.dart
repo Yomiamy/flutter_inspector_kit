@@ -275,8 +275,7 @@ class _EntryTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (entry.duration != null &&
-              entry.duration! >= slowRequestThreshold)
+          if (entry.duration != null && entry.duration! >= slowRequestThreshold)
             Container(
               margin: const EdgeInsets.only(right: ThemeSize.space8),
               padding: const EdgeInsets.symmetric(
@@ -364,15 +363,15 @@ class _ErrorSummaryBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final groups = aggregateNetworkErrors(entries);
     final slowCount = entries
-        .where(
-          (e) => e.duration != null && e.duration! >= slowRequestThreshold,
-        )
+        .where((e) => e.duration != null && e.duration! >= slowRequestThreshold)
         .length;
     final thresholdSec = (slowRequestThreshold.inMilliseconds / 1000)
         .toStringAsFixed(1)
         .replaceAll(RegExp(r'\.0$'), '');
-    final slowText =
-        slowCount > 0 ? ' | 🐢 $slowCount slow (>$thresholdSec' 's)' : '';
+    final slowText = slowCount > 0
+        ? ' | 🐢 $slowCount slow (>$thresholdSec'
+              's)'
+        : '';
 
     if (groups.isEmpty && slowCount == 0) return const SizedBox.shrink();
 
@@ -397,7 +396,8 @@ class _ErrorSummaryBanner extends StatelessWidget {
                 ),
               ] else if (slowCount > 0) ...[
                 Text(
-                  '🐢 $slowCount slow requests (>$thresholdSec' 's)',
+                  '🐢 $slowCount slow requests (>$thresholdSec'
+                  's)',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -426,7 +426,8 @@ class _ErrorSummaryBanner extends StatelessWidget {
               Text(
                 groups.isNotEmpty
                     ? 'Error Summary$slowText'
-                    : '🐢 $slowCount slow requests (>$thresholdSec' 's)',
+                    : '🐢 $slowCount slow requests (>$thresholdSec'
+                          's)',
                 style: Theme.of(context).textTheme.labelSmall,
               ),
               InkWell(
