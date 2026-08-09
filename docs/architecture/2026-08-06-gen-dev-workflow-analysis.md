@@ -1,12 +1,22 @@
 # gen-dev-workflow 全階段分析報告
 
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-08-10**：**委派後端由 `agy -p` headless 改為 `gemini-mcp-tool`（MCP）**。底層後端不變（仍是 antigravity-cli），換掉的是傳輸層——`agy -p` 不吃 stdin、權限卡死，委派實際一律落到 fallback；MCP 路徑實測可寫檔、可跑 shell、可 `git commit`。同步更新各 stage 委派欄、Model 策略、缺點表「agy 依賴」項，新增 MCP 路徑的三條委派紀律與已知限制。
 > * **2026-08-06**：同步 SKILL.md 變更——STAGE 6 新增「文件同步」前置步驟（gen-sync-docs-by-branchs → gen-commit），確保 worktree 清理前 docs 已反映分支最終狀態。更新 STAGE 6 表格、委派規則、優缺點分析。
 > * **2026-07-30**：同步審查 SKILL.md（含 `acf4f70` 新增的 STAGE 1 規劃文件搬移步驟）。STAGE 1 新增「帶入規劃文件」步驟、補記 Bug 1.6、更新總覽與優缺點分析。
 > * **2026-07-21**：建立初版（從 `docs/features/` 移至 `docs/architecture/`）。
 ## 總覽
 
-`gen-dev-workflow` 是一個**全自動開發流程編排器**，從使用者說「幫我做 X 功能」到 PR 建立，共 6 個 stage（0a → 0b → 1 → 2 → 3 → 4），外加兩個獨立入口的 STAGE 5（回覆 PR review）與 STAGE 6（PR 合併後清理 worktree），以及小修正用的 **quick 模式**（單暫停點快速通道，不建 worktree）。核心機制是 **Claude 做總指揮 + `agy` CLI 做委派執行**。自 STAGE 1 起，整條流程搬進一個獨立 worktree 執行——worktree 才是真正的隔離邊界。
+`gen-dev-workflow` 是一個**全自動開發流程編排器**，從使用者說「幫我做 X 功能」到 PR 建立，共 6 個 stage（0a → 0b → 1 → 2 → 3 → 4），外加兩個獨立入口的 STAGE 5（回覆 PR review）與 STAGE 6（PR 合併後清理 worktree），以及小修正用的 **quick 模式**（單暫停點快速通道，不建 worktree）。核心機制是 **Claude 做總指揮 + `gemini-mcp-tool`（MCP）做委派執行**。自 STAGE 1 起，整條流程搬進一個獨立 worktree 執行——worktree 才是真正的隔離邊界。
+
+> **📌 委派後端的傳輸層變更（2026-08-10）**：後端一直是 antigravity-cli，但**傳輸層由 `agy -p` headless 改為 MCP 工具 `mcp__gemini-cli__ask-gemini`**。原因：`agy -p` 不吃 stdin、權限會卡死（見 [`brainstorm §2.3`](../brainstorm/2026-08-07-workflow-brainstorm.md)），委派實際一律落到 fallback，「委派」名存實亡。MCP 路徑經實測可寫檔、可改既有檔、可跑 shell 與 `git commit`，是同一後端唯一能真正委派的通道。
+>
+> **MCP 路徑的三條紀律**（因 MCP 無法指定 cwd 而必要）：
+> 1. **工作目錄寫死在 prompt**——不寫絕對路徑，子進程可能在主 repo 而非 worktree 動手。
+> 2. **跨出工作目錄先問**——派發 prompt 明令：需存取／修改該目錄外的檔案時停止回報，不自行動手。
+> 3. **回報不等於事實**——子進程宣稱「已 commit」須由主對話親自 `git log` / `git status` 驗證。
+>
+> ⚠️ **已知限制**：MCP 呼叫無法帶 `--print-timeout`，長任務無逾時控制，需靠拆小任務規避。
 
 Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `opus`/`sonnet` 別名），而 **effort 參數已從 frontmatter 中全數移除**，改為在**派發任務時顯式帶入**。SKILL.md 定義了**推論等級表**（對應的 model 與 effort 參數），以此維持不同 stage 之間的差異化配置。
 
@@ -20,7 +30,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | planner |
 | **Model** | 最強推論（planner frontmatter：`model: opus`；派發時帶入 `effort: xhigh`） |
-| **委派** | 無 agy 委派，Claude 親自執行 |
+| **委派** | 無委派，Claude 親自執行 |
 | **並行** | 🟢 並行 2 條線：A. 專案 context 收集（讀檔 / git log）B. 相似功能代碼調查 |
 | **產出** | `docs/features/YYYY-MM-DD-<feature>.md`（使用者故事、驗收條件、範圍邊界） |
 | **暫停點** | ⏸ 展示規格 → 等使用者確認 |
@@ -39,7 +49,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | planner |
 | **Model** | 最強推論（planner frontmatter：`model: opus`；派發時帶入 `effort: xhigh`） |
-| **委派** | 無 agy 委派 |
+| **委派** | 無委派 |
 | **並行** | 無 |
 | **產出** | `docs/plans/YYYY-MM-DD-<feature>.md`（資料結構、檔案異動、任務拆分 + 複雜度標註） |
 | **暫停點** | ⏸ 展示計畫 → 等使用者確認 |
@@ -59,7 +69,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | gen-gh-issue skill + brancher |
 | **Model** | 輕量（brancher frontmatter：`model: sonnet`；派發時帶入 `effort: high`）——純 IO，且建立前有暫停點人肉把關 |
-| **委派** | ✦ agy 執行 `gh issue create/view` + `git worktree add` + `flutter pub get` |
+| **委派** | ✦ MCP 執行 `gh issue create/view` + `git worktree add` + `flutter pub get`（`gh issue create` 須先過暫停點） |
 | **並行** | 無 |
 | **產出** | GitHub Issue + Git 分支 + **獨立 worktree** |
 | **暫停點** | ⏸ 展示 Issue 標題/內容 + 分支/worktree 名稱 → 等使用者確認或修改 |
@@ -84,28 +94,30 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | implementer |
 | **Model** | 實作動態分級（見下表）｜驗收走 verifier agent（最強推論） |
-| **委派** | ✦ agy 負責代碼 + 測試 + commit；驗收委派 verifier agent（frontmatter：`model: opus`；且必須顯式帶入 `effort: xhigh`） |
+| **委派** | ✦ MCP 負責代碼 + 測試 + commit；驗收委派 verifier agent（frontmatter：`model: opus`；且必須顯式帶入 `effort: xhigh`） |
 | **並行** | 🟢 條件式並行（≥2 獨立任務且寫入路徑不重疊） |
 | **產出** | 實作代碼 + 測試 + commits |
 | **暫停點** | ⏸ 每個任務/每批並行完成後展示變更 + 測試結果 → 等確認 |
 
-> **⚠️ implementer 只是協調者（Orchestrator Mode）：** `implementer` agent frontmatter 標題即為 `# Implementer (Orchestrator Mode)`，設計上是「工頭」角色——**本身不親自寫代碼**，而是把每個任務的「TDD 寫測試 → 實作 → 語意化 commit」透過 `agy -p` 委派出去，自己只負責讀關鍵檔案做兩階段驗收（spec review → code quality review）。因此上表「Model：實作動態分級」指的是**委派給 `agy` 的 model**，不是 implementer 自己跑的推論等級；implementer 在 orchestrator 模式下幾乎不吃推論成本，Token 都花在 `agy` 側與 verifier 驗收。
+> **⚠️ implementer 只是協調者（Orchestrator Mode）：** `implementer` agent frontmatter 標題即為 `# Implementer (Orchestrator Mode)`，設計上是「工頭」角色——**本身不親自寫代碼**，而是把每個任務的「TDD 寫測試 → 實作 → 語意化 commit」透過 `mcp__gemini-cli__ask-gemini` 委派出去，自己只負責讀關鍵檔案做兩階段驗收（spec review → code quality review）。因此上表「Model：實作動態分級」指的是**委派後端的 model**，不是 implementer 自己跑的推論等級；implementer 在 orchestrator 模式下幾乎不吃推論成本，Token 都花在委派側與 verifier 驗收。
 >
-> **唯一例外——`agy` 不在 PATH 時的 Fallback：** implementer 退回 `subagent-driven-development` skill **親自逐任務實作**（仍守 TDD → 實作 → commit 順序）。此時它就不再只是協調者，而是實際執行者，實作推論成本改由 implementer 自身承擔。這條 Fallback 是 STAGE 2「協調者假設」失效的唯一情境，判讀成本/效能時需區分兩種模式。
+> **唯一例外——MCP 不可用時的 Fallback：** implementer 退回 `subagent-driven-development` skill **親自逐任務實作**（仍守 TDD → 實作 → commit 順序）。此時它就不再只是協調者，而是實際執行者，實作推論成本改由 implementer 自身承擔。這條 Fallback 是 STAGE 2「協調者假設」失效的唯一情境，判讀成本/效能時需區分兩種模式。
+>
+> **📌 2026-08-10 之前，這條「例外」其實才是常態：** `agy -p` headless 不可用，委派一律落到 fallback——所謂的 orchestrator 模式在舊路徑下形同虛設。改走 MCP 後，協調者假設才第一次真正成立。
 
-**Model 動態分級（STAGE 2 內部，僅指「委派給 agy 寫代碼」的 model）：**
+**Model 動態分級（STAGE 2 內部，僅指「委派後端寫代碼」的 model）：**
 
 | 任務複雜度 | 委派等級 | 範例 |
 |-----------|-----------|------|
-| 觸及 1–2 檔、規格完整、機械性 | 快/便宜（agy 內部 fast model） | 新增 DTO 欄位、補 util function |
+| 觸及 1–2 檔、規格完整、機械性 | 快/便宜（委派後端內部 fast model） | 新增 DTO 欄位、補 util function |
 | 觸及多檔、需整合協調 | 標準 | 跨 service 串接、改既有流程 |
 | 需設計判斷或廣泛 codebase 理解 | 最強推論 | 重構狀態機、新增跨層架構 |
 
-> **驗收與實作分離**：上表是「agy 寫代碼」用的浮動等級；**驗收固定委派 verifier agent**（frontmatter：`model: opus`；且必須顯式帶入 `effort: xhigh`），不隨實作任務浮動。刻意讓驗收等級 ≥ 實作等級，避免產代碼的便宜 model 自審（與 STAGE 3 同源交叉檢查的邏輯一致）。
+> **驗收與實作分離**：上表是「委派後端寫代碼」用的浮動等級；**驗收固定委派 verifier agent**（frontmatter：`model: opus`；且必須顯式帶入 `effort: xhigh`），不隨實作任務浮動。刻意讓驗收等級 ≥ 實作等級，避免產代碼的便宜 model 自審（與 STAGE 3 同源交叉檢查的邏輯一致）。
 
 **執行工作：**
 1. 解析實作計畫，判斷並行/序列模式
-2. 逐任務（或並行批次）分派給 agy
+2. 逐任務（或並行批次）透過 MCP 分派
 3. 委派 verifier agent（最強推論）做兩階段驗收：spec compliance → code quality
 4. 每個任務完成後暫停展示結果
 5. 失敗時進入 retry 迴圈（最多 2 次重派）
@@ -123,7 +135,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | reviewer |
 | **Model** | 最強推論（reviewer frontmatter：`model: opus`；派發時帶入 `effort: xhigh`）——根因判斷 |
-| **委派** | **不委派 agy**（審查不可外包） |
+| **委派** | **不委派**（審查不可外包） |
 | **並行** | 無 |
 | **產出** | 審查報告 |
 | **暫停點** | ⏸ 展示報告 → 通過則進 STAGE 4，不通過則退回 STAGE 2 |
@@ -142,14 +154,14 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 | 項目 | 內容 |
 |------|------|
 | **Agent** | publisher |
-| **Model** | 輕量（publisher frontmatter：`model: sonnet`；派發時帶入 `effort: high`）——重活已委派 agy，發布前有暫停點人肉把關 |
-| **委派** | ✦ agy 分析 Diff → 產 PR 草稿；Claude 校對 |
+| **Model** | 輕量（publisher frontmatter：`model: sonnet`；派發時帶入 `effort: high`）——重活已委派，發布前有暫停點人肉把關 |
+| **委派** | ✦ MCP 分析 Diff → 產 PR 草稿（唯讀）；Claude 校對；`gh pr create` 不委派 |
 | **並行** | 無 |
 | **產出** | GitHub PR |
 | **暫停點** | ⏸ 展示 PR 草稿 → 等使用者確認發布 |
 
 **執行工作：**
-1. agy 分析 branch diff，生成 PR 描述草稿
+1. 委派分析 branch diff，生成 PR 描述草稿
 2. Claude 校對草稿品質
 3. 暫停讓使用者確認
 4. 確認後發布 PR
@@ -162,7 +174,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | responder → reviewer → publisher |
 | **Model** | 輕量（responder，帶 `effort: high`）→ 最強推論（reviewer，帶 `effort: xhigh`）→ 輕量（publisher，帶 `effort: high`） |
-| **委派** | 無 agy 委派 |
+| **委派** | 無委派 |
 | **並行** | 無 |
 | **觸發** | 使用者說「PR #42 有新的 review 意見」 |
 
@@ -179,7 +191,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | gen-sync-docs-by-branchs → gen-commit → worktree-close-cleanup skill |
 | **Model** | —（skill 於主對話執行，無獨立綁定） |
-| **委派** | ✦ agy 執行 `git worktree remove` |
+| **委派** | ✦ MCP 執行 `git worktree remove` |
 | **並行** | 無 |
 | **產出** | docs 同步更新 + commit → 移除 STAGE 1 建立的 worktree（**對應 branch 一律保留、不刪除**） |
 | **觸發** | PR **實際合併後**，使用者說「PR #42 合併了，清理 worktree」 |
@@ -203,7 +215,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **觸發** | `/gen-dev-workflow quick <描述或 #issue>`、「快速修正 <描述>」 |
 | **適用** | 預期 diff 小（約 ≤3 檔）、無架構變動、無新依賴、不需規劃文件 |
-| **流程** | 建 branch（不建 worktree）→ 主對話直接實作（不委派 implementer/agy）→ reviewer 單 lens 快掃 → gen-pr 產草稿 → 發布 |
+| **流程** | 建 branch（不建 worktree）→ 主對話直接實作（不委派 implementer/MCP）→ reviewer 單 lens 快掃 → gen-pr 產草稿 → 發布 |
 | **暫停點** | 只有一個：PR 草稿確認前 |
 | **State** | 照寫 `<branch-slug>.json`（`mode: "quick"`），續接與 PR MERGED 自動刪檔複用既有機制 |
 
@@ -225,7 +237,7 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），而 
 | 最強推論 | `model: opus` | `effort: xhigh` | planner、reviewer、verifier |
 | 標準 | `model: sonnet` | `effort: max` | implementer |
 | 輕量 | `model: sonnet` | `effort: high` | brancher、responder、publisher |
-| 快/便宜 | agy 內部 fast model（不在 Claude 側綁定） | — | STAGE 2 機械性任務 |
+| 快/便宜 | 委派後端內部 fast model（不在 Claude 側綁定） | — | STAGE 2 機械性任務 |
 
 ### 綁定原則：
 - model 一律用**別名**（`opus`/`sonnet`），不綁版本 ID——CLI 自動解析到當代 model。這部分仍由 frontmatter 管理。
@@ -248,7 +260,7 @@ graph LR
         E6["STAGE 6 清理 Worktree<br/>主對話執行"]
     end
 
-    subgraph "agy 委派"
+    subgraph "MCP 委派"
         B2["STAGE 1 ✦"] 
         C2["STAGE 2 ✦"]
         E2["STAGE 4 ✦"]
@@ -264,9 +276,9 @@ graph LR
 ```
 
 ### STAGE 6 委派規則
-- STAGE 6 開始時先跑 gen-sync-docs-by-branchs（以當前分支為目標同步文件）→ gen-commit（將同步結果 commit），之後走 ✦ agy 委派 `git worktree remove`（純 IO，只移除 worktree、不刪 branch）。文件同步確保 docs 在 worktree 被清理前已反映分支的最終狀態
+- STAGE 6 開始時先跑 gen-sync-docs-by-branchs（以當前分支為目標同步文件）→ gen-commit（將同步結果 commit），之後走 ✦ MCP 委派 `git worktree remove`（純 IO，只移除 worktree、不刪 branch）。文件同步確保 docs 在 worktree 被清理前已反映分支的最終狀態
 
-### 不委派 agy 的硬規則
+### 不委派的硬規則
 - commit message（直接依 diff 生成，省一次 context 來回）
 - 單一檔案 < 50 行的小修正
 - STAGE 3 審查報告（reviewer 親自判斷）
@@ -325,7 +337,7 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 |------|------|------|
 | **架構完整性** | 端到端覆蓋 | 從需求到 PR 全流程自動化，6 個 stage 涵蓋 SDLC 核心環節 |
 | **成本優化** | Model 動態分級 | 不是所有任務都用 Opus，機械性工作用便宜 model，真正降成本 |
-| **品質保障** | 雙層交叉檢查 | 兩道防線都刻意避免「自己審自己」：(1) STAGE 2 驗收委派獨立 verifier agent（最強推論），與寫代碼的 agy（可能是便宜 model）不同源；(2) STAGE 3 reviewer 用最強推論，與 implementer 不同源。驗收等級刻意 ≥ 實作等級，確保把關強度。quick 模式砍掉所有儀式時也保留這道閘門 |
+| **品質保障** | 雙層交叉檢查 | 兩道防線都刻意避免「自己審自己」：(1) STAGE 2 驗收委派獨立 verifier agent（最強推論），與寫代碼的委派後端（可能是便宜 model）不同源；(2) STAGE 3 reviewer 用最強推論，與 implementer 不同源。驗收等級刻意 ≥ 實作等級，確保把關強度。quick 模式砍掉所有儀式時也保留這道閘門 |
 | **換代維護** | Policy over models | model 綁在 agent frontmatter（別名），effort 則在呼叫時顯式帶入。當 model 換代時，由於使用了別名，frontmatter 免改；調整某角色 effort 等級只需更改派發參數即可。 |
 | **韌性** | Token Budget Gate 閉環 | 長流程不會因 context 爆炸而丟失進度，state 持久化是真正的救生圈 |
 | **可恢復性** | per-worktree state 檔 | session 中斷後可續接，`interrupted_by` 區分主動離開 vs 系統保護 |
@@ -342,7 +354,7 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 |------|------|--------|------|
 | **過度工程** | ~~小功能走全流程太重~~ | ✅ 已解決 | quick 模式已補上逃生艙：小修正走「branch → 直改 → reviewer 快掃 → PR」單暫停點通道。殘餘風險：「是否屬於小修正」的判斷仍靠 LLM 自律，quick 被拿來跑大功能時只有「中途升級轉完整流程」這條軟性防線 |
 | **暫停點過多** | Human-in-the-loop 頻率太高 | 🟡 中 | 正常路徑就有 6 個固定暫停點（STAGE 0a/0b/1/3/4 各一 + STAGE 2 每任務一次），外加條件式的「模糊需求」暫停。STAGE 2 任務多時暫停次數線性膨脹，使用者必須一直盯著等確認，「自動驅動」的承諾被密集確認打斷 |
-| **agy 依賴** | 外部 CLI 是單點故障 | 🟡 中 | 雖說有 fallback，但 `agy` 不在 PATH 時的 fallback 行為描述模糊——「功能仍可運作但不會委派」到底怎麼運作？哪些 stage 受影響？ |
+| **委派後端依賴** | ~~外部 CLI 是單點故障~~ 傳輸層已換，依賴本身仍在 | 🟡 中（原 🟡 中，性質改變） | 2026-08-10 傳輸層由 `agy -p` headless 改為 MCP（`mcp__gemini-cli__ask-gemini`），**解決的是「委派根本跑不動」**——舊路徑因 stdin/權限問題實際一律落到 fallback，orchestrator 模式形同虛設。**未解決的**：後端仍是單一外部依賴（MCP server 掛掉照樣退 fallback），且新路徑帶來兩個舊路徑沒有的缺口——(1) MCP 無法指定 cwd，工作目錄靠 prompt 寫絕對路徑約束，屬**文件層自律而非程式強制**；(2) 無 `--print-timeout` 對應機制，長任務卡住只能人為中斷 |
 | **Model 假設** | 綁定 Anthropic 模型族 | 🟢 低 | 已大幅收斂：版本 ID 全數移除，model/effort 綁在 agent frontmatter（別名），SKILL.md 只寫推論等級名——同代升級與跨代換代都免改。殘餘綁定：`opus`/`sonnet` 別名與 effort 參數仍是 Claude Code 專有，若換到非 Anthropic 生態，需重寫的只剩每個 agent 檔的兩行 frontmatter，等級語意（最強推論/標準/輕量）可原樣搬移 |
 | **狀態檔脆弱** | ~~JSON 手動管理無校驗~~ | ✅ 已解決 | `scripts/wf-state.sh` 成為 state 檔唯一存取入口：schema 校驗（含 `schema_version` 欄位）+ 原子寫入（tmp → jq 驗證 → mv），壞資料進不了磁碟、寫入半途中斷不留半套 state；`get` 讀取即校驗，腐壞檔立即失敗而非靜默續接 |
 | **並行複雜度** | 契約規則難以程式化驗證 | 🟡 中 | 「寫入路徑不重疊」「共享資源指定唯一 owner」靠 planner 在計畫中標好——但 planner 本身是 LLM，標錯怎麼辦？沒有靜態檢查機制 |
