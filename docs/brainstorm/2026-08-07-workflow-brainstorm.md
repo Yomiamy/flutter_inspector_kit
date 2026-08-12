@@ -17,7 +17,7 @@
 
 ## 0. 完成度總覽（Bug 1.x / Gap 2.1–2.5 核對於 2026-07-21 · Gap 2.6 增補於 2026-08-07）
 
-> 狀態依 [`docs/features/2026-07-18-gen-dev-workflow-analysis.md`](../features/2026-07-18-gen-dev-workflow-analysis.md) 核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。
+> 狀態依 [`docs/architecture/2026-08-12-gen-dev-workflow-analysis.md`](../architecture/2026-08-12-gen-dev-workflow-analysis.md) 核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。（原引用 `docs/features/2026-07-18-...`，該檔已隨文件搬遷／改名不存在。）
 >
 > **🔍 實查校正 (2026-08-06)**：本註記原寫「`wf-state.sh` 不在本 repo，無法直接讀原始碼，
 > 故以該份 analysis 為權威來源」——**此前提已不成立**。該腳本就在本 repo 的
