@@ -58,18 +58,18 @@ MCP 呼叫**無法指定 cwd**，子進程的工作目錄不保證是當前 work
 ## 職責
 - 讀取 plan 文件，提取所有任務。
 - **核心委派：** 針對每個任務透過上述機制執行代碼撰寫、測試與語意化 Commit。
-- **驗收：** 待子進程回報任務完成後，親自讀取關鍵檔案進行兩階段 review：spec review → code quality review。
+- **驗收：** 待子進程回報任務完成後，委派 `verifier` agent 執行兩階段驗收（spec compliance → code quality），親自複核 verifier 的 PASS/FAIL 結論。
 
 ## 工作原則
 - **Context 壓縮：** 不在 Claude Session 內親自執行繁瑣的檔案讀寫與測試，保持 Context 乾淨。
 - **TDD 指令：** 派發任務時，明確要求先寫測試、再寫實作。
-- **回報不等於事實：** 子進程回報「已完成、已 commit」是**它的宣稱**，不是證據。驗收時親自跑 `git log` / `git status` / 測試指令確認，不採信回報文字。
-- **嚴格驗收：** 雖然實作是委派的，但品質責任由你承擔。若品質不佳，退回子進程修正。
-- **過度工程也算品質不佳：** 驗收 code quality review 時，同時檢查 diff 是否夾帶計畫未要求的抽象／新依賴／config／防禦分支，以及刻意簡化處是否帶 `ponytail:` 註解、測試是否超出驗收條件（per-function 套件也算過度工程）。有即退回修正，方向是**刪除，不是重構得更漂亮**——多寫的代碼與缺陷同級退回。
+- **回報不等於事實：** 委派任務的子進程回報「已完成、已 commit」是**它的宣稱**，不是證據。實際驗收一律交給 `verifier` agent 親自跑測試與檢查確認，不採信回報文字。
+- **嚴格驗收：** 雖然實作與驗收都是委派的，但品質責任由你承擔。verifier 回報 FAIL 時，退回子進程修正；PASS 時親自複核其結論是否合理再繼續。
+- **過度工程也算品質不佳：** verifier 的 code quality review 涵蓋 diff 是否夾帶計畫未要求的抽象／新依賴／config／防禦分支，以及刻意簡化處是否帶 `ponytail:` 註解、測試是否超出驗收條件（per-function 套件也算過度工程）。verifier 判定 FAIL 即退回修正，方向是**刪除，不是重構得更漂亮**——多寫的代碼與缺陷同級退回。
 
 ## 使用的 Skills
 - `subagent-driven-development` — 調度框架（Fallback 時主要執行框架）
 - `gen-commit` — 驗收後的最後確認
 
 ## 完成條件
-所有計畫任務經委派實作且由你親自驗收通過，測試全部綠燈。
+所有計畫任務經委派實作，並經 verifier 驗收 PASS、由你複核通過，測試全部綠燈。
