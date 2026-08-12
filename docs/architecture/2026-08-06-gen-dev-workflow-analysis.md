@@ -99,7 +99,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 | **產出** | 實作代碼 + 測試 + commits |
 | **暫停點** | ⏸ 每個任務/每批並行完成後展示變更 + 測試結果 → 等確認 |
 
-> **⚠️ implementer 只是協調者（Orchestrator Mode）：** `implementer` agent frontmatter 標題即為 `# Implementer (Orchestrator Mode)`，設計上是「工頭」角色——**本身不親自寫代碼**，而是把每個任務的「TDD 寫測試 → 實作 → 語意化 commit」透過 `mcp__gemini-cli__ask-gemini` 委派出去，自己只負責讀關鍵檔案做兩階段驗收（spec review → code quality review）。因此上表「Model：實作動態分級」指的是**委派後端的 model**，不是 implementer 自己跑的推論等級；implementer 在 orchestrator 模式下幾乎不吃推論成本，Token 都花在委派側與 verifier 驗收。
+> **⚠️ implementer 只是協調者（Orchestrator Mode）：** `implementer` agent frontmatter 標題即為 `# Implementer (Orchestrator Mode)`，設計上是「工頭」角色——**本身不親自寫代碼**，而是把每個任務的「TDD 寫測試 → 實作 → 語意化 commit」透過 `mcp__gemini-cli__ask-gemini` 委派出去，自己只負責委派 verifier agent 做兩階段驗收（spec compliance → code quality）並複核其結論。因此上表「Model：實作動態分級」指的是**委派後端的 model**，不是 implementer 自己跑的推論等級；implementer 在 orchestrator 模式下幾乎不吃推論成本，Token 都花在委派側與 verifier 驗收。
 >
 > **唯一例外——MCP 不可用時的 Fallback：** implementer 退回 `subagent-driven-development` skill **親自逐任務實作**（仍守 TDD → 實作 → commit 順序）。此時它就不再只是協調者，而是實際執行者，實作推論成本改由 implementer 自身承擔。這條 Fallback 是 STAGE 2「協調者假設」失效的唯一情境，判讀成本/效能時需區分兩種模式。
 >
