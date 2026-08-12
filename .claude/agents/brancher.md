@@ -39,7 +39,7 @@ MCP 呼叫**無法指定 cwd**，派發 prompt 第一段必須寫死絕對路徑
 >
 > 🔴 **`gh issue create` 是對外動作**：委派前必須已通過 STAGE 1 的暫停點（使用者確認過 Issue 標題與內容）。未確認不得派發。
 >
-> ⚠️ **重試前先對帳，避免重複建立**：一次派發內含 `gh issue create` 與 worktree/branch 建立兩個有副作用的步驟，中途失敗重試前，先用 `gh issue list` 依標題比對是否已建立過 Issue、`git worktree list --porcelain` 比對是否已建立過 worktree，找到既有資源就直接復用，不要重新建立。
+> ⚠️ **重試前先對帳，避免重複建立**：一次派發內含 `gh issue create` 與 worktree/branch 建立兩個有副作用的步驟，中途失敗重試前，先用**本次派發已取得的 Issue URL** 跑 `gh issue view` 確認狀態，並用 `git worktree list --porcelain` 與 `git branch --list` 比對目標 branch/path。只有能證明是本次嘗試留下的資源才復用（Issue URL 相符、branch 與 worktree path 皆為本次目標值）；無法證明就停止並回報，不重建也不覆蓋——這與 `ticket-id-dev-prep`「目標 branch 或 worktree 路徑已存在則停止回報」是同一條規則。
 
 ## 職責
 - 解析 plan 文件中的目標與範圍。
