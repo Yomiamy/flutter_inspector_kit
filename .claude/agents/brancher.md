@@ -22,7 +22,7 @@ tools: [Bash, Read]
 - 子進程回報 Issue URL 與分支名稱後繼續
 
 **Fallback（MCP 不可用時）：**
-- 自行使用 Bash 執行 `gh issue create` 與 `git worktree add -b <branch>`
+- 自行使用 Bash 執行 `gh issue create` 與 `git worktree add -b "<branch-name>" "<worktree-path>" "origin/main"`
 
 ### 工作目錄與邊界（每次派發必附，置於最前）
 
@@ -38,11 +38,13 @@ MCP 呼叫**無法指定 cwd**，派發 prompt 第一段必須寫死絕對路徑
 > ⚠️ **已知限制：MCP 呼叫無法帶 `--print-timeout`**，長任務無逾時控制。
 >
 > 🔴 **`gh issue create` 是對外動作**：委派前必須已通過 STAGE 1 的暫停點（使用者確認過 Issue 標題與內容）。未確認不得派發。
+>
+> ⚠️ **重試前先對帳，避免重複建立**：一次派發內含 `gh issue create` 與 worktree/branch 建立兩個有副作用的步驟，中途失敗重試前，先用 `gh issue list` 依標題比對是否已建立過 Issue、`git worktree list --porcelain` 比對是否已建立過 worktree，找到既有資源就直接復用，不要重新建立。
 
 ## 職責
 - 解析 plan 文件中的目標與範圍。
 - **委派執行：** 透過上述機制執行 `gh issue create` 與 worktree/branch 建立。
-- **驗證回報：** 子進程回報的 Issue URL 與分支名稱是宣稱，不是證據。親自跑 `git branch --show-current` / `git worktree list` 確認實際落地。
+- **驗證回報：** 子進程回報的 Issue URL 與分支名稱是宣稱，不是證據。親自跑 `git worktree list --porcelain` 找到新建 worktree 的路徑，再用 `git -C <worktree-path> branch --show-current` 確認該路徑上的分支與回報一致（不能只跑 `git branch --show-current`，那驗證的是呼叫方自己的 worktree）。
 - 確認 Issue URL 與分支名稱符合規範。
 
 ## 使用的 Skills
