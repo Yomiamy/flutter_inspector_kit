@@ -44,7 +44,7 @@
 > 
 > **📝 歷史盤點 (v1.7.0 - 2026-07-23 缺口分析)**：
 > * **#1 去重機制**：確認實質未實作（`FlutterError.onError` 與 `ErrorWidget.builder` 各自觸發，同一崩潰記錄兩次，後於 PR #96 修復）。
-> * **#5 ConsoleTab 排查化**：`InspectorSearchBar` 元件存在但未接入 UI、`entriesAtLevel()` 零呼叫、errors-only 邏輯未暴露。
+> * **#5 ConsoleTab 排查化**：搜尋欄未接入 UI、`entriesAtLevel()` 零呼叫、errors-only 邏輯未暴露。（原記「`InspectorSearchBar` 元件存在但未接入」，2026-07-24 實查更正：**查無此符號**，`network_tab.dart` 內是私有的 `_SearchBar`，不可直接重用。）
 > * **#2 做法 A（±5s 側欄）**：完全無程式碼。
 > * **新增提案**：新增第四部分，提出 9 項新功能提案。
 > 
@@ -61,7 +61,7 @@
 | #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `ChoiceChip` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
 | #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄，完全無程式碼） |
 | #4 | Dio 結構化錯誤捕捉 | ✅ | v1.3.0：`NetworkEntry.errorType`(`DioExceptionType`)/`errorStackTrace` 欄位、`response==null` 傳輸層失敗 vs `!=null` server 錯誤的分類判斷、`NetworkDetailView` 的 Exception Details section、純文字匯出皆已落地 |
-| #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄（`InspectorSearchBar` 元件存在但未接入）/ LogLevel FilterChip（完全不存在）/ errors-only 過濾（邏輯僅在 `diagnostic_report.dart`，UI 未暴露）——`entriesAtLevel()` 在 UI 層**零呼叫**（見第四部分 §D1） |
+| #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄（**無可重用元件**：`InspectorSearchBar` 查無此符號，`network_tab.dart` 內是私有 `_SearchBar`）/ LogLevel FilterChip（完全不存在）/ errors-only 過濾（邏輯僅在 `diagnostic_report.dart`，UI 未暴露）——`entriesAtLevel()` 在 UI 層**零呼叫**（見第四部分 §D1）<br>⚠️ 2026-08-13 複查：ConsoleTab 現有 FilterChip 為 **source 過濾**（All／各 `TimelineSource`）+ 📌 Bookmarks（§P3），**非** LogLevel 過濾；`entriesAtLevel()` 現有 2 處呼叫但都在 `dashboard_modal.dart` 算 badge（§P6），UI 過濾仍零呼叫 |
 | #3 | 一鍵診斷報告 | ✅ | 已實作：提供 `buildDiagnosticReport` 產生 Markdown 報告，並在 Dashboard 實作 `ExportReportSheet` 匯出 |
 | #7 | 錯誤聚合摘要 | ✅ | v1.3.0 已實作：新增 NetworkErrorGroup 聚合模型與 _ErrorSummaryBanner / _ErrorGroupCard UI 元件 |
 | #10 | WebView Inline Debugging（觀測層） | ✅ | PR #91：JS payload + host-injection bridge，把 WebView 的 console/error/fetch 映射為既有 `LogEntry`/`NetworkEntry` 入列 Timeline——零新相依、零 schema 變更（見第三部分） |
@@ -481,7 +481,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
   - 無 error 時 FAB 隱藏
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐
 
-### §P6. Dashboard 錯誤計數 Badge（Error Count Badge on Tabs）— 🆕
+### §P6. Dashboard 錯誤計數 Badge（Error Count Badge on Tabs）— ✅ 已完成（`b4846ea` · 2026-08-07）
 
 > **痛點**：Dashboard 底部 tab 沒有任何數字提示。使用者不知道 Network 裡有多少筆失敗、Console 裡有多少筆 error——得逐 tab 點進去看。
 
@@ -492,6 +492,15 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
   - Count 為 0 時隱藏 badge
   - 用 `ValueListenableBuilder` 監聽 buffer 變化，局部重建
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐
+
+> **實作現況（`b4846ea` · 2026-08-07 · Issue #122）**：`_BadgeTabLabel` 建於
+> `dashboard_modal.dart`，Console 與 Network 兩個 Tab 皆已接上，count 為 0 時隱藏。
+> 與原設計的兩處差異：(1) 未用 `ValueListenableBuilder`，改在 `build()` 內即時計算；
+> (2) Network count 直接複用 `NetworkEntry.isFailed` 而非原設計的
+> `statusCode >= 400 || error != null`——`isFailed` 是「請求是否失敗」的單一真相來源，
+> 與 error-summary banner、console 混合時間軸、diagnostic report 共用（該收斂源自 §P7）。
+> Console count 刻意只算 log-level error/warning、不含混合時間軸裡的失敗網路請求，
+> 避免與 Network badge 重複計數讓兩個數字互相矛盾。
 
 ### §P7. Error 高亮強化（Error Visual Enhancement）— ✅ 已完成（PR #101）
 
@@ -551,7 +560,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | ~~4~~ | 未捕捉例外去重修復 — ✅ 已完成（PR #96） | §D2（#1 缺陷） | low | ⭐⭐⭐⭐ |
 | ~~5~~ | ~~Detail View ±5s 同時段側欄~~ — ❌ 已否決（2026-07-24，理由見 §D3） | §D3（#2 做法 A） | med | — |
 | ~~6~~ | Timeline 書籤 / 標記 — ✅ 已完成（PR #115） | §P3 新提案 | low | ⭐⭐⭐⭐ |
-| **7** | Dashboard 錯誤計數 Badge | §P6 新提案 | low | ⭐⭐⭐ |
+| **7** | Dashboard 錯誤計數 Badge ✅ 已完成（`b4846ea`） | §P6 新提案 | low | ⭐⭐⭐ |
 | ~~8~~ | Error 高亮強化 — ✅ 已完成（PR #101） | §P7 新提案 | trivial | ⭐⭐⭐ |
 | **9** | 快速複製 Diagnostic Snippet | §P4 新提案 | trivial–low | ⭐⭐⭐ |
 | **10** | Jump to Latest Error FAB | §P5 新提案 | low | ⭐⭐⭐ |
@@ -763,7 +772,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 |------|------|----------|:---:|:---:|
 | **§P7** Error 高亮強化 | error 行淡紅底色 | `console_tab.dart` 的 `_LogEntryRow` / `_NetworkEntryRow` | trivial | ✅ PR #101 |
 | **§P11 → §P1** 錯誤爆發偵測（**綁定**） | 先重構通知 channel，再接 error 計數 + 告警 | `network_notifier.dart` → `flutter_inspector.dart` + `dashboard_modal.dart` | low + low | ⬜ 下一順位 |
-| **§P6** Dashboard Badge | tab 的 error count badge | `dashboard_modal.dart` | low | ⬜ |
+| **§P6** Dashboard Badge | tab 的 error count badge | `dashboard_modal.dart` | low | ✅ `b4846ea` |
 | **§D6** Inspector 自身頁面污染 NavigatorTab | 收斂 inspector 內部 push 的識別（**方案 B**），讓 detail view 不進使用者導航軌跡 | 新增 helper + `navigator_observer.dart` + 4 處 dashboard 呼叫端 | low | ✅ 已完成 |
 
 > **§D6 是既有 bug 而非新功能**，排在 Tier 2 的理由是它侵蝕的是**既有功能的可信度**（NavigatorTab 的資料正確性），不是錦上添花；且污染量與排查強度成正比——越認真追查越髒。已於 2026-07-26 用 probe test 實測確認 `NetworkDetailView` 會進入 `navigatorInspector.entries`（見 §D6）。
@@ -821,7 +830,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 > **這是同一份文件第二次出現「標為待辦、實際已完成」**（前一次為 §D6，於 2026-07-27 查核發現）——
 > 建議每次 release 後回頭跑一次 Tier 表的實查核對，別讓狀態欄漂移。
 >
-> **收尾建議（2026-07-25 二次更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**Tier 1（§P13）已於 PR #100 完成**——真正往 timeline 加上原本拿不到的維度（前景/背景 + 切換頁面），且動工前逐項實查、無隱藏成本坑到。**Tier 2 的 §P7 已於 PR #101 完成**（error 行淡紅底，只染 error 不染 warning）。**下一步：§P11 → §P1 錯誤爆發偵測**（綁定排程，§P11 先行），Tier 2 剩餘另有 §P6 Dashboard Badge。原被列為最高優先的 §D1 仍在 Tier 3 並與 §P5 合併，§P2 整項否決，理由見各節。
+> **收尾建議（2026-07-25 二次更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**Tier 1（§P13）已於 PR #100 完成**——真正往 timeline 加上原本拿不到的維度（前景/背景 + 切換頁面），且動工前逐項實查、無隱藏成本坑到。**Tier 2 的 §P7 已於 PR #101 完成**（error 行淡紅底，只染 error 不染 warning）。**下一步：§P11 → §P1 錯誤爆發偵測**（綁定排程，§P11 先行）——§P6 Dashboard Badge 已於 `b4846ea`（2026-08-07）完成，**Tier 2 僅剩此一項**。原被列為最高優先的 §D1 仍在 Tier 3 並與 §P5 合併，§P2 整項否決，理由見各節。
 >
 > **§P7 帶出的一條估計偏差**：trivial 項目的 effort 估在「要寫的程式碼」上是準的（高亮本體只有兩行 `tileColor`），但**低估了「會動到幾份既有判定」**——實作時發現「網路請求是否失敗」在三個檔案各手寫一份且已漂移各漏一種失敗類型，收斂它才是 diff 的主體，並順帶修掉一個靜默的既有 bug（errorType-only 的傳輸失敗不產生錯誤群組卡片）。文件其餘標為 trivial/low 的項目，建議動工前先 grep 一次「這個判斷在幾個地方被重寫過」，那才是真實成本所在。
 >
