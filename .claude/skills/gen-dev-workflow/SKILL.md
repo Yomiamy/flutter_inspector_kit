@@ -14,9 +14,18 @@ description: |
 
 你是整個開發流程的**總指揮**。使用者給你一個需求，你自動驅動所有 agent 跑完整個週期，只在必要時暫停。
 
-> **委派後端：antigravity-cli (`agy`)。** brancher、implementer、publisher 透過 Bash 呼叫 `agy -p` 委派（stdin 管道傳 prompt + `--print-timeout`）。
-> 需求：`agy` 須在 PATH（預設於 `~/.local/bin/agy`）。
-> `agy` 不在 PATH 時各 agent 會自動退回 Fallback 模式，功能仍可運作但不會委派給 `agy`。
+> **委派後端：`gemini-mcp-tool`（MCP 工具 `mcp__gemini-cli__ask-gemini`）。** brancher、implementer、publisher 透過此 MCP 工具委派。
+> 需求：`gemini-cli` MCP server 已在 Claude Code 設定中啟用（`npx -y gemini-mcp-tool@1.1.8`，鎖定版本避免 rug-pull；升級前先確認 `npm view gemini-mcp-tool version` 並人工審查再調整）。
+> MCP 不可用時各 agent 會自動退回 Fallback 模式，功能仍可運作但不會委派。
+>
+> **為何不是 `agy -p`：** 底層後端相同（`gemini-mcp-tool` 內部就是走 antigravity-cli），但 **`agy -p` headless 路徑實際不可用**——不吃 stdin、權限會卡死，委派一律落到 fallback。MCP 路徑則實測可寫檔、可跑 shell、可 `git commit`，是同一個後端唯一能真正委派的傳輸層。
+>
+> 🔴 **三條委派紀律（每次派發都適用）：**
+> 1. **工作目錄寫死在 prompt 裡**——MCP 呼叫無法指定 cwd，不寫絕對路徑，子進程可能在主 repo 而非 worktree 動手。
+> 2. **跨出工作目錄一律先問**——派發 prompt 必須明令：需要存取／修改該目錄以外的檔案時，停止並回報，不自行動手。
+> 3. **回報不等於事實**——子進程說「已完成、已 commit」是宣稱。驗收一律親自跑 `git log` / `git status` / 測試確認。
+>
+> ⚠️ **已知限制：MCP 呼叫無法帶 `--print-timeout`。** 長任務沒有逾時控制，卡住只能人為中斷——派發前把任務拆到合理粒度。
 
 > **多 workflow 並行：** 同一 repo 可同時跑多個獨立 workflow（多個終端 / 多個 session）。STAGE 1 起隔離 key 是**獨立 worktree**（沿用 `ticket-id-dev-prep` 規則建立）——每個 workflow 跑在自己的 worktree 目錄裡，state 檔天然分開存放，彼此零衝突，不需要任何鎖或中央索引。唯一需要額外處理的窗口是「兩個流程都還在 STAGE 0a/0b（尚無 worktree，仍在原 repo 目錄）」，靠 **workflow-id** 持久化區分（見「狀態追蹤」章節）。
 
@@ -66,7 +75,7 @@ description: |
     │     見「分支與 Worktree 建立」章節）              │
     │  ⏸ 暫停：展示 Issue 標題/內容 + 分支/worktree 名稱│
     │          等使用者確認或修改                       │
-    │  → agy 執行 gh issue create                   │
+    │  → 委派執行 gh issue create                     │
     │  → brancher 依 ticket-id-dev-prep 規則建立       │
     │    worktree + branch（見下方章節），主對話 cd     │
     │    進新 worktree 繼續後續所有 stage               │
@@ -82,7 +91,7 @@ description: |
     │     • 否則 → 🔴 序列逐任務                        │
     │  → 逐任務選 model：機械性→快/便宜｜整合→標準     │
     │     ｜設計判斷/跨層→最強（見 Model 策略章節）    │
-    │  → agy 實作任務，verifier 兩階段驗收          │
+    │  → 委派實作任務，verifier 兩階段驗收          │
     │  🪶 Ponytail：派發模板必附〈規則塊〉，驗收把  │
     │     計畫外抽象/依賴/防禦分支當品質不佳退回    │
     │  ⏸ 每個任務（或每批並行）完成後暫停：            │
@@ -94,7 +103,7 @@ description: |
                            ▼
     ┌─────────────────────────────────────────────────┐
     │  STAGE 3：審查                                    │
-    │  → 呼叫 reviewer agent（不委派 agy，親自判斷）  │
+    │  → 呼叫 reviewer agent（不委派，親自判斷）      │
     │  → 已 opt-in → 多 angle 對抗式審查（Workflow    │
     │    平行 verifier 找 bug，reviewer 收斂判斷）     │
     │  🪶 Ponytail：第五 lens「過度工程/可簡化」找    │
@@ -112,7 +121,7 @@ description: |
     │  → 呼叫 publisher agent                         │
     │  → publisher 內部用 gen-pr skill 產 PR 描述      │
     │    （gen-pr 格式：Summary + 修正問題/修正方式）   │
-    │  → agy 分析 Diff，Claude 校對草稿             │
+    │  → 委派分析 Diff，Claude 校對草稿              │
     │  ⏸ 暫停：展示 PR 草稿，等使用者確認發布          │
     └──────────────────────┬──────────────────────────┘
                            │ 使用者確認
@@ -130,7 +139,7 @@ description: |
     session 目前的 effort；要維持 stage 間差異化，派發時
     須明確帶 effort 參數。詳見下方「Model 與委派策略」章節。
     主對話（總指揮）本身不換 model；切換發生在委派出去的
-    子進程——agy（STAGE 2 逐任務動態分級）與 STAGE 2 驗收
+    子進程——MCP 委派（STAGE 2 逐任務動態分級）與 STAGE 2 驗收
     委派的 verifier agent。
 
     ──────────────────────────────────────────────────
@@ -305,7 +314,7 @@ quick <描述或 #issue>
    - 只有描述 → 不開 issue，branch 名 <prefix>/YYYYMM/<slug>
    - prefix/slug 規則沿用 ticket-id-dev-prep
   ▼
-② 主對話直接實作（不委派 implementer/agy——小修正本來就在「不委派」硬規則內）
+② 主對話直接實作（不委派 implementer/MCP——小修正本來就在「不委派」硬規則內）
    - 不拆任務、不逐任務暫停；模糊需求仍問（≤2 個問題）
    - 改完跑相關測試（不重跑整套）
   ▼
@@ -321,7 +330,7 @@ quick <描述或 #issue>
 - state 檔照寫：`wf-state.sh init --mode quick --branch <branch>` 建 `<branch-slug>.json`（存原 repo `.claude/workflow-state/`）——中斷後「繼續」照常續接，PR MERGED 照常自動刪檔。quick 不套用 stage 轉移表，但 schema 校驗與暫停點棘輪照常生效（唯一暫停點：PR 草稿確認前 `stage-done <檔> <目前-stage>`，確認後 `confirm` 再發布）。
 - 不建 worktree ⇒ 同一 repo **同時只能跑一個 quick**（需要多並行就走完整流程的 worktree 隔離）。
 - 中途發現超出小修正範圍（多檔設計判斷、新依賴、要動架構）→ 停下告知，`wf-state.sh upgrade <檔>`（單向 quick→sequence，stage 落在 2）升級轉入完整流程。升級後**必須立即**建立對應的 worktree（沿用 ticket-id-dev-prep 規則），將 Root 中未 commit 的變更帶入新工作區，用 `wf-state.sh promote` 將狀態 JSON 移至新工作區，並 `cd` 進入該工作區以確保物理隔離。
-- Token Budget Gate 照常適用。
+- Token Budget Gate 照常適用（`> 150k` 切 session 規則不變；`100–150k` 的強制 MCP 委派不適用於 Quick 的直接實作步驟，Quick 模式本來就不委派 implementer）。
 
 ---
 
@@ -634,7 +643,7 @@ worktree 建立後改帶 branch slug，不再需要 workflow-id：
 |---|---|
 | < 60k | 正常流程，不做任何事 |
 | 60–100k | ⚠️ 提示使用者「context 已 <用量>，建議精簡」。委派 agent 時要求只回報摘要，不回貼完整 diff / 檔案內容 |
-| 100–150k | ⚠️ 強制走委派路徑：implementer / publisher 一律走 agy 委派（即使 fallback 條件成立也不自行讀大檔），主對話只保留高層判斷 |
+| 100–150k | ⚠️ 完整流程且 MCP 可用時：implementer / publisher 強制走 MCP 委派（不自行讀大檔），主對話只保留高層判斷。**MCP 不可用時走 Fallback 或按下方 `> 150k` 規則切 session，不得因此卡住等待 MCP 恢復**。Quick 模式本無 implementer 委派（見「Quick 模式」①②），此行不適用於其直接實作步驟 |
 | > 150k | ⛔ **強制 checkpoint，主動切 session** — 走下方「context 超標切 session 閉環」 |
 
 ### context 超標切 session 閉環
@@ -685,7 +694,7 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），本�
 | 最強推論 | `model: opus` | `effort: xhigh` | planner、reviewer、verifier |
 | 標準 | `model: sonnet` | `effort: max` | implementer |
 | 輕量 | `model: sonnet` | `effort: high` | brancher、responder、publisher |
-| 快/便宜 | agy 內部 fast model（不在 Claude 側綁定） | — | STAGE 2 機械性任務 |
+| 快/便宜 | 委派後端內部 fast model（不在 Claude 側綁定） | — | STAGE 2 機械性任務 |
 
 **綁定原則：**
 - model 一律用**別名**（`opus`/`sonnet`），不綁版本 ID——CLI 自動解析到當代 model。這部分仍綁 frontmatter，不受 effort 變動影響。
@@ -699,15 +708,15 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），本�
 
 ### Stage 層級的基準分配
 
-| Stage | Agent | 推論等級 | agy 委派 | 不委派的原因 |
+| Stage | Agent | 推論等級 | MCP 委派 | 不委派的原因 |
 |-------|-------|-----------|------------|------------|
 | 0a/0b 規劃 | planner | 最強推論 | — | 設計與計畫拆解是最高槓桿推論，錯了後面全錯 |
 | 1 建立 Issue + Worktree | gen-gh-issue skill + brancher | 輕量 | ✦ gh issue create/view, git worktree add, flutter pub get | Issue body 由 gen-gh-issue 產（五區段 zh-tw，或 issue-id 路徑由 brancher 解析既有 issue），brancher 依 ticket-id-dev-prep 規則建立 worktree + branch，皆純 IO |
 | 2 實作 | implementer | 標準（逐任務再分級，**見下方分級**） | ✦ 代碼+測試+commit（驗收委派 verifier：最強推論）| — |
 | 3 審查 | reviewer | 最強推論 | — | 根因判斷需最強推論，且不該讓產出代碼的同源 model 自審 |
-| 4 發布 | publisher（內部用 gen-pr skill） | 輕量 | ✦ Diff 分析 → PR 草稿（Claude 校對）| PR 描述由 gen-pr 產（Summary + 修正問題/修正方式），publisher 負責 push + gh pr create；重活已委派 agy，且發布前有暫停點人肉把關 |
+| 4 發布 | publisher（內部用 gen-pr skill） | 輕量 | ✦ Diff 分析 → PR 草稿（Claude 校對）| PR 描述由 gen-pr 產（Summary + 修正問題/修正方式），publisher 負責 push + gh pr create；重活已委派，且發布前有暫停點人肉把關 |
 | 5 回覆 PR Review | responder（→ reviewer → publisher） | responder: 輕量；reviewer: 最強推論；publisher: 輕量 | — | responder 逐條意見判斷用輕量即可；中間 reviewer 是交叉驗證的把關點，吃重推論不降級 |
-| 6 清理 Worktree | gen-sync-docs-by-branchs → gen-commit → worktree-close-cleanup skill | —（skill 於主對話執行） | ✦ git worktree remove | 先同步文件再 commit，確保 docs 反映分支最終狀態；之後純 IO 移除 worktree、不刪 branch |
+| 6 清理 Worktree | gen-sync-docs-by-branchs → gen-commit → worktree-close-cleanup skill | —（skill 於主對話執行） | — | 先同步文件再 commit，確保 docs 反映分支最終狀態；之後由主對話親自執行 `git worktree remove`（不委派 MCP），事後驗證 `git worktree list` / `git branch --list` |
 
 ### STAGE 2 implementer 內部的 model 分級
 
@@ -725,16 +734,17 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 
 驗收（spec compliance → code quality 兩階段）**不沿用主對話當前 model**，而是**委派 verifier agent** 執行——其 frontmatter 綁定 `model: opus`（effort 需依推論等級表明確帶 `xhigh`，見上方「effort 不在 frontmatter 裡」），opus 取不到時由 CLI fallback 鏈自動落到可用的最強 model。
 
-這麼設計的原因與 STAGE 3 相同——**產出代碼的 agy 可能用便宜/快 model，驗收刻意用最強推論交叉檢查**，不讓同源 model 自審，維持「驗收等級 ≥ 實作等級」的把關強度。
+這麼設計的原因與 STAGE 3 相同——**產出代碼的委派後端可能用便宜/快 model，驗收刻意用最強推論交叉檢查**，不讓同源 model 自審，維持「驗收等級 ≥ 實作等級」的把關強度。
 
 > 落地方式：`Task("verifier", ..., effort: "xhigh")` 或 Workflow 的 `agent('驗收任務...', {agentType: 'verifier', effort: 'xhigh', ...})` 執行（見「用 Claude Workflow 執行並行」章節的 verify 階段）。這是 STAGE 2 唯一會脫離「主對話 model」的環節；`effort: 'xhigh'` 不可省略，省略會落回 session 當前 effort。
 
-### 不委派 agy 的硬規則
+### 不委派的硬規則
 
-以下情況即使 agy 可用也**不委派**（短文直生反而更省一次 context 來回）：
+以下情況即使 MCP 委派可用也**不委派**（短文直生反而更省一次 context 來回）：
 - commit message 生成（實作 model 依 diff 直生）
 - 單一檔案 < 50 行的小修正
-- STAGE 3 審查報告（reviewer 親自判斷，不可委派 agy。註：可選的「多 angle 對抗式審查」用 Claude Workflow 的 verifier 平行找 bug 作為輸入，reviewer 仍親自收斂判斷並產出報告，兩者不衝突——見「用 Claude Workflow 執行並行」章節）
+- STAGE 3 審查報告（reviewer 親自判斷，不可委派。註：可選的「多 angle 對抗式審查」用 Claude Workflow 的 verifier 平行找 bug 作為輸入，reviewer 仍親自收斂判斷並產出報告，兩者不衝突——見「用 Claude Workflow 執行並行」章節）
+- **對外動作一律自己執行**：`gh pr create`、`git push` 不委派子進程動手，且須先通過對應暫停點
 
 ---
 
@@ -851,10 +861,10 @@ const findings = (await parallel([
   () => agent(`以「過度工程/可簡化」視角審查 <branch> 的 diff 對照已確認的 plan：挑出計畫沒要求卻新增的抽象（單一實作的 interface、單一產品的 factory、永不變的 config、留給未來的 scaffolding、可用既有 helper/stdlib 取代的自製輪子）。每條 finding 必附刪除方案（刪哪些行、刪後 diff 是否更小、既有測試是否仍過）。絕不把信任邊界輸入驗證、防資料遺失、security、a11y 列為可簡化項。`,
     {label: 'review:過度工程', effort: 'xhigh', schema: FINDING_SCHEMA}),
 ])).filter(Boolean).flatMap(r => r.findings)
-// 回到主對話：reviewer 親自收斂 findings、去重、判定真偽 → 寫審查報告 → 暫停展示（不委派 agy）
+// 回到主對話：reviewer 親自收斂 findings、去重、判定真偽 → 寫審查報告 → 暫停展示（不委派）
 ```
 
-> 不變式：審查報告由 reviewer（最強推論）親自產出，**不委派 agy**。多 angle 只是提高召回率的輸入，不取代 reviewer 的最終判斷。退回 STAGE 2 的條件與層級不變。
+> 不變式：審查報告由 reviewer（最強推論）親自產出，**不委派**。多 angle 只是提高召回率的輸入，不取代 reviewer 的最終判斷。退回 STAGE 2 的條件與層級不變。
 >
 > 「過度工程/可簡化」lens 的 finding 屬獨立類別：僅「plan 未要求的新抽象」或「刪除即嚴格更小 diff 且測試仍過」兩種情況可列 Important 並觸發退回 STAGE 2；其餘列為非阻擋建議。與 correctness/security 衝突時後者勝出。（reviewer 收斂判準詳見 `reviewer.md`。）
 
