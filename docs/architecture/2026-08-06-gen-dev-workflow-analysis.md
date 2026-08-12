@@ -191,7 +191,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | gen-sync-docs-by-branchs → gen-commit → worktree-close-cleanup skill |
 | **Model** | —（skill 於主對話執行，無獨立綁定） |
-| **委派** | ✦ MCP 執行 `git worktree remove` |
+| **委派** | 不委派——主對話親自執行 `git worktree remove`，事後驗證 `git worktree list` / `git branch --list` |
 | **並行** | 無 |
 | **產出** | docs 同步更新 + commit → 移除 STAGE 1 建立的 worktree（**對應 branch 一律保留、不刪除**） |
 | **觸發** | PR **實際合併後**，使用者說「PR #42 合併了，清理 worktree」 |
@@ -264,7 +264,6 @@ graph LR
         B2["STAGE 1 ✦"] 
         C2["STAGE 2 ✦"]
         E2["STAGE 4 ✦"]
-        F6["STAGE 6 ✦"]
     end
 
     subgraph "不委派"
@@ -276,7 +275,7 @@ graph LR
 ```
 
 ### STAGE 6 委派規則
-- STAGE 6 開始時先跑 gen-sync-docs-by-branchs（以當前分支為目標同步文件）→ gen-commit（將同步結果 commit），之後走 ✦ MCP 委派 `git worktree remove`（純 IO，只移除 worktree、不刪 branch）。文件同步確保 docs 在 worktree 被清理前已反映分支的最終狀態
+- STAGE 6 開始時先跑 gen-sync-docs-by-branchs（以當前分支為目標同步文件）→ gen-commit（將同步結果 commit），之後由主對話親自執行 `git worktree remove`（不委派 MCP，純 IO，只移除 worktree、不刪 branch）。文件同步確保 docs 在 worktree 被清理前已反映分支的最終狀態
 
 ### 不委派的硬規則
 - commit message（直接依 diff 生成，省一次 context 來回）
