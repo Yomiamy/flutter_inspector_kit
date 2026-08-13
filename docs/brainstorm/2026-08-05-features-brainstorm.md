@@ -335,7 +335,7 @@
 
 ### §D4. DatabaseTab 搜尋 / 過濾
 
-> `DatabaseTab`（131 行）目前是四個 tab 中最原始的——純列表，無搜尋、無過濾、無聚合。
+> `DatabaseTab`（190 行 · 2026-08-13 實查，原記 131 行已過期）目前是四個 tab 中最原始的——純列表，無搜尋、無過濾、無聚合。
 
 **設計方向**：
 - 加入 `_SearchBar`（搜尋 table name / SQL operation）
