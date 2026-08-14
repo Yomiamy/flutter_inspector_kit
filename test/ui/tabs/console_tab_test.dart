@@ -602,6 +602,32 @@ void main() {
     });
 
     testWidgets(
+      'long-press still bookmarks while a filter is active, since taking over '
+      'the tap must not take over every gesture',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
+        inspector.log('cart opened', level: LogLevel.info);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+
+        await tester.enterText(find.byType(TextField), 'cart');
+        await tester.pumpAndSettle();
+        expect(inspector.bookmarkedEntries, isEmpty);
+
+        await tester.longPress(find.text('cart opened'));
+        await tester.pumpAndSettle();
+
+        expect(inspector.bookmarkedEntries, hasLength(1));
+      },
+    );
+
+    testWidgets(
       'tapping an unfiltered row still opens the detail view rather than '
       'jumping',
       (tester) async {

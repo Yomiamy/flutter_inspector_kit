@@ -245,20 +245,32 @@ class _ConsoleTabState extends State<ConsoleTab> {
   }
 }
 
-/// Wraps a row so the whole thing jumps back to the unfiltered timeline.
+/// Wraps a row so tapping it jumps back to the unfiltered timeline.
 ///
-/// The row keeps its own visuals; [IgnorePointer] on the child is what stops
-/// its normal tap (detail view, bookmark long-press) from competing with the
-/// jump while a filter is active.
+/// Only the tap is taken over. Long-press still reaches the row underneath, so
+/// bookmarking keeps working while a filter is active — an entry you just
+/// searched for is precisely one you may want to pin.
 class _JumpRow extends StatelessWidget {
-  const _JumpRow({required this.onJump, required this.child});
+  const _JumpRow({
+    required this.onJump,
+    required this.onLongPress,
+    required this.child,
+  });
 
   final VoidCallback? onJump;
+  final VoidCallback onLongPress;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(onTap: onJump, child: child);
+    return GestureDetector(
+      // The child is wrapped in IgnorePointer, so without an opaque behavior
+      // there is nothing left to hit-test and neither gesture would fire.
+      behavior: HitTestBehavior.opaque,
+      onTap: onJump,
+      onLongPress: onLongPress,
+      child: child,
+    );
   }
 }
 
@@ -350,6 +362,9 @@ class _EntryRowDispatcher extends StatelessWidget {
     if (onJump != null) {
       return _JumpRow(
         onJump: onJump,
+        onLongPress: onToggleBookmark,
+        // Absorbs the row's own tap (detail view) so it cannot compete with
+        // the jump, while _JumpRow re-offers long-press above it.
         child: IgnorePointer(
           child: _EntryRowDispatcher(
             entry: entry,
