@@ -616,7 +616,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 > **殘留待議（不阻塞、非本次範圍）**：`log_detail_view.dart` 收下 `redactSensitiveData` flag 卻從未讀取，屬「接了線但斷路」的死參數。與遮不遮罩的取捨無關，純粹是程式碼整潔問題——未來若順手可移除該參數傳遞，但**不因此排程任何工作**。
 
-### §P10. Rebuild 異常偵測（Excessive Rebuild Guard）— 🆕 需使用者接線
+### §P10. Rebuild 異常偵測（Excessive Rebuild Guard）— ❌ 已取消（2026-08-14）
 
 > **痛點**：`setState` 迴圈、`ChangeNotifier` 誤觸發、`AnimatedBuilder` 忘記傳 `child` 這類 bug，症狀是「某個 widget 瘋狂重建」，但現有排查鏈完全看不到——這類 bug 現在只能靠 DevTools 的 Performance View 肉眼抓，跟本文件「排查」主軸脫節（DevTools 那是效能剖析，不是錯誤排查）。
 
@@ -705,7 +705,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | 優先序 | 項目 | Effort | 排查價值 | 備註 |
 |:---:|------|:---:|:---:|------|
 | ~~1~~ | §P13 App 前景/背景切換標記 — ✅ **已完成（PR #100）** | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高；額外附加 top-most page（型態 + path）解洗頻問題 |
-| **2** | §P10 Rebuild 異常偵測 | low（但需使用者接線） | ⭐⭐⭐ | 受眾較窄，opt-in per-widget 而非 app 層級 |
+| ~~2~~ | ~~§P10 Rebuild 異常偵測~~ | ~~low（但需使用者接線）~~ | ~~⭐⭐⭐~~ | ❌ 已取消——價值太窄，opt-in per-widget 接線成本與收益不成比例 |
 | **3** | §P11 NetworkNotifier 重構 | low | ⭐⭐⭐（解鎖 §P1） | 應與 §P1 綁定排程，不單獨動工 |
 | — | ~~§P14 Breadcrumb 標記 `inspector.mark()`~~ | trivial | — | **降級不單獨排程**：與 `log()` 無功能差異，是渲染差異非資訊差異；與 §P7 綁定或直接用 emoji 約定取代（見 §P14） |
 | — | ~~§D5 Redaction 涵蓋缺口修復~~ | — | — | **不排程**：debug 工具應資訊越詳細越好，遮罩是排查絆腳石；既有實作保留不動（見 §D5） |
@@ -800,7 +800,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | **§P4** 快速複製 Diagnostic Snippet | NetworkDetailView 一鍵 cURL + error payload | trivial~low | ⬜ |
 | **§D4** DatabaseTab 搜尋/過濾 | 搜尋 + operation FilterChip | low~med | ⬜ |
 | **§P9** Diagnostic Report JSON | 結構化 JSON 匯出格式 | med | ⬜ |
-| **§P10** Rebuild 異常偵測 | 全清單唯一需逐 widget 接線，非 app 層級 flag | med | ⬜ |
+| ~~**§P10** Rebuild 異常偵測~~ | ~~全清單唯一需逐 widget 接線，非 app 層級 flag~~ | ~~med~~ | ❌ |
 
 > **§P8 已完成**（PR #111 / Issue #110，v1.9.0 週期）——閾值改為 `FlutterInspector.slowRequestThreshold`
 > 可設定（預設 2s）並顯示於 UI，且 NetworkTab 與 ConsoleTab 混合時間軸**兩處都標**。本層剩 4 項。
@@ -824,7 +824,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 ---
 
 > **收尾補記（2026-08-06 實查校正）**：Tier 4 的 **§P8 慢請求標記實際已於 PR #111 完成**，
-> 文件此前仍列為待辦——本層由 5 項降為 4 項（§P4 / §D4 / §P9 / §P10）。同時查明 §P4 的既有
+> 文件此前仍列為待辦——本層由 5 項降為 4 項（§P4 / §D4 / §P9 / ~~§P10~~）。同時查明 §P4 的既有
 > 可重用零件比原估計完整（`buildCurl` / `buildPlainText` / `shareText` 皆已接 redaction、
 > `_ShareAction` 選單已存在），effort 下修為 trivial~low，成為本層最低成本入口。
 > **這是同一份文件第二次出現「標為待辦、實際已完成」**（前一次為 §D6，於 2026-07-27 查核發現）——
@@ -839,3 +839,8 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 > **本輪的一條共通判準**（§D3 / §P2 均據此否決）：**不要替排查者預先決定「什麼跟這個錯誤相關」**。固定時間窗（§D3）、固定維度（§P2）都是工具在猜，而真實錯誤常是綜合因素——完整時間軸把所有維度攤平、由人邊看邊判斷，才是對的形狀。凡是提案想在 error 旁另闢一塊「相關資訊」的，先用這條判準檢驗。
 >
 > **本次重排同時修正了三處與實際 codebase 不符的估計**：§D1 的 `InspectorSearchBar`（實為私有 `_SearchBar`）與 `entriesAtLevel()`（回傳型別接不上混合流）、§P2 的 `NavigatorStackResolver.currentStack`（不存在）。文件其餘「重用既有零件」的宣稱建議在動工前逐項實查，勿直接採信。
+>
+> **§P10 已取消（2026-08-14 規格審查）**：功能規格撰寫完成後判定價值太窄——只在「開發者已懷疑
+> 特定 widget 有 rebuild bug」時才有用，無法主動偵測問題（Flutter 無全域 rebuild 回呼）。
+> opt-in per-widget 的接線成本（每個可疑 widget 手動加 mixin + 呼叫 `guardRebuild()`）與收益
+> 不成比例。**Tier 4 由 4 項降為 3 項（§P4 / §D4 / §P9）**。
