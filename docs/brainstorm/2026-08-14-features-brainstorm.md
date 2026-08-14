@@ -21,7 +21,7 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-08-05 · v1.9.0）
+## 📊 完成度總覽（截至 2026-08-14 · v1.9.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
@@ -61,7 +61,7 @@
 | #8 | 當前路由堆疊可視化 | ✅ | PR #51（Issue #50）：新增 `NavigatorStackResolver` 純 Dart 重播器，`NavigatorTab` 以 `ChoiceChip` 切換「當前堆疊」（垂直卡片）與「事件歷史」 |
 | #2 | 跨 Inspector 時序關聯 | 🟡 | **v1.1.0 大幅推進**：ConsoleTab 已改用 `mergedTimeline`（四 buffer 按 `timestamp` 歸併排序），即文件「做法 B：Timeline 視圖」的本體已成；**缺** 做法 A（detail view 的 ±5s 同時段側欄，完全無程式碼） |
 | #4 | Dio 結構化錯誤捕捉 | ✅ | v1.3.0：`NetworkEntry.errorType`(`DioExceptionType`)/`errorStackTrace` 欄位、`response==null` 傳輸層失敗 vs `!=null` server 錯誤的分類判斷、`NetworkDetailView` 的 Exception Details section、純文字匯出皆已落地 |
-| #5 | ConsoleTab 排查化 | 🟡 | `LogDetailView`(stackTrace/data/分享) 完成；**缺** 搜尋欄（**無可重用元件**：`InspectorSearchBar` 查無此符號，`network_tab.dart` 內是私有 `_SearchBar`）/ LogLevel FilterChip（完全不存在）/ errors-only 過濾（邏輯僅在 `diagnostic_report.dart`，UI 未暴露）——`entriesAtLevel()` 在 UI 層**零呼叫**（見第四部分 §D1）<br>⚠️ 2026-08-13 複查：ConsoleTab 現有 FilterChip 為 **source 過濾**（All／各 `TimelineSource`）+ 📌 Bookmarks（§P3），**非** LogLevel 過濾；`entriesAtLevel()` 現有 2 處呼叫但都在 `dashboard_modal.dart` 算 badge（§P6），UI 過濾仍零呼叫 |
+| #5 | ConsoleTab 排查化 | ✅ | `LogDetailView`(stackTrace/data/分享) 完成；搜尋欄 / LogLevel FilterChip / `⚡ Errors only` 快捷已於 **PR #128（2026-08-14）** 補齊，並附「點擊過濾結果 → 清過濾 + 捲回該筆」（§D1 與 §P5 合併落地）。過濾邏輯為新寫的 `console_utils.dart`（`ConsoleFilter` + `applyConsoleFilter()`），吃四源混合流；`entriesAtLevel()` 因回傳型別接不上而**未採用**，UI 過濾仍零呼叫（見第四部分 §D1） |
 | #3 | 一鍵診斷報告 | ✅ | 已實作：提供 `buildDiagnosticReport` 產生 Markdown 報告，並在 Dashboard 實作 `ExportReportSheet` 匯出 |
 | #7 | 錯誤聚合摘要 | ✅ | v1.3.0 已實作：新增 NetworkErrorGroup 聚合模型與 _ErrorSummaryBanner / _ErrorGroupCard UI 元件 |
 | #10 | WebView Inline Debugging（觀測層） | ✅ | PR #91：JS payload + host-injection bridge，把 WebView 的 console/error/fetch 映射為既有 `LogEntry`/`NetworkEntry` 入列 Timeline——零新相依、零 schema 變更（見第三部分） |
@@ -195,7 +195,7 @@
 * **Effort**：low–medium ｜ **排查價值**：⭐⭐⭐⭐
 * **✅ 實作現況（v1.3.0）**：`dio_interceptor.onError` 已擷取 `err.type` 存入 `NetworkEntry.errorType`(`DioExceptionType`) 與 `err.stackTrace` 存入 `errorStackTrace`，連同既有的 `statusCode`/`responseHeaders`/`responseBody`。`NetworkDetailView` 新增「Exception Details」section，依 `entry.statusCode == null` 明確分流顯示「傳輸層失敗 (transport failure — request did not reach server)」或「Server 錯誤回應 (server responded with error)」，消滅了原先「Failed 到底是斷網還是後端壞了」的猜謎；純文字匯出（`network_formatters.dart`）亦包含 `Error Type` 與 stack trace。設計完全依照原規劃落地，無偏離。
 
-### 5. ConsoleTab 排查化：stackTrace 詳情 + error 過濾 — 🟡 部分完成
+### 5. ConsoleTab 排查化：stackTrace 詳情 + error 過濾 — ✅ 已完成
 * **痛點**：error log 的 `stackTrace` 與 `data` 在 UI 完全看不到，列表項點了沒反應，500 條 log 無搜尋無過濾，error 跟 info 混成一片。
 * **好品味設計**：
   - `LogDetailView`（仿 `NetworkDetailView`）：點 log 展開 message / level / **可複製 stackTrace** / `data`（用 `KeyValueTable`）。
@@ -203,7 +203,7 @@
 * **重用**：`NetworkTab` 搜尋 bar + FilterChip、`LogInspector.entriesAtLevel()`（已存在）、`KeyValueTable`、`NetworkDetailView` 佈局。
 * **注意**：搜尋/過濾/詳情面板在上一份 brainstorm（已歸檔）中已列入。**此處只強調其排查價值並與 #2 的時序側欄、#3 的報告打包對齊**，避免重複規劃；實作時應一併考量。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐
-* **🟡 實作現況**：`LogDetailView` 已完成（點擊展開、可複製 stackTrace 區段、Data 區段、分享），Console 列已加 chevron 標記可展開。**未完成**：ConsoleTab 的搜尋欄、LogLevel FilterChip、errors-only 過濾尚未實作，`entriesAtLevel()` 仍未被使用。**詳細缺口分析與實作方案見第四部分 §D1**。
+* **✅ 實作現況（2026-08-14 · PR #128 補齊）**：`LogDetailView` 已完成（點擊展開、可複製 stackTrace 區段、Data 區段、分享），Console 列已加 chevron 標記可展開。搜尋欄、LogLevel FilterChip、errors-only 過濾亦已於 PR #128 落地，並附帶「點擊過濾結果跳回完整時間軸」。`entriesAtLevel()` 最終**未被採用**——它回傳 `List<LogEntry>`，接不上 ConsoleTab 的四源混合流，改以吃 `List<TimestampedEntry>` 的 `applyConsoleFilter()` 取代。**實作細節與落差見第四部分 §D1**。
 
 ---
 
@@ -265,7 +265,7 @@
 >
 > 核心原則不變：**不是新系統，是既有零件的重新組合**。零新模型、零新相依。
 
-### §D1. ConsoleTab 搜尋 + LogLevel 過濾（#5 剩餘缺口）— 🔴 最高優先
+### §D1. ConsoleTab 搜尋 + LogLevel 過濾（#5 剩餘缺口）— ✅ 已完成（PR #128 · 2026-08-14，與 §P5 合併落地）
 
 > **這是排查鏈上唯一的紅燈。** 500+ 條混合 timeline，error log 跟 info/debug 混成一片，開發者只能肉眼掃描。
 
@@ -300,6 +300,15 @@
 > - `entriesAtLevel()` 回傳 `List<LogEntry>`，而 ConsoleTab 渲染的是 `mergedTimeline` 的**四源混合流**（log/network/nav/db）——**接不上**，需另寫吃 `List<TimestampedEntry>` 的過濾函式
 >
 > 故此項非「接線」等級，是「照 `applyNetworkFilter` 模式新寫 `applyConsoleFilter` + 提取搜尋元件」。仍在 low–med，但沒有原文暗示的那麼便宜。
+
+**✅ 實作現況（2026-08-14 · PR #128）**：依上述 ③ 的修正方向，與 §P5 **合併為一項**落地。
+
+* **新增** `lib/src/utils/console_utils.dart`：`ConsoleFilter`（keyword + `Set<LogLevel>` + `errorsOnly`）與 `applyConsoleFilter()` 純函式，鏡射 `NetworkFilter` / `applyNetworkFilter()`。關鍵字比對依 entry 型別分派，吃的是 `List<TimestampedEntry>` 混合流——正是 ④ 指出 `entriesAtLevel()` 接不上的那個缺口。
+* **`console_tab.dart`**：接入搜尋欄、LogLevel FilterChip 一排、`⚡ Errors only` 快捷 chip；搜尋 / 來源 / LogLevel 三者正交疊加。`errorsOnly` 與 LogLevel 為**互斥語意**（開快捷即清空 level 選擇），避免留下不生效的選擇。
+* **跳回完整脈絡（§P5 零件）**：過濾生效時點擊某列 → 清空全部過濾條件 + `ScrollController.animateTo` 捲到該筆位置。捲動前 `await SchedulerBinding.instance.endOfFrame`，否則會被過濾後較短的 scroll extent 夾住；偏移量以固定列高近似（`_kApproxRowHeight`），落在目標附近即可。
+* **與原提案的落差**：§P5 原設計的「⬆ Jump to Latest Error」FAB 未採用——合併後的入口是「點擊過濾結果」，由 `_JumpRow` 承接。這是 ③ 合併決策的預期結果（取捲動零件、不取 FAB 入口），非殘留缺口。
+* **Review 補正**：`TextEditingController` 原由 `_SearchBar` 私有持有，導致跳轉清掉 `_filter` 後輸入框仍殘留舊關鍵字；已將所有權提升至 `_ConsoleTabState` 並於跳轉時同步清空（附回歸測試）。
+* **測試**：`test/utils/console_utils_test.dart`（過濾語意）＋ `test/ui/tabs/console_tab_test.dart`（跳轉、正交疊加、long-press 書籤不被跳轉接管）。
 
 ### §D2. 未捕捉例外去重修復（#1 殘留缺陷）— ✅ 已完成（PR #96 · 2026-07-24）
 
@@ -471,7 +480,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
   - ⚠️ 注意 `diagnostic_report.dart:186` 已記載「固定 3-backtick fence 會被內容中的 fence 打斷」
     的既有教訓，新 formatter 產 fenced block 時沿用該處的處理方式，勿重寫一份。
 
-### §P5. Console Timeline 自動跳轉最新 Error（Jump to Latest Error）— 🆕
+### §P5. Console Timeline 自動跳轉最新 Error（Jump to Latest Error）— ✅ 已完成（PR #128 · 2026-08-14，隨 §D1 合併落地）
 
 > **痛點**：Timeline 按時序排列（newest first），但最新 error 可能不在最頂（之後有新的 info/debug log 進來）。需要手動滾動找紅點。
 
@@ -480,6 +489,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
   - 掃描 `_filteredTimeline()` 找第一筆 error-level entry 的 index，`ScrollController.animateTo`
   - 無 error 時 FAB 隱藏
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐
+* **✅ 實作現況（2026-08-14 · PR #128）**：依 2026-07-24 的重排，本節已**併入 §D1 一併落地**——取的是 `ScrollController.animateTo` 捲動零件，入口則改為「過濾生效時點擊某列 → 清過濾 + 捲到該筆」。上方 FAB 設計是合併前的原始構想，**已被合併後的形狀取代，非殘留缺口**（合併理由見 §D1 重新定性 ③）。
 
 ### §P6. Dashboard 錯誤計數 Badge（Error Count Badge on Tabs）— ✅ 已完成（`b4846ea` · 2026-08-07）
 
@@ -554,7 +564,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 | 優先序 | 項目 | 來源 | Effort | 排查價值 |
 |:---:|------|------|:---:|:---:|
-| **1** | ConsoleTab 搜尋 + LogLevel 過濾 | §D1（#5 缺口） | low–med | ⭐⭐⭐⭐⭐ |
+| ~~1~~ | ConsoleTab 搜尋 + LogLevel 過濾 — ✅ 已完成（PR #128，與 §P5 合併） | §D1（#5 缺口） | low–med | ⭐⭐⭐⭐⭐ |
 | **2** | 錯誤爆發偵測 + 視覺警報 | §P1 新提案 | low | ⭐⭐⭐⭐⭐ |
 | ~~3~~ | ~~錯誤上下文快照~~ — ❌ 已否決（2026-07-24，理由見 §P2） | §P2 新提案 | — | — |
 | ~~4~~ | 未捕捉例外去重修復 — ✅ 已完成（PR #96） | §D2（#1 缺陷） | low | ⭐⭐⭐⭐ |
@@ -563,7 +573,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | **7** | Dashboard 錯誤計數 Badge ✅ 已完成（`b4846ea`） | §P6 新提案 | low | ⭐⭐⭐ |
 | ~~8~~ | Error 高亮強化 — ✅ 已完成（PR #101） | §P7 新提案 | trivial | ⭐⭐⭐ |
 | **9** | 快速複製 Diagnostic Snippet | §P4 新提案 | trivial–low | ⭐⭐⭐ |
-| **10** | Jump to Latest Error FAB | §P5 新提案 | low | ⭐⭐⭐ |
+| ~~10~~ | Jump to Latest Error FAB — ✅ 已完成（PR #128，併入 §D1；入口改為點擊過濾結果，FAB 為被取代的原始構想） | §P5 新提案 | low | ⭐⭐⭐ |
 | **11** | DatabaseTab 搜尋 / 過濾 | §D4 缺口 | low | ⭐⭐⭐ |
 | ~~12~~ | 慢請求標記 — ✅ 已完成（PR #111 / Issue #110） | §P8 新提案 | trivial | ⭐⭐ |
 | **13** | Diagnostic Report JSON 輸出 | §P9 新提案 | med | ⭐⭐ |
@@ -785,7 +795,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 | 項目 | 內容 | 寫入路徑 | Effort |
 |------|------|----------|:---:|
-| **§D1 + §P5**（**合併**） | 過濾 + 點擊清過濾並捲回主時間軸 | `console_tab.dart` + 可選 `console_utils.dart` | med |
+| ~~**§D1 + §P5**（**合併**）~~ | 過濾 + 點擊清過濾並捲回主時間軸 — ✅ 已完成（PR #128 · 2026-08-14）。`console_utils.dart` 由「可選」變為實際新增；入口依合併決策改以點擊過濾結果觸發，未採用 §P5 原構想的 FAB | `console_tab.dart` + `console_utils.dart` | med |
 | ~~**§P3** Timeline 書籤~~ | 長按標記 + bookmark-only 過濾 + 報告前綴 — ✅ 已完成（PR #115） | `console_tab.dart` + `diagnostic_report.dart` | low |
 
 > **§D1 與 §P5 應合併為一項**，不該分居原 Phase 1 與 Phase 4：單獨的過濾切斷前後文，單獨的 §P5 只能跳最新 error；合起來才完整——搜到 → 點擊 → 清過濾並捲到該位置 → 站回完整時間軸看前後。這也是 §D3 ±5s 側欄想解決卻解錯的問題（見 §D1 重新定性 ③）。
@@ -831,6 +841,8 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 > 建議每次 release 後回頭跑一次 Tier 表的實查核對，別讓狀態欄漂移。
 >
 > **收尾建議（2026-07-25 二次更新）**：排查鏈的基礎建設已近完備（10 項原始功能中 9 項完成）。**Tier 1（§P13）已於 PR #100 完成**——真正往 timeline 加上原本拿不到的維度（前景/背景 + 切換頁面），且動工前逐項實查、無隱藏成本坑到。**Tier 2 的 §P7 已於 PR #101 完成**（error 行淡紅底，只染 error 不染 warning）。**下一步：§P11 → §P1 錯誤爆發偵測**（綁定排程，§P11 先行）——§P6 Dashboard Badge 已於 `b4846ea`（2026-08-07）完成，**Tier 2 僅剩此一項**。原被列為最高優先的 §D1 仍在 Tier 3 並與 §P5 合併，§P2 整項否決，理由見各節。
+>
+> **📝 更新（2026-08-14）**：上句的「§D1 仍在 Tier 3」已過時——**§D1 + §P5 合併項已於 PR #128 完成**，Tier 3 因此清空。Tier 2 的 §P11 → §P1 仍為下一步，未受本次影響。
 >
 > **§P7 帶出的一條估計偏差**：trivial 項目的 effort 估在「要寫的程式碼」上是準的（高亮本體只有兩行 `tileColor`），但**低估了「會動到幾份既有判定」**——實作時發現「網路請求是否失敗」在三個檔案各手寫一份且已漂移各漏一種失敗類型，收斂它才是 diff 的主體，並順帶修掉一個靜默的既有 bug（errorType-only 的傳輸失敗不產生錯誤群組卡片）。文件其餘標為 trivial/low 的項目，建議動工前先 grep 一次「這個判斷在幾個地方被重寫過」，那才是真實成本所在。
 >
