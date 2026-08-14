@@ -354,7 +354,7 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 | 面向 | 缺點 | 嚴重度 | 說明 |
 |------|------|--------|------|
 | **過度工程** | ~~小功能走全流程太重~~ | ✅ 已解決 | quick 模式已補上逃生艙：小修正走「branch → 直改 → reviewer 快掃 → PR」單暫停點通道。殘餘風險：「是否屬於小修正」的判斷仍靠 LLM 自律，quick 被拿來跑大功能時只有「中途升級轉完整流程」這條軟性防線 |
-| **暫停點過多** | Human-in-the-loop 頻率太高 | 🟡 中 | 正常路徑就有 6 個固定暫停點（STAGE 0a/0b/1/3/4 各一 + STAGE 2 每任務一次），外加條件式的「模糊需求」暫停。STAGE 2 任務多時暫停次數線性膨脹，使用者必須一直盯著等確認，「自動驅動」的承諾被密集確認打斷 |
+| **暫停點過多** | ~~Human-in-the-loop 頻率太高~~ | ✅ 已解決 | `pause_level` 已於 2026-08-06（`9bce068`）落地，暫停頻率成為可選粒度：`strict`（預設，維持原本 6 個固定暫停點 + STAGE 2 逐任務）／`balanced`（只停 `0b` 計畫確認、`2` 實作整體完成、`4` PR 發布前，STAGE 2 逐任務暫停全關）／`autonomous`（全不停）。判定收斂於 `wf-state.sh:141` `should_pause()` 單一來源，`stage-done`/`task-done` 兩處呼叫；欄位缺失或值異常一律退回 `strict`，壞掉的方向偏向多停一次。詳見 SKILL.md:197-211。**殘餘風險**：`autonomous` 會讓 `gh pr create` 不經過目就執行，故 SKILL.md:211 明列除非使用者要求無人值守，否則優先建議 `balanced` |
 | **委派後端依賴** | ~~外部 CLI 是單點故障~~ 傳輸層已換，依賴本身仍在 | 🟡 中（原 🟡 中，性質改變） | 2026-08-10 傳輸層由 `agy -p` headless 改為 MCP（`mcp__gemini-cli__ask-gemini`），**解決的是「委派根本跑不動」**——舊路徑因 stdin/權限問題實際一律落到 fallback，orchestrator 模式形同虛設。**未解決的**：後端仍是單一外部依賴（MCP server 掛掉照樣退 fallback），且新路徑帶來兩個舊路徑沒有的缺口——(1) MCP 無法指定 cwd，工作目錄靠 prompt 寫絕對路徑約束，屬**文件層自律而非程式強制**；(2) 無 `--print-timeout` 對應機制，長任務卡住只能人為中斷 |
 | **Model 假設** | 綁定 Anthropic 模型族 | 🟢 低 | 已大幅收斂：版本 ID 全數移除，model/effort 綁在 agent frontmatter（別名），SKILL.md 只寫推論等級名——同代升級與跨代換代都免改。殘餘綁定：`opus`/`sonnet` 別名與 effort 參數仍是 Claude Code 專有，若換到非 Anthropic 生態，需重寫的只剩每個 agent 檔的兩行 frontmatter，等級語意（最強推論/標準/輕量）可原樣搬移 |
 | **狀態檔脆弱** | ~~JSON 手動管理無校驗~~ | ✅ 已解決 | `scripts/wf-state.sh` 成為 state 檔唯一存取入口：schema 校驗（含 `schema_version` 欄位）+ 原子寫入（tmp → jq 驗證 → mv），壞資料進不了磁碟、寫入半途中斷不留半套 state；`get` 讀取即校驗，腐壞檔立即失敗而非靜默續接 |
@@ -377,6 +377,6 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 
 **已修掉的問題：** (1) 缺少輕量模式——quick 模式已補上（單暫停點、不建 worktree、branch → 直改 → reviewer 快掃 → PR），10 行 fix 不再跑 6 個 stage。(2) 參數配置收斂——model 別名收斂於 frontmatter 綁定，effort 配置則收斂於推論等級表；雖呼叫時需明確指明 effort，但透過統一定義降低了 model 換代的維護稅。(3) **跨工作區盲區與 Quick 升級逃逸**——已在 SKILL.md 規範中強制利用 `git worktree list` 跨區掃描以及升級時強制建置工作區來修補。(4) **腳本底層漏洞**——2026-07-21 已修復 `wf-state.sh` 的 5 個 Bash 執行階段 bug（含暫存檔洩漏、參數檢查缺失，以及完成度校驗誤用函式外 `local` 致 `set -e` crash 的回歸）與 3 個設計縫隙（缺少完成度校驗、STAGE 5 退回路徑、以及 prune GC），徹底鞏固防線。(5) **STAGE 1 規劃文件搬移**——2026-07-29 新增步驟將 STAGE 0a/0b 產出的未 commit spec/plan 檔複製進新 worktree，避免 state 檔的路徑懸空。
 
-**已採用之修復與背景（Bug 1.6 STAGE 1 斷裂）：** 此問題（`promote` 不推進 `stage` 導致 sequence 模式下 `stage-done 1` 遭拒）曾被視為高優先級待修項目。基於「Never break userspace」的實用主義哲學，最終選擇**修改 SKILL.md（Workaround）**，要求 AI 在 promote 後主動跑 `advance 0b --confirmed` → `advance 1 --confirmed` 來推動轉移表，而非去改動服務於多條路徑的 `promote` 底層腳本。這保證了 100% 安全且零回歸風險。目前殘餘的流程設計缺陷主要為暫停點密度：正常路徑 6 個固定暫停點、STAGE 2 逐任務再線性膨脹——「自動驅動」的承諾被密集確認打斷，未來應考慮讓使用者選擇確認粒度。
+**已採用之修復與背景（Bug 1.6 STAGE 1 斷裂）：** 此問題（`promote` 不推進 `stage` 導致 sequence 模式下 `stage-done 1` 遭拒）曾被視為高優先級待修項目。基於「Never break userspace」的實用主義哲學，最終選擇**修改 SKILL.md（Workaround）**，要求 AI 在 promote 後主動跑 `advance 0b --confirmed` → `advance 1 --confirmed` 來推動轉移表，而非去改動服務於多條路徑的 `promote` 底層腳本。這保證了 100% 安全且零回歸風險。曾被列為殘餘缺陷的暫停點密度（正常路徑 6 個固定暫停點、STAGE 2 逐任務線性膨脹）已由 `pause_level` 解決——2026-08-06（`9bce068`）落地，使用者可於 `init` 時或流程中途選擇 `strict`／`balanced`／`autonomous` 三級確認粒度。
 
 **最危險的假設（更新後）：** 原本是「markdown 指令 = 程式碼保證」；guard 進了 `wf-state.sh` 且腳本 bug 也修復之後，假設縮小為「LLM 會記得呼叫腳本」。我們成功將絕大多數的 LLM 自律漏洞轉移為 Code-level 的守門員，但若不主動呼叫 `wf-state.sh`，再強的防線也是形同虛設。
