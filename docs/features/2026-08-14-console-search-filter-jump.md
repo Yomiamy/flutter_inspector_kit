@@ -30,7 +30,7 @@ Console 缺的檢索能力，**並且讓檢索完能回到完整脈絡**：
 
 ### 合起來才閉環
 
-```
+```text
 搜到 → 點擊 → 清過濾 + 捲到該位置 → 站回完整四源時間軸看前後
 ```
 
@@ -169,8 +169,8 @@ bool _matchesErrorsOnly(TimestampedEntry entry) => switch (entry) {
 |------|------|
 | `lib/src/utils/console_utils.dart` | **新增** — `ConsoleFilter` + `applyConsoleFilter()` |
 | `lib/src/ui/dashboard/tabs/console_tab.dart` | 修改 — 搜尋欄、level chips、errors-only chip、ScrollController、點擊跳轉 |
-| `test/console_utils_test.dart` | **新增** — 過濾邏輯單元測試 |
-| `test/console_tab_test.dart` | 新增或擴充 — 跳轉與正交疊加的 widget 測試 |
+| `test/utils/console_utils_test.dart` | **新增** — 過濾邏輯單元測試 |
+| `test/ui/tabs/console_tab_test.dart` | 新增或擴充 — 跳轉與正交疊加的 widget 測試 |
 
 **零改動**：`TimestampedEntry`（窄契約不動）、`LogInspector`、`network_tab.dart`、
 `NetworkFilter`、四個 model 檔。

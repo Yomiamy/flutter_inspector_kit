@@ -48,6 +48,11 @@ class _ConsoleTabState extends State<ConsoleTab> {
 
   final ScrollController _scrollController = ScrollController();
 
+  /// Owned here (not by [_SearchBar]) so [_jumpToEntry] can clear the
+  /// visible text when it resets [_filter] — otherwise the field would keep
+  /// showing a keyword that no longer filters anything.
+  final TextEditingController _searchController = TextEditingController();
+
   static const Set<TimelineSource> _all = {
     TimelineSource.log,
     TimelineSource.network,
@@ -65,6 +70,7 @@ class _ConsoleTabState extends State<ConsoleTab> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -116,6 +122,7 @@ class _ConsoleTabState extends State<ConsoleTab> {
     // Gone from the ring buffer between render and tap: nothing to scroll to.
     if (index < 0) return;
 
+    _searchController.clear();
     setState(() {
       _filter = const ConsoleFilter();
       _selected = {..._all};
@@ -158,7 +165,7 @@ class _ConsoleTabState extends State<ConsoleTab> {
 
     return Column(
       children: [
-        _SearchBar(onChanged: _setKeyword),
+        _SearchBar(controller: _searchController, onChanged: _setKeyword),
         Row(
           children: [
             Expanded(
@@ -280,8 +287,11 @@ class _JumpRow extends StatelessWidget {
 /// refresh/clear buttons and a match counter: the console keeps those in its
 /// own chip row, so bundling them here would duplicate existing controls.
 class _SearchBar extends StatefulWidget {
-  const _SearchBar({required this.onChanged});
+  const _SearchBar({required this.controller, required this.onChanged});
 
+  /// Owned by the parent [_ConsoleTabState] so a jump-to-entry can clear the
+  /// visible text alongside the filter it resets.
+  final TextEditingController controller;
   final ValueChanged<String> onChanged;
 
   @override
@@ -289,16 +299,8 @@ class _SearchBar extends StatefulWidget {
 }
 
 class _SearchBarState extends State<_SearchBar> {
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   void _clear() {
-    _controller.clear();
+    widget.controller.clear();
     widget.onChanged('');
     setState(() {});
   }
@@ -313,12 +315,12 @@ class _SearchBarState extends State<_SearchBar> {
         ThemeSize.space4,
       ),
       child: TextField(
-        controller: _controller,
+        controller: widget.controller,
         decoration: InputDecoration(
           isDense: true,
           hintText: 'Search message / url / route / table',
           prefixIcon: const Icon(Icons.search, size: ThemeSize.size20),
-          suffixIcon: _controller.text.isEmpty
+          suffixIcon: widget.controller.text.isEmpty
               ? null
               : IconButton(
                   icon: const Icon(Icons.clear, size: ThemeSize.size20),

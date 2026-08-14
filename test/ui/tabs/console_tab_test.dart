@@ -602,6 +602,33 @@ void main() {
     });
 
     testWidgets(
+      'tapping a filtered row also clears the search field text, not just '
+      'the filter state',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
+        inspector.log('cart opened', level: LogLevel.info);
+        inspector.log('unrelated noise', level: LogLevel.info);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+
+        await tester.enterText(find.byType(TextField), 'cart');
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('cart opened'));
+        await tester.pumpAndSettle();
+
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(field.controller?.text, isEmpty);
+      },
+    );
+
+    testWidgets(
       'long-press still bookmarks while a filter is active, since taking over '
       'the tap must not take over every gesture',
       (tester) async {
