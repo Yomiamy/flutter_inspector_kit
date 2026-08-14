@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_entry.dart';
@@ -9,6 +10,7 @@ import '../../../models/network_entry.dart';
 import '../../../models/timestamped_entry.dart';
 import '../../../extensions/log_level_color_extension.dart';
 import '../../../observers/inspector_route_names.dart';
+import '../../../utils/console_utils.dart';
 import '../../theme/theme.dart';
 import 'console/log_detail_view.dart';
 import 'network/network_detail_view.dart';
@@ -41,6 +43,16 @@ class _ConsoleTabState extends State<ConsoleTab> {
 
   bool _showOnlyBookmarks = false;
 
+  /// Keyword and level constraints applied on top of the source selection.
+  ConsoleFilter _filter = const ConsoleFilter();
+
+  final ScrollController _scrollController = ScrollController();
+
+  /// Owned here (not by [_SearchBar]) so [_jumpToEntry] can clear the
+  /// visible text when it resets [_filter] — otherwise the field would keep
+  /// showing a keyword that no longer filters anything.
+  final TextEditingController _searchController = TextEditingController();
+
   static const Set<TimelineSource> _all = {
     TimelineSource.log,
     TimelineSource.network,
@@ -54,6 +66,13 @@ class _ConsoleTabState extends State<ConsoleTab> {
     TimelineSource.nav: 'Nav',
     TimelineSource.db: 'DB',
   };
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _refresh() => setState(() {});
 
@@ -70,15 +89,83 @@ class _ConsoleTabState extends State<ConsoleTab> {
     _showOnlyBookmarks = false;
   });
 
+  void _setKeyword(String keyword) => setState(() {
+    _filter = ConsoleFilter(
+      keyword: keyword,
+      levels: _filter.levels,
+      errorsOnly: _filter.errorsOnly,
+    );
+  });
+
+  void _toggleLevel(LogLevel level) => setState(() {
+    final levels = {..._filter.levels};
+    if (!levels.remove(level)) levels.add(level);
+    _filter = ConsoleFilter(
+      keyword: _filter.keyword,
+      levels: levels,
+      // Picking a level means the user wants that level, not "all failures".
+      errorsOnly: false,
+    );
+  });
+
+  /// Row height used to approximate a scroll offset.
+  ///
+  /// Rows vary in height by type, so there is no exact offset to compute
+  /// without measuring every row above the target. Landing near the entry is
+  /// enough to read what came before and after it, which is the whole point of
+  /// going back to the full timeline.
+  static const double _kApproxRowHeight = 72;
+
+  /// Clears every filter and scrolls the full timeline to [entry].
+  Future<void> _jumpToEntry(TimestampedEntry entry) async {
+    final index = widget.inspector.mergedTimeline(sources: _all).indexOf(entry);
+    // Gone from the ring buffer between render and tap: nothing to scroll to.
+    if (index < 0) return;
+
+    _searchController.clear();
+    setState(() {
+      _filter = const ConsoleFilter();
+      _selected = {..._all};
+      _showOnlyBookmarks = false;
+    });
+
+    // The list is longer now, so its scroll extent is too. Scrolling in the
+    // same frame would clamp against the filtered list's old extent.
+    await SchedulerBinding.instance.endOfFrame;
+    if (!mounted || !_scrollController.hasClients) return;
+
+    final offset = (index * _kApproxRowHeight).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+    await _scrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _toggleErrorsOnly() => setState(() {
+    _filter = ConsoleFilter(
+      keyword: _filter.keyword,
+      // The shortcut supersedes the level set, so drop it rather than leave a
+      // selection that has no effect while the chip is on.
+      levels: const {},
+      errorsOnly: !_filter.errorsOnly,
+    );
+  });
+
   @override
   Widget build(BuildContext context) {
     var entries = widget.inspector.mergedTimeline(sources: _selected);
+    entries = applyConsoleFilter(entries, _filter);
     if (_showOnlyBookmarks) {
       entries = entries.where((e) => widget.inspector.isBookmarked(e)).toList();
     }
 
     return Column(
       children: [
+        _SearchBar(controller: _searchController, onChanged: _setKeyword),
         Row(
           children: [
             Expanded(
@@ -109,6 +196,20 @@ class _ConsoleTabState extends State<ConsoleTab> {
                       }),
                     ),
                     const SizedBox(width: ThemeSize.space8),
+                    FilterChip(
+                      label: const Text('⚡ Errors only'),
+                      selected: _filter.errorsOnly,
+                      onSelected: (_) => _toggleErrorsOnly(),
+                    ),
+                    for (final level in LogLevel.values) ...[
+                      const SizedBox(width: ThemeSize.space8),
+                      FilterChip(
+                        label: Text(logLevelLabels[level] ?? ''),
+                        selected: _filter.levels.contains(level),
+                        onSelected: (_) => _toggleLevel(level),
+                      ),
+                    ],
+                    const SizedBox(width: ThemeSize.space8),
                   ],
                 ),
               ),
@@ -129,7 +230,10 @@ class _ConsoleTabState extends State<ConsoleTab> {
         Expanded(
           child: _showOnlyBookmarks && entries.isEmpty
               ? const Center(child: Text('No bookmarked entries'))
+              : !_filter.isEmpty && entries.isEmpty
+              ? const Center(child: Text('No matches'))
               : ListView.builder(
+                  controller: _scrollController,
                   itemCount: entries.length,
                   itemBuilder: (context, index) => _EntryRowDispatcher(
                     entry: entries[index],
@@ -137,10 +241,99 @@ class _ConsoleTabState extends State<ConsoleTab> {
                     onToggleBookmark: () => setState(() {
                       widget.inspector.toggleBookmark(entries[index]);
                     }),
+                    onJump: _filter.isEmpty
+                        ? null
+                        : () => _jumpToEntry(entries[index]),
                   ),
                 ),
         ),
       ],
+    );
+  }
+}
+
+/// Wraps a row so tapping it jumps back to the unfiltered timeline.
+///
+/// Only the tap is taken over. Long-press still reaches the row underneath, so
+/// bookmarking keeps working while a filter is active — an entry you just
+/// searched for is precisely one you may want to pin.
+class _JumpRow extends StatelessWidget {
+  const _JumpRow({
+    required this.onJump,
+    required this.onLongPress,
+    required this.child,
+  });
+
+  final VoidCallback? onJump;
+  final VoidCallback onLongPress;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      // The child is wrapped in IgnorePointer, so without an opaque behavior
+      // there is nothing left to hit-test and neither gesture would fire.
+      behavior: HitTestBehavior.opaque,
+      onTap: onJump,
+      onLongPress: onLongPress,
+      child: child,
+    );
+  }
+}
+
+/// Keyword field for the console timeline.
+///
+/// Deliberately leaner than the network tab's namesake, which also carries the
+/// refresh/clear buttons and a match counter: the console keeps those in its
+/// own chip row, so bundling them here would duplicate existing controls.
+class _SearchBar extends StatefulWidget {
+  const _SearchBar({required this.controller, required this.onChanged});
+
+  /// Owned by the parent [_ConsoleTabState] so a jump-to-entry can clear the
+  /// visible text alongside the filter it resets.
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends State<_SearchBar> {
+  void _clear() {
+    widget.controller.clear();
+    widget.onChanged('');
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        ThemeSize.space8,
+        ThemeSize.space8,
+        ThemeSize.space8,
+        ThemeSize.space4,
+      ),
+      child: TextField(
+        controller: widget.controller,
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: 'Search message / url / route / table',
+          prefixIcon: const Icon(Icons.search, size: ThemeSize.size20),
+          suffixIcon: widget.controller.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear, size: ThemeSize.size20),
+                  onPressed: _clear,
+                ),
+          border: const OutlineInputBorder(),
+        ),
+        onChanged: (value) {
+          widget.onChanged(value);
+          // Rebuild so the clear affordance tracks emptiness.
+          setState(() {});
+        },
+      ),
     );
   }
 }
@@ -151,14 +344,39 @@ class _EntryRowDispatcher extends StatelessWidget {
     required this.entry,
     required this.inspector,
     required this.onToggleBookmark,
+    this.onJump,
   });
 
   final TimestampedEntry entry;
   final FlutterInspector inspector;
   final VoidCallback onToggleBookmark;
 
+  /// Set only while a filter is narrowing the list. Tapping a row then means
+  /// "take me back to this moment in the full timeline" rather than "show me
+  /// this entry's details" — the detail view is one tap away again afterwards.
+  final VoidCallback? onJump;
+
   @override
   Widget build(BuildContext context) {
+    // Intercepting here rather than in each row keeps the two tap meanings in
+    // one place, and gives navigation/database rows a jump target even though
+    // they have no detail view of their own to tap into.
+    if (onJump != null) {
+      return _JumpRow(
+        onJump: onJump,
+        onLongPress: onToggleBookmark,
+        // Absorbs the row's own tap (detail view) so it cannot compete with
+        // the jump, while _JumpRow re-offers long-press above it.
+        child: IgnorePointer(
+          child: _EntryRowDispatcher(
+            entry: entry,
+            inspector: inspector,
+            onToggleBookmark: onToggleBookmark,
+          ),
+        ),
+      );
+    }
+
     switch (entry) {
       case final LogEntry e:
         return _LogEntryRow(

@@ -458,4 +458,229 @@ void main() {
       expect(find.text('14:30:01.123'), findsOneWidget);
     });
   });
+
+  group('ConsoleTab search and level filters', () {
+    Future<void> pumpTab(WidgetTester tester, FlutterInspector inspector) =>
+        tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+
+    /// The chip row scrolls horizontally and is wider than the 800px test
+    /// viewport, so the level chips sit off-screen until scrolled to — same as
+    /// a user dragging the row.
+    Future<void> tapChip(WidgetTester tester, String label) async {
+      await tester.scrollUntilVisible(
+        find.widgetWithText(FilterChip, label),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, label));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the keyword narrows the timeline across sources', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.log('cart opened', level: LogLevel.info);
+      inspector.log('unrelated noise', level: LogLevel.info);
+
+      await pumpTab(tester, inspector);
+      expect(find.text('unrelated noise'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'cart');
+      await tester.pumpAndSettle();
+
+      expect(find.text('cart opened'), findsOneWidget);
+      expect(find.text('unrelated noise'), findsNothing);
+    });
+
+    testWidgets('a filter matching nothing shows No matches', (tester) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.log('only entry', level: LogLevel.info);
+
+      await pumpTab(tester, inspector);
+      await tester.enterText(find.byType(TextField), 'zzz-no-such-entry');
+      await tester.pumpAndSettle();
+
+      expect(find.text('No matches'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a level chip keeps network rows visible, so it never degrades into a '
+      'source filter',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
+        inspector.log('an info log', level: LogLevel.info);
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/cart',
+            statusCode: 200,
+            isComplete: true,
+          ),
+        );
+
+        await pumpTab(tester, inspector);
+        await tapChip(tester, 'Error');
+
+        // The info log fails the level constraint...
+        expect(find.text('an info log'), findsNothing);
+        // ...but the successful call is not a log, so level never applied.
+        expect(find.textContaining('https://api.test/cart'), findsOneWidget);
+      },
+    );
+
+    testWidgets('errors only drops successful calls and healthy logs', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.log('an info log', level: LogLevel.info);
+      inspector.log('a broken thing', level: LogLevel.error);
+      inspector.logNetwork(
+        NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/ok',
+          statusCode: 200,
+          isComplete: true,
+        ),
+      );
+      inspector.logNetwork(
+        NetworkEntry(
+          method: 'POST',
+          url: 'https://api.test/broken',
+          statusCode: 500,
+          isComplete: true,
+        ),
+      );
+
+      await pumpTab(tester, inspector);
+      await tapChip(tester, '⚡ Errors only');
+
+      expect(find.text('a broken thing'), findsOneWidget);
+      expect(find.textContaining('https://api.test/broken'), findsOneWidget);
+      expect(find.text('an info log'), findsNothing);
+      expect(find.textContaining('https://api.test/ok'), findsNothing);
+    });
+  });
+
+  group('ConsoleTab jump back to the full timeline', () {
+    testWidgets('tapping a filtered row clears every filter', (tester) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.log('cart opened', level: LogLevel.info);
+      inspector.log('unrelated noise', level: LogLevel.info);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), 'cart');
+      await tester.pumpAndSettle();
+      expect(find.text('unrelated noise'), findsNothing);
+
+      await tester.tap(find.text('cart opened'));
+      await tester.pumpAndSettle();
+
+      // Filters are gone, so the surrounding context is back on screen.
+      expect(find.text('unrelated noise'), findsOneWidget);
+      expect(find.text('cart opened'), findsOneWidget);
+    });
+
+    testWidgets(
+      'tapping a filtered row also clears the search field text, not just '
+      'the filter state',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
+        inspector.log('cart opened', level: LogLevel.info);
+        inspector.log('unrelated noise', level: LogLevel.info);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+
+        await tester.enterText(find.byType(TextField), 'cart');
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('cart opened'));
+        await tester.pumpAndSettle();
+
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(field.controller?.text, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'long-press still bookmarks while a filter is active, since taking over '
+      'the tap must not take over every gesture',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
+        inspector.log('cart opened', level: LogLevel.info);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+
+        await tester.enterText(find.byType(TextField), 'cart');
+        await tester.pumpAndSettle();
+        expect(inspector.bookmarkedEntries, isEmpty);
+
+        await tester.longPress(find.text('cart opened'));
+        await tester.pumpAndSettle();
+
+        expect(inspector.bookmarkedEntries, hasLength(1));
+      },
+    );
+
+    testWidgets(
+      'tapping an unfiltered row still opens the detail view rather than '
+      'jumping',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/x',
+            statusCode: 200,
+            isComplete: true,
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+
+        await tester.tap(find.textContaining('https://api.test/x'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(NetworkDetailView), findsOneWidget);
+      },
+    );
+  });
 }
