@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../../core/flutter_inspector.dart';
 import '../../../models/database_entry.dart';
@@ -45,6 +46,8 @@ class _ConsoleTabState extends State<ConsoleTab> {
   /// Keyword and level constraints applied on top of the source selection.
   ConsoleFilter _filter = const ConsoleFilter();
 
+  final ScrollController _scrollController = ScrollController();
+
   static const Set<TimelineSource> _all = {
     TimelineSource.log,
     TimelineSource.network,
@@ -58,6 +61,12 @@ class _ConsoleTabState extends State<ConsoleTab> {
     TimelineSource.nav: 'Nav',
     TimelineSource.db: 'DB',
   };
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   void _refresh() => setState(() {});
 
@@ -92,6 +101,42 @@ class _ConsoleTabState extends State<ConsoleTab> {
       errorsOnly: false,
     );
   });
+
+  /// Row height used to approximate a scroll offset.
+  ///
+  /// Rows vary in height by type, so there is no exact offset to compute
+  /// without measuring every row above the target. Landing near the entry is
+  /// enough to read what came before and after it, which is the whole point of
+  /// going back to the full timeline.
+  static const double _kApproxRowHeight = 72;
+
+  /// Clears every filter and scrolls the full timeline to [entry].
+  Future<void> _jumpToEntry(TimestampedEntry entry) async {
+    final index = widget.inspector.mergedTimeline(sources: _all).indexOf(entry);
+    // Gone from the ring buffer between render and tap: nothing to scroll to.
+    if (index < 0) return;
+
+    setState(() {
+      _filter = const ConsoleFilter();
+      _selected = {..._all};
+      _showOnlyBookmarks = false;
+    });
+
+    // The list is longer now, so its scroll extent is too. Scrolling in the
+    // same frame would clamp against the filtered list's old extent.
+    await SchedulerBinding.instance.endOfFrame;
+    if (!mounted || !_scrollController.hasClients) return;
+
+    final offset = (index * _kApproxRowHeight).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+    await _scrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
 
   void _toggleErrorsOnly() => setState(() {
     _filter = ConsoleFilter(
@@ -181,6 +226,7 @@ class _ConsoleTabState extends State<ConsoleTab> {
               : !_filter.isEmpty && entries.isEmpty
               ? const Center(child: Text('No matches'))
               : ListView.builder(
+                  controller: _scrollController,
                   itemCount: entries.length,
                   itemBuilder: (context, index) => _EntryRowDispatcher(
                     entry: entries[index],
@@ -188,11 +234,31 @@ class _ConsoleTabState extends State<ConsoleTab> {
                     onToggleBookmark: () => setState(() {
                       widget.inspector.toggleBookmark(entries[index]);
                     }),
+                    onJump: _filter.isEmpty
+                        ? null
+                        : () => _jumpToEntry(entries[index]),
                   ),
                 ),
         ),
       ],
     );
+  }
+}
+
+/// Wraps a row so the whole thing jumps back to the unfiltered timeline.
+///
+/// The row keeps its own visuals; [IgnorePointer] on the child is what stops
+/// its normal tap (detail view, bookmark long-press) from competing with the
+/// jump while a filter is active.
+class _JumpRow extends StatelessWidget {
+  const _JumpRow({required this.onJump, required this.child});
+
+  final VoidCallback? onJump;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(onTap: onJump, child: child);
   }
 }
 
@@ -264,14 +330,36 @@ class _EntryRowDispatcher extends StatelessWidget {
     required this.entry,
     required this.inspector,
     required this.onToggleBookmark,
+    this.onJump,
   });
 
   final TimestampedEntry entry;
   final FlutterInspector inspector;
   final VoidCallback onToggleBookmark;
 
+  /// Set only while a filter is narrowing the list. Tapping a row then means
+  /// "take me back to this moment in the full timeline" rather than "show me
+  /// this entry's details" — the detail view is one tap away again afterwards.
+  final VoidCallback? onJump;
+
   @override
   Widget build(BuildContext context) {
+    // Intercepting here rather than in each row keeps the two tap meanings in
+    // one place, and gives navigation/database rows a jump target even though
+    // they have no detail view of their own to tap into.
+    if (onJump != null) {
+      return _JumpRow(
+        onJump: onJump,
+        child: IgnorePointer(
+          child: _EntryRowDispatcher(
+            entry: entry,
+            inspector: inspector,
+            onToggleBookmark: onToggleBookmark,
+          ),
+        ),
+      );
+    }
+
     switch (entry) {
       case final LogEntry e:
         return _LogEntryRow(
