@@ -16,5 +16,23 @@
         ]
       }
     ]
+  },
+  "wf-guard-stage-check": {
+    "PreInvocation": null,
+    "PostInvocation": null,
+    "Stop": null,
+    "PreToolUse": [
+      {
+        "matcher": "invoke_subagent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.agents/hooks/wf-guard-stage-check.sh",
+            "timeout": 0
+          }
+        ]
+      }
+    ],
+    "PostToolUse": null
   }
 }

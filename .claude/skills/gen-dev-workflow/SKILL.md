@@ -146,15 +146,23 @@ description: |
     STAGE 5：回覆 PR Review（獨立入口，由你手動觸發）
     ──────────────────────────────────────────────────
     觸發方式：你說「PR #42 有新的 review 意見」
+    🔴 第一步（不可跳過）：推進狀態至 STAGE 5
+       - 既有工作區已存在 state 檔：wf-state.sh advance <state_file> 5 --confirmed
+       - 新對話／獨立進入：wf-state.sh init --mode jump --stage 5 --branch <branch> --set pr=<PR>
+       ↑ 未執行此步就派發 responder = 流程違規（將遭 Hook 攔截）
     → 呼叫 responder agent 處理每條意見
     → 處理完畢 → 呼叫 reviewer agent 重新審查
-    → 審查通過 → 呼叫 publisher agent 更新 PR
+    → 審查通過 → 呼叫 publisher agent 更新 PR 描述與留言
+    → 呼叫 wf-state.sh stage-done 5 結束 STAGE 5
     → 完成後流程再次結束，Claude 停止等待。
 
     ──────────────────────────────────────────────────
     STAGE 6：清理 Worktree（獨立入口，由你手動觸發）
     ──────────────────────────────────────────────────
     觸發方式：PR **實際合併後**，你說「PR #42 合併了，清理 worktree」
+    🔴 第一步（不可跳過）：推進狀態至 STAGE 6
+       - 既有工作區已存在 state 檔：wf-state.sh advance <state_file> 6 --confirmed
+       - 新對話／獨立進入：wf-state.sh init --mode jump --stage 6 --branch <branch>
     → 【文件同步】先呼叫 gen-sync-docs-by-branchs skill，
       以當前處理的分支為目標，將該分支的實際變更回寫到
       docs 下的發想／結構說明文件（brainstorm、architecture 等）
@@ -163,6 +171,7 @@ description: |
     → 呼叫 worktree-close-cleanup skill 移除 STAGE 1 建立的 worktree
     → 只移除 worktree 本身，**對應 branch 一律保留、不刪除**
       （worktree-close-cleanup 的既有規則，不因併入此流程而改變）
+    → 呼叫 wf-state.sh stage-done 6（或標記 done）
     → 不自動觸發：workflow 不會偵測 PR 合併狀態並自動清理，
       需你明確告知已合併才執行，避免在 PR 還可能需要修改時
       誤刪工作區。
@@ -420,7 +429,7 @@ batch-next 回傳 DONE → 輸出總結（各項 status / PR 連結），刪除�
 state 檔的**所有**建立、讀取、更新一律透過本 skill 的 `scripts/wf-state.sh`，**絕不手寫或手改 JSON**。guard 在腳本裡，不在本文件裡：
 
 - **schema 校驗 + 原子寫入**：先寫 tmp、`jq` 驗過才 `mv`——壞資料進不了磁碟，寫到一半中斷也不會留下半套 state。
-- **stage 轉移合法性**：sequence 模式只接受 `0a→0b→1→2→3→4`、`3→2`（審查退回）、`4→done`，非法跳段直接 exit 1。quick/jump 模式不套用轉移表（quick 的階段本來就非正式、jump 是使用者明示跳段），但校驗與棘輪照常生效。
+- **stage 轉移合法性**：sequence 模式接受 `0a→0b→1→2→3→4`、`3→2`（審查退回）、`4→done`，以及獨立入口銜接轉移 `4→5`、`5→4`、`5→5`、`4→6`、`5→6`、`6→done`，其餘非法跳段直接 exit 1。quick/jump 模式不套用轉移表（quick 的階段本來就非正式、jump 是使用者明示跳段），但校驗與棘輪照常生效。
 - **暫停點棘輪**：`stage-done` / `task-done` 之後 `awaiting_confirmation=true`，未帶 `--confirmed` 的 `advance` 一律拒絕。`--confirmed` 只能在**使用者真的在對話中確認後**帶上——跳過暫停點從「無聲遺忘」變成必須蓄意加旗標、在 Bash 歷史留下痕跡的動作。
 
 | 時機 | 指令 |
@@ -987,16 +996,22 @@ const findings = (await parallel([
 
 # 處理 PR review 意見（STAGE 5）
 /gen-dev-workflow review #<PR>
-→ 寫入狀態檔 { stage: 5, mode: "jump", pr: <PR> }
+→ 推進/寫入狀態檔：
+  - 既有工作區：wf-state.sh advance <state_file> 5 --confirmed
+  - 新對話 jump：wf-state.sh init --mode jump --stage 5 --branch <branch-name> --set pr=<PR>
 → 呼叫 responder agent 處理所有 review 意見（effort: high，輕量）
 → 處理完畢後呼叫 reviewer agent 重新審查（effort: xhigh，最強推論）
-→ 審查通過後呼叫 publisher agent 更新 PR（effort: high，輕量）
+→ 審查通過後呼叫 publisher agent 更新 PR 描述與留言（effort: high，輕量）
+→ 呼叫 wf-state.sh stage-done 5 結束 STAGE 5
 
 # PR 合併後清理 worktree（STAGE 6）
 /gen-dev-workflow cleanup <branch-name>
-→ 寫入狀態檔 { stage: 6, mode: "jump", branch: "<branch-name>" }
+→ 推進/寫入狀態檔：
+  - 既有工作區：wf-state.sh advance <state_file> 6 --confirmed
+  - 新對話 jump：wf-state.sh init --mode jump --stage 6 --branch <branch-name>
 → 呼叫 gen-sync-docs-by-branchs skill，以 <branch-name> 為目標同步文件
 → 同步完成後呼叫 gen-commit skill 將文件變更 commit（避免清理 worktree 時遺失）
 → 呼叫 worktree-close-cleanup skill 移除該 branch 對應的 worktree
 → 只移除 worktree，branch 本身保留不刪除（純 IO，無 model/effort 可調）
+→ 呼叫 wf-state.sh stage-done 6（或標記 done）
 ```
