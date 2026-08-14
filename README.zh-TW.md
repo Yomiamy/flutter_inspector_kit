@@ -48,7 +48,7 @@
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^2.1.0
+  flutter_inspector_kit: ^2.2.0
 ```
 
 接著執行 `flutter pub get`。
@@ -389,7 +389,16 @@ inspector.log(
 
 ### 讀取合併後的時間軸
 
-**Console** 分頁本身就已把 logs、network、navigation 與 database 事件交錯排在單一時間軸上（最新在前），並為每個來源提供一個 filter chip。error 等級的 log 與失敗的 network 呼叫會被加上淡紅色的列底色，捲動長時間軸時容易辨識——warning 維持原本的橘色文字但不上底色，避免 warning 一多就把整份列表洗成一片紅。你也可以用程式化方式讀取這份相同的合併檢視：
+**Console** 分頁本身就已把 logs、network、navigation 與 database 事件交錯排在單一時間軸上（最新在前），並為每個來源提供一個 filter chip。error 等級的 log 與失敗的 network 呼叫會被加上淡紅色的列底色，捲動長時間軸時容易辨識——warning 維持原本的橘色文字但不上底色，避免 warning 一多就把整份列表洗成一片紅。
+
+要在長時間軸中縮小範圍，此分頁另外提供：
+
+- **搜尋** — 不分大小寫的關鍵字，比對每筆項目可讀的欄位：log 訊息與 stack trace、network 的 URL／method／status code、route 名稱，以及 database 的資料表與操作。
+- **等級 chips** — `Verbose`、`Debug`、`Info`、`Warning`、`Error`。這些**只**約束 log 項目，所以選了某個等級不會連帶把 network、navigation、database 事件一起藏起來。
+- **`⚡ Errors only`** — 跨型別隔離失敗項目：`warning`／`error` 等級的 log，加上失敗的 network 呼叫。
+- **點擊跳回** — 篩選啟用時，點任一列會清掉所有篩選條件，並把完整時間軸捲動到該筆項目，讓你把搜尋找到的那一列放回前後脈絡中閱讀。長按仍然是加書籤，篩選中也一樣可用。
+
+你也可以用程式化方式讀取這份相同的合併檢視：
 
 ```dart
 // All sources, newest first.
