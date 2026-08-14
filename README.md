@@ -50,7 +50,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^2.1.0
+  flutter_inspector_kit: ^2.2.0
 ```
 
 Then run `flutter pub get`.
@@ -391,7 +391,16 @@ Available levels: `verbose`, `debug`, `info`, `warning`, `error`.
 
 ### Read the merged timeline
 
-The **Console** tab already interleaves logs, network, navigation, and database events on a single timeline (newest first), with a filter chip per source. Error-level logs and failed network calls are given a faint red row background so they're spottable while scrolling a long timeline — warnings keep their orange text but stay un-tinted, so a warning-heavy app doesn't wash the whole list out. You can also read that same merged view programmatically:
+The **Console** tab already interleaves logs, network, navigation, and database events on a single timeline (newest first), with a filter chip per source. Error-level logs and failed network calls are given a faint red row background so they're spottable while scrolling a long timeline — warnings keep their orange text but stay un-tinted, so a warning-heavy app doesn't wash the whole list out.
+
+To narrow a long timeline, the tab also offers:
+
+- **Search** — a case-insensitive keyword matched against each entry's readable fields: log messages and stack traces, network URLs, methods and status codes, route names, and database tables and operations.
+- **Level chips** — `Verbose`, `Debug`, `Info`, `Warning`, `Error`. These constrain *log* entries only, so picking one narrows your logs without hiding network, navigation, or database events.
+- **`⚡ Errors only`** — isolates failures across types: `warning`/`error` logs together with failed network calls.
+- **Tap to jump back** — while a filter is active, tapping any row clears every filter and scrolls the full timeline to that same entry, so a row you found by searching can be read back in its surrounding context. Long-press still bookmarks the row, filtered or not.
+
+You can also read that same merged view programmatically:
 
 ```dart
 // All sources, newest first.

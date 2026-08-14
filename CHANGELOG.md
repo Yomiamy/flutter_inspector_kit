@@ -1,3 +1,13 @@
+## 2.2.0
+
+### Added
+* **Console search and level filtering**: The Console tab now carries a search field above the timeline, matching a case-insensitive keyword against each entry's readable fields — log messages and stack traces, network URLs/methods/status codes, route names, and database tables and operations. A per-`LogLevel` chip row (`Verbose`, `Debug`, `Info`, `Warning`, `Error`) narrows logs further, and an `⚡ Errors only` chip isolates failures across types: `warning`/`error` logs together with failed network calls. Level chips only constrain log entries, so picking one does not silently hide network, navigation, or database events.
+* **Jump back to the full timeline**: While a filter is active, tapping any row clears every filter and scrolls the unfiltered timeline to that same entry — so a row found by searching can be read back in its surrounding context instead of in isolation.
+
+### Fixed
+* **Long-press bookmarking now survives filtering**: Bookmarking a row by long-press stopped working once a search or level filter was applied. Filtered rows accept long-press again, alongside the new tap-to-jump gesture.
+* **Search field text is cleared on jump-back**: Jumping from a filtered row back to the full timeline reset the filter but left the typed keyword visible in the search field, so the UI showed an active search over unfiltered results.
+
 ## 2.1.0
 
 ### Added
