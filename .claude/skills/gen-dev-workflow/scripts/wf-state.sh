@@ -95,7 +95,7 @@ slugify() { echo "${1//\//-}"; }
 
 legal_transition() {
   case "$1->$2" in
-    "0a->0b"|"0b->1"|"1->2"|"2->3"|"3->4"|"3->2"|"4->done"|"reviewer->responder"|"responder->reviewer"|"reviewer->publisher") return 0 ;;
+    "0a->0b"|"0b->1"|"1->2"|"2->3"|"3->4"|"3->2"|"4->done"|"4->5"|"5->4"|"5->5"|"4->6"|"5->6"|"6->done"|"reviewer->responder"|"responder->reviewer"|"reviewer->publisher") return 0 ;;
     *) return 1 ;;
   esac
 }
