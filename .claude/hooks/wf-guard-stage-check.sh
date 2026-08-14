@@ -103,6 +103,8 @@ if not matched_file:
 try:
     with open(matched_file, "r") as f:
         st_data = json.load(f)
+    if not isinstance(st_data, dict):
+        raise ValueError("狀態檔根節點必須為 JSON 物件（dict）")
 except Exception as e:
     rel_path = os.path.relpath(matched_file)
     sys.stderr.write(f"[WF-GUARD ERROR] 無法讀取或解析 workflow 狀態檔 {rel_path}：{e}\n請檢查修復該狀態檔或重新初始化。\n")
