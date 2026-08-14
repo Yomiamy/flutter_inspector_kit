@@ -237,7 +237,7 @@
 * **解決方案**：
   在 `wf-state.sh` 中新增 `prune` 命令，允許使用者或系統定期清理建立時間大於 7 天的 `.pending-*.json` 檔案。
 
-### Gap 2.6: 獨立入口（STAGE 5/6）完全繞過狀態機 — ⬜ 待修（2026-08-07 實例）
+### Gap 2.6: 獨立入口（STAGE 5/6）完全繞過狀態機 — ✅ 已修（2026-08-14 方案 A + C 落地）
 
 * **漏洞描述**：既有守衛（棘輪、轉移表、任務數校驗）**只在 `wf-state.sh` 被呼叫時才生效**。STAGE 5/6 是不在 `0a→0b→1→2→3→4` 主鏈上的獨立入口，缺少前後階段的銜接慣性，LLM 容易在「處理 review 意見」的任務心智下直接派發 responder/reviewer，**全程不碰腳本**——此時沒有任何機制會察覺流程正在推進。
 
@@ -249,25 +249,13 @@
 
   **連帶損害**：STAGE 5 流程的第三步（publisher 更新 PR 描述）一併被遺漏，因為沒有 state 推進來提示還有後續步驟。若此時換 session 續接，新 session 會誤判 STAGE 5 尚未執行而重跑。
 
-* **解決方案**（建議 A + C 併行，跳過 B）：
-
-  **A. 文件層——獨立入口的首步硬性化**
-  在 SKILL.md 的 STAGE 5/6 區塊開頭，把 state 推進寫成不可跳過的第一步而非隱含前提：
-  ```
-  STAGE 5：回覆 PR Review（獨立入口）
-  🔴 第一步（不可跳過）：wf-state.sh advance <檔> 5 --confirmed
-     ↑ 未執行此步就派發 responder = 流程違規
-  → 呼叫 responder agent...
-  ```
-  成本最低，但**仍只是叮嚀**——本次違規時 SKILL.md 已寫明正確流程（含 `{ stage: 5, mode: "jump" }` 的寫入指示）卻仍被漏掉，證明純文件層不足以獨立成為對策。
-
-  **B. 腳本層——`assert-stage` 子命令**：❌ **不採用**。
-  新增 `wf-state.sh assert-stage <檔> 5`（stage 不符則 exit 1）雖比 A 強，但**與 A 共享同一個失效前提**（都要求 LLM 主動呼叫腳本）。多一個子命令卻換不到實質保障，不划算。
-
-  **C. Hook 層——唯一真正的強制**
-  以 `PreToolUse` hook 攔截 `Agent` 工具呼叫：偵測到派發 `responder`/`reviewer`/`publisher` 時，檢查當前 worktree 的 state 檔 stage 是否已推進至對應階段，未推進則**阻擋該次呼叫**並回傳提示。
-  * **為何有效**：執行者是 harness 而非 LLM，這是唯一「想繞也繞不過」的層級。
-  * **代價**：hook 邏輯需維護；且會誤擋「流程外單獨派發 reviewer 做零星審查」的正當用法——需評估是否加白名單，或退而採「警告但不阻擋」。此取捨需由使用者依實際使用習慣決定。
+* **落地解決方案（2026-08-14 · 方案 A + C 併行）**：
+  1. **方案 A（文件層硬性化）**：`SKILL.md` 的 STAGE 5/6 區塊開頭加粗標示 `🔴 第一步（不可跳過）：推進狀態至 STAGE 5/6`，並明確規範未推進即派發 responder 屬流程違規。
+  2. **方案 C（Hook 層強制攔截）**：新增 `.claude/hooks/wf-guard-stage-check.sh`，在 `PreToolUse` 攔截 `Agent`（Claude）與 `invoke_subagent`（Antigravity）呼叫：
+     - 若派發 `responder` 且當前 worktree 存在 active workflow state，檢查 `stage` 是否為 `5`；
+     - 若未推進（如停在 `4`），Hook 直接以 exit 1 阻擋派發，並在 stderr 輸出精確的修復指令（`wf-state.sh advance <state_file> 5 --confirmed`）；
+     - **防誤殺保護**：若目錄下無 workflow 狀態檔（流程外單獨調用），Hook 直接 exit 0 放行。
+  3. **轉移表補全**：`wf-state.sh:legal_transition()` 補上 `4->5`、`5->4`、`5->5`、`4->6`、`5->6`、`6->done` 等轉移路徑，確保 sequence 流程回覆 PR 時推進無阻。
 
 * **設計啟示**：本 Gap 揭露的是守衛架構的**結構性盲點**，而非單點疏失——「守衛需要被呼叫才生效」。任何未來新增的獨立入口（非主鏈階段）都會重現同一漏洞，因此對策應落在**入口攔截層**，而非繼續往 `wf-state.sh` 內部堆校驗。
 
@@ -1160,6 +1148,7 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 | §5.5 Handoff | ✅ 需求已覆蓋 | SKILL.md:545-575 state 檔 + WIP commit 交接（不採 `HANDOFF.md`） |
 | §3 提案 1 `pause_level` | ✅ **已完成**（2026-08-06 · `9bce068`） | `wf-state.sh:141` `should_pause()` 單一判定來源；`:172` `apply_sets()` 白名單含 `pause_level` + enum 校驗；`:269`/`:286` 為 `stage-done`/`task-done` 兩個呼叫端；SKILL.md:179 暫停粒度章節、:872 選項語法 |
 | **批次佇列**（非原提案，2026-08-06 新增） | ✅ **已完成**（`9bce068`） | `wf-state.sh:349-430` `batch-init`/`batch-get`/`batch-next`/`batch-done`/`batch-fail`/`batch-abort`；獨立 schema + `batch_write` 原子寫入；SKILL.md:328 批次模式章節 |
+| **Gap 2.6 獨立入口狀態防護**（2026-08-14 補正） | ✅ **已完成**（2026-08-14 · 方案 A+C） | `SKILL.md:146` 首步硬性化；`.claude/hooks/wf-guard-stage-check.sh` PreToolUse 攔截 responder 派發；`.agents/hooks.json` 與 `.claude/settings.local.json` 掛載；`wf-state.sh:98` 補齊 `4->5` 轉移表 |
 | §3 提案 2 `cmd_rollback.sh` | ⬜ **未實作** | 全專案查無此檔；SKILL.md 內 `rollback` / `回滾` 零命中 |
 | §3 提案 3 `wf-truncate.sh` | ⬜ **未實作** | `scripts/` 下僅有 `wf-state.sh` |
 | §3 提案 4 `wf-exec.sh` | ❌ **不採用**（2026-08-10 定案） | 前提已變：委派改走 MCP 工具呼叫，不經 bash 子進程，沒有 `$?` 可保留，此形狀無對應物。其要解決的「回報不可信」問題改由**驗收紀律**覆蓋（`implementer.md`「回報不等於事實」+ SKILL.md 委派紀律第 3 條）。**前一版的判斷（「agy headless 不可用 ⇒ 委派已死 ⇒ 不必寫轉接層」）方向對、結論錯**——不可用的是傳輸層，不是委派本身；正解是換傳輸層，不是放棄委派 |
