@@ -790,6 +790,8 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 1. **完整效能 / Jank / 記憶體 Profiler**
    - *拒絕*：FPS 追蹤、frame drop、記憶體 profiling 是**另一個產品維度**，不是「錯誤排查」。Flutter 官方 DevTools 已有強大的 Performance/Memory view，in-app 重造只會是低配輪子。偏離主線，effort=high，**砍**。
+   - **2026-08-14 覆核，維持原判**：曾評估一個看似繞得過本條的變體——不做 profiler 面板，只用 stdlib `SchedulerBinding.addTimingsCallback` 把「單幀超標」轉成一筆離散事件併入 `mergedTimeline`（零新相依，且是 app 層級 hook，無 §P10 那種逐 widget 接線問題）。**仍然否決，死因是 debug build**：debug 無 AOT、assert 全開，`buildDuration` 系統性偏慢數倍，判定掉幀會**大量誤報**而非漏報——timeline 會被假 jank 洗版，反過來污染 Console 這條原本乾淨的排查鏈。而本 kit 是 debug-only 工具，**誤判不是邊緣情況，是唯一情況**。連官方 DevTools 都須警告「debug 效能數據不具參考性、請用 profile mode」，in-app overlay 更無立場宣稱測得準。此變體與 Anti-Feature #6（第五個 `TimelineSource` 的全鏈路成本）亦有衝突，但**不必走到那一步就已出局**。
+   - > 附帶結論（供日後看到同類套件清單時參考）：社群「Flutter 效能／崩潰分析」套件清單對本 kit **無一適用**——後端 telemetry SDK（sentry / crashlytics / newrelic / bugly …）與本 kit「資料不出裝置」的定位方向相反；FPS 小工具（statsfl / fps_monitor …）做的事十幾行 stdlib 即可取代且 `FrameTiming` 資料更完整（分得出 build 慢還是 raster 慢），但受制於上述 debug build 問題，取代了也沒用。**崩潰捕捉本 kit 已自有**（`uncaught_error_handler.dart` 三路 chain 且保留舊 handler），不需要 armor 這類「優雅恢復」——debug 階段要的是崩潰立刻現形，不是被吞掉。
 
 2. **跨 session 持久化 / 本機落盤的 crash history**
    - *拒絕*：把 buffer 定期寫 SQLite/Hive、重啟後還原——聽起來很美，但引入磁碟 IO、序列化版本相容、隱私（log 含敏感資料落盤）三重複雜度與風險。**排查的證據用 #3 的「一鍵匯出」帶走即可**，不需要工具自己當資料庫。違反「砍掉一半再砍一半」。**砍**。
