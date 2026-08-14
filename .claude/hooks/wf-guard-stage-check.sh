@@ -55,7 +55,8 @@ if isinstance(tc_args, dict):
                 agent_types.append(sa["TypeName"].lower())
 
 # If responder is not being dispatched, allow immediately
-if not any("responder" in a for a in agent_types):
+RESPONDER_AGENT_TYPES = {"responder"}
+if not any(a in RESPONDER_AGENT_TYPES for a in agent_types):
     sys.exit(0)
 
 # Check if there is an active workflow state file in current directory or repo
@@ -102,22 +103,25 @@ if not matched_file:
 try:
     with open(matched_file, "r") as f:
         st_data = json.load(f)
-    stage = str(st_data.get("stage", ""))
-    
-    # In STAGE 5, stage should be "5" or "responder"
-    if stage in ("5", "responder"):
-        sys.exit(0)
-    
+except Exception as e:
     rel_path = os.path.relpath(matched_file)
-    sys.stderr.write(f"""[WF-GUARD BLOCK] 偵測到派發 responder agent，但當前 workflow 狀態為 stage: "{stage}"（非 stage: 5）。
+    sys.stderr.write(f"[WF-GUARD ERROR] 無法讀取或解析 workflow 狀態檔 {rel_path}：{e}\n請檢查修復該狀態檔或重新初始化。\n")
+    sys.exit(1)
+
+stage = str(st_data.get("stage", ""))
+
+# In STAGE 5, stage should be "5" or "responder"
+if stage in ("5", "responder"):
+    sys.exit(0)
+
+rel_path = os.path.relpath(matched_file)
+sys.stderr.write(f"""[WF-GUARD BLOCK] 偵測到派發 responder agent，但當前 workflow 狀態為 stage: "{stage}"（非 stage: 5）。
 依據獨立入口規範，進入 STAGE 5 回覆 PR Review 前必須先推進狀態機。
 請先執行：
   wf-state.sh advance {rel_path} 5 --confirmed
 （或若為新對話獨立入口：wf-state.sh init --mode jump --stage 5 --branch <branch>）
 推進狀態完成後，方可再次派發 responder。\n""")
-    sys.exit(1)
-except Exception:
-    sys.exit(0)
+sys.exit(1)
 ' <<< "$input"
 
 exit $?
