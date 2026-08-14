@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-08-14**：**新增 §P15 鍵值儲存檢視器（Key-Value / SharedPreferences Browser）**——針對 QA 與開發者排查 Token 過期、快取污染與 Feature Flag 異常痛點，提出基於 `KeyValueBrowserSource` 的 host-injection 介面與 Database Tab 整合方案（支援搜尋、即時編輯、刪除與清空操作，零新相依且寫入操作自動記 log 追蹤）。排入 Tier 4（最高排查價值項）。
 > * **2026-07-27**：**§D6 實查已完成**——經 codebase 比對，`pushInspectorRoute` 與 `kInspectorRoutePrefix` 皆已落實，此既有缺陷已修復。
 > * **2026-07-26**：**新增 §D6 Inspector 自身頁面污染 NavigatorTab（既有缺陷）**——實測確認（probe test）dashboard 內 push 的 detail view 會被記進使用者的 Navigator 軌跡。根因是三段鏈：`dashboard_modal.dart` 的 `showGeneralDialog` 未指定 `useRootNavigator`（預設 `true`）→ dashboard 掛在**宿主 app 的 root Navigator**（正是掛載 observer 的那一個）→ 而 4 處 detail view 的 `MaterialPageRoute` **完全沒帶 `RouteSettings.name`**，`_isInspectorRoute()` 的字串等值比對一律放行。污染量與排查強度**成正比**（越反覆開關 detail view 越髒），故排入 **Tier 2** 而非打磨層——它侵蝕的是 NavigatorTab 既有功能的資料可信度。**已定案採方案 B**（dashboard 內部統一走 `pushInspectorRoute` helper，`_isInspectorRoute` 只認單一來源），不採方案 A（逐一補 route name）——A 把正確性押在「新增頁面時記得補」的人為自律上，B 才消滅特殊情況。**已實作**。
 > * **2026-07-25**：**§P7 Error 高亮強化完成**——PR #101 合入 main（merge `3ecdf51`），ConsoleTab 的 error log 與失敗網路請求加淡紅底（`ListTile.tileColor`，alpha 0.08）。**只染 error 不染 warning**（warning 密集時整片泛黃反而稀釋「跳出來」的效果），warning 維持橘字並有測試鎖住。真正的 diff 主體是**收斂「網路請求是否失敗」的三份重複判定**——動工才發現該判定在 `network_tab` / `diagnostic_report` / `network_utils` 各手寫一份且已漂移（各漏一種失敗類型），統一為 `NetworkEntry.isFailed`，並一併修掉「只帶 `errorType` 的傳輸失敗不產生 Error Summary 群組卡片」這個靜默的既有 bug。Tier 2 下一步為 §P11→§P1（綁定排程）。
@@ -708,6 +709,65 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 * **品味守則**：`mark()` 就是 `log()` 的殼，**不要**為了「聽起來像獨立功能」而新增 `MarkEntry` 模型或新 buffer——那是為不存在的區別打補丁（同 anti-feature #6 的判斷邏輯）。
 * **Effort**：trivial ｜**排查價值**：⭐⭐⭐（小成本、體驗改善，錦上添花類）
 
+### §P15. 鍵值儲存檢視器（Key-Value / SharedPreferences Browser）— 🆕（2026-08-14 新增）
+
+> **痛點**：Database Tab 已提供 SQLite / ObjectBox 的表格瀏覽，但實務上 QA 遇到「卡在某個畫面」「登入異常」「功能開關失靈」時，90% 的根因是 `SharedPreferences` 或 `FlutterSecureStorage` 裡的 Token、Feature Flag、快取 Key 爛掉了——而這些鍵值儲存**完全沒有任何 in-app 檢視手段**。目前 QA 唯一的選項是請開發者拉 adb shell / 解壓 sandbox，然後手動翻 XML 或 SQLite，完全不具即時排查能力。
+
+* **先問三個鐵律問題**：
+  1. **真實問題？** 100% 真實。「Token 過期但本地快取沒清掉導致 401 循環」「Feature flag 卡在錯誤狀態導致 UI 空白」是日常回報的常態。Database Tab 做了 SQLite 但漏了 SharedPreferences，是一個真實的盲區——兩者都是「本地持久化狀態」，只是儲存引擎不同。
+  2. **更簡單的方法？** 沒有。`SharedPreferences` 不像 SQLite 可以用現有的 `DatabaseBrowserSource` 接入——它不是表格式的結構化資料，是扁平的 key-value 對，需要不同的介面抽象。但**設計模式完全可以複用**：`DatabaseBrowserSource` 的 host-injection pattern（套件提供介面、消費端注入實作）已驗證三次（`DiagnosticInfoSource`、`DatabaseBrowserSource`、`WebViewBridgeAdapter`），第四次不需要新發明。
+  3. **會破壞什麼？** 不會。新增可選建構參數（`keyValueSources`）+ 新介面 + 新 UI section。**既有 Database Tab 的行為零改動**。
+
+* **好品味設計（核心洞察）**：
+  > SharedPreferences 就是一個「只有一張表、column 是 key/value/type」的 database。不需要另起爐灶——它的 UI 歸到 Database Tab 或獨立為 Storage Tab 皆可（傾向前者，避免 tab 膨脹），差別只在資料來源不同。
+  - **新增介面 `KeyValueBrowserSource`**（鏡射 `DatabaseBrowserSource` 的 host-injection 慣例）：
+    ```dart
+    abstract class KeyValueBrowserSource {
+      String get name; // e.g. 'SharedPreferences', 'SecureStorage'
+      Future<List<KeyValueEntry>> listAll();
+      Future<void> setValue(String key, Object value);
+      Future<void> remove(String key);
+      Future<void> clear();
+    }
+    ```
+  - `KeyValueEntry`：`@immutable` 資料類（`key: String`, `value: Object?`, `type: String`——`String`/`int`/`double`/`bool`/`List<String>`）
+  - **消費端實作（README 範例，非套件內建）**：
+    ```dart
+    class SharedPrefsBrowserSource implements KeyValueBrowserSource {
+      SharedPrefsBrowserSource(this._prefs);
+      final SharedPreferences _prefs;
+      @override String get name => 'SharedPreferences';
+      @override Future<List<KeyValueEntry>> listAll() async { /* _prefs.getKeys() → map */ }
+      @override Future<void> setValue(String key, Object value) async { /* _prefs.setXxx */ }
+      @override Future<void> remove(String key) async { _prefs.remove(key); }
+      @override Future<void> clear() async { _prefs.clear(); }
+    }
+    ```
+  - **註冊方式**對齊 `DatabaseBrowserSource`：
+    ```dart
+    final inspector = FlutterInspector(
+      navigatorKey: navigatorKey,
+      keyValueSources: [SharedPrefsBrowserSource(prefs)],
+    );
+    // 或動態
+    inspector.registerKeyValueSource(SharedPrefsBrowserSource(prefs));
+    ```
+  - **UI**：Database Tab 的 source dropdown 擴充為同時列出 `databaseSources` 與 `keyValueSources`（以 group header 區分），選中 KV source 時切換為 key-value 列表視圖（搜尋 + 篩選 type + **inline 編輯 / 刪除 / 清空**）
+  - **寫入操作**：KV 與 DB 的核心差異在於 KV **需要寫入能力**（修改 value、刪除 key、清空全部）。這是刻意的——QA 的真實需求是「把 Token 清掉重現全新狀態」「手動把 Feature Flag 改成 true 觸發隱藏功能」，唯讀的檢視器只解決一半問題。寫入操作須加二次確認（`AlertDialog`），且每次寫入自動生成一筆 `LogLevel.info` 的 Console log（`KV write: [source] key=xxx → value`），讓改動有跡可循。
+
+* **重用**：`DatabaseBrowserSource` 的 host-injection 架構模式、`DatabaseTab` 的 source dropdown + `DropdownButton` UI、`_SearchBar` 元件、`KeyValueTable`（已能渲染 Map）、`inspector.log()` 記錄操作。
+* **品味守則**：
+  - **零新相依**：套件不引入 `shared_preferences` 或 `flutter_secure_storage`，消費端自行注入——與 `DatabaseBrowserSource`（不引入 `sqflite`）、`DiagnosticInfoSource`（不引入 `device_info_plus`）、`WebViewBridgeAdapter`（不引入 webview 套件）完全一致。
+  - **不加第五個 Tab**：KV 檢視器歸入 Database Tab（或重新命名為 Storage Tab），不膨脹底部導航——tab 數量已經在臨界值，再加就得做 scrollable tab bar，偏離「簡潔」原則。
+  - **寫入操作加 log 追蹤**——debug 工具自己改了本地狀態卻不留痕跡，那就是 observer effect 的反面教材。
+* **Effort**：medium（新介面 + 新 UI section + README 範例）｜ **排查價值**：⭐⭐⭐⭐⭐（QA 排查「狀態卡住」問題的最高 ROI 工具，是目前排查鏈唯一缺少的「本地狀態可視化 + 可操作」能力）
+* **影響範圍**：
+  - 新增：`lib/src/models/key_value_browser_source.dart`（介面 + `KeyValueEntry`）
+  - 修改：`lib/src/core/flutter_inspector.dart`（新建構參數 + `registerKeyValueSource`）
+  - 修改：`lib/src/ui/dashboard/tabs/database_tab.dart`（source dropdown 擴充 + KV 列表視圖）
+  - 新增：`lib/src/ui/dashboard/tabs/database/key_value_view.dart`（KV 瀏覽 + 編輯 UI）
+  - README：SharedPreferences / FlutterSecureStorage 兩套接線範例
+
 ---
 
 ### 第二輪優先順序建議
@@ -717,6 +777,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | ~~1~~ | §P13 App 前景/背景切換標記 — ✅ **已完成（PR #100）** | low | ⭐⭐⭐⭐ | 免費疊加在既有 Timeline，性價比最高；額外附加 top-most page（型態 + path）解洗頻問題 |
 | ~~2~~ | ~~§P10 Rebuild 異常偵測~~ | ~~low（但需使用者接線）~~ | ~~⭐⭐⭐~~ | ❌ 已取消——價值太窄，opt-in per-widget 接線成本與收益不成比例 |
 | **3** | §P11 NetworkNotifier 重構 | low | ⭐⭐⭐（解鎖 §P1） | 應與 §P1 綁定排程，不單獨動工 |
+| **4** | **§P15 鍵值儲存檢視器（KV Browser）** | medium | ⭐⭐⭐⭐⭐ | **2026-08-14 新增**。QA 排查「狀態卡住」問題的最高 ROI 工具；host-injection pattern 第四次複用，零新相依 |
 | — | ~~§P14 Breadcrumb 標記 `inspector.mark()`~~ | trivial | — | **降級不單獨排程**：與 `log()` 無功能差異，是渲染差異非資訊差異；與 §P7 綁定或直接用 emoji 約定取代（見 §P14） |
 | — | ~~§D5 Redaction 涵蓋缺口修復~~ | — | — | **不排程**：debug 工具應資訊越詳細越好，遮罩是排查絆腳石；既有實作保留不動（見 §D5） |
 | — | §P12 離線/斷網事件標記 | — | ⭐⭐ | **不建議做**：改寫入 README 作為整合食譜，避免新相依 |
@@ -808,6 +869,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 |------|------|:---:|:---:|
 | ~~**§P8** 慢請求標記~~ | NetworkTab 的 duration 閾值 + 🐢 標記 — ✅ 已完成（PR #111） | trivial | ✅ |
 | **§P4** 快速複製 Diagnostic Snippet | NetworkDetailView 一鍵 cURL + error payload | trivial~low | ⬜ |
+| **§P15** 鍵值儲存檢視器（KV Browser） | `KeyValueBrowserSource` 介面 + Database Tab 擴充 KV 列表 + 讀寫操作 + README 範例（2026-08-14 新增） | medium | ⬜ |
 | **§D4** DatabaseTab 搜尋/過濾 | 搜尋 + operation FilterChip | low~med | ⬜ |
 | **§P9** Diagnostic Report JSON | 結構化 JSON 匯出格式 | med | ⬜ |
 | ~~**§P10** Rebuild 異常偵測~~ | ~~全清單唯一需逐 widget 接線，非 app 層級 flag~~ | ~~med~~ | ❌ |
@@ -855,4 +917,4 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 > **§P10 已取消（2026-08-14 規格審查）**：功能規格撰寫完成後判定價值太窄——只在「開發者已懷疑
 > 特定 widget 有 rebuild bug」時才有用，無法主動偵測問題（Flutter 無全域 rebuild 回呼）。
 > opt-in per-widget 的接線成本（每個可疑 widget 手動加 mixin + 呼叫 `guardRebuild()`）與收益
-> 不成比例。**Tier 4 由 4 項降為 3 項（§P4 / §D4 / §P9）**。
+> 不成比例。**Tier 4 由 4 項降為 3 項後，因 §P15（KV Browser）新增又回到 4 項（§P4 / §P15 / §D4 / §P9）**。
