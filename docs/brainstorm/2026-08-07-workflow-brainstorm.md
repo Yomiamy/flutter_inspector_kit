@@ -1205,7 +1205,18 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 - **來源**：<https://ghuntley.com/ralph/>
 - **機制**：`while :; do cat PROMPT.md | claude-code ; done`。一輪一個任務、**每輪全新 context**、每輪餵相同的規格檔。
 - **設計原理**：作者自述「**deterministically bad in an undeterministic world**」——LLM 本身不確定，但**迴圈結構**可確定。失敗不是工具問題而是 prompt 調校機會；壞掉就 `git reset --hard` 重來，靠「最終一致性」收斂。
-- **可學**：「每輪 fresh context」與我們 Token Gate 切 session 是**同一個洞察的兩種強度**——他每輪都重置，我們撞到 150k 才重置。
+- **佐證（不是可學）**：「每輪 fresh context」與我們 Token Gate 切 session 是**同一個洞察的兩種強度**——他每輪都重置，我們撞到 150k 才重置。Ralph 證明了「context 重置」這件事本身有效，但**我們已有同一機制的精緻版**，不需要往他那個方向走。
+- **🔴 為什麼「每輪 fresh context」我們學不了**（此問題被實際提出過，記錄完整推導以免日後重提）：
+
+  fresh context 的收益是真的——消除 context 污染（前一輪的錯誤推理與失敗嘗試不累積）、消除 context 衰減（不會用到 150k 時開始遺忘早期指令）、迴圈輸入完全相同故變異只來自模型本身、無狀態即無狀態 bug。他那句「deterministically bad」的重點正是：**把不確定性集中在模型一處，不讓它散佈在累積的 context 裡。**
+
+  但這些收益的代價，在他的情境付得起、在我們的付不起：
+
+  1. **他用「重跑」換「續接」——我們不能。** Ralph 每輪 fresh 的前提是每輪都能從頭重來，失敗處理就是 `git reset --hard`。我們 STAGE 2 跑到第 5 個任務時 context 爆掉，不可能把前 4 個已 commit、已過驗收的任務丟掉重跑——那不只是浪費，是**破壞已經人類確認的成果**。
+  2. **他沒有暫停點，我們有。** fresh context 的代價是「模型不記得剛才跟你談了什麼」。他全程無人類確認環節故無所謂；我們每個 stage 都有暫停點，使用者在 STAGE 0b 確認過的計畫、STAGE 2 逐任務確認過的變更，**每輪清空就得重講**。
+  3. **我們已有更精準的等價物。** fresh context 要解決的是 context 污染與衰減，我們的解法不是「不重置」，而是**重置時帶著結構化狀態走**：Token Gate → 寫 state 檔 → WIP commit（帶交接筆記）→ 切 session（context 真的清空）→ 新 session 讀 state 續接。**我們也有 fresh context，只是重置頻率不同、而且不丟進度。**
+
+  **結論：真正該學的是 §2.2 ACE-FCA，不是 Ralph。** 兩者都在講 context 管理但主張不同——Ralph 每輪重置且丟掉重跑（適用無人值守玩具專案），ACE-FCA 維持 40-60% 不讓 context 長大（適用長流程）。我們與 ACE-FCA 的差距是真的（被動剎車 vs 主動巡航），與 Ralph 的差距則是**刻意的設計取捨**。
 - **不學**：無狀態機、無暫停點、接受「醒來發現 codebase 壞掉」。對單人玩具專案可行，對要出 PR 的流程是災難。
 
 #### 2.2 ACE-FCA — Dex Horthy (HumanLayer)
@@ -1318,6 +1329,7 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 | 不學什麼 | 誰在做 | 理由 |
 |:---|:---|:---|
 | **無限迴圈直到收斂** | Ralph (Huntley) | 「醒來發現 codebase 壞掉、`git reset --hard` 重來」對要出 PR 的流程不可接受。我們的退回路徑（3→2）是**有界重試**，不是無限迴圈。 |
+| **每輪 fresh context（重置即丟進度）** | Ralph (Huntley) | 收益（消除 context 污染與衰減）是真的，但代價是「每輪從頭重來」。我們有暫停點與已確認的成果，丟不起。**我們已有精緻版**：重置時帶結構化 state 走，context 一樣清空但進度不丟。完整推導見 §2.1。 |
 | **完全放棄結構化流程** | Steinberger | 他的批評對短任務成立，但無法回答「context 撞牆怎麼辦」。我們用 **quick 模式**覆蓋他的使用情境，不需要把整套流程拆掉。 |
 | **把 spec 拆成一系列預生成 prompt** | Harper Reed (`prompt_plan.md`) | 預先把所有 prompt 寫死，等於放棄「依前一步結果調整下一步」的能力。我們的 task 陣列保留了這個彈性。 |
 
