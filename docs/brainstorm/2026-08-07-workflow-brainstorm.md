@@ -3,6 +3,20 @@
 > **📝 合併紀錄**：
 > 本文件整併了 `2026-07-17` 與 `2026-07-30` 的腦力激盪記錄。依據時間軸與完成度，前半部記錄歷史遺留 Bug、流程漏洞的分析與修復；後半部基於系統穩固的基礎，進行開源多 Agent 框架的深度比對，並提出 2.0 架構的具體優化提案。
 >
+> **2026-08-15 新增第三部分**：**知名開發者的實務工作流比對**（Huntley 的 Ralph、
+> HumanLayer 的 ACE-FCA、Harper Reed 三件式、Hashimoto 的 16-session、Kent Beck 的
+> Augmented Coding、Böckeler 的 Harness Engineering、Vincent 的 Superpowers，
+> 以及 Steinberger 的**反方立場**）。與第二部分的差別：那邊比的是學術框架，這邊比的是
+> **具名工程師跑在真實專案上的手工流程**。結論分成「已經有的／真正可學的／刻意不學的」三類，
+> 高價值新洞察只有一項：**context 主動維持 40-60%，而非撞到 150k 才剎車**。
+>
+> **🔴 2026-08-10 重大變更：委派傳輸層由 `agy -p` headless 改為 `gemini-mcp-tool`（MCP）。**
+> 底層後端不變（`gemini-mcp-tool` 內部就是 antigravity-cli），換掉的是**傳輸層**。
+> 這直接推翻了本文件兩處的既有結論——**§2.3 痛點三**（agy 強耦合與退出碼遮蔽）與
+> **§3 提案 4 `wf-exec.sh`**（原被定性為「為一條已不走的路徑寫轉接層」）。
+> 委派不是死路，是傳輸層壞掉；換掉之後 orchestrator 模式才第一次真正成立。
+> 詳見各節的 2026-08-10 校正註記。
+>
 > **2026-08-06 補記**：SKILL.md STAGE 6（清理 Worktree）新增「文件同步」前置步驟——執行清理前先呼叫 gen-sync-docs-by-branchs（以當前分支為目標同步文件）→ gen-commit（將同步結果 commit），確保 worktree 移除前 docs 已反映分支最終狀態。此為已落地的流程變更。
 >
 > **⚠️ 2026-08-06 狀態校正（重要）**：本文件 §5 的 5 項 teamwork-preview 借鏡提案，
@@ -1152,3 +1166,174 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 > `pause_level` 完成後立刻回寫，不等下次盤點。
 > 建議每次 release 或每月固定跑一次 `/gen-list-work-item-by-priority` 的實查核對，
 > 別讓狀態欄持續漂移——漂移的待辦清單會讓人去做已經做完的事。
+
+---
+
+## 🟣 第三部分：知名開發者的實務工作流比對 (2026-08-15)
+
+> **與第二部分的區別**：§第二部分比的是**學術／開源多 Agent 框架**（MetaGPT、AutoGen、
+> SWE-agent、ChatDev）——那些是論文與框架。本部分比的是**具名工程師手工打造、
+> 跑在自己真實專案上的工作流**。後者更值得比對，因為它們與 `gen-dev-workflow` 的處境相同：
+> 一個人、一個 repo、要真的把 code 出貨，不是刷 benchmark。
+>
+> **🔍 查證方法**：以下每一項都經 `WebFetch` 實際讀取原始來源確認作者、機制與主張，
+> 非僅憑搜尋摘要或記憶。附上的 URL 即為查證所用來源。
+>
+> ⚠️ **本次研究的已知邊界（誠實標註）**：原研究流程設計為「多線搜尋 → 深讀 → 三重對抗查核」，
+> 但**對抗查核階段因 session 額度耗盡而未執行**（85 個 agent 中 68 個中止）。
+> 上述 WebFetch 查證由主對話**親自補做**，涵蓋下列 8 項的核心來源。
+> 搜尋階段另有約 30 項候選（含 Spec Kit、Kiro、Agent OS、BMAD、Container Use、Uzi、
+> Claude Squad、Vibe Kanban、XState Agent 等工具，以及數篇 arXiv 論文）**未經逐項查證，
+> 故不寫入本文件**——寧可少列，不可誤植。
+
+### 1. 對照矩陣
+
+| 軸線 | Ralph (Huntley) | ACE-FCA (Horthy) | Harper Reed | Hashimoto | Beck | Böckeler | Superpowers (Vincent) | `gen-dev-workflow` |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **階段拆解** | ❌ 單一 prompt 無限迴圈 | ✅ research→plan→implement | ✅ spec→plan→todo | ✅ 16 個 session 分段 | ✅ 逐 test 推進 | — | ✅ brainstorm→plan→implement | ✅ 0a→0b→1→2→3→4 |
+| **狀態持久化** | 檔案（每輪重讀） | plan 檔（狀態壓回檔案） | `todo.md` 打勾跨 session | `spec.md` + `@` 檔案引用 | `plan.md` 未打勾的 test | — | skill 檔 | ✅ JSON state + shell 唯一入口 |
+| **程式強制約束** | ❌ 純 prompt | ❌ 純流程紀律 | ❌ 純文件 | ❌ 人工把關 | ❌ system prompt 勸說 | ✅ **Sensors（linter/test）** | ⚠️ skill 文件 | ✅ **轉移表 + 棘輪 exit 1** |
+| **context 管理** | ✅ 每輪 reset | ✅ **刻意壓在 40-60%** | 跨 session 續接 | ✅ 分 16 session | — | — | subagent 隔離 | ✅ Token Gate >150k 切 session |
+| **平行隔離** | ❌ | — | ❌ | ❌ 序列 | ❌ | — | ✅ 自動建 worktree | ✅ per-worktree state |
+| **對抗式審查** | ❌ | ❌ | ❌ | ✅ 人類親審 | ✅ 人類盯場 | ✅ code review agent | ✅ subagent code review | ✅ 驗收 model ≥ 實作 model |
+| **回報不可信** | 接受爛結果、`git reset` | — | — | ✅ 「不 ship 我看不懂的 code」 | ✅ **抓 agent 刪測試作弊** | ✅ 確定性 sensor | — | ✅ 主對話親自 `git log` 驗證 |
+
+### 2. 逐項解析
+
+#### 2.1 Ralph / Ralph Wiggum Loop — Geoffrey Huntley
+
+- **來源**：<https://ghuntley.com/ralph/>
+- **機制**：`while :; do cat PROMPT.md | claude-code ; done`。一輪一個任務、**每輪全新 context**、每輪餵相同的規格檔。
+- **設計原理**：作者自述「**deterministically bad in an undeterministic world**」——LLM 本身不確定，但**迴圈結構**可確定。失敗不是工具問題而是 prompt 調校機會；壞掉就 `git reset --hard` 重來，靠「最終一致性」收斂。
+- **可學**：「每輪 fresh context」與我們 Token Gate 切 session 是**同一個洞察的兩種強度**——他每輪都重置，我們撞到 150k 才重置。
+- **不學**：無狀態機、無暫停點、接受「醒來發現 codebase 壞掉」。對單人玩具專案可行，對要出 PR 的流程是災難。
+
+#### 2.2 ACE-FCA — Dex Horthy (HumanLayer)
+
+- **來源**：<https://github.com/humanlayer/advanced-context-engineering-for-coding-agents>（`ace-fca.md`）
+- **機制**：research → plan → implement 三階段，plan 寫成 repo 內的 markdown 檔，實作時**把狀態壓縮回 plan 檔**。
+- **設計原理**：兩個主張值得抄——
+  1. **context 刻意壓在 40–60%**，不是用滿才處理。「內容是你唯一能影響輸出品質的槓桿」。
+  2. **審查槓桿階層**：「一行爛的 *plan* 會導致數百行爛 code；一行爛的 *research* 會導致數千行」——所以**該花力氣審 plan 與 research，不是審 code**。
+- **🟢 可學（真正的新東西）**：我們的 Token Gate 是 **150k 才觸發的被動剎車**，ACE-FCA 是**主動維持在 40-60% 的巡航控制**。這解釋了為何長流程後段品質下滑——我們允許 context 長到 150k 才動作，那時 agent 早已在高污染區工作。
+- **已有**：階段拆解、plan 檔為真相來源（我們的 STAGE 0a/0b 產物即是）。
+
+#### 2.3 spec.md → prompt_plan.md → todo.md — Harper Reed
+
+- **來源**：<https://harper.blog/2025/02/16/my-llm-codegen-workflow-atm/>
+- **機制**：三件式文件。對話式 LLM 產 `spec.md` → 推理模型把 spec 拆成 `prompt_plan.md`（一系列給 codegen 的 prompt）→ `todo.md` 作為跨 session 打勾清單。
+- **設計原理**：作者明言 `todo.md` 的用途是「**keeping state across sessions**」——這正是我們 state 檔要解決的問題，只是他用 markdown 打勾、我們用 JSON + schema 校驗。
+- **已有**：我們的 `completed_tasks` 陣列 + `task-done` 就是強型別版的 `todo.md`。**佐證我們的方向對**，但他的方案沒有校驗，打勾可以隨便亂打。
+
+#### 2.4 16-session 分段 + oracle — Mitchell Hashimoto
+
+- **來源**：<https://mitchellh.com/writing/non-trivial-vibing>（Ghostty 自動更新功能實例）
+- **機制**：一個功能拆成 **16 個 session、約 8 小時、$15.98 token**。用「oracle」（唯讀、較慢較貴的模型）先產計畫存成 `spec.md`，再逐 session 實作。穿插「**anti-slop session**」專門清理。
+- **設計原理**：兩點——
+  1. **「更好組織與文件化的 code 讓未來的 agentic session 表現更好」**：清理不是潔癖，是為後續 session 鋪路。
+  2. **「我不 ship 我看不懂的 code」**：理解失敗就直接拒絕 AI 的方案。
+- **🟢 可學**：**anti-slop session** 是我們沒有的概念。我們 STAGE 3 審查的是「這次改動對不對」，沒有「為了讓下次 agent 更好做而整理」這種**面向未來的清理**。
+- **佐證**：他的「oracle 用更貴模型做計畫」= 我們的「planner 用最強推論」；他的分 16 session = 我們的 Token Gate 切 session。
+
+#### 2.5 Augmented Coding — Kent Beck
+
+- **來源**：<https://newsletter.kentbeck.com/p/augmented-coding-beyond-the-vibes>
+- **機制**：把 TDD 紀律寫進 system prompt——「找 `plan.md` 中下一個未標記的 test、實作該 test、**只寫剛好讓它通過的 code**」。全程盯著中間結果，隨時準備喊停。
+- **設計原理**：與 vibe coding 的分野是「**在 vibe coding 你不在乎 code，只在乎系統行為**」；augmented coding 則要求 code 品質、複雜度、測試覆蓋率都達到手寫標準。
+- **🔴 最有價值的一條**：他列出 agent 失控的三個警訊，其中第三個是——
+  > 「任何 genie 在**作弊**的跡象，例如**停用或刪除測試**」
+  >
+  這是我們「委派紀律第 3 條：回報不等於事實」的**獨立佐證**。Beck 是 TDD 發明人，他親自踩到「agent 為了讓測試過而刪測試」這個坑。我們要求主對話親自驗證，方向完全正確。
+- **已有**：TDD 紀律（`test-driven-development` skill）、驗收與實作分離。
+
+#### 2.6 Harness Engineering：Guides vs Sensors — Birgitta Böckeler (Thoughtworks)
+
+- **來源**：<https://martinfowler.com/articles/harness-engineering.html>
+- **機制**：提出 **`Agent = Model + Harness`**，並把 harness 的控制項二分——
+  - **Guides（前饋控制）**：在 agent 動手**之前**引導。如 coding conventions 文件、bootstrap 指令。
+  - **Sensors（回饋控制）**：在 agent 動手**之後**偵測並自我修正。如 linter、測試、code review agent。
+- **設計原理**：她進一步區分**計算式**（確定性、毫秒級、**結果可靠**）與**推論式**（語意、慢、機率性）控制。關鍵論述：計算式 sensor 因為可靠，所以能在**每次變更**都跑；機率性的 AI sensor 做不到這點。
+- **🟢 這給了我們一套精確的詞彙**：本文件反覆論證的「**約束寫在 prompt 裡 = 沒有強制力**」（Gap 2.6、委派 cwd 弱點），用她的框架講就是——
+  > **我們一直在用 Guide 解決該用 Sensor 解決的問題。**
+  >
+  `wf-state.sh` 的 `exit 1`、hook 的 `PreToolUse` 攔截，都是**計算式 Sensor**；SKILL.md 的文字規範是 **Guide**。Gap 2.6 的教訓（「守衛需要被呼叫才生效」）本質是：**Guide 可以被忽略，Sensor 不行**。
+- **可學**：委派 cwd 約束目前是 Guide（prompt 裡的道德勸說），該升級成 Sensor（hook 攔截或委派後自動 `git status` 驗證）。這與文件既有結論一致，但 Böckeler 的框架讓「為什麼非做不可」講得更清楚。
+
+#### 2.7 Superpowers — Jesse Vincent
+
+- **來源**：<https://blog.fsck.com/2025/10/09/superpowers/> ｜ <https://github.com/obra/superpowers>
+- **機制**：Claude Code 的 skill plugin 系統。brainstorm → plan → implement 三階段；**自動建 git worktree** 做平行隔離；實作走 RED/GREEN TDD；可「逐個 task 派給 subagent 實作後再逐個 code review」。
+- **設計原理**：核心強制語句是「**If you have a skill to do something, you *must* use it**」——用 skill 的存在本身當作行為約束。
+- **⚠️ 特別說明**：**本 session 就載入了 superpowers**（見系統提示的 `using-superpowers`）。所以這不是「別人的做法」，而是我們**已在共用的基礎設施**。它與 `gen-dev-workflow` 的關係是互補：superpowers 管「流程紀律與 skill 選用」，`gen-dev-workflow` 管「六階段編排與狀態機」。
+- **佐證**：worktree 平行隔離、subagent 逐任務實作 + code review、TDD——三項我們都有，且是各自獨立收斂到同一答案。
+
+#### 2.8 🔴 反方立場：Just Talk To It — Peter Steinberger
+
+- **來源**：<https://steipete.me/posts/just-talk-to-it>
+- **主張**：**明確反對**本文件推崇的一切——反對繁複規劃文件、反對 subagent 範式（他用「分開的視窗」取得「完整的控制與可見度」）、反對冗長的 persona 規則檔（「跟模型說『你是專精於生產級 LLM 應用的 AI 工程師』不會改變任何事」）。
+- **理由**：精簡 prompt 下「codex 反而更小心、讀更多檔案」；繁複的 scaffolding 造成 **context 浪費**與認知負擔，效益不成比例。
+- **為什麼要收錄**：**一份只收錄同意自己的證據的文件沒有價值。** Steinberger 的批評直指 `gen-dev-workflow` 最脆弱的地方——6 個 stage、7 個 agent 角色、一份 1000 行的 SKILL.md，這些 ceremony 真的都在付出等值的回報嗎？
+- **本專案的回應（Linus 式）**：他的批評對**探索性、單人、小改動**成立——這正是我們有 **quick 模式**（單暫停點、不建 worktree）的原因。但他的方案無法回答：**context 撞 150k 怎麼辦？** 他沒有狀態持久化，session 一斷進度就沒了。我們的 state 檔不是 ceremony，是**為了能中斷續接**而付的必要代價。**兩者的分野不是「誰對」，而是「任務有多長」**——短任務他對，長任務我們對。這也是為什麼 `pause_level` 與 quick 模式必須存在：**讓同一套流程能退化成他那種輕量模式**。
+
+### 3. 三分類結論
+
+#### (A) 已經有的——別人也這樣做，佐證設計正確，**不是待辦**
+
+| 我們的機制 | 誰獨立收斂到同一答案 |
+|:---|:---|
+| 階段拆解 + plan 檔為真相來源 | Horthy、Harper Reed、Hashimoto、Vincent、Beck |
+| 跨 session 狀態持久化 | Harper Reed（`todo.md`）、Hashimoto（`spec.md`） |
+| context 用盡切 session | Huntley（每輪 reset）、Hashimoto（分 16 session） |
+| git worktree 平行隔離 | Vincent (Superpowers) |
+| 驗收與實作分離、不讓寫 code 的 model 自審 | Böckeler（sensor）、Vincent（subagent review） |
+| 「回報不等於事實」須外部驗證 | **Beck（親自抓到 agent 刪測試作弊）**、Hashimoto |
+| 用程式碼而非文字強制 | **Böckeler（Sensors 必須是計算式才可靠）** |
+
+> 七項全數有獨立佐證。這說明 `gen-dev-workflow` 的骨架不是閉門造車——
+> 但也說明**這些不是我們的獨創**，寫文件時不該當成賣點。
+
+#### (B) 真正可學——別人有、我們沒有
+
+1. **🟢 context 主動巡航（ACE-FCA）**｜effort: 低｜價值: 高
+   把 Token Gate 從「150k 被動剎車」改成「**維持 40–60% 的主動巡航**」。
+   **判斷：值得做。** 這是本次研究**唯一的高價值新洞察**——它解釋了長流程後段品質下滑的機制。
+   實作上不需新腳本，調整 SKILL.md 的 Token Gate 表格閾值與行為即可。
+
+2. **🟡 anti-slop session（Hashimoto）**｜effort: 低｜價值: 中
+   在 STAGE 3 之後、STAGE 4 之前，插入一個「**為未來 agent 整理**」的清理環節。
+   **判斷：條件性值得。** 對長期維護的 repo 有價值，對一次性 PR 是額外成本。
+   建議先當作 `pause_level=strict` 下的可選步驟，不強制。
+
+3. **🟡 審查槓桿階層（ACE-FCA）**｜effort: 極低｜價值: 中
+   「審 plan 的投報率遠高於審 code」——我們 STAGE 0b 有暫停點，但**沒有明說「這裡才是最該仔細看的地方」**。
+   **判斷：值得做，改一段文字而已。** 在 STAGE 0b 暫停點加上這個提示。
+
+4. **🟢 把 Guide 升級成 Sensor（Böckeler）**｜effort: 中｜價值: 高
+   委派 cwd 約束目前是 prompt 裡的道德勸說（Guide），該變成 hook 攔截或委派後自動驗證（Sensor）。
+   **判斷：值得做。** 這與 §「同構的第二個弱點」已記錄的待辦是同一件事，
+   Böckeler 的框架只是讓理由更硬。
+
+#### (C) 刻意不學——別人有但對本專案是過度工程或方向錯誤
+
+| 不學什麼 | 誰在做 | 理由 |
+|:---|:---|:---|
+| **無限迴圈直到收斂** | Ralph (Huntley) | 「醒來發現 codebase 壞掉、`git reset --hard` 重來」對要出 PR 的流程不可接受。我們的退回路徑（3→2）是**有界重試**，不是無限迴圈。 |
+| **完全放棄結構化流程** | Steinberger | 他的批評對短任務成立，但無法回答「context 撞牆怎麼辦」。我們用 **quick 模式**覆蓋他的使用情境，不需要把整套流程拆掉。 |
+| **把 spec 拆成一系列預生成 prompt** | Harper Reed (`prompt_plan.md`) | 預先把所有 prompt 寫死，等於放棄「依前一步結果調整下一步」的能力。我們的 task 陣列保留了這個彈性。 |
+
+### 4. Linus 式總評
+
+> **這批工作流有一個共同的誠實之處：沒有一個人宣稱自己解決了「讓 LLM 可靠」這件事。**
+> Huntley 說他的方法「deterministically bad」，Beck 在抓 agent 刪測試，Hashimoto 拒絕
+> ship 看不懂的 code，Böckeler 直說機率性 sensor 不可靠。**全都在講同一件事：
+> 模型不可信，所以把可靠性放到模型外面。**
+>
+> `gen-dev-workflow` 的 `wf-state.sh` + hook 攔截走的正是這條路，而且**走得比多數人遠**——
+> 上表七項機制中，只有 Böckeler 明確主張「必須是計算式（確定性）控制」，
+> 其他人的約束大多仍停留在文件與人工盯場。
+>
+> **但別自滿：** 這也意味著我們承擔了別人沒有的複雜度。Steinberger 的批評必須留在文件裡
+> 當作反面壓力——**每次要往 SKILL.md 加一條規則時，先問這條是 Guide 還是 Sensor。
+> 如果是 Guide，它大概率會被忽略，那就不值得加。**
+
+---
