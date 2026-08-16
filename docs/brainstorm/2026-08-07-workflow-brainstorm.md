@@ -3,6 +3,24 @@
 > **📝 合併紀錄**：
 > 本文件整併了 `2026-07-17` 與 `2026-07-30` 的腦力激盪記錄。依據時間軸與完成度，前半部記錄歷史遺留 Bug、流程漏洞的分析與修復；後半部基於系統穩固的基礎，進行開源多 Agent 框架的深度比對，並提出 2.0 架構的具體優化提案。
 >
+> **2026-08-15 新增第三部分**：**知名開發者的實務工作流比對**（Huntley 的 Ralph、
+> HumanLayer 的 ACE-FCA、Harper Reed 三件式、Hashimoto 的 16-session、Kent Beck 的
+> Augmented Coding、Böckeler 的 Harness Engineering、Vincent 的 Superpowers，
+> 以及 Steinberger 的**反方立場**）。與第二部分的差別：那邊比的是學術框架，這邊比的是
+> **具名工程師跑在真實專案上的手工流程**。結論分成「已經有的／真正可學的／刻意不學的」三類，
+> 高價值新洞察只有一項：**context 主動維持 40-60%，而非撞到 150k 才剎車**。
+>
+> **2026-08-16 三輪查證完成**：第一輪 8 項（§2）、第二輪 13 項（§3.5）、第三輪 19 項（§3.6），
+> **32 項候選全數查證完畢、零淘汰**。合計 **11 項判定 REVISES（修正既有結論）**，
+> 最重要的三條：機制 6 的理由歸因錯誤（應為同分佈熟悉度而非能力不足）、
+> Gap 2.6 的 hook 用了無效的 `exit 1`（偵測得到卻攔不住）、
+> 稽核對象應是系統側錄的軌跡而非 agent 自述。
+>
+> **2026-08-16 補記**：(B) 真正可學的 4 項已補上逐項的「現況 → 差距 → 判斷」推導與
+> **建議動工順序**（審查槓桿階層 → context 主動巡航 → Guide→Sensor → anti-slop，
+> 見 §3(B) 末表）。同時修正 §2.1 Ralph 的標籤（原標「可學」與 §3(C)「刻意不學」自相矛盾，
+> 已改為「佐證」並補完整推導）。**四項截至此日全部仍是提案，未動程式碼。**
+>
 > **🔴 2026-08-10 重大變更：委派傳輸層由 `agy -p` headless 改為 `gemini-mcp-tool`（MCP）。**
 > 底層後端不變（`gemini-mcp-tool` 內部就是 antigravity-cli），換掉的是**傳輸層**。
 > 這直接推翻了本文件兩處的既有結論——**§2.3 痛點三**（agy 強耦合與退出碼遮蔽）與
@@ -17,6 +35,61 @@
 > 文件此前仍將其列為「待實施藍圖」。實際剩餘待辦僅 §3 的 4 支基礎腳本，
 > 其中提案 4（`wf-exec.sh`）的前提存疑。**逐項實查證據見文末「📊 落地現況」表**，
 > 各節內文亦已加上校正註記。閱讀本文件時請以該表為狀態依據，勿直接採信各節原標。
+
+---
+
+## 🔴 待修正項目（已確認的程式碼缺陷）
+
+> 本區塊只收「**已實查確認、命中真實程式碼**」的缺陷，與各節的「提案／可學項目」分開。
+> 提案類請見 §3 的 (B) 真正可學與其動工順序表；本區塊是**已知壞掉的東西**。
+
+### BUG-1 · Gap 2.6 的 hook 用了無效的 exit code（發現於 2026-08-16）
+
+| 欄位 | 內容 |
+|:---|:---|
+| **狀態** | ⬜ **未修**（截至 2026-08-16） |
+| **檔案** | `.claude/hooks/wf-guard-stage-check.sh` 第 **111**、**126** 行 |
+| **所在分支** | `main`（檔案就在當前分支，可直接讀原始碼核對） |
+| **現況** | 兩處阻擋路徑均為 `sys.exit(1)` |
+| **修法** | 改為 `sys.exit(2)`（兩處，共兩個字元） |
+| **effort** | 極低 |
+| **嚴重度** | 🔴 高——這是**目前唯一命中真實程式碼**的缺陷 |
+
+**問題描述**：
+
+這支 hook 是 **Gap 2.6 的解法**，掛在 `PreToolUse`，用途是偵測「stage 還停在 `4` 就想派發 responder」並擋下該次派發。
+
+但依 Claude Code 官方 hooks 文件，`PreToolUse` **只有 `exit 2` 具阻擋力**；其餘退出碼屬 non-blocking error——會在 transcript 印一行錯誤，然後**動作照跑**。
+
+所以這支 hook 的實際行為是：
+
+| 環節 | 狀態 |
+|:---|:---:|
+| 被呼叫 | ✅ |
+| 偵測到違規 | ✅ |
+| 印出錯誤訊息與修復指令 | ✅ |
+| **實際擋下派發** | ❌ **沒有** |
+
+**它偵測得到，但攔不住。** 文件此前把 Gap 2.6 標為「已修」，實際上該防護是**破的**。
+
+**驗收方式**：修改後需驗證 stderr 訊息仍會回饋給模型（exit 2 的 stderr 是回饋管道，不能因改動而遺失）。
+
+
+**為什麼這件事重要（不只是一個 typo）**：
+
+這正是本文件反覆論證的 **Guide vs Sensor**（§2.6 Böckeler）**應驗在自己身上**——
+
+- **Sensor**：動手後的確定性攔截，無法繞過
+- **Guide**：引導，可以被忽略
+
+我們**以為**寫了 hook 就取得了 Sensor，但用錯 exit code，它就退化成「**只會印錯誤訊息的 Guide**」。**形式對了，效力沒有。**
+
+而且這條是 §3.5 R3 先從官方文件**推導出**「exit 1 掛成 hook 會失效」，第三輪實查原始碼時**真的在自己的 code 裡撞到**——推論與實證對上了。
+
+> 📌 **延伸檢查建議**：既然 exit code 的語意被誤解過一次，動工時應一併確認
+> `wf-state.sh` 的非法轉移 `exit 1` 是否也在某處被當作 hook 掛載。
+> 若它只被當一般 CLI 呼叫、由 skill prompt 自行判讀退出碼，那是**機率性**的
+> （模型可以無視 exit code 繼續走）——詳見 §3.5 R3。
 
 ---
 
@@ -43,7 +116,7 @@
 | **Gap 2.3** 缺任務完成校驗（`completed_tasks`） | ✅ 已修 | 於 2026-07-21 修復，`advance` 增加任務數量校驗 |
 | **Gap 2.4** STAGE 5 缺 `reviewer→responder` 退回 | ✅ 已修 | 於 2026-07-21 修復，新增閉環轉移路徑 |
 | **Gap 2.5** 廢棄 `.pending-*.json` 無 `prune` GC | ✅ 已修 | 於 2026-07-21 修復，新增 `prune` 指令 |
-| **Gap 2.6** 獨立入口（STAGE 5/6）完全繞過狀態機 | ✅ 已修 | 於 2026-08-14 以方案 A + C 修復：`SKILL.md:146` 首步硬性化、`.claude/hooks/wf-guard-stage-check.sh` 於 `PreToolUse` 攔截 responder 派發、`wf-state.sh:98` 補齊 `4->5` 等轉移路徑（見 §4 Gap 2.6） |
+| **Gap 2.6** 獨立入口（STAGE 5/6）完全繞過狀態機 | 🟡 部分（hook 已建但 exit code 無效，見 BUG-1） | 於 2026-08-14 以方案 A + C 修復：`SKILL.md:146` 首步硬性化、`.claude/hooks/wf-guard-stage-check.sh` 於 `PreToolUse` 攔截 responder 派發、`wf-state.sh:98` 補齊 `4->5` 等轉移路徑（見 §4 Gap 2.6） |
 
 > **已落地的地基**（analysis 確認，非本 brainstorm 提出的待辦）：`wf-state.sh` 已成 state 檔唯一入口——狀態機轉移表（非法轉移 `exit 1`）、暫停點棘輪（無 `--confirmed` 拒絕 `advance`）、`set` 白名單、schema 校驗 + 原子寫入皆已實作。
 >
@@ -239,7 +312,7 @@
 * **解決方案**：
   在 `wf-state.sh` 中新增 `prune` 命令，允許使用者或系統定期清理建立時間大於 7 天的 `.pending-*.json` 檔案。
 
-### Gap 2.6: 獨立入口（STAGE 5/6）完全繞過狀態機 — ✅ 已修（2026-08-14 方案 A + C 落地）
+### Gap 2.6: 獨立入口（STAGE 5/6）完全繞過狀態機 — 🟡 部分修復（2026-08-14 方案 A + C 落地，但 hook exit code 無效 → BUG-1）
 
 * **漏洞描述**：既有守衛（棘輪、轉移表、任務數校驗）**只在 `wf-state.sh` 被呼叫時才生效**。STAGE 5/6 是不在 `0a→0b→1→2→3→4` 主鏈上的獨立入口，缺少前後階段的銜接慣性，LLM 容易在「處理 review 意見」的任務心智下直接派發 responder/reviewer，**全程不碰腳本**——此時沒有任何機制會察覺流程正在推進。
 
@@ -251,13 +324,39 @@
 
   **連帶損害**：STAGE 5 流程的第三步（publisher 更新 PR 描述）一併被遺漏，因為沒有 state 推進來提示還有後續步驟。若此時換 session 續接，新 session 會誤判 STAGE 5 尚未執行而重跑。
 
+* **方案評估**（建議 A + C 併行，跳過 B）：
+
+  **A. 文件層——獨立入口的首步硬性化**
+  在 SKILL.md 的 STAGE 5/6 區塊開頭，把 state 推進寫成不可跳過的第一步而非隱含前提：
+  ```
+  STAGE 5：回覆 PR Review（獨立入口）
+  🔴 第一步（不可跳過）：wf-state.sh advance <檔> 5 --confirmed
+     ↑ 未執行此步就派發 responder = 流程違規
+  → 呼叫 responder agent...
+  ```
+  成本最低，但**仍只是叮嚀**——本次違規時 SKILL.md 已寫明正確流程（含 `{ stage: 5, mode: "jump" }` 的寫入指示）卻仍被漏掉，證明純文件層不足以獨立成為對策。
+
+  **B. 腳本層——`assert-stage` 子命令**：❌ **不採用**。
+  新增 `wf-state.sh assert-stage <檔> 5`（stage 不符則 exit 1）雖比 A 強，但**與 A 共享同一個失效前提**（都要求 LLM 主動呼叫腳本）。多一個子命令卻換不到實質保障，不划算。
+
+  **C. Hook 層——唯一真正的強制**
+  以 `PreToolUse` hook 攔截 `Agent` 工具呼叫：偵測到派發 `responder`/`reviewer`/`publisher` 時，檢查當前 worktree 的 state 檔 stage 是否已推進至對應階段，未推進則**阻擋該次呼叫**並回傳提示。
+  * **為何有效**：執行者是 harness 而非 LLM，這是唯一「想繞也繞不過」的層級。
+  * **代價**：hook 邏輯需維護；且會誤擋「流程外單獨派發 reviewer 做零星審查」的正當用法——需評估是否加白名單，或退而採「警告但不阻擋」。此取捨需由使用者依實際使用習慣決定。
+
 * **落地解決方案（2026-08-14 · 方案 A + C 併行）**：
   1. **方案 A（文件層硬性化）**：`SKILL.md` 的 STAGE 5/6 區塊開頭加粗標示 `🔴 第一步（不可跳過）：推進狀態至 STAGE 5/6`，並明確規範未推進即派發 responder 屬流程違規。
   2. **方案 C（Hook 層強制攔截）**：新增 `.claude/hooks/wf-guard-stage-check.sh`，在 `PreToolUse` 攔截 `Agent`（Claude）與 `invoke_subagent`（Antigravity）呼叫：
      - 若派發 `responder` 且當前 worktree 存在 active workflow state，檢查 `stage` 是否為 `5`；
-     - 若未推進（如停在 `4`），Hook 直接以 exit 1 阻擋派發，並在 stderr 輸出精確的修復指令（`wf-state.sh advance <state_file> 5 --confirmed`）；
+     - 若未推進（如停在 `4`），Hook 以 exit code 阻擋派發，並在 stderr 輸出精確的修復指令（`wf-state.sh advance <state_file> 5 --confirmed`）；
      - **防誤殺保護**：若目錄下無 workflow 狀態檔（流程外單獨調用），Hook 直接 exit 0 放行。
   3. **轉移表補全**：`wf-state.sh:legal_transition()` 補上 `4->5`、`5->4`、`5->5`、`4->6`、`5->6`、`6->done` 等轉移路徑，確保 sequence 流程回覆 PR 時推進無阻。
+
+* 🔴 **2026-08-16 實查更正（上述方案 C 的落地實作未達成設計意圖）**：
+  `.claude/hooks/wf-guard-stage-check.sh:111,126` 用 `sys.exit(1)`，而官方 hooks 文件明載
+  `PreToolUse` **只有 `exit 2` 具阻擋力**，exit 1 屬 non-blocking error、**動作照跑**。
+  目前是「偵測得到違規但攔不住」——**Gap 2.6 的防護實際上是破的**。修法：改為 `sys.exit(2)`。
+  **已登記為文件開頭「🔴 待修正項目」的 BUG-1**（未修），完整推導見 §3.5 R7。
 
 * **設計啟示**：本 Gap 揭露的是守衛架構的**結構性盲點**，而非單點疏失——「守衛需要被呼叫才生效」。任何未來新增的獨立入口（非主鏈階段）都會重現同一漏洞，因此對策應落在**入口攔截層**，而非繼續往 `wf-state.sh` 內部堆校驗。
 
@@ -1186,3 +1285,472 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 > `pause_level` 完成後立刻回寫，不等下次盤點。
 > 建議每次 release 或每月固定跑一次 `/gen-list-work-item-by-priority` 的實查核對，
 > 別讓狀態欄持續漂移——漂移的待辦清單會讓人去做已經做完的事。
+
+---
+
+## 🟣 第三部分：知名開發者的實務工作流比對 (2026-08-15)
+
+> **與第二部分的區別**：§第二部分比的是**學術／開源多 Agent 框架**（MetaGPT、AutoGen、
+> SWE-agent、ChatDev）——那些是論文與框架。本部分比的是**具名工程師手工打造、
+> 跑在自己真實專案上的工作流**。後者更值得比對，因為它們與 `gen-dev-workflow` 的處境相同：
+> 一個人、一個 repo、要真的把 code 出貨，不是刷 benchmark。
+>
+> **🔍 查證方法**：以下每一項都經 `WebFetch` 實際讀取原始來源確認作者、機制與主張，
+> 非僅憑搜尋摘要或記憶。附上的 URL 即為查證所用來源。
+>
+> ⚠️ **本次研究的已知邊界（誠實標註 · 2026-08-16 更新）**：
+>
+> **第一輪**（8 項，§2）：原設計為「多線搜尋 → 深讀 → 三重對抗查核」，但**對抗查核階段因 session 額度耗盡未執行**（85 個 agent 中 68 個中止）。WebFetch 查證由主對話**親自補做**，涵蓋 §2 全部 8 項的核心來源。
+>
+> **第二輪**（13 項，§3.5）：補查剩餘 32 項中的 **Tier 1（4 項，可能修正結論）與 Tier 2（9 項，官方文件與具名個人）**，全數經 WebFetch 查證，其中 Tier 1 另加一輪「專門證偽」複核。**結果：6 項判定 REVISES。**
+>
+> **第三輪**（19 項，§3.6）：補完最後的 Tier 3（工具與論文）。前兩次嘗試分別因**網路中斷（ENOTFOUND）**與**額度耗盡**失敗，第三次 **19/19 全數成功、零淘汰**。
+>
+> ✅ **至此 32 項候選全部查證完畢**（8 + 13 + 19 + 跨輪 recheck）。
+>
+> 📌 **第三輪推翻了第二輪的一個預期**：當時寫「這 19 項多屬工具與論文，修正既有結論的機率低於 Tier 1/2」——**結果仍有 5 項 REVISES**，比例與 Tier 1/2 相當。教訓：**「工具類價值較低」是先驗偏見，不是實測結果。**
+>
+> ⚠️ **逐項查證抓到 2 筆作者歸屬錯誤**（ASDLC 實為 Ville Takanen 非 Claudio Lassala；Decoupled HITL 實為 Cheng & Cheng 兩人、無 Stanford 隸屬）。若當初直接採信搜尋階段結果，這兩筆會誤植進文件。
+
+### 1. 對照矩陣
+
+| 軸線 | Ralph (Huntley) | ACE-FCA (Horthy) | Harper Reed | Hashimoto | Beck | Böckeler | Superpowers (Vincent) | `gen-dev-workflow` |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **階段拆解** | ❌ 單一 prompt 無限迴圈 | ✅ research→plan→implement | ✅ spec→plan→todo | ✅ 16 個 session 分段 | ✅ 逐 test 推進 | — | ✅ brainstorm→plan→implement | ✅ 0a→0b→1→2→3→4 |
+| **狀態持久化** | 檔案（每輪重讀） | plan 檔（狀態壓回檔案） | `todo.md` 打勾跨 session | `spec.md` + `@` 檔案引用 | `plan.md` 未打勾的 test | — | skill 檔 | ✅ JSON state + shell 唯一入口 |
+| **程式強制約束** | ❌ 純 prompt | ❌ 純流程紀律 | ❌ 純文件 | ❌ 人工把關 | ❌ system prompt 勸說 | ✅ **Sensors（linter/test）** | ⚠️ skill 文件 | ✅ **轉移表 + 棘輪 exit 1** |
+| **context 管理** | ✅ 每輪 reset | ✅ **刻意壓在 40-60%** | 跨 session 續接 | ✅ 分 16 session | — | — | subagent 隔離 | ✅ Token Gate >150k 切 session |
+| **平行隔離** | ❌ | — | ❌ | ❌ 序列 | ❌ | — | ✅ 自動建 worktree | ✅ per-worktree state |
+| **對抗式審查** | ❌ | ❌ | ❌ | ✅ 人類親審 | ✅ 人類盯場 | ✅ code review agent | ✅ subagent code review | ✅ 驗收 model ≥ 實作 model |
+| **回報不可信** | 接受爛結果、`git reset` | — | — | ✅ 「不 ship 我看不懂的 code」 | ✅ **抓 agent 刪測試作弊** | ✅ 確定性 sensor | — | ✅ 主對話親自 `git log` 驗證 |
+
+### 2. 逐項解析
+
+#### 2.1 Ralph / Ralph Wiggum Loop — Geoffrey Huntley
+
+- **來源**：<https://ghuntley.com/ralph/>
+- **機制**：`while :; do cat PROMPT.md | claude-code ; done`。一輪一個任務、**每輪全新 context**、每輪餵相同的規格檔。
+- **設計原理**：作者自述「**deterministically bad in an undeterministic world**」——LLM 本身不確定，但**迴圈結構**可確定。失敗不是工具問題而是 prompt 調校機會；壞掉就 `git reset --hard` 重來，靠「最終一致性」收斂。
+- **佐證（不是可學）**：「每輪 fresh context」與我們 Token Gate 切 session 是**同一個洞察的兩種強度**——他每輪都重置，我們撞到 150k 才重置。Ralph 證明了「context 重置」這件事本身有效，但**我們已有同一機制的精緻版**，不需要往他那個方向走。
+- **🔴 為什麼「每輪 fresh context」我們學不了**（此問題被實際提出過，記錄完整推導以免日後重提）：
+
+  fresh context 的收益是真的——消除 context 污染（前一輪的錯誤推理與失敗嘗試不累積）、消除 context 衰減（不會用到 150k 時開始遺忘早期指令）、迴圈輸入完全相同故變異只來自模型本身、無狀態即無狀態 bug。他那句「deterministically bad」的重點正是：**把不確定性集中在模型一處，不讓它散佈在累積的 context 裡。**
+
+  但這些收益的代價，在他的情境付得起、在我們的付不起：
+
+  1. **他用「重跑」換「續接」——我們不能。** Ralph 每輪 fresh 的前提是每輪都能從頭重來，失敗處理就是 `git reset --hard`。我們 STAGE 2 跑到第 5 個任務時 context 爆掉，不可能把前 4 個已 commit、已過驗收的任務丟掉重跑——那不只是浪費，是**破壞已經人類確認的成果**。
+  2. **他沒有暫停點，我們有。** fresh context 的代價是「模型不記得剛才跟你談了什麼」。他全程無人類確認環節故無所謂；我們每個 stage 都有暫停點，使用者在 STAGE 0b 確認過的計畫、STAGE 2 逐任務確認過的變更，**每輪清空就得重講**。
+  3. **我們已有更精準的等價物。** fresh context 要解決的是 context 污染與衰減，我們的解法不是「不重置」，而是**重置時帶著結構化狀態走**：Token Gate → 寫 state 檔 → WIP commit（帶交接筆記）→ 切 session（context 真的清空）→ 新 session 讀 state 續接。**我們也有 fresh context，只是重置頻率不同、而且不丟進度。**
+
+  **結論：真正該學的是 §2.2 ACE-FCA，不是 Ralph。** 兩者都在講 context 管理但主張不同——Ralph 每輪重置且丟掉重跑（適用無人值守玩具專案），ACE-FCA 維持 40-60% 不讓 context 長大（適用長流程）。我們與 ACE-FCA 的差距是真的（被動剎車 vs 主動巡航），與 Ralph 的差距則是**刻意的設計取捨**。
+- **不學**：無狀態機、無暫停點、接受「醒來發現 codebase 壞掉」。對單人玩具專案可行，對要出 PR 的流程是災難。
+
+#### 2.2 ACE-FCA — Dex Horthy (HumanLayer)
+
+- **來源**：<https://github.com/humanlayer/advanced-context-engineering-for-coding-agents>（`ace-fca.md`）
+- **機制**：research → plan → implement 三階段，plan 寫成 repo 內的 markdown 檔，實作時**把狀態壓縮回 plan 檔**。
+- **設計原理**：兩個主張值得抄——
+  1. **context 刻意壓在 40–60%**，不是用滿才處理。「內容是你唯一能影響輸出品質的槓桿」。
+  2. **審查槓桿階層**：「一行爛的 *plan* 會導致數百行爛 code；一行爛的 *research* 會導致數千行」——所以**該花力氣審 plan 與 research，不是審 code**。
+- **🟢 可學（真正的新東西）**：我們的 Token Gate 是 **150k 才觸發的被動剎車**，ACE-FCA 是**主動維持在 40-60% 的巡航控制**。這解釋了為何長流程後段品質下滑——我們允許 context 長到 150k 才動作，那時 agent 早已在高污染區工作。
+- **已有**：階段拆解、plan 檔為真相來源（我們的 STAGE 0a/0b 產物即是）。
+
+#### 2.3 spec.md → prompt_plan.md → todo.md — Harper Reed
+
+- **來源**：<https://harper.blog/2025/02/16/my-llm-codegen-workflow-atm/>
+- **機制**：三件式文件。對話式 LLM 產 `spec.md` → 推理模型把 spec 拆成 `prompt_plan.md`（一系列給 codegen 的 prompt）→ `todo.md` 作為跨 session 打勾清單。
+- **設計原理**：作者明言 `todo.md` 的用途是「**keeping state across sessions**」——這正是我們 state 檔要解決的問題，只是他用 markdown 打勾、我們用 JSON + schema 校驗。
+- **已有**：我們的 `completed_tasks` 陣列 + `task-done` 就是強型別版的 `todo.md`。**佐證我們的方向對**，但他的方案沒有校驗，打勾可以隨便亂打。
+
+#### 2.4 16-session 分段 + oracle — Mitchell Hashimoto
+
+- **來源**：<https://mitchellh.com/writing/non-trivial-vibing>（Ghostty 自動更新功能實例）
+- **機制**：一個功能拆成 **16 個 session、約 8 小時、$15.98 token**。用「oracle」（唯讀、較慢較貴的模型）先產計畫存成 `spec.md`，再逐 session 實作。穿插「**anti-slop session**」專門清理。
+- **設計原理**：兩點——
+  1. **「更好組織與文件化的 code 讓未來的 agentic session 表現更好」**：清理不是潔癖，是為後續 session 鋪路。
+  2. **「我不 ship 我看不懂的 code」**：理解失敗就直接拒絕 AI 的方案。
+- **🟢 可學**：**anti-slop session** 是我們沒有的概念。我們 STAGE 3 審查的是「這次改動對不對」，沒有「為了讓下次 agent 更好做而整理」這種**面向未來的清理**。
+- **佐證**：他的「oracle 用更貴模型做計畫」= 我們的「planner 用最強推論」；他的分 16 session = 我們的 Token Gate 切 session。
+
+#### 2.5 Augmented Coding — Kent Beck
+
+- **來源**：<https://newsletter.kentbeck.com/p/augmented-coding-beyond-the-vibes>
+- **機制**：把 TDD 紀律寫進 system prompt——「找 `plan.md` 中下一個未標記的 test、實作該 test、**只寫剛好讓它通過的 code**」。全程盯著中間結果，隨時準備喊停。
+- **設計原理**：與 vibe coding 的分野是「**在 vibe coding 你不在乎 code，只在乎系統行為**」；augmented coding 則要求 code 品質、複雜度、測試覆蓋率都達到手寫標準。
+- **🔴 最有價值的一條**：他列出 agent 失控的三個警訊，其中第三個是——
+  > 「任何 genie 在**作弊**的跡象，例如**停用或刪除測試**」
+  >
+  這是我們「委派紀律第 3 條：回報不等於事實」的**獨立佐證**。Beck 是 TDD 發明人，他親自踩到「agent 為了讓測試過而刪測試」這個坑。我們要求主對話親自驗證，方向完全正確。
+- **已有**：TDD 紀律（`test-driven-development` skill）、驗收與實作分離。
+
+#### 2.6 Harness Engineering：Guides vs Sensors — Birgitta Böckeler (Thoughtworks)
+
+- **來源**：<https://martinfowler.com/articles/harness-engineering.html>
+- **機制**：提出 **`Agent = Model + Harness`**，並把 harness 的控制項二分——
+  - **Guides（前饋控制）**：在 agent 動手**之前**引導。如 coding conventions 文件、bootstrap 指令。
+  - **Sensors（回饋控制）**：在 agent 動手**之後**偵測並自我修正。如 linter、測試、code review agent。
+- **設計原理**：她進一步區分**計算式**（確定性、毫秒級、**結果可靠**）與**推論式**（語意、慢、機率性）控制。關鍵論述：計算式 sensor 因為可靠，所以能在**每次變更**都跑；機率性的 AI sensor 做不到這點。
+- **🟢 這給了我們一套精確的詞彙**：本文件反覆論證的「**約束寫在 prompt 裡 = 沒有強制力**」（Gap 2.6、委派 cwd 弱點），用她的框架講就是——
+  > **我們一直在用 Guide 解決該用 Sensor 解決的問題。**
+  >
+  `wf-state.sh` 的 `exit 1`、hook 的 `PreToolUse` 攔截，都是**計算式 Sensor**；SKILL.md 的文字規範是 **Guide**。Gap 2.6 的教訓（「守衛需要被呼叫才生效」）本質是：**Guide 可以被忽略，Sensor 不行**。
+- **可學**：委派 cwd 約束目前是 Guide（prompt 裡的道德勸說），該升級成 Sensor（hook 攔截或委派後自動 `git status` 驗證）。這與文件既有結論一致，但 Böckeler 的框架讓「為什麼非做不可」講得更清楚。
+
+#### 2.7 Superpowers — Jesse Vincent
+
+- **來源**：<https://blog.fsck.com/2025/10/09/superpowers/> ｜ <https://github.com/obra/superpowers>
+- **機制**：Claude Code 的 skill plugin 系統。brainstorm → plan → implement 三階段；**自動建 git worktree** 做平行隔離；實作走 RED/GREEN TDD；可「逐個 task 派給 subagent 實作後再逐個 code review」。
+- **設計原理**：核心強制語句是「**If you have a skill to do something, you *must* use it**」——用 skill 的存在本身當作行為約束。
+- **⚠️ 特別說明**：**本 session 就載入了 superpowers**（見系統提示的 `using-superpowers`）。所以這不是「別人的做法」，而是我們**已在共用的基礎設施**。它與 `gen-dev-workflow` 的關係是互補：superpowers 管「流程紀律與 skill 選用」，`gen-dev-workflow` 管「六階段編排與狀態機」。
+- **佐證**：worktree 平行隔離、subagent 逐任務實作 + code review、TDD——三項我們都有，且是各自獨立收斂到同一答案。
+
+#### 2.8 🔴 反方立場：Just Talk To It — Peter Steinberger
+
+- **來源**：<https://steipete.me/posts/just-talk-to-it>
+- **主張**：**明確反對**本文件推崇的一切——反對繁複規劃文件、反對 subagent 範式（他用「分開的視窗」取得「完整的控制與可見度」）、反對冗長的 persona 規則檔（「跟模型說『你是專精於生產級 LLM 應用的 AI 工程師』不會改變任何事」）。
+- **理由**：精簡 prompt 下「codex 反而更小心、讀更多檔案」；繁複的 scaffolding 造成 **context 浪費**與認知負擔，效益不成比例。
+- **為什麼要收錄**：**一份只收錄同意自己的證據的文件沒有價值。** Steinberger 的批評直指 `gen-dev-workflow` 最脆弱的地方——6 個 stage、7 個 agent 角色、一份 1000 行的 SKILL.md，這些 ceremony 真的都在付出等值的回報嗎？
+- **本專案的回應（Linus 式）**：他的批評對**探索性、單人、小改動**成立——這正是我們有 **quick 模式**（單暫停點、不建 worktree）的原因。但他的方案無法回答：**context 撞 150k 怎麼辦？** 他沒有狀態持久化，session 一斷進度就沒了。我們的 state 檔不是 ceremony，是**為了能中斷續接**而付的必要代價。**兩者的分野不是「誰對」，而是「任務有多長」**——短任務他對，長任務我們對。這也是為什麼 `pause_level` 與 quick 模式必須存在：**讓同一套流程能退化成他那種輕量模式**。
+
+### 3. 三分類結論
+
+#### (A) 已經有的——別人也這樣做，佐證設計正確，**不是待辦**
+
+| 我們的機制 | 誰獨立收斂到同一答案 |
+|:---|:---|
+| 階段拆解 + plan 檔為真相來源 | Horthy、Harper Reed、Hashimoto、Vincent、Beck |
+| 跨 session 狀態持久化 | Harper Reed（`todo.md`）、Hashimoto（`spec.md`） |
+| context 用盡切 session | Huntley（每輪 reset）、Hashimoto（分 16 session） |
+| git worktree 平行隔離 | Vincent (Superpowers) |
+| 驗收與實作分離、不讓寫 code 的 model 自審 | Böckeler（sensor）、Vincent（subagent review） |
+| 「回報不等於事實」須外部驗證 | **Beck（親自抓到 agent 刪測試作弊）**、Hashimoto |
+| 用程式碼而非文字強制 | **Böckeler（Sensors 必須是計算式才可靠）** |
+
+> 七項全數有獨立佐證。這說明 `gen-dev-workflow` 的骨架不是閉門造車——
+> 但也說明**這些不是我們的獨創**，寫文件時不該當成賣點。
+
+#### (B) 真正可學——別人有、我們沒有
+
+> **⚠️ 注意項數**：本類共 **4 項**，其中 **ACE-FCA 貢獻兩項**（第 1 與第 3）。
+> 曾有一次盤點誤以「每個章節各一項」計數而漏掉第 3 項——**逐項解析的章節數 ≠ 可學項目數**。
+
+1. **🟢 context 主動巡航（ACE-FCA）**｜effort: 低｜價值: **高**
+
+   - **他們怎麼做**：context 刻意壓在 **40–60%**；「context 視窗的內容是你唯一能影響輸出品質的槓桿」。
+   - **我們現況**：Token Gate 是**被動剎車**——`<60k` 正常 ／ `60–100k` 提示精簡 ／ `100–150k` 強制走 MCP 委派 ／ `>150k` 才強制 checkpoint 切 session。
+   - **🔴 差距**：我們允許 context 一路長到 150k 才動作。**問題是 agent 在 100k–150k 這段已經在高污染區工作了**——那些輸出照樣被 commit、照樣進 PR。等到 150k 才切 session，壞掉的產出早就落地。
+   - **附帶價值**：這替一個既有現象提供了機制層面的解釋——**長流程後段品質下滑**。此前只能歸因於「後面的任務比較難」。
+   - **判斷：值得做。** 本次研究**唯一的高價值新洞察**。不需新腳本，改 SKILL.md Token Gate 表格的閾值與行為即可。
+
+2. **🟡 anti-slop session（Hashimoto）**｜effort: 低｜價值: 中
+
+   - **他們怎麼做**：16 個 session 中穿插專門的清理 session，理由是「更好組織與文件化的 code 讓未來的 agentic session 表現更好」。
+   - **我們現況**：STAGE 3 審查的是「**這次改動對不對**」——正確性、規格符合度、code quality。
+   - **🔴 差距**：缺少**面向未來**的清理。兩者問的不是同一個問題——STAGE 3 問「這段 code 有沒有錯」，anti-slop 問「**這段 code 會不會讓下一個 agent 讀錯**」。
+   - **判斷：條件性值得。** 對長期維護的 repo 有價值，對一次性 PR 是純成本。建議先當作 `pause_level=strict` 下的可選步驟，不強制。
+
+3. **🟡 審查槓桿階層（ACE-FCA）**｜effort: **極低**｜價值: 中
+
+   - **他們怎麼做**：「一行爛的 **plan** 會導致數百行爛 code；一行爛的 **research** 會讓你收穫數千行爛 code」——所以該花力氣審 plan 與 research，不是審 code。這是對傳統 code review 優先序的反轉。
+   - **我們現況**：STAGE 0b 有暫停點，使用者會看到計畫。
+   - **🔴 差距**：**沒有明說「這裡才是最該仔細看的地方」**。實務上使用者可能在 0b 隨手按過，卻在 STAGE 2 逐任務仔細看 diff——**槓桿完全用反了**。0b 看漏一行，後面幾百行都建在錯的基礎上。
+   - **判斷：值得做，投報率最高。** 就是在 STAGE 0b 暫停點加一句提示文字。
+
+4. **🟢 把 Guide 升級成 Sensor（Böckeler）**｜effort: 中｜價值: **高**
+
+   - **他們的框架**：`Agent = Model + Harness`。**Guide**（前饋，動手前引導）**可以被忽略**；**Sensor**（回饋，動手後偵測）才是確定性、無法繞過的。
+   - **我們現況**：委派 cwd 約束寫成 prompt 裡的一段文字（「🔴 邊界：不得存取或修改此目錄以外的任何檔案」）。
+   - **🔴 差距**：那段文字**沒有任何強制力**，是寫給另一個 LLM 看的道德勸說——用 Böckeler 的框架講，**這是 Guide，但它要達成的效果需要 Sensor**。MCP 呼叫無法指定 cwd，子進程若在主 repo 而非 worktree 動手，`wf-state.sh` 的所有 guard 都不會有反應：**狀態機管的是 state JSON 的合法性，管不到檔案寫在哪顆磁碟位置上。** 目前的緩解（委派紀律第 3 條事後跑 `git status`）屬**偵測**不屬**預防**。
+   - **判斷：值得做。** 這**不是新發現**——§「同構的第二個弱點」早已記錄且已判定正解是 hook 攔截。Böckeler 的貢獻是給了精確詞彙讓理由更硬。**Gap 2.6 已用 hook 成功解掉同型問題，有現成範式可抄。**
+
+##### 🔴 建議動工順序（2026-08-16 決議）
+
+| 順位 | 項目 | effort | 價值 | 理由 |
+|:---:|:---|:---:|:---:|:---|
+| 1 | **§3 審查槓桿階層** | 極低 | 中 | 投報率最高，改一段提示文字 |
+| 2 | **§1 context 主動巡航** | 低 | 高 | 唯一的高價值新洞察；與順位 1 同屬 SKILL.md 改動，可同批做 |
+| 3 | **§4 Guide→Sensor** | 中 | 高 | 需寫 hook，但 Gap 2.6 有成功範式 |
+| 4 | **§2 anti-slop** | 低 | 中 | 條件性，設成可選即可 |
+
+> **排序理由**：前兩項都只動 SKILL.md（文字與閾值），可合併為一次改動；第 3 項要寫 hook 與掛載，成本跳一級但價值高；第 4 項價值條件性，排最後。
+>
+> ⚠️ **狀態標註**：以上四項截至 2026-08-16 **全部只是提案，未動任何程式碼**。
+> 依本文件的歷史教訓（累計 6 次「標為待辦、實際已完成」的漂移），任一項落地後**應立即回寫本表**，不要等下次盤點。
+>
+> 🔴 **2026-08-16 第二輪查證後，本順序已被推翻**——見下方修訂表。
+
+##### 🔴 修訂後的動工順序（2026-08-16 第二輪查證後）
+
+第二輪查出的 6 項 REVISES 中，有數項**比原本四項更緊急**，因為它們是「**既有機制實際上沒生效**」而非「可以更好」：
+
+| 順位 | 項目 | 類型 | effort | 理由 |
+|:---:|:---|:---|:---:|:---|
+| **0** | **把 hook 的 `sys.exit(1)` 改成 `sys.exit(2)`**（**BUG-1**，見文件開頭待修正項目） | 🔴 **修 bug** | 極低 | `.claude/hooks/wf-guard-stage-check.sh:111,126` 用 exit 1，官方明載**非 blocking、動作照跑**。hook 偵測得到違規卻攔不住，Gap 2.6 的防護實際上是**破的**。改兩個字元 |
+| **1** | **驗收 fresh session 衛生**（R2） | 🟢 新可學 | 極低 | 只餵 spec+測試+diff、修正後另起新 session。不需第二家廠牌即可吃到多數獨立性收益 |
+| **2** | **改寫機制 6 的理由**（R1） | 🔴 修正文件 | 極低 | 規則不動，理由從「能力不足」改為「同分佈熟悉度」。歪理由會導出錯誤簡化 |
+| **3** | 審查槓桿階層（原順位 1） | 🟢 新可學 | 極低 | 不變 |
+| **4** | context 主動巡航（原順位 2） | 🟢 新可學 | 低 | 不變 |
+| **5** | **改用 `SubagentStart` + 檢查 exit code**（R3/R4） | 🔴 修正實作 | 低 | `exit 1` 掛成 hook 無效；`SubagentStart` 可依 agent type 過濾，比手刻 payload 解析更穩 |
+| **6** | Guide→Sensor：委派 cwd（原順位 3） | 🟢 新可學 | 中 | 不變，但 R5 顯示 worktree 隔離同樣只是約定，範圍應一併擴大 |
+| **7** | anti-slop（原順位 4） | 🟡 條件性 | 低 | 不變 |
+
+> **為什麼順序變了**：原本四項全是「錦上添花」；第二輪查出的 R7 是**既有防護失效**、R1/R3 是**理由或實作錯誤**。
+> **修 bug 與修錯誤前提，永遠排在優化之前。**
+
+##### 第三輪新增的可落地項（2026-08-16 · §3.6）
+
+不重排上表，另列於此——這些都是**加欄位／加校驗**，與 `wf-state.sh` 既有語彙相同，不需新架構：
+
+| 項目 | 來源 | effort | 價值 | 一句話 |
+|:---|:---|:---:|:---:|:---|
+| **`confirmed_by: human\|auto`** | R11(c) | 極低 | 中 | state 檔目前分不出「人確認」與「autonomous 自動放行」 |
+| **迴圈偵測**（`issues_hash` 或修復次數上限 3） | R12(a) | 低 | **高** | `3→2→3` 打轉目前只能靠人察覺，純機械可判 |
+| **三值裁決 `PASS/CONCERNS/FAIL`** | R8 | 低 | 中 | 二值制下「可過但留案」只能假裝 PASS 或卡死 |
+| **退回邊帶 `--reason` 寫入 state** | R8 | 低 | 中 | 退回應是具名的一等公民，且要求產出「更新後的 plan」 |
+| **Falsifiable claims（封閉集合）** | R11(a) | 中 | **高** | 子 agent 只能說可機械驗證的話，取代散文回報 |
+| **委派 dev log（append-only）** | R9 | 中 | **高** | 稽核系統側錄的軌跡，而非 agent 自述 |
+| **worktree port 配置** | R12(b) | 低 | 中 | 只隔離了 state 檔，`flutter run` 仍會撞 port |
+
+> 🔴 **R11 三項（claims / receipts / confirmed_by）建議合併為一次改動**——
+> 它們都是「把驗證從人治變成 state 檔上的必要欄位」，拆開做會改三次 schema。
+
+#### (C) 刻意不學——別人有但對本專案是過度工程或方向錯誤
+
+| 不學什麼 | 誰在做 | 理由 |
+|:---|:---|:---|
+| **無限迴圈直到收斂** | Ralph (Huntley) | 「醒來發現 codebase 壞掉、`git reset --hard` 重來」對要出 PR 的流程不可接受。我們的退回路徑（3→2）是**有界重試**，不是無限迴圈。 |
+| **每輪 fresh context（重置即丟進度）** | Ralph (Huntley) | 收益（消除 context 污染與衰減）是真的，但代價是「每輪從頭重來」。我們有暫停點與已確認的成果，丟不起。**我們已有精緻版**：重置時帶結構化 state 走，context 一樣清空但進度不丟。完整推導見 §2.1。 |
+| **完全放棄結構化流程** | Steinberger | 他的批評對短任務成立，但無法回答「context 撞牆怎麼辦」。我們用 **quick 模式**覆蓋他的使用情境，不需要把整套流程拆掉。 |
+| **把 spec 拆成一系列預生成 prompt** | Harper Reed (`prompt_plan.md`) | 預先把所有 prompt 寫死，等於放棄「依前一步結果調整下一步」的能力。我們的 task 陣列保留了這個彈性。 |
+
+### 3.5 🔴 第二輪查證：修正既有結論（2026-08-16）
+
+> **背景**：第一輪研究因額度耗盡，有 32 項候選未查證。第二輪補查了其中 **13 項**（Tier 1 可能修正結論者 4 項 + Tier 2 官方文件與具名個人 9 項），**剩餘 19 項工具／論文仍未查證**（見文末邊界說明）。
+>
+> 結果比預期嚴重：**6 項判定為 REVISES（修正既有結論）**，而非單純佐證。以下逐項記錄。
+
+#### R1. 🔴 機制 6 的**理由是錯的**（兩份獨立來源）
+
+**來源**：
+- Wataoka, Takahashi, Ri《Self-Preference Bias in LLM-as-a-Judge》<https://arxiv.org/abs/2410.21819>
+- Daniel Vaughan《Cross-Model Adversarial Review》<https://codex.danielvaughan.com/2026/03/28/cross-model-adversarial-review/>
+
+**我們現在的理由**：「便宜 model 能力不足以審自己，所以驗收 model 要 ≥ 實作 model」——把自審失敗歸因於**能力位階**。
+
+**🔴 這個歸因沒有證據支持。** arXiv 論文的關鍵實驗設計正好切斷這條因果，原文逐字：
+
+> 「LLMs assign significantly higher evaluations to outputs with lower perplexity than human evaluators, **regardless of whether the outputs were self-generated**. This suggests that the essence of the bias lies in perplexity and that the self-preference bias exists because **LLMs prefer texts more familiar to them**.」
+
+偏誤在**非自己生成**的輸出上一樣出現，只要該輸出 perplexity 低。**自變數是「文本相對 judge 的熟悉度」，不是「judge 有多強」。** Vaughan 從實務端得到同一結論：
+
+> 「use models from **different training distributions**. A Claude-reviewed Codex PR is more reliable than a Codex-reviewed Codex PR — **not because Claude is 'better'**, but because it was trained on different data with different biases.」
+>
+> 「The same model that rationalised a design shortcut during implementation **will rationalise it again during review**. This is not a limitation that better prompting can fix. It requires a structural solution.」
+
+**對我們的衝擊**：現行「opus 審 sonnet」**仍在同一訓練家族內**。sonnet 實作時合理化的設計捷徑，opus 因共享訓練分佈與先驗，仍傾向視為「標準做法」而放過。**我們以為拉高位階就解決了自審偏誤，這個結論站不住。**
+
+**⚠️ 但要避免過度修正**（兩份來源都沒說能力位階無用）：
+- 弱 critic 仍會漏掉真實 violation（與家族無關）。能力是**必要但不充分**。
+- **正確做法是改寫理由，不是刪掉位階規則。**
+- 建議改寫為：「驗收 model ≥ 實作 model」保留，理由改為「**能力位階是必要但不充分；自審偏誤的根因是同分佈熟悉度，需要跨分佈、或至少跨 context 的結構性隔離**」。
+
+**證據強度誠實標註**：arXiv 論文有實驗數據；Vaughan 那篇是個人 blog 且夾帶書籍推廣，查證明確回報「**No empirical data or experiments presented — this is pattern documentation, not research**」。「跨分佈優於同家族」無量化對照。
+
+> **📌 查證誤差一則**（記錄以免日後誤引）：先前流程中出現的逐字片語「architecturally incapable of neutrality」**無法在原文查證到**，疑為概括而非原文用字。引用時請改用上方已逐字確認的句子。另 Builder model 名稱應為 `Codex CLI / codex-spark / gpt-5.4`。
+
+#### R2. 🟢 零成本可落地：驗收的 session 衛生（同軸線，不需第二家廠牌）
+
+跨廠牌成本高（我們未必有第二家），但 Vaughan 與 Anthropic 官方 best-practices 都指出**另一個獨立機制，成本近乎為零**：
+
+- **Critic 必須在無 build 階段歷史的 fresh session 執行**，只餵 spec + 測試 + diff
+- **修正後重新驗收必須另起新 session**，禁止沿用同一 session
+
+官方 best-practices（<https://code.claude.com/docs/en/best-practices>）的理由更根本——獨立性來自**推理過程的可見性**，reviewer「sees only the diff and the criteria you give it, **not the reasoning that produced the change**」。
+
+**推論**：即使實作與驗收用同一顆 model，只要驗收跑在 fresh context 且只看 diff + 準則，**就已取得多數獨立性收益**；反之，用更強的 model 卻把整段實作對話餵給它，偏誤依然存在。**我們的規則對了但理由歪了，而歪掉的理由會導出錯誤的簡化**（例如「同 model 就不必隔離 context」）。
+
+#### R3. 🔴 機制 1 的 `exit 1` 若掛成 hook 會**完全失效**
+
+**來源**：Claude Code Hooks 官方文件 <https://code.claude.com/docs/en/hooks>
+
+`wf-state.sh` 非法轉移用 `exit 1`。官方明載**只有 `exit 2` 是 blocking**；「Any other exit code doesn't block on its own for most hook events」——exit 1 配非 JSON stdout 會被當成 **non-blocking error，動作照跑**，只在 transcript 印一行錯誤。
+
+**這推翻了「exit 1 = 拒絕」的假設。** 目前 `wf-state.sh` 是被當一般 CLI 呼叫、由 skill prompt 自行判讀退出碼——**那是機率性的**，模型可以無視 exit code 繼續走。這正是 hook 要解決的問題本身。
+
+**另兩處修正**：
+- **「exit 2 絕對阻擋」的表述要收窄**：`PermissionRequest` 事件「Exit code 2 isn't honored」，須改用 `decision` 物件；`PermissionDenied`、`Notification` 等事件的 exit code 亦被忽略。正確表述是「exit 2 **在可阻擋事件清單上**不可被 JSON 覆寫，清單外完全無效」。
+- **多 hook 不會短路**：所有 matching hook 平行跑完才合併，**deny 不會阻止 sibling hook 的副作用**。原文直接警告「Don't rely on one hook's deny to suppress side effects in another hook」。
+
+#### R4. 🟢 我們沒用到的 hook 事件（機制 2、7、8 的現成升級路徑）
+
+gdw 目前只用 `PreToolUse`。官方尚有：
+
+| 事件 | exit 2 的效果 | 對應我們的缺口 |
+|:---|:---|:---|
+| `Stop` | 阻止 Claude 停止，繼續對話 | 棘輪只防「未確認往前衝」，**沒防「stage 中途擅自收工」** |
+| `SubagentStart` | 依 **agent type** 過濾攔截 | 比在 PreToolUse 手刻 Task payload 解析更短、更不易失效 |
+| `TaskCompleted` | 阻止任務被標記完成 | 機制 8「回報不等於事實」的**事前阻擋**版（現行是事後 `git log` 偵測） |
+| `TeammateIdle` | 把要偷懶的 agent 叫回去 | — |
+
+**⚠️ Stop hook 的逃生閥**：官方明載 Stop hook **連擋 8 次即被強制覆寫**，且須自行處理 `stop_hook_active` 否則無限迴圈。這反向驗證了我們走 shell 狀態機 + 檔案旗標的選型（天然免疫），但也說明**確定性 gate 必須有逃生閥**。
+
+#### R5. 🔴 機制 4：我們的 worktree 隔離**不是可執行的斷言**
+
+**來源**：Claude Code worktree 官方文件 <https://code.claude.com/docs/en/worktrees>
+
+**我們現在**：STAGE 1 起每個 workflow 一個 worktree、state 檔存各自 worktree——**這只是把檔案分開放**。git worktree 本身對 `git -C ../main`、`cd ../main && ...`、`GIT_WORK_TREE=` **毫無防禦**。
+
+**官方作法是執行期攔截**，四道檢查且 **fail-closed**：檔案編輯、指令工作目錄、git 重導向、**指令形狀**（無法靜態驗證的 brace expansion／unquoted heredoc 即使不含 git 也一律拒絕，且 "You can't turn this check off"）。隔離**自動繼承**到所有 subagent 與背景 session。
+
+**對我們的衝擊**：任何 agent 只要 `cd` 出去就能踩到別的 workflow 的 state 檔——**這正是 `wf-state.sh` 的原子寫入與 schema 校驗擋不到的攻擊面**：它保護單一檔案的完整性，不保護「你根本不該碰這個檔案」。
+
+**⚠️ 一個反直覺的事實**：worktree **並非全隔離**——`.git`、project-scope plugins、permission 核准（寫回主 checkout 的 `.claude/settings.local.json`）三者是**共享**的。
+
+#### R6. 機制 7 的定位該升格
+
+gdw 把 PreToolUse hook 當成 Gap 2.6 的**點狀補丁**（擋一個已知的錯誤行為）。官方在同一位置做的是**面狀的不變量強制**（定義 session 級別的不變量，其餘皆拒）。
+
+**差別在於**：前者要**窮舉壞行為**，後者只要**定義好行為的邊界**。這是設計層級的差異——值得把機制 7 從 workaround 升格為機制骨幹。
+
+#### 🔴 R7. Gap 2.6 的 hook 用了**無效的 exit code**（2026-08-16 修訂版）
+
+> **⚠️ 本節初版結論有誤，已於同日更正。** 初版寫「hook 在本 repo 不存在、Gap 2.6 防護失效」——
+> 那是**只查了當前分支**得出的錯誤結論。完整查證後的事實見下。
+
+**事實澄清**：`wf-guard-stage-check.sh` **存在且已 commit**（`56efe3b` 新增、`cf2d784`、`14236b2` 修正）。
+
+```
+main 分支                      → HAS（檔案存在）
+docs/202607/update-brainstorm  → MISSING（本 docs 分支從 c1cd3d3 分出，晚於 hook commit 的分支點之前）
+```
+
+**先前「檔案不存在」的觀察是真的，但推論錯了**——不是「從未落地」，而是**當前分支沒有**。Gap 2.6 在 `main` 上正常存在。
+
+**🔴 但實查原始碼後發現一個真實缺陷**，且正是 R3 指出的問題：
+
+```python
+# .claude/hooks/wf-guard-stage-check.sh（main 分支）
+sys.exit(1)   # 第 111 行：stage 未推進時的阻擋路徑
+sys.exit(1)   # 第 126 行：同上
+```
+
+依官方 hooks 文件，**`exit 1` 不是 blocking**——「Any other exit code doesn't block on its own for most hook events」，會被當成 non-blocking error，**動作照跑**，只在 transcript 印一行錯誤。要真正阻擋 `PreToolUse` 必須是 **`exit 2`**，或輸出 `permissionDecision: "deny"` 的 JSON。
+
+**結論**：Gap 2.6 的 hook **有被呼叫、也有偵測到違規、但攔不住**。§4 Gap 2.6 方案 C 寫的「**阻擋該次呼叫**」與其「執行者是 harness 而非 LLM，這是唯一想繞也繞不過的層級」——**設計意圖正確，但實作沒有達成**：exit 1 的實際效果是印一行錯誤然後放行。
+
+**這是目前查到唯一命中真實程式碼的缺陷**，修法極小：把兩處 `sys.exit(1)` 改為 `sys.exit(2)`，並驗證 stderr 訊息仍會回饋給模型。
+
+> 📌 **已登記**：本缺陷已列為文件開頭「🔴 待修正項目」的 **BUG-1**，狀態 ⬜ 未修。
+> 該區塊只收「已實查確認、命中真實程式碼」的缺陷，與提案類項目分開管理。
+
+> 📌 **雙重教訓**：
+> 1. **實查證據必須綁定「在哪個分支／工作區查的」**——同一個 `ls` 在不同分支給出相反答案。
+> 2. **「有 hook」不等於「擋得住」**——這正是本文件反覆強調的 Guide vs Sensor：
+>    寫了 hook 但用錯 exit code，它就退化成一個只會印錯誤訊息的 Guide。
+
+### 3.6 第三輪查證：32 項全數完成（2026-08-16）
+
+> **本輪補完最後 19 項**（Tier 3 工具與論文）。結果：**19/19 全數查證成功、零淘汰**，
+> 其中 **5 項 REVISES、5 項 NEW_LEARNABLE、9 項 CORROBORATES**。
+> **至此第一輪 32 項候選全部查證完畢**（8 + 13 + 19 = 40 筆，含跨輪重複與 recheck）。
+>
+> ⚠️ **兩處作者歸屬需更正**（見下方各項標註）——這正是逐項查證的價值，搜尋階段的歸屬有兩筆是錯的。
+
+#### R8. 🔴 退回路徑該是「一等公民」，三值裁決優於二值（BMAD-METHOD）
+
+**來源**：<https://docs.bmad-method.org/reference/workflow-map/>（BMad Code, LLC）
+
+**兩個我們轉移表缺的東西**：
+
+1. **退回是具名的一條邊**：`bmad-correct-course` 是明確入口，輸入是 mid-sprint 重大變更，**輸出必須是「更新後的 plan」**才能轉移。我們的 `3→2` 退回雖在轉移表上，但實務上驗收失敗常靠人手動改 state 或重跑——**機制 1 的保證在最需要時被繞過**。
+2. **三值裁決 `PASS / CONCERNS / FAIL`**：我們機制 2 是布林（`awaiting_confirmation`）、機制 6 驗收也是通過／不通過。`CONCERNS` 多出的語意是「**可前進但留下未結案項**」——二值制下這級問題只能假裝 PASS（問題消失）或判 FAIL（流程停擺）。
+
+**🔴 但它同時強力反向佐證我們**：BMM 的狀態機是 **markdown 指令驅動、非程式強制**。查證找到兩個實證失敗：Issue #1015（code-review 標 story done 卻沒同步 `sprint-status.yaml`，修法只是在指令加一句話）、Issue #1930（correct-course 改寫已完成的 story）。
+
+> **要學的是它的拓樸（退回邊、三值裁決），絕不是它的執行方式（把狀態機寫在 markdown 裡）。**
+
+#### R9. 🔴 稽核對象該是「系統側錄的軌跡」，不是 agent 自述（Container Use）
+
+**來源**：<https://github.com/dagger/container-use>（Dagger）
+
+官方措辭精準：記錄的是「complete command history and logs of what agents **actually did, not just what they claim**」。
+
+**與機制 8 的層級差異**：
+
+| | gdw 機制 8 | Container Use |
+|:---|:---|:---|
+| 形式 | **紀律**（skill 文字要求主對話親自 `git log`） | **基礎設施**（runtime 在容器邊界自動側錄） |
+| 驗證對象 | 結果狀態（commit 有沒有、檔案改了沒） | **過程**（跑了什麼指令、試了什麼、失敗了什麼） |
+| 可靠度 | 靠模型記得遵守 | 想不記錄也做不到 |
+
+**這是「不可繞過」對上「應該遵守」的差別**——Linus 意義上的好品味：把需要靠自律的特殊情況，改成結構上不存在的情況。
+
+**最小改法不是引入 Dagger**（容器隔離對單人 Flutter package 是過度工程），而是：**子 agent 的 bash 執行記錄自動落成 append-only dev log 存在該 worktree，驗收時讀那份檔而非讀回報文字**。我們的 worktree 已經是現成的掛載點——**基礎設施已備，只差用途**。
+
+#### R10. 🔴 同 session 自審才是根因，不是模型太便宜（ASDLC）
+
+**來源**：<https://asdlc.io/patterns/adversarial-code-review/>
+**⚠️ 作者更正**：實為 **Ville Takanen**（`github.com/villetakanen/asdlc-io`），**非**搜尋階段標示的 Claudio Lassala。因歸屬有誤，本項判定為 `PLAUSIBLE` 而非 `CONFIRMED`。
+
+原文核心句：「If the same computational session writes and reviews code, the 'review' provides **minimal independent validation**」。解法是 **Phase 2 Context Swap**——關掉當前 session、開新 session，只餵 Spec + diff，**不餵 Builder 的推理過程**。
+
+**這與 R1／R2 匯流成同一結論**（第三份獨立來源）：即使 model 等級足夠，**同 session 自審仍會 echo-chamber**。
+
+**另兩項可直接吸收**：
+- **Moderator 的結構性職責分離**：parallel critics 為 **read-only**，唯一有 write 權限的是 Moderator。比純 fan-out 多一層去重與 alert fatigue 防護。
+- 🔴 **「LLMs are statistically predisposed to underweight negation」**——以 `DO NOT` 表達的約束是最弱環節。**這對我們的 prompt 措辭有直接影響**：約束該寫成正向斷言 + 機械檢查（`wf-state.sh` 的 exit code 正是正解），而非靠 prompt 裡的禁止句。
+
+#### R11. 🟢 把「驗證」從人治升級為資料結構（三份來源匯流）
+
+這三項指向同一個可落地的改法，且**完全貼合我們既有形狀**：
+
+**(a) Falsifiable claims**（Patrick Hughes · <https://bmdpat.com/blog/ai-agent-claims-done-verify-2026>）
+五種 claim type 是**封閉集合**，agent 只能說「file X contains Y」這種**一 grep 就見真章**的話，無法用模糊語言蒙混。
+> 真正該學的是 claim type 的**封閉性**——不是「請 agent 附上證據」（那還是散文），而是「**只能說這五種話**」。這正對應本專案 style guide 推的 `sealed class` + 窮盡式 `switch`。
+
+**(b) Delegation receipts**（Rel(AI)Build · <https://arxiv.org/html/2606.26924v1>）
+論文的 transition guard **不只查順序，還查「交付憑證」**——委派收據必須被記錄、file-writing 的委派必須 `securityScan.status == "clean"` 才能離開該 phase。
+> **把紀律降級成資料結構**：我們機制 8 是人治（主對話記得去查），論文把它變成 state 檔上的必要欄位，**缺了就轉不過去**。
+
+**(c) `confirmed_by: human|auto`**（Cheng & Cheng · <https://arxiv.org/abs/2604.23049>）
+**⚠️ 作者更正**：實為 **Edward Cheng 與 Jeshua Cheng 兩人**（Jeshua Cheng 標註 InquiryOn），搜尋階段的「Stanford」隸屬與 `et al.` 無法由來源證實。
+
+我們的 `awaiting_confirmation` 是布林，`--confirmed` 通過後即消失——**state 檔無法區分「使用者親自確認」與「`autonomous` 級自動放行」**。兩者在事後稽核與交接時看起來完全一樣。最小改動：state 加一欄 `confirmed_by`。
+
+**綜合判斷**：這三項合起來是一條完整的升級路徑，且都是**加欄位 + 加校驗**，與 `wf-state.sh` 既有的 schema 校驗 + 原子寫入是同一套語彙，**不需要新架構**。
+
+#### R12. 🟢 兩個純機械、零推論成本的機制
+
+**(a) 迴圈偵測 `issues_hash`**（alecnielsen · <https://github.com/alecnielsen/adversarial-review>）
+> ⚠️ **搜尋階段的描述嚴重低估**：「3 輪硬上限」只是四條停機條件之一且可調。**真正的重點是 `issues_hash` 比對驅動的 circuit breaker**——用「這輪的 issue 集合跟上輪一模一樣」當停機訊號，而非用輪數。另外 Phase 4 **不對稱**：只有 Claude 綜合與改碼，Codex 全程不寫檔，所以是「對稱批評 + 單邊仲裁」，非對稱辯論。
+
+**我們的缺口**：機制 1 管「stage 間能否轉移」、機制 2 管「人有沒有確認」，**兩者都沒處理「同一 stage 內反覆修不好」**。目前 `3→2→3` 打轉只能靠人在暫停點自己察覺。`issues_hash` 相同 N 次即跳閘是純機械判定。
+（Rel(AI)Build 亦有對應機制：**auto-fix 迭代上限 3 次即升級人類**，依據是修復效力在 2–3 次後急遽下降。）
+
+**(b) Port 配置**（Uzi · <https://github.com/devflowinc/uzi>）
+機制 4 只保證 **state 檔**隔離，但 worktree 裡跑 `flutter run` / example app / test server **仍會撞 port**。這在 N>1 時是必然衝突而非臆想威脅。
+最小版本：worktree 建立時從 range 配 port 寫進 state，驗收指令用該變數——**不需要抄它的 tmux 那套**。
+> ❌ **刻意不學**：`uzi auto` 自動按 Enter 過 trust prompt，方向上直接牴觸機制 2（暫停棘輪）與機制 3（`pause_level`）。
+
+#### R13. CORROBORATES 九項（歸納，不逐項展開）
+
+Spec Kit、Kiro Specs、Agent OS、Vibe Kanban、Claude Squad、Stately Agent (XState)、Claude Code Spec Workflow、Ralph (wiggumdev)、Vibe Engineering。
+
+**歸納結論**：這九項全數佐證我們的骨架，**但沒有一項的執行層比我們硬**——多數把階段順序寫在 markdown 或靠使用者不下指令來達成暫停（Claude Code Spec Workflow 是機制 2 的明確反例）。**Stately Agent (XState)** 是唯一在執行層同構的（in-process guard，模型只能在合法轉移中選擇），只是層級不同（in-process vs shell + state 檔）。
+
+### 4. Linus 式總評
+
+> **這批工作流有一個共同的誠實之處：沒有一個人宣稱自己解決了「讓 LLM 可靠」這件事。**
+> Huntley 說他的方法「deterministically bad」，Beck 在抓 agent 刪測試，Hashimoto 拒絕
+> ship 看不懂的 code，Böckeler 直說機率性 sensor 不可靠。**全都在講同一件事：
+> 模型不可信，所以把可靠性放到模型外面。**
+>
+> `gen-dev-workflow` 的 `wf-state.sh` + hook 攔截走的正是這條路，而且**走得比多數人遠**——
+> 上表七項機制中，只有 Böckeler 明確主張「必須是計算式（確定性）控制」，
+> 其他人的約束大多仍停留在文件與人工盯場。
+>
+> **但別自滿：** 這也意味著我們承擔了別人沒有的複雜度。Steinberger 的批評必須留在文件裡
+> 當作反面壓力——**每次要往 SKILL.md 加一條規則時，先問這條是 Guide 還是 Sensor。
+> 如果是 Guide，它大概率會被忽略，那就不值得加。**
+
+---
