@@ -264,6 +264,10 @@
   **C. Hook 層——唯一真正的強制**
   以 `PreToolUse` hook 攔截 `Agent` 工具呼叫：偵測到派發 `responder`/`reviewer`/`publisher` 時，檢查當前 worktree 的 state 檔 stage 是否已推進至對應階段，未推進則**阻擋該次呼叫**並回傳提示。
   * **為何有效**：執行者是 harness 而非 LLM，這是唯一「想繞也繞不過」的層級。
+  * 🔴 **2026-08-16 實查更正**：此設計意圖正確，但**落地的實作沒有達成**——
+    `.claude/hooks/wf-guard-stage-check.sh:111,126` 用 `sys.exit(1)`，而官方 hooks 文件明載
+    `PreToolUse` **只有 `exit 2` 具阻擋力**，exit 1 屬 non-blocking error、**動作照跑**。
+    目前是「偵測得到違規但攔不住」。修法：改為 `sys.exit(2)`。詳見 §3.5 R7。
   * **代價**：hook 邏輯需維護；且會誤擋「流程外單獨派發 reviewer 做零星審查」的正當用法——需評估是否加白名單，或退而採「警告但不阻擋」。此取捨需由使用者依實際使用習慣決定。
 
 * **設計啟示**：本 Gap 揭露的是守衛架構的**結構性盲點**，而非單點疏失——「守衛需要被呼叫才生效」。任何未來新增的獨立入口（非主鏈階段）都會重現同一漏洞，因此對策應落在**入口攔截層**，而非繼續往 `wf-state.sh` 內部堆校驗。
@@ -1370,7 +1374,7 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 
 | 順位 | 項目 | 類型 | effort | 理由 |
 |:---:|:---|:---|:---:|:---|
-| **0** | **確認 Gap 2.6 hook 的實際位置**（R7） | 🔴 **修 bug** | 極低 | `settings.local.json` 掛載了主 repo 不存在的檔案，攔截目前**失效**。這是前提，不確認就是在錯誤基礎上設計 |
+| **0** | **把 hook 的 `sys.exit(1)` 改成 `sys.exit(2)`**（R7） | 🔴 **修 bug** | 極低 | `.claude/hooks/wf-guard-stage-check.sh:111,126` 用 exit 1，官方明載**非 blocking、動作照跑**。hook 偵測得到違規卻攔不住，Gap 2.6 的防護實際上是**破的**。改兩個字元 |
 | **1** | **驗收 fresh session 衛生**（R2） | 🟢 新可學 | 極低 | 只餵 spec+測試+diff、修正後另起新 session。不需第二家廠牌即可吃到多數獨立性收益 |
 | **2** | **改寫機制 6 的理由**（R1） | 🔴 修正文件 | 極低 | 規則不動，理由從「能力不足」改為「同分佈熟悉度」。歪理由會導出錯誤簡化 |
 | **3** | 審查槓桿階層（原順位 1） | 🟢 新可學 | 極低 | 不變 |
@@ -1480,21 +1484,38 @@ gdw 把 PreToolUse hook 當成 Gap 2.6 的**點狀補丁**（擋一個已知的�
 
 **差別在於**：前者要**窮舉壞行為**，後者只要**定義好行為的邊界**。這是設計層級的差異——值得把機制 7 從 workaround 升格為機制骨幹。
 
-#### 🔴 R7. 實查發現：Gap 2.6 的 hook **在本 repo 不存在**
+#### 🔴 R7. Gap 2.6 的 hook 用了**無效的 exit code**（2026-08-16 修訂版）
 
-查證 R3 的 exit code 時實查本 repo，發現：
+> **⚠️ 本節初版結論有誤，已於同日更正。** 初版寫「hook 在本 repo 不存在、Gap 2.6 防護失效」——
+> 那是**只查了當前分支**得出的錯誤結論。完整查證後的事實見下。
+
+**事實澄清**：`wf-guard-stage-check.sh` **存在且已 commit**（`56efe3b` 新增、`cf2d784`、`14236b2` 修正）。
 
 ```
-.claude/hooks/           → 只有 cbm-reindex-on-pr.sh、cbm-reindex-on-sync.sh
-.claude/settings.local.json → 仍掛載 wf-guard-stage-check.sh（檔案不存在）
-git worktree list        → 僅主 repo，無其他 worktree
+main 分支                      → HAS（檔案存在）
+docs/202607/update-brainstorm  → MISSING（本 docs 分支從 c1cd3d3 分出，晚於 hook commit 的分支點之前）
 ```
 
-**`.claude/settings.local.json` 掛載了一個不存在的 hook。** 先前記錄 Gap 2.6「已修」的實查證據（含本文件 §0 完成度總覽與落地現況表）是在**其他工作區**取得的，主 repo 並無此檔。
+**先前「檔案不存在」的觀察是真的，但推論錯了**——不是「從未落地」，而是**當前分支沒有**。Gap 2.6 在 `main` 上正常存在。
 
-**這代表 Gap 2.6 在主 repo 的防護目前是失效的**——hook 掛了但檔案不在，PreToolUse 攔截不會發生。**動工前必須先確認此檔的正確位置與掛載狀態**，不要在錯誤前提上繼續堆設計。
+**🔴 但實查原始碼後發現一個真實缺陷**，且正是 R3 指出的問題：
 
-> 📌 這也再次印證本文件的核心教訓：**實查證據必須綁定「在哪個工作區查的」**，否則跨 worktree 的結論會互相污染。
+```python
+# .claude/hooks/wf-guard-stage-check.sh（main 分支）
+sys.exit(1)   # 第 111 行：stage 未推進時的阻擋路徑
+sys.exit(1)   # 第 126 行：同上
+```
+
+依官方 hooks 文件，**`exit 1` 不是 blocking**——「Any other exit code doesn't block on its own for most hook events」，會被當成 non-blocking error，**動作照跑**，只在 transcript 印一行錯誤。要真正阻擋 `PreToolUse` 必須是 **`exit 2`**，或輸出 `permissionDecision: "deny"` 的 JSON。
+
+**結論**：Gap 2.6 的 hook **有被呼叫、也有偵測到違規、但攔不住**。§4 Gap 2.6 方案 C 寫的「**阻擋該次呼叫**」與其「執行者是 harness 而非 LLM，這是唯一想繞也繞不過的層級」——**設計意圖正確，但實作沒有達成**：exit 1 的實際效果是印一行錯誤然後放行。
+
+**這是目前查到唯一命中真實程式碼的缺陷**，修法極小：把兩處 `sys.exit(1)` 改為 `sys.exit(2)`，並驗證 stderr 訊息仍會回饋給模型。
+
+> 📌 **雙重教訓**：
+> 1. **實查證據必須綁定「在哪個分支／工作區查的」**——同一個 `ls` 在不同分支給出相反答案。
+> 2. **「有 hook」不等於「擋得住」**——這正是本文件反覆強調的 Guide vs Sensor：
+>    寫了 hook 但用錯 exit code，它就退化成一個只會印錯誤訊息的 Guide。
 
 ### 4. Linus 式總評
 
