@@ -108,7 +108,8 @@ try:
 except Exception as e:
     rel_path = os.path.relpath(matched_file)
     sys.stderr.write(f"[WF-GUARD ERROR] 無法讀取或解析 workflow 狀態檔 {rel_path}：{e}\n請檢查修復該狀態檔或重新初始化。\n")
-    sys.exit(1)
+    # PreToolUse 只有 exit 2 具阻擋力；exit 1 屬 non-blocking error（動作照跑）
+    sys.exit(2)
 
 stage = str(st_data.get("stage", ""))
 
@@ -123,7 +124,8 @@ sys.stderr.write(f"""[WF-GUARD BLOCK] 偵測到派發 responder agent，但當�
   wf-state.sh advance {rel_path} 5 --confirmed
 （或若為新對話獨立入口：wf-state.sh init --mode jump --stage 5 --branch <branch>）
 推進狀態完成後，方可再次派發 responder。\n""")
-sys.exit(1)
+# PreToolUse 只有 exit 2 具阻擋力；exit 1 屬 non-blocking error（動作照跑）
+sys.exit(2)
 ' <<< "$input"
 
 exit $?
