@@ -1184,12 +1184,18 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 > **🔍 查證方法**：以下每一項都經 `WebFetch` 實際讀取原始來源確認作者、機制與主張，
 > 非僅憑搜尋摘要或記憶。附上的 URL 即為查證所用來源。
 >
-> ⚠️ **本次研究的已知邊界（誠實標註）**：原研究流程設計為「多線搜尋 → 深讀 → 三重對抗查核」，
-> 但**對抗查核階段因 session 額度耗盡而未執行**（85 個 agent 中 68 個中止）。
-> 上述 WebFetch 查證由主對話**親自補做**，涵蓋下列 8 項的核心來源。
-> 搜尋階段另有約 30 項候選（含 Spec Kit、Kiro、Agent OS、BMAD、Container Use、Uzi、
-> Claude Squad、Vibe Kanban、XState Agent 等工具，以及數篇 arXiv 論文）**未經逐項查證，
-> 故不寫入本文件**——寧可少列，不可誤植。
+> ⚠️ **本次研究的已知邊界（誠實標註 · 2026-08-16 更新）**：
+>
+> **第一輪**（8 項，§2）：原設計為「多線搜尋 → 深讀 → 三重對抗查核」，但**對抗查核階段因 session 額度耗盡未執行**（85 個 agent 中 68 個中止）。WebFetch 查證由主對話**親自補做**，涵蓋 §2 全部 8 項的核心來源。
+>
+> **第二輪**（13 項，§3.5）：補查剩餘 32 項中的 **Tier 1（4 項，可能修正結論）與 Tier 2（9 項，官方文件與具名個人）**，全數經 WebFetch 查證，其中 Tier 1 另加一輪「專門證偽」複核。**結果：6 項判定 REVISES。**
+>
+> 🔴 **仍未查證：19 項**（Spec Kit、Kiro Specs、Agent OS、BMAD-METHOD、Container Use、Uzi、
+> Vibe Kanban、Claude Squad、Stately Agent、Claude Code Spec Workflow、ASDLC、alecnielsen
+> adversarial-review、Blake Crosley hooks、wiggumdev/ralph、Simon Willison Vibe Engineering，
+> 以及 4 篇 arXiv）。兩次嘗試分別因**網路中斷（ENOTFOUND）**與**額度耗盡**失敗。
+> **一律不寫入本文件**——寧可少列，不可誤植。這 19 項多屬工具與論文，依第二輪的經驗，
+> 修正既有結論的機率低於已查完的 Tier 1/2。
 
 ### 1. 對照矩陣
 
@@ -1355,6 +1361,26 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 >
 > ⚠️ **狀態標註**：以上四項截至 2026-08-16 **全部只是提案，未動任何程式碼**。
 > 依本文件的歷史教訓（累計 6 次「標為待辦、實際已完成」的漂移），任一項落地後**應立即回寫本表**，不要等下次盤點。
+>
+> 🔴 **2026-08-16 第二輪查證後，本順序已被推翻**——見下方修訂表。
+
+##### 🔴 修訂後的動工順序（2026-08-16 第二輪查證後）
+
+第二輪查出的 6 項 REVISES 中，有數項**比原本四項更緊急**，因為它們是「**既有機制實際上沒生效**」而非「可以更好」：
+
+| 順位 | 項目 | 類型 | effort | 理由 |
+|:---:|:---|:---|:---:|:---|
+| **0** | **確認 Gap 2.6 hook 的實際位置**（R7） | 🔴 **修 bug** | 極低 | `settings.local.json` 掛載了主 repo 不存在的檔案，攔截目前**失效**。這是前提，不確認就是在錯誤基礎上設計 |
+| **1** | **驗收 fresh session 衛生**（R2） | 🟢 新可學 | 極低 | 只餵 spec+測試+diff、修正後另起新 session。不需第二家廠牌即可吃到多數獨立性收益 |
+| **2** | **改寫機制 6 的理由**（R1） | 🔴 修正文件 | 極低 | 規則不動，理由從「能力不足」改為「同分佈熟悉度」。歪理由會導出錯誤簡化 |
+| **3** | 審查槓桿階層（原順位 1） | 🟢 新可學 | 極低 | 不變 |
+| **4** | context 主動巡航（原順位 2） | 🟢 新可學 | 低 | 不變 |
+| **5** | **改用 `SubagentStart` + 檢查 exit code**（R3/R4） | 🔴 修正實作 | 低 | `exit 1` 掛成 hook 無效；`SubagentStart` 可依 agent type 過濾，比手刻 payload 解析更穩 |
+| **6** | Guide→Sensor：委派 cwd（原順位 3） | 🟢 新可學 | 中 | 不變，但 R5 顯示 worktree 隔離同樣只是約定，範圍應一併擴大 |
+| **7** | anti-slop（原順位 4） | 🟡 條件性 | 低 | 不變 |
+
+> **為什麼順序變了**：原本四項全是「錦上添花」；第二輪查出的 R7 是**既有防護失效**、R1/R3 是**理由或實作錯誤**。
+> **修 bug 與修錯誤前提，永遠排在優化之前。**
 
 #### (C) 刻意不學——別人有但對本專案是過度工程或方向錯誤
 
@@ -1364,6 +1390,111 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 | **每輪 fresh context（重置即丟進度）** | Ralph (Huntley) | 收益（消除 context 污染與衰減）是真的，但代價是「每輪從頭重來」。我們有暫停點與已確認的成果，丟不起。**我們已有精緻版**：重置時帶結構化 state 走，context 一樣清空但進度不丟。完整推導見 §2.1。 |
 | **完全放棄結構化流程** | Steinberger | 他的批評對短任務成立，但無法回答「context 撞牆怎麼辦」。我們用 **quick 模式**覆蓋他的使用情境，不需要把整套流程拆掉。 |
 | **把 spec 拆成一系列預生成 prompt** | Harper Reed (`prompt_plan.md`) | 預先把所有 prompt 寫死，等於放棄「依前一步結果調整下一步」的能力。我們的 task 陣列保留了這個彈性。 |
+
+### 3.5 🔴 第二輪查證：修正既有結論（2026-08-16）
+
+> **背景**：第一輪研究因額度耗盡，有 32 項候選未查證。第二輪補查了其中 **13 項**（Tier 1 可能修正結論者 4 項 + Tier 2 官方文件與具名個人 9 項），**剩餘 19 項工具／論文仍未查證**（見文末邊界說明）。
+>
+> 結果比預期嚴重：**6 項判定為 REVISES（修正既有結論）**，而非單純佐證。以下逐項記錄。
+
+#### R1. 🔴 機制 6 的**理由是錯的**（兩份獨立來源）
+
+**來源**：
+- Wataoka, Takahashi, Ri《Self-Preference Bias in LLM-as-a-Judge》<https://arxiv.org/abs/2410.21819>
+- Daniel Vaughan《Cross-Model Adversarial Review》<https://codex.danielvaughan.com/2026/03/28/cross-model-adversarial-review/>
+
+**我們現在的理由**：「便宜 model 能力不足以審自己，所以驗收 model 要 ≥ 實作 model」——把自審失敗歸因於**能力位階**。
+
+**🔴 這個歸因沒有證據支持。** arXiv 論文的關鍵實驗設計正好切斷這條因果，原文逐字：
+
+> 「LLMs assign significantly higher evaluations to outputs with lower perplexity than human evaluators, **regardless of whether the outputs were self-generated**. This suggests that the essence of the bias lies in perplexity and that the self-preference bias exists because **LLMs prefer texts more familiar to them**.」
+
+偏誤在**非自己生成**的輸出上一樣出現，只要該輸出 perplexity 低。**自變數是「文本相對 judge 的熟悉度」，不是「judge 有多強」。** Vaughan 從實務端得到同一結論：
+
+> 「use models from **different training distributions**. A Claude-reviewed Codex PR is more reliable than a Codex-reviewed Codex PR — **not because Claude is 'better'**, but because it was trained on different data with different biases.」
+>
+> 「The same model that rationalised a design shortcut during implementation **will rationalise it again during review**. This is not a limitation that better prompting can fix. It requires a structural solution.」
+
+**對我們的衝擊**：現行「opus 審 sonnet」**仍在同一訓練家族內**。sonnet 實作時合理化的設計捷徑，opus 因共享訓練分佈與先驗，仍傾向視為「標準做法」而放過。**我們以為拉高位階就解決了自審偏誤，這個結論站不住。**
+
+**⚠️ 但要避免過度修正**（兩份來源都沒說能力位階無用）：
+- 弱 critic 仍會漏掉真實 violation（與家族無關）。能力是**必要但不充分**。
+- **正確做法是改寫理由，不是刪掉位階規則。**
+- 建議改寫為：「驗收 model ≥ 實作 model」保留，理由改為「**能力位階是必要但不充分；自審偏誤的根因是同分佈熟悉度，需要跨分佈、或至少跨 context 的結構性隔離**」。
+
+**證據強度誠實標註**：arXiv 論文有實驗數據；Vaughan 那篇是個人 blog 且夾帶書籍推廣，查證明確回報「**No empirical data or experiments presented — this is pattern documentation, not research**」。「跨分佈優於同家族」無量化對照。
+
+> **📌 查證誤差一則**（記錄以免日後誤引）：先前流程中出現的逐字片語「architecturally incapable of neutrality」**無法在原文查證到**，疑為概括而非原文用字。引用時請改用上方已逐字確認的句子。另 Builder model 名稱應為 `Codex CLI / codex-spark / gpt-5.4`。
+
+#### R2. 🟢 零成本可落地：驗收的 session 衛生（同軸線，不需第二家廠牌）
+
+跨廠牌成本高（我們未必有第二家），但 Vaughan 與 Anthropic 官方 best-practices 都指出**另一個獨立機制，成本近乎為零**：
+
+- **Critic 必須在無 build 階段歷史的 fresh session 執行**，只餵 spec + 測試 + diff
+- **修正後重新驗收必須另起新 session**，禁止沿用同一 session
+
+官方 best-practices（<https://code.claude.com/docs/en/best-practices>）的理由更根本——獨立性來自**推理過程的可見性**，reviewer「sees only the diff and the criteria you give it, **not the reasoning that produced the change**」。
+
+**推論**：即使實作與驗收用同一顆 model，只要驗收跑在 fresh context 且只看 diff + 準則，**就已取得多數獨立性收益**；反之，用更強的 model 卻把整段實作對話餵給它，偏誤依然存在。**我們的規則對了但理由歪了，而歪掉的理由會導出錯誤的簡化**（例如「同 model 就不必隔離 context」）。
+
+#### R3. 🔴 機制 1 的 `exit 1` 若掛成 hook 會**完全失效**
+
+**來源**：Claude Code Hooks 官方文件 <https://code.claude.com/docs/en/hooks>
+
+`wf-state.sh` 非法轉移用 `exit 1`。官方明載**只有 `exit 2` 是 blocking**；「Any other exit code doesn't block on its own for most hook events」——exit 1 配非 JSON stdout 會被當成 **non-blocking error，動作照跑**，只在 transcript 印一行錯誤。
+
+**這推翻了「exit 1 = 拒絕」的假設。** 目前 `wf-state.sh` 是被當一般 CLI 呼叫、由 skill prompt 自行判讀退出碼——**那是機率性的**，模型可以無視 exit code 繼續走。這正是 hook 要解決的問題本身。
+
+**另兩處修正**：
+- **「exit 2 絕對阻擋」的表述要收窄**：`PermissionRequest` 事件「Exit code 2 isn't honored」，須改用 `decision` 物件；`PermissionDenied`、`Notification` 等事件的 exit code 亦被忽略。正確表述是「exit 2 **在可阻擋事件清單上**不可被 JSON 覆寫，清單外完全無效」。
+- **多 hook 不會短路**：所有 matching hook 平行跑完才合併，**deny 不會阻止 sibling hook 的副作用**。原文直接警告「Don't rely on one hook's deny to suppress side effects in another hook」。
+
+#### R4. 🟢 我們沒用到的 hook 事件（機制 2、7、8 的現成升級路徑）
+
+gdw 目前只用 `PreToolUse`。官方尚有：
+
+| 事件 | exit 2 的效果 | 對應我們的缺口 |
+|:---|:---|:---|
+| `Stop` | 阻止 Claude 停止，繼續對話 | 棘輪只防「未確認往前衝」，**沒防「stage 中途擅自收工」** |
+| `SubagentStart` | 依 **agent type** 過濾攔截 | 比在 PreToolUse 手刻 Task payload 解析更短、更不易失效 |
+| `TaskCompleted` | 阻止任務被標記完成 | 機制 8「回報不等於事實」的**事前阻擋**版（現行是事後 `git log` 偵測） |
+| `TeammateIdle` | 把要偷懶的 agent 叫回去 | — |
+
+**⚠️ Stop hook 的逃生閥**：官方明載 Stop hook **連擋 8 次即被強制覆寫**，且須自行處理 `stop_hook_active` 否則無限迴圈。這反向驗證了我們走 shell 狀態機 + 檔案旗標的選型（天然免疫），但也說明**確定性 gate 必須有逃生閥**。
+
+#### R5. 🔴 機制 4：我們的 worktree 隔離**不是可執行的斷言**
+
+**來源**：Claude Code worktree 官方文件 <https://code.claude.com/docs/en/worktrees>
+
+**我們現在**：STAGE 1 起每個 workflow 一個 worktree、state 檔存各自 worktree——**這只是把檔案分開放**。git worktree 本身對 `git -C ../main`、`cd ../main && ...`、`GIT_WORK_TREE=` **毫無防禦**。
+
+**官方作法是執行期攔截**，四道檢查且 **fail-closed**：檔案編輯、指令工作目錄、git 重導向、**指令形狀**（無法靜態驗證的 brace expansion／unquoted heredoc 即使不含 git 也一律拒絕，且 "You can't turn this check off"）。隔離**自動繼承**到所有 subagent 與背景 session。
+
+**對我們的衝擊**：任何 agent 只要 `cd` 出去就能踩到別的 workflow 的 state 檔——**這正是 `wf-state.sh` 的原子寫入與 schema 校驗擋不到的攻擊面**：它保護單一檔案的完整性，不保護「你根本不該碰這個檔案」。
+
+**⚠️ 一個反直覺的事實**：worktree **並非全隔離**——`.git`、project-scope plugins、permission 核准（寫回主 checkout 的 `.claude/settings.local.json`）三者是**共享**的。
+
+#### R6. 機制 7 的定位該升格
+
+gdw 把 PreToolUse hook 當成 Gap 2.6 的**點狀補丁**（擋一個已知的錯誤行為）。官方在同一位置做的是**面狀的不變量強制**（定義 session 級別的不變量，其餘皆拒）。
+
+**差別在於**：前者要**窮舉壞行為**，後者只要**定義好行為的邊界**。這是設計層級的差異——值得把機制 7 從 workaround 升格為機制骨幹。
+
+#### 🔴 R7. 實查發現：Gap 2.6 的 hook **在本 repo 不存在**
+
+查證 R3 的 exit code 時實查本 repo，發現：
+
+```
+.claude/hooks/           → 只有 cbm-reindex-on-pr.sh、cbm-reindex-on-sync.sh
+.claude/settings.local.json → 仍掛載 wf-guard-stage-check.sh（檔案不存在）
+git worktree list        → 僅主 repo，無其他 worktree
+```
+
+**`.claude/settings.local.json` 掛載了一個不存在的 hook。** 先前記錄 Gap 2.6「已修」的實查證據（含本文件 §0 完成度總覽與落地現況表）是在**其他工作區**取得的，主 repo 並無此檔。
+
+**這代表 Gap 2.6 在主 repo 的防護目前是失效的**——hook 掛了但檔案不在，PreToolUse 攔截不會發生。**動工前必須先確認此檔的正確位置與掛載狀態**，不要在錯誤前提上繼續堆設計。
+
+> 📌 這也再次印證本文件的核心教訓：**實查證據必須綁定「在哪個工作區查的」**，否則跨 worktree 的結論會互相污染。
 
 ### 4. Linus 式總評
 
