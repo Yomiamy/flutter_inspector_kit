@@ -10,6 +10,12 @@
 > **具名工程師跑在真實專案上的手工流程**。結論分成「已經有的／真正可學的／刻意不學的」三類，
 > 高價值新洞察只有一項：**context 主動維持 40-60%，而非撞到 150k 才剎車**。
 >
+> **2026-08-16 三輪查證完成**：第一輪 8 項（§2）、第二輪 13 項（§3.5）、第三輪 19 項（§3.6），
+> **32 項候選全數查證完畢、零淘汰**。合計 **11 項判定 REVISES（修正既有結論）**，
+> 最重要的三條：機制 6 的理由歸因錯誤（應為同分佈熟悉度而非能力不足）、
+> Gap 2.6 的 hook 用了無效的 `exit 1`（偵測得到卻攔不住）、
+> 稽核對象應是系統側錄的軌跡而非 agent 自述。
+>
 > **2026-08-16 補記**：(B) 真正可學的 4 項已補上逐項的「現況 → 差距 → 判斷」推導與
 > **建議動工順序**（審查槓桿階層 → context 主動巡航 → Guide→Sensor → anti-slop，
 > 見 §3(B) 末表）。同時修正 §2.1 Ralph 的標籤（原標「可學」與 §3(C)「刻意不學」自相矛盾，
@@ -1194,12 +1200,13 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 >
 > **第二輪**（13 項，§3.5）：補查剩餘 32 項中的 **Tier 1（4 項，可能修正結論）與 Tier 2（9 項，官方文件與具名個人）**，全數經 WebFetch 查證，其中 Tier 1 另加一輪「專門證偽」複核。**結果：6 項判定 REVISES。**
 >
-> 🔴 **仍未查證：19 項**（Spec Kit、Kiro Specs、Agent OS、BMAD-METHOD、Container Use、Uzi、
-> Vibe Kanban、Claude Squad、Stately Agent、Claude Code Spec Workflow、ASDLC、alecnielsen
-> adversarial-review、Blake Crosley hooks、wiggumdev/ralph、Simon Willison Vibe Engineering，
-> 以及 4 篇 arXiv）。兩次嘗試分別因**網路中斷（ENOTFOUND）**與**額度耗盡**失敗。
-> **一律不寫入本文件**——寧可少列，不可誤植。這 19 項多屬工具與論文，依第二輪的經驗，
-> 修正既有結論的機率低於已查完的 Tier 1/2。
+> **第三輪**（19 項，§3.6）：補完最後的 Tier 3（工具與論文）。前兩次嘗試分別因**網路中斷（ENOTFOUND）**與**額度耗盡**失敗，第三次 **19/19 全數成功、零淘汰**。
+>
+> ✅ **至此 32 項候選全部查證完畢**（8 + 13 + 19 + 跨輪 recheck）。
+>
+> 📌 **第三輪推翻了第二輪的一個預期**：當時寫「這 19 項多屬工具與論文，修正既有結論的機率低於 Tier 1/2」——**結果仍有 5 項 REVISES**，比例與 Tier 1/2 相當。教訓：**「工具類價值較低」是先驗偏見，不是實測結果。**
+>
+> ⚠️ **逐項查證抓到 2 筆作者歸屬錯誤**（ASDLC 實為 Ville Takanen 非 Claudio Lassala；Decoupled HITL 實為 Cheng & Cheng 兩人、無 Stanford 隸屬）。若當初直接採信搜尋階段結果，這兩筆會誤植進文件。
 
 ### 1. 對照矩陣
 
@@ -1386,6 +1393,23 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 > **為什麼順序變了**：原本四項全是「錦上添花」；第二輪查出的 R7 是**既有防護失效**、R1/R3 是**理由或實作錯誤**。
 > **修 bug 與修錯誤前提，永遠排在優化之前。**
 
+##### 第三輪新增的可落地項（2026-08-16 · §3.6）
+
+不重排上表，另列於此——這些都是**加欄位／加校驗**，與 `wf-state.sh` 既有語彙相同，不需新架構：
+
+| 項目 | 來源 | effort | 價值 | 一句話 |
+|:---|:---|:---:|:---:|:---|
+| **`confirmed_by: human\|auto`** | R11(c) | 極低 | 中 | state 檔目前分不出「人確認」與「autonomous 自動放行」 |
+| **迴圈偵測**（`issues_hash` 或修復次數上限 3） | R12(a) | 低 | **高** | `3→2→3` 打轉目前只能靠人察覺，純機械可判 |
+| **三值裁決 `PASS/CONCERNS/FAIL`** | R8 | 低 | 中 | 二值制下「可過但留案」只能假裝 PASS 或卡死 |
+| **退回邊帶 `--reason` 寫入 state** | R8 | 低 | 中 | 退回應是具名的一等公民，且要求產出「更新後的 plan」 |
+| **Falsifiable claims（封閉集合）** | R11(a) | 中 | **高** | 子 agent 只能說可機械驗證的話，取代散文回報 |
+| **委派 dev log（append-only）** | R9 | 中 | **高** | 稽核系統側錄的軌跡，而非 agent 自述 |
+| **worktree port 配置** | R12(b) | 低 | 中 | 只隔離了 state 檔，`flutter run` 仍會撞 port |
+
+> 🔴 **R11 三項（claims / receipts / confirmed_by）建議合併為一次改動**——
+> 它們都是「把驗證從人治變成 state 檔上的必要欄位」，拆開做會改三次 schema。
+
 #### (C) 刻意不學——別人有但對本專案是過度工程或方向錯誤
 
 | 不學什麼 | 誰在做 | 理由 |
@@ -1516,6 +1540,96 @@ sys.exit(1)   # 第 126 行：同上
 > 1. **實查證據必須綁定「在哪個分支／工作區查的」**——同一個 `ls` 在不同分支給出相反答案。
 > 2. **「有 hook」不等於「擋得住」**——這正是本文件反覆強調的 Guide vs Sensor：
 >    寫了 hook 但用錯 exit code，它就退化成一個只會印錯誤訊息的 Guide。
+
+### 3.6 第三輪查證：32 項全數完成（2026-08-16）
+
+> **本輪補完最後 19 項**（Tier 3 工具與論文）。結果：**19/19 全數查證成功、零淘汰**，
+> 其中 **5 項 REVISES、5 項 NEW_LEARNABLE、9 項 CORROBORATES**。
+> **至此第一輪 32 項候選全部查證完畢**（8 + 13 + 19 = 40 筆，含跨輪重複與 recheck）。
+>
+> ⚠️ **兩處作者歸屬需更正**（見下方各項標註）——這正是逐項查證的價值，搜尋階段的歸屬有兩筆是錯的。
+
+#### R8. 🔴 退回路徑該是「一等公民」，三值裁決優於二值（BMAD-METHOD）
+
+**來源**：<https://docs.bmad-method.org/reference/workflow-map/>（BMad Code, LLC）
+
+**兩個我們轉移表缺的東西**：
+
+1. **退回是具名的一條邊**：`bmad-correct-course` 是明確入口，輸入是 mid-sprint 重大變更，**輸出必須是「更新後的 plan」**才能轉移。我們的 `3→2` 退回雖在轉移表上，但實務上驗收失敗常靠人手動改 state 或重跑——**機制 1 的保證在最需要時被繞過**。
+2. **三值裁決 `PASS / CONCERNS / FAIL`**：我們機制 2 是布林（`awaiting_confirmation`）、機制 6 驗收也是通過／不通過。`CONCERNS` 多出的語意是「**可前進但留下未結案項**」——二值制下這級問題只能假裝 PASS（問題消失）或判 FAIL（流程停擺）。
+
+**🔴 但它同時強力反向佐證我們**：BMM 的狀態機是 **markdown 指令驅動、非程式強制**。查證找到兩個實證失敗：Issue #1015（code-review 標 story done 卻沒同步 `sprint-status.yaml`，修法只是在指令加一句話）、Issue #1930（correct-course 改寫已完成的 story）。
+
+> **要學的是它的拓樸（退回邊、三值裁決），絕不是它的執行方式（把狀態機寫在 markdown 裡）。**
+
+#### R9. 🔴 稽核對象該是「系統側錄的軌跡」，不是 agent 自述（Container Use）
+
+**來源**：<https://github.com/dagger/container-use>（Dagger）
+
+官方措辭精準：記錄的是「complete command history and logs of what agents **actually did, not just what they claim**」。
+
+**與機制 8 的層級差異**：
+
+| | gdw 機制 8 | Container Use |
+|:---|:---|:---|
+| 形式 | **紀律**（skill 文字要求主對話親自 `git log`） | **基礎設施**（runtime 在容器邊界自動側錄） |
+| 驗證對象 | 結果狀態（commit 有沒有、檔案改了沒） | **過程**（跑了什麼指令、試了什麼、失敗了什麼） |
+| 可靠度 | 靠模型記得遵守 | 想不記錄也做不到 |
+
+**這是「不可繞過」對上「應該遵守」的差別**——Linus 意義上的好品味：把需要靠自律的特殊情況，改成結構上不存在的情況。
+
+**最小改法不是引入 Dagger**（容器隔離對單人 Flutter package 是過度工程），而是：**子 agent 的 bash 執行記錄自動落成 append-only dev log 存在該 worktree，驗收時讀那份檔而非讀回報文字**。我們的 worktree 已經是現成的掛載點——**基礎設施已備，只差用途**。
+
+#### R10. 🔴 同 session 自審才是根因，不是模型太便宜（ASDLC）
+
+**來源**：<https://asdlc.io/patterns/adversarial-code-review/>
+**⚠️ 作者更正**：實為 **Ville Takanen**（`github.com/villetakanen/asdlc-io`），**非**搜尋階段標示的 Claudio Lassala。因歸屬有誤，本項判定為 `PLAUSIBLE` 而非 `CONFIRMED`。
+
+原文核心句：「If the same computational session writes and reviews code, the 'review' provides **minimal independent validation**」。解法是 **Phase 2 Context Swap**——關掉當前 session、開新 session，只餵 Spec + diff，**不餵 Builder 的推理過程**。
+
+**這與 R1／R2 匯流成同一結論**（第三份獨立來源）：即使 model 等級足夠，**同 session 自審仍會 echo-chamber**。
+
+**另兩項可直接吸收**：
+- **Moderator 的結構性職責分離**：parallel critics 為 **read-only**，唯一有 write 權限的是 Moderator。比純 fan-out 多一層去重與 alert fatigue 防護。
+- 🔴 **「LLMs are statistically predisposed to underweight negation」**——以 `DO NOT` 表達的約束是最弱環節。**這對我們的 prompt 措辭有直接影響**：約束該寫成正向斷言 + 機械檢查（`wf-state.sh` 的 exit code 正是正解），而非靠 prompt 裡的禁止句。
+
+#### R11. 🟢 把「驗證」從人治升級為資料結構（三份來源匯流）
+
+這三項指向同一個可落地的改法，且**完全貼合我們既有形狀**：
+
+**(a) Falsifiable claims**（Patrick Hughes · <https://bmdpat.com/blog/ai-agent-claims-done-verify-2026>）
+五種 claim type 是**封閉集合**，agent 只能說「file X contains Y」這種**一 grep 就見真章**的話，無法用模糊語言蒙混。
+> 真正該學的是 claim type 的**封閉性**——不是「請 agent 附上證據」（那還是散文），而是「**只能說這五種話**」。這正對應本專案 style guide 推的 `sealed class` + 窮盡式 `switch`。
+
+**(b) Delegation receipts**（Rel(AI)Build · <https://arxiv.org/html/2606.26924v1>）
+論文的 transition guard **不只查順序，還查「交付憑證」**——委派收據必須被記錄、file-writing 的委派必須 `securityScan.status == "clean"` 才能離開該 phase。
+> **把紀律降級成資料結構**：我們機制 8 是人治（主對話記得去查），論文把它變成 state 檔上的必要欄位，**缺了就轉不過去**。
+
+**(c) `confirmed_by: human|auto`**（Cheng & Cheng · <https://arxiv.org/abs/2604.23049>）
+**⚠️ 作者更正**：實為 **Edward Cheng 與 Jeshua Cheng 兩人**（Jeshua Cheng 標註 InquiryOn），搜尋階段的「Stanford」隸屬與 `et al.` 無法由來源證實。
+
+我們的 `awaiting_confirmation` 是布林，`--confirmed` 通過後即消失——**state 檔無法區分「使用者親自確認」與「`autonomous` 級自動放行」**。兩者在事後稽核與交接時看起來完全一樣。最小改動：state 加一欄 `confirmed_by`。
+
+**綜合判斷**：這三項合起來是一條完整的升級路徑，且都是**加欄位 + 加校驗**，與 `wf-state.sh` 既有的 schema 校驗 + 原子寫入是同一套語彙，**不需要新架構**。
+
+#### R12. 🟢 兩個純機械、零推論成本的機制
+
+**(a) 迴圈偵測 `issues_hash`**（alecnielsen · <https://github.com/alecnielsen/adversarial-review>）
+> ⚠️ **搜尋階段的描述嚴重低估**：「3 輪硬上限」只是四條停機條件之一且可調。**真正的重點是 `issues_hash` 比對驅動的 circuit breaker**——用「這輪的 issue 集合跟上輪一模一樣」當停機訊號，而非用輪數。另外 Phase 4 **不對稱**：只有 Claude 綜合與改碼，Codex 全程不寫檔，所以是「對稱批評 + 單邊仲裁」，非對稱辯論。
+
+**我們的缺口**：機制 1 管「stage 間能否轉移」、機制 2 管「人有沒有確認」，**兩者都沒處理「同一 stage 內反覆修不好」**。目前 `3→2→3` 打轉只能靠人在暫停點自己察覺。`issues_hash` 相同 N 次即跳閘是純機械判定。
+（Rel(AI)Build 亦有對應機制：**auto-fix 迭代上限 3 次即升級人類**，依據是修復效力在 2–3 次後急遽下降。）
+
+**(b) Port 配置**（Uzi · <https://github.com/devflowinc/uzi>）
+機制 4 只保證 **state 檔**隔離，但 worktree 裡跑 `flutter run` / example app / test server **仍會撞 port**。這在 N>1 時是必然衝突而非臆想威脅。
+最小版本：worktree 建立時從 range 配 port 寫進 state，驗收指令用該變數——**不需要抄它的 tmux 那套**。
+> ❌ **刻意不學**：`uzi auto` 自動按 Enter 過 trust prompt，方向上直接牴觸機制 2（暫停棘輪）與機制 3（`pause_level`）。
+
+#### R13. CORROBORATES 九項（歸納，不逐項展開）
+
+Spec Kit、Kiro Specs、Agent OS、Vibe Kanban、Claude Squad、Stately Agent (XState)、Claude Code Spec Workflow、Ralph (wiggumdev)、Vibe Engineering。
+
+**歸納結論**：這九項全數佐證我們的骨架，**但沒有一項的執行層比我們硬**——多數把階段順序寫在 markdown 或靠使用者不下指令來達成暫停（Claude Code Spec Workflow 是機制 2 的明確反例）。**Stately Agent (XState)** 是唯一在執行層同構的（in-process guard，模型只能在合法轉移中選擇），只是層級不同（in-process vs shell + state 檔）。
 
 ### 4. Linus 式總評
 
