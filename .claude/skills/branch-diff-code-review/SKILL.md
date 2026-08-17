@@ -1,6 +1,6 @@
 ---
 name: branch-diff-code-review
-description: 當使用者想要對當前 branch 自從與其 base branch 分歧以來的所有變更進行一般性 code review，且不要把審查範圍預設為 origin/main 時，使用此 skill。它應判定 branch fork point、檢視完整的 branch diff、優先處理 bugs 與 regression 風險，並以 zh-tw 呈現審查發現，同時遵循 repository 的 .gemini/styleguide.md code review persona 與收尾儀式。
+description: 當使用者想要對當前 branch 自從與其 base branch 分歧以來的所有變更進行一般性 code review，且不要把審查範圍預設為 origin/main 時，使用此 skill。它應判定 branch fork point、檢視完整的 branch diff、優先處理 bugs 與 regression 風險，並以 zh-tw 呈現審查發現，同時遵循 repository 的 .claude/rules/flutter-styles.md code review 規範。
 ---
 
 # Branch Diff Code Review
@@ -11,21 +11,12 @@ description: 當使用者想要對當前 branch 自從與其 base branch 分歧�
 
 撰寫審查前，先閱讀位於以下路徑的 repository style guide：
 
-[`../../../.gemini/styleguide.md`](../../../.gemini/styleguide.md)
-
-將其 `Code Review Feedback Persona: The Versatile Poet` 章節視為強制要求。
+[`../../../rules/flutter-styles.md`](../../../rules/flutter-styles.md)
 
 來自 style guide 的最低要求：
 
 - 以 `zh-tw` 撰寫審查
 - 必要的 `en-us` 技術術語保留英文
-- 每份完成的審查都以一種隨機選擇的文學收尾風格結尾：
-  - 五言/七言絕句
-  - 新詩
-  - 俏皮話
-  - 順口溜
-
-即使發現項目很短，也不要略過收尾儀式。
 
 ## 審查目標
 
@@ -101,13 +92,10 @@ description: 當使用者想要對當前 branch 自從與其 base branch 分歧�
      ### Summary
      - 一段簡短總結
 
-     ### 結尾創作
-     隨機選擇一種文學體裁（五言/七言絕句、新詩、俏皮話、順口溜），根據此次審查內容創作結尾。
-
      Findings 優先，不以讚美開頭。
      ```
    - 若 `agy` 成功回傳包含 `### Findings` 的結構化審查報告，採用其內容。
-   - **後處理（必做）**：`agy` 會讀取全域 CLAUDE.md 而附加 Linus 人設框架，且可能在生成時順手建立暫存檔。採用前須剝除人設包裝、只取 `### Findings` 起的報告本文（注意：本 skill 結尾的文學創作 ritual 為刻意保留，不可剝除）；並確認 `agy` 未在工作區誤建檔案（如有則刪除）。
+   - **後處理（必做）**：`agy` 會讀取全域 CLAUDE.md 而附加 Linus 人設框架，且可能在生成時順手建立暫存檔。採用前須剝除人設包裝、只取 `### Findings` 起的報告本文；並確認 `agy` 未在工作區誤建檔案（如有則刪除）。
    - 若 `agy` 不在 PATH、呼叫失敗或回傳格式不合法，回退至步驟 7 自行撰寫審查報告。
 7. （Fallback）自行依 diff 與程式碼觀察撰寫審查報告，遵循 Output Rules 格式。
 8. 偏好來自 repository 的證據，而非臆測。
@@ -140,7 +128,6 @@ description: 當使用者想要對當前 branch 自從與其 base branch 分歧�
 1. `Findings`
 2. `Open Questions / Assumptions`
 3. `Summary`
-4. 從 style guide 選出的文學收尾
 
 每條發現：
 
@@ -153,7 +140,6 @@ description: 當使用者想要對當前 branch 自從與其 base branch 分歧�
 
 - 明確說明
 - 仍提及任何殘留風險或測試缺口
-- 仍包含文學收尾
 
 ## 語氣規則
 
