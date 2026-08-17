@@ -1,84 +1,84 @@
-# APK 安全测试速查
+# APK 安全測試速查
 
-> 基于 OWASP MASTG（Mobile Application Security Testing Guide）整理。
-> 覆盖静态分析、动态分析、网络通信、数据存储、认证授权、代码保护六大维度。
-
----
-
-## 静态分析检查清单
-
-### Manifest 审计
-
-```text
-□ android:debuggable="true" → 可调试（生产环境不应出现）
-□ android:allowBackup="true" → 数据可备份提取
-□ android:exported="true" 的组件 → 暴露的 Activity/Service/Receiver/Provider
-□ 自定义权限 protectionLevel → 是否为 normal（应为 signature）
-□ intent-filter 中的 scheme → 自定义 deeplink 是否可被劫持
-□ android:usesCleartextTraffic="true" → 允许明文 HTTP
-□ minSdkVersion 过低 → 可能缺少安全特性
-```
-
-### 代码审计关键点
-
-```text
-□ 硬编码密钥/Token（搜索 "key"、"secret"、"password"、"api_key"）
-□ 不安全的随机数（java.util.Random 而非 SecureRandom）
-□ 不安全的加密（ECB 模式、DES、MD5 用于密码）
-□ WebView 配置（setJavaScriptEnabled + addJavascriptInterface = RCE 风险）
-□ SQL 注入（rawQuery 拼接用户输入）
-□ 路径遍历（ContentProvider 的 openFile 未校验路径）
-□ 日志泄露（Log.d/Log.i 输出敏感信息）
-□ 剪贴板泄露（ClipboardManager 存储敏感数据）
-□ 隐式 Intent 泄露（sendBroadcast 未指定包名）
-```
-
-### 第三方库审计
-
-```text
-□ 过时的 OkHttp/Retrofit 版本（已知漏洞）
-□ 过时的 WebView 内核
-□ 含已知漏洞的 SDK（检查 CVE）
-□ 广告 SDK 数据收集范围
-□ 推送 SDK 配置（是否泄露 token）
-```
+> 基於 OWASP MASTG（Mobile Application Security Testing Guide）整理。
+> 涵蓋靜態分析、動態分析、網路通訊、資料儲存、認證授權、程式碼保護六大維度。
 
 ---
 
-## 动态分析检查清单
+## 靜態分析檢查清單
 
-### Frida Hook 优先目标
+### Manifest 審計
 
-| 目标 | Hook 点 | 目的 |
+```text
+□ android:debuggable="true" → 可除錯（生產環境不應出現）
+□ android:allowBackup="true" → 資料可備份提取
+□ android:exported="true" 的元件 → 暴露的 Activity/Service/Receiver/Provider
+□ 自訂權限 protectionLevel → 是否為 normal（應為 signature）
+□ intent-filter 中的 scheme → 自訂 deeplink 是否可被劫持
+□ android:usesCleartextTraffic="true" → 允許明文 HTTP
+□ minSdkVersion 過低 → 可能缺少安全特性
+```
+
+### 程式碼審計關鍵點
+
+```text
+□ 硬編碼密鑰/Token（搜尋 "key"、"secret"、"password"、"api_key"）
+□ 不安全的亂數（java.util.Random 而非 SecureRandom）
+□ 不安全的加密（ECB 模式、DES、MD5 用於密碼）
+□ WebView 設定（setJavaScriptEnabled + addJavascriptInterface = RCE 風險）
+□ SQL 注入（rawQuery 拼接使用者輸入）
+□ 路徑遍歷（ContentProvider 的 openFile 未校驗路徑）
+□ 日誌洩漏（Log.d/Log.i 輸出敏感資訊）
+□ 剪貼簿洩漏（ClipboardManager 儲存敏感資料）
+□ 隱式 Intent 洩漏（sendBroadcast 未指定包名）
+```
+
+### 第三方函式庫審計
+
+```text
+□ 過時的 OkHttp/Retrofit 版本（已知漏洞）
+□ 過時的 WebView 核心
+□ 含已知漏洞的 SDK（檢查 CVE）
+□ 廣告 SDK 資料蒐集範圍
+□ 推播 SDK 設定（是否洩漏 token）
+```
+
+---
+
+## 動態分析檢查清單
+
+### Frida Hook 優先目標
+
+| 目標 | Hook 點 | 目的 |
 |------|---------|------|
-| 登录认证 | `LoginActivity.login()` | 观察凭证处理 |
-| 签名生成 | `*Sign*`、`*sign*`、`*encrypt*` | 还原签名算法 |
-| SSL Pinning | `CertificatePinner.check` | 绕过抓包 |
-| Root 检测 | `*root*`、`*su*`、`*magisk*` | 绕过检测 |
-| 加密操作 | `javax.crypto.Cipher` | 提取密钥/IV |
-| Token 存储 | `SharedPreferences.getString` | 观察 token 读写 |
-| 网络请求 | `OkHttpClient.newCall` | 观察请求构造 |
+| 登入認證 | `LoginActivity.login()` | 觀察憑證處理 |
+| 簽章產生 | `*Sign*`、`*sign*`、`*encrypt*` | 還原簽章演算法 |
+| SSL Pinning | `CertificatePinner.check` | 繞過抓包 |
+| Root 檢測 | `*root*`、`*su*`、`*magisk*` | 繞過檢測 |
+| 加密操作 | `javax.crypto.Cipher` | 提取密鑰/IV |
+| Token 儲存 | `SharedPreferences.getString` | 觀察 token 讀寫 |
+| 網路請求 | `OkHttpClient.newCall` | 觀察請求建構 |
 
 ### 常用 Frida 一行命令
 
 ```bash
-# 追踪所有加密操作
+# 追蹤所有加密操作
 frida-trace -U -f com.target.app -j '*Cipher*!*'
 
-# 追踪所有 HTTP 请求
+# 追蹤所有 HTTP 請求
 frida-trace -U -f com.target.app -j '*OkHttp*!*'
 
-# 追踪 SharedPreferences 读写
+# 追蹤 SharedPreferences 讀寫
 frida-trace -U -f com.target.app -j '*SharedPreferences*!*'
 
-# 追踪所有 native 函数调用
+# 追蹤所有 native 函式呼叫
 frida-trace -U -f com.target.app -i 'Java_*'
 ```
 
 ### Objection 快速命令
 
 ```bash
-# 连接
+# 連線
 objection -g com.target.app explore
 
 # 常用命令
@@ -87,103 +87,103 @@ android hooking list services
 android sslpinning disable
 android root disable
 android clipboard monitor
-env                              # 查看应用目录
-sqlite connect <db_path>         # 连接数据库
+env                              # 查看應用目錄
+sqlite connect <db_path>         # 連線資料庫
 ```
 
 ---
 
-## 网络通信安全
+## 網路通訊安全
 
-### 抓包配置
+### 抓包設定
 
 ```text
-方法 1: 系统代理 + Burp/mitmproxy
-- 设置 WiFi 代理 → Burp 监听地址
-- 安装 CA 证书到设备
-- Android 7+ 需要 network_security_config 或 Frida 绕过
+方法 1: 系統代理 + Burp/mitmproxy
+- 設定 WiFi 代理 → Burp 監聽位址
+- 安裝 CA 憑證到裝置
+- Android 7+ 需要 network_security_config 或 Frida 繞過
 
-方法 2: VPN 模式（推荐）
+方法 2: VPN 模式（推薦）
 - 使用 HttpCanary / Packet Capture
-- 不需要 root，不需要配置代理
-- 但无法解密 SSL Pinning 的流量
+- 不需要 root，不需要設定代理
+- 但無法解密 SSL Pinning 的流量
 
 方法 3: Frida + r2frida
-- 直接在进程内拦截网络调用
+- 直接在程序內攔截網路呼叫
 - 不受代理/VPN 限制
 ```
 
-### 检查项
+### 檢查項
 
 ```text
-□ 是否使用 HTTPS（所有 API 调用）
-□ 是否有 SSL Pinning（证书绑定）
-□ 证书验证是否正确（不接受自签名）
-□ 是否有证书透明度（CT）检查
-□ API 密钥是否在请求中明文传输
-□ Token 是否有过期机制
-□ 是否有请求签名防篡改
-□ 是否有重放攻击防护（nonce/timestamp）
+□ 是否使用 HTTPS（所有 API 呼叫）
+□ 是否有 SSL Pinning（憑證綁定）
+□ 憑證驗證是否正確（不接受自簽章）
+□ 是否有憑證透明度（CT）檢查
+□ API 密鑰是否在請求中明文傳輸
+□ Token 是否有過期機制
+□ 是否有請求簽章防竄改
+□ 是否有重放攻擊防護（nonce/timestamp）
 □ WebSocket 是否加密
-□ 是否有敏感数据在 URL 参数中（会被日志记录）
+□ 是否有敏感資料在 URL 參數中（會被日誌記錄）
 ```
 
 ---
 
-## 数据存储安全
+## 資料儲存安全
 
-### 检查位置
+### 檢查位置
 
-| 位置 | 风险 | 检查命令 |
+| 位置 | 風險 | 檢查命令 |
 |------|------|---------|
-| SharedPreferences | 明文存储 token/密码 | `adb shell cat /data/data/pkg/shared_prefs/*.xml` |
-| SQLite 数据库 | 未加密的敏感数据 | `adb pull /data/data/pkg/databases/` |
-| 外部存储 | 任何应用可读 | `adb shell ls /sdcard/Android/data/pkg/` |
-| 应用日志 | 泄露调试信息 | `adb logcat \| grep pkg` |
-| 备份文件 | allowBackup=true | `adb backup -f backup.ab pkg` |
-| 键盘缓存 | 输入历史 | 检查 `inputType` 是否为 `textPassword` |
-| 截图保护 | 敏感页面可截图 | 检查 `FLAG_SECURE` |
+| SharedPreferences | 明文儲存 token/密碼 | `adb shell cat /data/data/pkg/shared_prefs/*.xml` |
+| SQLite 資料庫 | 未加密的敏感資料 | `adb pull /data/data/pkg/databases/` |
+| 外部儲存 | 任何應用可讀 | `adb shell ls /sdcard/Android/data/pkg/` |
+| 應用日誌 | 洩漏除錯資訊 | `adb logcat \| grep pkg` |
+| 備份檔案 | allowBackup=true | `adb backup -f backup.ab pkg` |
+| 鍵盤快取 | 輸入歷史 | 檢查 `inputType` 是否為 `textPassword` |
+| 截圖保護 | 敏感頁面可截圖 | 檢查 `FLAG_SECURE` |
 
-### 加密存储方案对比
+### 加密儲存方案對比
 
-| 方案 | 安全性 | 说明 |
+| 方案 | 安全性 | 說明 |
 |------|--------|------|
-| SharedPreferences 明文 | ❌ | root 后直接读取 |
-| EncryptedSharedPreferences | ✓ | AndroidX Security 库 |
+| SharedPreferences 明文 | ❌ | root 後直接讀取 |
+| EncryptedSharedPreferences | ✓ | AndroidX Security 函式庫 |
 | SQLCipher | ✓ | 加密 SQLite |
-| Android Keystore | ✓✓ | 硬件级密钥保护 |
-| 自定义 AES 加密 | ⚠️ | 取决于密钥管理 |
+| Android Keystore | ✓✓ | 硬體級密鑰保護 |
+| 自訂 AES 加密 | ⚠️ | 取決於密鑰管理 |
 
 ---
 
-## 认证与授权
+## 認證與授權
 
-### 常见漏洞
+### 常見漏洞
 
-| 漏洞 | 测试方法 |
+| 漏洞 | 測試方法 |
 |------|---------|
-| 弱密码策略 | 尝试 123456、password 等 |
-| 无锁定机制 | 暴力破解登录接口 |
-| Token 不过期 | 登出后重放旧 token |
-| 越权访问 | 修改请求中的 user_id |
-| 短信验证码可爆破 | 4/6 位数字无频率限制 |
-| OAuth 配置错误 | redirect_uri 可篡改 |
-| 生物认证绕过 | Hook BiometricPrompt |
-| 设备绑定绕过 | 修改 device_id |
+| 弱密碼策略 | 嘗試 123456、password 等 |
+| 無鎖定機制 | 暴力破解登入介面 |
+| Token 不過期 | 登出後重放舊 token |
+| 越權存取 | 修改請求中的 user_id |
+| 簡訊驗證碼可暴力破解 | 4/6 位數字無頻率限制 |
+| OAuth 設定錯誤 | redirect_uri 可竄改 |
+| 生物辨識繞過 | Hook BiometricPrompt |
+| 裝置綁定繞過 | 修改 device_id |
 
-### 测试 Payload
+### 測試 Payload
 
 ```bash
-# 越权测试
+# 越權測試
 curl -H "Authorization: Bearer USER_A_TOKEN" \
      "https://api.target.com/users/USER_B_ID/profile"
 
 # Token 重放
-# 1. 正常登录获取 token
+# 1. 正常登入取得 token
 # 2. 登出
-# 3. 用旧 token 请求 → 应该返回 401
+# 3. 用舊 token 請求 → 應該回傳 401
 
-# 短信验证码爆破
+# 簡訊驗證碼暴力破解
 for code in $(seq 0000 9999); do
     curl -X POST "https://api.target.com/verify" \
          -d "phone=13800138000&code=$code"
@@ -192,39 +192,39 @@ done
 
 ---
 
-## 代码保护评估
+## 程式碼保護評估
 
-| 保护措施 | 检测方法 | 绕过难度 |
+| 保護措施 | 檢測方法 | 繞過難度 |
 |---------|---------|---------|
-| ProGuard 混淆 | jadx 查看类名是否为 a/b/c | 低（只是重命名） |
-| 字符串加密 | 搜索解密函数，Hook 获取明文 | 中 |
-| 反调试 | 尝试 attach debugger | 中（Frida 可绕过） |
-| Root 检测 | 在 root 设备上运行 | 中（通用脚本绕过） |
-| 模拟器检测 | 在模拟器上运行 | 低-中 |
-| 完整性校验 | 修改 APK 后安装 | 中（patch 校验函数） |
-| 加固/壳 | 查看入口类和 .so | 中-高（需脱壳） |
-| Native 保护 | 核心逻辑在 .so | 高（需 IDA 分析） |
-| VMP 虚拟化 | 代码被虚拟化执行 | 极高 |
+| ProGuard 混淆 | jadx 查看類名是否為 a/b/c | 低（只是重新命名） |
+| 字串加密 | 搜尋解密函式，Hook 取得明文 | 中 |
+| 反除錯 | 嘗試 attach debugger | 中（Frida 可繞過） |
+| Root 檢測 | 在 root 裝置上執行 | 中（通用腳本繞過） |
+| 模擬器檢測 | 在模擬器上執行 | 低-中 |
+| 完整性校驗 | 修改 APK 後安裝 | 中（patch 校驗函式） |
+| 加固/殼 | 查看進入類別和 .so | 中-高（需脫殼） |
+| Native 保護 | 核心邏輯在 .so | 高（需 IDA 分析） |
+| VMP 虛擬化 | 程式碼被虛擬化執行 | 極高 |
 
 ---
 
-## 快速测试流程（30 分钟）
+## 快速測試流程（30 分鐘）
 
 ```text
-1. [5min] 解包 + Manifest 审计
+1. [5min] 解包 + Manifest 審計
    apktool d app.apk
-   检查 debuggable/allowBackup/exported/cleartext
+   檢查 debuggable/allowBackup/exported/cleartext
 
-2. [10min] 代码快速审计
+2. [10min] 程式碼快速審計
    jadx -d out app.apk
-   搜索: password, key, secret, token, http://
+   搜尋: password, key, secret, token, http://
 
-3. [5min] 网络测试
-   配置代理 → 操作 APP → 检查是否有明文/弱加密
+3. [5min] 網路測試
+   設定代理 → 操作 APP → 檢查是否有明文/弱加密
 
-4. [5min] 存储检查
-   adb shell → 检查 shared_prefs 和 databases
+4. [5min] 儲存檢查
+   adb shell → 檢查 shared_prefs 和 databases
 
-5. [5min] 动态验证
-   Frida hook 关键函数 → 确认发现
+5. [5min] 動態驗證
+   Frida hook 關鍵函式 → 確認發現
 ```
