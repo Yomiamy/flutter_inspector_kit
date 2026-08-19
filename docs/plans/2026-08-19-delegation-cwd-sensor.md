@@ -67,7 +67,7 @@
 |:---|:---:|:---|:---:|
 | `.claude/hooks/wf-guard-delegate-cwd.sh` | 新增 | 本次核心：路 A（pre）+ 路 B（post）單一腳本 | T2 / T3 / T4 |
 | `.claude/hooks/tests/test_delegate_cwd_logic.py` | 新增 | 純函式邏輯的自我檢查（見 §5） | T5 |
-| `.claude/settings.local.json` | 修改 | 於既有 `PreToolUse` / `PostToolUse` **陣列中追加**新項目 | **T6（唯一 owner）** |
+| `.claude/settings.local.json` | 修改（**本地，不進版控**） | 於既有 `PreToolUse` / `PostToolUse` **陣列中追加**新項目 | **T6（唯一 owner）** |
 | `docs/features/2026-08-19-delegation-cwd-sensor.md` | 修改 | 回寫 U-6（worktree `.git` 實測結果）與 U-2（稽核紀錄位置定案） | T7 |
 
 **明確不動**（規格 §5 Out of scope + 本次邊界）：
@@ -209,6 +209,29 @@ T1 ──┬──────────────────────�
 | 第 3 批 | **T7** | 序列（最後） | 手動驗證需要 T2~T6 全部落地 |
 
 **🔴 `.claude/settings.local.json` 是共享檔，只有 T6 一個 owner。** 任何其他任務都不得觸碰它。
+
+---
+
+### 🔴 T6 定位修正（2026-08-19 實查 + 使用者裁決）
+
+**實查發現**：`.claude/settings.local.json` **從未被 git 追蹤**（`git ls-files --error-unmatch` 明確報 did not match），且 `.gitignore` 亦未列它——它單純是本地未追蹤檔。worktree 從 `origin/main` 拉出時**根本不存在這個檔**。
+
+**先例佐證**：Gap 2.6 的修復 commit `9a40c96` 只動 `.claude/hooks/wf-guard-stage-check.sh`，**從未 commit 任何掛載設定**。三個既有 hook 皆如此——掛載一直是各開發者本地的事。
+
+**裁決：不納入版控。** 三個理由：
+1. **無法合併**：該檔是單一 JSON 物件而非 append-only 清單。任何人 pull 下來就覆蓋自己的 permissions，下次對方再 commit 又覆蓋回來——merge conflict 的永久來源。
+2. **本 repo 為 public**：實查該檔 225 條 permissions 中有 29 條含絕對路徑，暴露 `Eslite`（可辨識公司名）、`AI-Chat`（未公開專案）、`~/.claude/channels/telegram/**` 等機器佈局。進 git 歷史即永久留存。（已確認**無** token/密鑰類機敏字串。）
+3. **達不到目的**：協作者 pull 到的是「你的」權限清單，含指向你家目錄的無效路徑；他們真正需要的只有那 8 行掛載。
+
+**因此 T6 的產出切分為：**
+
+| 動作 | 進 PR？ |
+|:---|:---:|
+| 修改主 repo 的 `.claude/settings.local.json`（使本機立即生效） | ❌ |
+| hook 腳本首部註解寫明掛載方式與完整 JSON 片段 | ✅ |
+| PR 描述附掛載說明 | ✅ |
+
+**T6 的驗收條件同步調整**：除 AC-C1（既有兩個 hook 項目未變）外，新增「hook 腳本首部含可直接複製的掛載片段」。
 
 ---
 
