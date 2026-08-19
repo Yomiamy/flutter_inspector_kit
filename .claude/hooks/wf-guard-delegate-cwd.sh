@@ -101,6 +101,8 @@ def diff_entries(before, after):
     """P-9：只回報 after 新增的項目，委派前既有的 dirty 檔案不算越界。
 
     輸入為 `git status --porcelain` 的行集合，回傳越界檔案的相對路徑集合。
+    呼叫端已帶 `-c core.quotepath=false`，故非 ASCII 檔名為 UTF-8 原文而非
+    八進位轉義；此處只需剝掉 git 對含空白檔名加的外層引號。
     """
     added = set(after) - set(before)
     out = set()
@@ -242,7 +244,8 @@ def take_status(paths):
     for p in paths:
         try:
             entries = subprocess.check_output(
-                ["git", "-C", p, "status", "--porcelain", "--untracked-files=normal"],
+                ["git", "-C", p, "-c", "core.quotepath=false",
+                 "status", "--porcelain", "--untracked-files=normal"],
                 stderr=subprocess.DEVNULL).decode().splitlines()
             head = subprocess.check_output(
                 ["git", "-C", p, "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()

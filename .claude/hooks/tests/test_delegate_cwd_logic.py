@@ -59,6 +59,12 @@ def test_diff_entries():
     assert diff(before, before) == set()
     # 委派前 dirty、委派後變乾淨 → 不是越界
     assert diff(after, before) == set()
+    # rename 取新路徑（舊路徑的刪除不是新增的越界寫入）
+    assert diff(set(), {"R  a.txt -> b.txt"}) == {"b.txt"}
+    # 含空白的檔名，git 會加外層引號
+    assert diff(set(), {'?? "un tracked.txt"'}) == {"un tracked.txt"}
+    # 非 ASCII：呼叫端帶 core.quotepath=false，故為 UTF-8 原文不需反轉義
+    assert diff(set(), {"?? 中文檔名.txt"}) == {"中文檔名.txt"}
 
 
 if __name__ == "__main__":
