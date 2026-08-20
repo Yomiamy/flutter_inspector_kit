@@ -9,6 +9,10 @@
 #   post — 讀 pre 端快照做 before/after 差集，偵測目標 worktree 以外的實際寫入
 #          與新增 commit。**只告警不阻斷**（PostToolUse 動作已完成，回捲無意義）。
 #
+# 偵測範圍：建立在 git status 之上，故只涵蓋主 repo 與已知 git worktree。
+# 寫入非 git worktree 的位置（其他專案、家目錄普通檔案）偵測不到——涵蓋那些
+# 需要 fs-level 觀察，成本遠超本問題的嚴重度，屬另案。
+#
 # 掛載方式（.claude/settings.local.json，本地設定不進版控——沿用既有三個 hook 的慣例）：
 #
 #   "PreToolUse": [
@@ -138,7 +142,7 @@ def main():
 
     # P-2：只管委派管道
     tool_name = data.get("tool_name") or data.get("toolCall", {}).get("name", "")
-    if "ask-gemini" not in str(tool_name):
+    if str(tool_name) != "mcp__gemini-cli__ask-gemini":
         die_open()
 
     # P-6（前半）：必須身處 worktree。--git-dir == --git-common-dir 表示在主 repo

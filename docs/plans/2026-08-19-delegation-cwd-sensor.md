@@ -141,6 +141,12 @@
      （R-3：只跑 `git status --porcelain`，**不做全檔案系統遍歷**；實測主 repo 耗時 38ms。`--untracked-files=normal` 天然滿足 P-10——`.gitignore` 內的檔案不會出現在輸出）。
      另記錄各 repo 的 `git rev-parse HEAD`，用於偵測「越界 commit」（規格 §1.2 的失效路徑明列此情境）。
      回傳 `{"<repo path>": {"entries": [...], "head": "<sha>"}}`。
+
+     > 🔴 **偵測範圍的誠實邊界**：本機制建立在 `git status` 之上，因此**只涵蓋主 repo 與已知 git worktree 內的變動**。
+     > 寫入「不屬於任何 git worktree」的位置（其他專案目錄、家目錄下的普通檔案）**不會產生 entries，也不會觸發告警**——
+     > 白名單在那種情況下根本沒有機會參與判斷。
+     > 要涵蓋任意檔案系統寫入，需要 fs-level 觀察（fswatch／eBPF／FUSE），成本與誤判率都遠高於本次範圍，屬另案。
+     > 本規格宣稱的「必定被發現」，其效力範圍是**已掃描的 git worktree**，不是整個檔案系統。
   3. **`save_snapshot()`**（pre 端）：寫入 `{"ts": time.time(), "repos": <take_status()>}`。
   4. **post 端差集**：
      - 讀快照；檔案不存在 → `sys.exit(0)`（未配對，fail-open）。

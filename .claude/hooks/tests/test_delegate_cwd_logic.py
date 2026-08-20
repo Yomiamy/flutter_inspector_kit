@@ -10,6 +10,7 @@
 """
 import os
 import sys
+import tempfile
 
 HOOK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "wf-guard-delegate-cwd.sh")
 
@@ -40,13 +41,59 @@ def test_is_allowed_path():
     assert not is_allowed("/home/u/.pub-cache-evil/x", roots)
 
 
-def test_whitelist_roots():
+def test_is_allowed_symlink_and_dotdot():
+    """is_allowed 兩側都 realpath，故 symlink 與 '..' 應依「解析後」的實際位置判定。
+
+    不測大小寫變體：那取決於檔案系統（APFS 不敏感、ext4 敏感），
+    寫死斷言會讓測試在 Linux CI 上假失敗。
+    """
     ns = load_logic()
-    roots = ns["whitelist_roots"]()
-    assert isinstance(roots, list) and roots
-    assert all(os.path.isabs(r) for r in roots), "白名單必須全為絕對路徑"
-    # PUB_CACHE 未設時回退 ~/.pub-cache
-    assert any("pub-cache" in r for r in roots)
+    is_allowed = ns["is_allowed"]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = os.path.realpath(tmp)
+        allowed = os.path.join(base, "repo", ".git")
+        outside = os.path.join(base, "repo", "lib")
+        os.makedirs(allowed, exist_ok=True)
+        os.makedirs(outside, exist_ok=True)
+        roots = [allowed]
+
+        # symlink：解析後落在白名單內 → 允許；落在外 → 拒絕
+        link_in = os.path.join(base, "link_in")
+        link_out = os.path.join(base, "link_out")
+        os.symlink(allowed, link_in)
+        os.symlink(outside, link_out)
+        assert is_allowed(link_in, roots)
+        assert not is_allowed(link_out, roots)
+
+        # '..'：正規化後回到白名單內 → 允許；跳出去 → 拒絕
+        assert is_allowed(os.path.join(allowed, "..", ".git", "config"), roots)
+        assert not is_allowed(os.path.join(allowed, "..", "lib", "main.dart"), roots)
+
+
+def test_whitelist_roots():
+    """PUB_CACHE 必須隔離：呼叫環境若已設，回退路徑的斷言會假失敗。"""
+    ns = load_logic()
+    old = os.environ.get("PUB_CACHE")
+    try:
+        # 未設 → 回退 ~/.pub-cache，比對確切路徑而非子字串
+        os.environ.pop("PUB_CACHE", None)
+        roots = ns["whitelist_roots"]()
+        assert isinstance(roots, list) and roots
+        assert all(os.path.isabs(r) for r in roots), "白名單必須全為絕對路徑"
+        assert os.path.realpath(os.path.expanduser("~/.pub-cache")) in roots
+
+        # 已設 → 該值須進白名單（realpath 後比對，容忍 symlink）
+        with tempfile.TemporaryDirectory() as tmp:
+            custom = os.path.realpath(os.path.join(tmp, "pub-cache"))
+            os.makedirs(custom, exist_ok=True)
+            os.environ["PUB_CACHE"] = custom
+            assert custom in ns["whitelist_roots"]()
+    finally:
+        if old is None:
+            os.environ.pop("PUB_CACHE", None)
+        else:
+            os.environ["PUB_CACHE"] = old
 
 
 def test_diff_entries():
@@ -69,6 +116,7 @@ def test_diff_entries():
 
 if __name__ == "__main__":
     test_is_allowed_path()
+    test_is_allowed_symlink_and_dotdot()
     test_whitelist_roots()
     test_diff_entries()
     print("OK")
