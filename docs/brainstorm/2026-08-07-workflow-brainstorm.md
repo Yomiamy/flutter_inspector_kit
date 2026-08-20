@@ -141,7 +141,9 @@
 >
 > **⚠️ 2026-08-07 補記（問題已於 2026-08-14 修復，本段保留為設計啟示）**：上述「已徹底解決」的結論**僅在腳本被呼叫的前提下成立**。Gap 2.6 揭露了守衛架構的結構性盲點——獨立入口（STAGE 5/6）可全程不碰 `wf-state.sh`，使所有內部校驗無從觸發。這不是既有修復的回歸，而是先前分析未涵蓋的層級：**對策必須落在入口攔截（hook），繼續往腳本內部堆校驗無效**。
 >
-> **📌 2026-08-14 結案**：該判斷成立，已依此落地 hook 攔截層（`.claude/hooks/wf-guard-stage-check.sh`），Gap 2.6 已修復。**但此結論的適用範圍不限於 Gap 2.6**——「守衛需要被呼叫才生效」是結構性盲點，同型弱點仍存在於**委派的工作目錄約束**（MCP 無法指定 cwd，只能靠 prompt 寫絕對路徑），詳見 [`docs/architecture/2026-08-08-wf-state-harness-guardrail.md`](../architecture/2026-08-08-wf-state-harness-guardrail.md) §「同構的第二個弱點」。該項尚未有 hook 層對策，目前僅有事後 `git status` 偵測。
+> **📌 2026-08-14 結案**：該判斷成立，已依此落地 hook 攔截層（`.claude/hooks/wf-guard-stage-check.sh`），Gap 2.6 已修復。**但此結論的適用範圍不限於 Gap 2.6**——「守衛需要被呼叫才生效」是結構性盲點，同型弱點仍存在於**委派的工作目錄約束**（MCP 無法指定 cwd，只能靠 prompt 寫絕對路徑），詳見 [`docs/architecture/2026-08-21-wf-state-harness-guardrail.md`](../architecture/2026-08-21-wf-state-harness-guardrail.md) §「同構的第二個弱點」。
+>
+> **📌 2026-08-21 追加結案（issue #134 / PR #135 已合併）**：該同型弱點亦已落地 hook 層對策 `.claude/hooks/wf-guard-delegate-cwd.sh`——`pre` 端（PreToolUse）檢查派發 prompt 是否含目標 worktree 絕對路徑，缺失即 `exit 2` 阻擋；`post` 端（PostToolUse）以 `git status` before/after 差集偵測越界寫入與越界 commit，**只告警不阻斷**並寫入稽核紀錄。與 Gap 2.6 的差別在於：Gap 2.6 可事前阻斷，本項因 MCP 介面無 cwd 參數而**預防在物理上不可得**，確定性偵測即為天花板。
 
 ---
 
@@ -1421,6 +1423,7 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
   >
   `wf-state.sh` 的 `exit 1`、hook 的 `PreToolUse` 攔截，都是**計算式 Sensor**；SKILL.md 的文字規範是 **Guide**。Gap 2.6 的教訓（「守衛需要被呼叫才生效」）本質是：**Guide 可以被忽略，Sensor 不行**。
 - **可學**：委派 cwd 約束目前是 Guide（prompt 裡的道德勸說），該升級成 Sensor（hook 攔截或委派後自動 `git status` 驗證）。這與文件既有結論一致，但 Böckeler 的框架讓「為什麼非做不可」講得更清楚。
+  - **✅ 2026-08-21 已落地**（issue #134 / PR #135）：`wf-guard-delegate-cwd.sh` 同時實作括號內的**兩種**手段——hook 攔截（`pre`，阻擋派發者失誤）與委派後 `git status` 驗證（`post`，偵測子進程失誤）。兩者交集為空故併用。實作過程也修正了 Böckeler 框架的一處套用偏差：`pre` 端驗證的是「那段 Guide 有沒有被寫進 prompt」，本身仍是 **Guide 的自動化檢查**而非真 Sensor；唯有 `post` 端看檔案系統客觀事實的才是真 Sensor。
 
 #### 2.7 Superpowers — Jesse Vincent
 
