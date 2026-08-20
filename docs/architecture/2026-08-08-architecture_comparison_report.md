@@ -87,7 +87,7 @@ class GetPointInfoUC implements GetPointInfoUseCase {
 
 > **🐧 這張表比任何架構圖都有價值**：同一份 RULES.md 裡的三條規則，遵守度天差地遠。差別不在於哪條比較重要，而在於**哪條有結構性保障**。「Domain 不可 import material」靠套件依賴圖擋住，所以 0 違規；「不可用 firstWhere」只是一句話，所以 20 處違規。
 >
-> **這正好呼應本 repo 在 [`wf-state.sh` 分析](./2026-08-08-wf-state-harness-guardrail.md) 得到的同一個結論**：寫在 Markdown 裡的規範是願望清單，寫進編譯器／腳本的規範才是保證。對照組用 pubspec 當 guardrail，`gen-dev-workflow` 用 `exit 1` 當 guardrail，是同一種品味。
+> **這正好呼應本 repo 在 [`wf-state.sh` 分析](./2026-08-21-wf-state-harness-guardrail.md) 得到的同一個結論**：寫在 Markdown 裡的規範是願望清單，寫進編譯器／腳本的規範才是保證。對照組用 pubspec 當 guardrail，`gen-dev-workflow` 用 `exit 1` 當 guardrail，是同一種品味。
 
 ---
 
