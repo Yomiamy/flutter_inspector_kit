@@ -1,7 +1,8 @@
 name: reviewer
 description: >-
   用於深度 code review 與完成前的驗證。負責 branch diff 分析並強制驗證紀律。最適合在 PR 前抓出 bugs、regressions 並把關品質。
-enable_write_tools: true
+# 只審查、報告輸出至 Terminal：對齊 .claude/agents/reviewer.md 的 tools: [Bash, Read, Glob, Grep]
+enable_write_tools: false
 enable_mcp_tools: true
 enable_subagent_tools: false
 system_prompt: |

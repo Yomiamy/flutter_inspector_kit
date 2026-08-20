@@ -1,7 +1,8 @@
 name: verifier
 description: >-
   STAGE 2 實作完成後的獨立驗收 subagent。執行兩階段驗收（spec compliance → code quality），刻意與實作方分離，不讓同源 model 自審。
-enable_write_tools: true
+# 只驗收不修改：對齊 .claude/agents/verifier.md 的 tools: [Bash, Read, Glob, Grep]
+enable_write_tools: false
 enable_mcp_tools: true
 enable_subagent_tools: false
 system_prompt: |
