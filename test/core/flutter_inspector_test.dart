@@ -3,6 +3,7 @@ import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
 import 'package:flutter_inspector_kit/src/models/database_operation.dart';
 import 'package:flutter_inspector_kit/src/models/diagnostic_info.dart';
+import 'package:flutter_inspector_kit/src/models/key_value_browser_source.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -111,6 +112,56 @@ void main() {
     });
   });
 
+  group('Key-Value Browser Sources API', () {
+    test('defaults to an empty list when none are registered', () {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      // Unlike databaseSources, there is no built-in KV source.
+      expect(inspector.keyValueSources, isEmpty);
+    });
+
+    test('constructor injects key-value sources', () {
+      final source = FakeKeyValueBrowserSource();
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        keyValueSources: [source],
+      );
+      expect(inspector.keyValueSources.length, 1);
+      expect(inspector.keyValueSources.first, source);
+    });
+
+    test('registerKeyValueSource registers a source dynamically', () {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      final source = FakeKeyValueBrowserSource();
+      inspector.registerKeyValueSource(source);
+      expect(inspector.keyValueSources.length, 1);
+      expect(inspector.keyValueSources.first, source);
+    });
+
+    test('keyValueSources returns an unmodifiable list', () {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      final sources = inspector.keyValueSources;
+      expect(
+        () => (sources as List).add(FakeKeyValueBrowserSource()),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('registering a key-value source leaves databaseSources untouched', () {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registerKeyValueSource(FakeKeyValueBrowserSource());
+      expect(inspector.databaseSources.length, 1);
+      expect(inspector.databaseSources.first.name, 'Operation log');
+    });
+  });
+
   group('Database Browser Sources API', () {
     test('default source is always first and named Operation log', () {
       final inspector = FlutterInspector(
@@ -194,6 +245,23 @@ void main() {
       );
     });
   });
+}
+
+class FakeKeyValueBrowserSource extends KeyValueBrowserSource {
+  @override
+  String get name => 'FakeKeyValueSource';
+
+  @override
+  Future<List<KeyValueEntry>> listAll() async => [];
+
+  @override
+  Future<void> setValue(String key, Object? value) async {}
+
+  @override
+  Future<void> remove(String key) async {}
+
+  @override
+  Future<void> clear() async {}
 }
 
 class FakeDatabaseBrowserSource extends DatabaseBrowserSource {
