@@ -12,7 +12,11 @@ class FakeKeyValueSource implements KeyValueBrowserSource {
   final String sourceName;
   List<KeyValueEntry> entries;
   bool throwOnList = false;
+  bool throwOnWrite = false;
   int listAllCount = 0;
+  final List<({String key, Object? value})> setValueCalls = [];
+  final List<String> removeCalls = [];
+  int clearCount = 0;
 
   @override
   String get name => sourceName;
@@ -25,13 +29,32 @@ class FakeKeyValueSource implements KeyValueBrowserSource {
   }
 
   @override
-  Future<void> setValue(String key, Object? value) async {}
+  Future<void> setValue(String key, Object? value) async {
+    setValueCalls.add((key: key, value: value));
+    if (throwOnWrite) throw StateError('write failed');
+    entries = [
+      for (final e in entries)
+        if (e.key == key)
+          KeyValueEntry(key: e.key, value: value, type: e.type)
+        else
+          e,
+    ];
+  }
 
   @override
-  Future<void> remove(String key) async {}
+  Future<void> remove(String key) async {
+    removeCalls.add(key);
+    entries = [
+      for (final e in entries)
+        if (e.key != key) e,
+    ];
+  }
 
   @override
-  Future<void> clear() async {}
+  Future<void> clear() async {
+    clearCount++;
+    entries = [];
+  }
 }
 
 FlutterInspector buildInspector(List<KeyValueBrowserSource> sources) {
@@ -48,7 +71,210 @@ Future<void> pumpTab(WidgetTester tester, FlutterInspector inspector) async {
   await tester.pumpAndSettle();
 }
 
+/// Opens the edit dialog for [key] and types [newValue] into it.
+Future<void> openEditAndType(
+  WidgetTester tester,
+  String key,
+  String newValue,
+) async {
+  await tester.tap(find.byIcon(Icons.edit).first);
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byType(TextField).last, newValue);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Next'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  group('StorageTab inline edit', () {
+    testWidgets('does not write until the confirm step is accepted', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'old', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await openEditAndType(tester, 'token', 'new');
+
+      // Confirm step is showing, but nothing has been written yet.
+      expect(source.setValueCalls, isEmpty);
+
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(source.setValueCalls, [(key: 'token', value: 'new')]);
+    });
+
+    testWidgets('cancelling the confirm step writes nothing', (tester) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'old', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await openEditAndType(tester, 'token', 'new');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(source.setValueCalls, isEmpty);
+      expect(find.text('old'), findsOneWidget);
+    });
+
+    testWidgets('list shows the new value after a successful write', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'old', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await openEditAndType(tester, 'token', 'new');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('new'), findsOneWidget);
+      expect(find.text('old'), findsNothing);
+    });
+
+    testWidgets('rejects input that cannot parse to the original type', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'retries', value: 3, type: KeyValueType.int),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await openEditAndType(tester, 'retries', 'abc');
+
+      // Stays on the edit dialog with an error; never reaches confirm.
+      expect(find.textContaining('Not a valid'), findsOneWidget);
+      expect(find.text('Confirm'), findsNothing);
+      expect(source.setValueCalls, isEmpty);
+    });
+
+    testWidgets('surfaces a write failure without leaving a spinner', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'old', type: KeyValueType.string),
+        ],
+      )..throwOnWrite = true;
+      await pumpTab(tester, buildInspector([source]));
+
+      await openEditAndType(tester, 'token', 'new');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.textContaining('write failed'), findsWidgets);
+    });
+  });
+
+  group('StorageTab delete', () {
+    testWidgets('does not remove until confirmed', (tester) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'abc', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await tester.tap(find.byIcon(Icons.delete_outline).first);
+      await tester.pumpAndSettle();
+
+      expect(source.removeCalls, isEmpty);
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(source.removeCalls, ['token']);
+      expect(find.text('token'), findsNothing);
+    });
+
+    testWidgets('cancelling keeps the entry', (tester) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'abc', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await tester.tap(find.byIcon(Icons.delete_outline).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(source.removeCalls, isEmpty);
+      expect(find.text('token'), findsOneWidget);
+    });
+  });
+
+  group('StorageTab clear all', () {
+    testWidgets('confirm dialog names the source and the entry count', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        sourceName: 'Prefs',
+        entries: const [
+          KeyValueEntry(key: 'a', value: '1', type: KeyValueType.string),
+          KeyValueEntry(key: 'b', value: '2', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await tester.tap(find.byIcon(Icons.delete_sweep));
+      await tester.pumpAndSettle();
+
+      // Both facts must be visible before wiping a store.
+      expect(find.textContaining('Prefs'), findsWidgets);
+      expect(find.textContaining('2'), findsWidgets);
+      expect(source.clearCount, 0);
+    });
+
+    testWidgets('cancelling does not clear', (tester) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'a', value: '1', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await tester.tap(find.byIcon(Icons.delete_sweep));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(source.clearCount, 0);
+      expect(find.text('a'), findsOneWidget);
+    });
+
+    testWidgets('confirming clears and shows the empty state', (tester) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'a', value: '1', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([source]));
+
+      await tester.tap(find.byIcon(Icons.delete_sweep));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear all'));
+      await tester.pumpAndSettle();
+
+      expect(source.clearCount, 1);
+      expect(find.textContaining('No entries'), findsOneWidget);
+    });
+  });
+
   group('StorageTab read-only view', () {
     testWidgets('lists entries with key, value and type', (tester) async {
       final source = FakeKeyValueSource(

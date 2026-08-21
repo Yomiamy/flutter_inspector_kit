@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/flutter_inspector.dart';
 import '../../../models/key_value_browser_source.dart';
 import '../../theme/theme.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/error_card.dart';
+import 'storage/key_value_edit_dialog.dart';
 
 /// Tab for browsing key-value stores such as SharedPreferences.
 ///
@@ -79,6 +81,63 @@ class _StorageTabState extends State<StorageTab> {
     }
   }
 
+  /// Two-stage edit: type-checked input, then an explicit confirmation.
+  ///
+  /// Every await is followed by a mounted check — this widget lives in a tab
+  /// the user can leave mid-dialog (flutter-styles §7.5).
+  Future<void> _editEntry(KeyValueEntry entry) async {
+    final newValue = await showKeyValueEditDialog(context, entry: entry);
+    if (!mounted || newValue == null) return;
+
+    final confirmed = await showInspectorConfirm(
+      context,
+      title: 'Update ${entry.key}?',
+      message: '${entry.value}  →  $newValue',
+    );
+    if (!mounted || !confirmed) return;
+    await _runWrite(() => _selectedSource.setValue(entry.key, newValue));
+  }
+
+  Future<void> _deleteEntry(KeyValueEntry entry) async {
+    final confirmed = await showInspectorConfirm(
+      context,
+      title: 'Delete ${entry.key}?',
+      message: 'Current value: ${entry.value}',
+      confirmLabel: 'Delete',
+      destructive: true,
+    );
+    if (!mounted || !confirmed) return;
+    await _runWrite(() => _selectedSource.remove(entry.key));
+  }
+
+  Future<void> _clearAll() async {
+    final confirmed = await showInspectorConfirm(
+      context,
+      title: 'Clear ${_selectedSource.name}?',
+      message: 'This removes all ${_entries.length} entries. '
+          'It cannot be undone.',
+      confirmLabel: 'Clear all',
+      destructive: true,
+    );
+    if (!mounted || !confirmed) return;
+    await _runWrite(_selectedSource.clear);
+  }
+
+  /// Runs a write and reloads, surfacing failures instead of leaving a spinner.
+  Future<void> _runWrite(Future<void> Function() write) async {
+    try {
+      await write();
+      if (!mounted) return;
+      await _loadEntries();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final sources = widget.inspector.keyValueSources;
@@ -113,6 +172,11 @@ class _StorageTabState extends State<StorageTab> {
                 tooltip: 'Refresh',
                 onPressed: _loadEntries,
               ),
+              IconButton(
+                icon: const Icon(Icons.delete_sweep),
+                tooltip: 'Clear all',
+                onPressed: _entries.isEmpty ? null : _clearAll,
+              ),
             ],
           ),
         ),
@@ -139,7 +203,11 @@ class _StorageTabState extends State<StorageTab> {
     }
     return ListView.builder(
       itemCount: visible.length,
-      itemBuilder: (context, index) => _EntryRow(entry: visible[index]),
+      itemBuilder: (context, index) => _EntryRow(
+        entry: visible[index],
+        onEdit: () => _editEntry(visible[index]),
+        onDelete: () => _deleteEntry(visible[index]),
+      ),
     );
   }
 }
@@ -182,9 +250,15 @@ class _KvSearchBarState extends State<_KvSearchBar> {
 }
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry});
+  const _EntryRow({
+    required this.entry,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final KeyValueEntry entry;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -192,9 +266,21 @@ class _EntryRow extends StatelessWidget {
       dense: true,
       title: Text(entry.key),
       subtitle: Text('${entry.value}'),
-      trailing: Text(
-        entry.type.name,
-        style: Theme.of(context).textTheme.bodySmall,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(entry.type.name, style: Theme.of(context).textTheme.bodySmall),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: 'Edit',
+            onPressed: onEdit,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete',
+            onPressed: onDelete,
+          ),
+        ],
       ),
     );
   }
