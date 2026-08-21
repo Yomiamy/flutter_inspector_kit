@@ -655,7 +655,7 @@ final inspector = FlutterInspector(
 inspector.registerDatabaseSource(SqfliteBrowserSource(db));
 ```
 
-## 🔑 Browse key-value storage
+### 🔑 Browse key-value storage
 
 `SharedPreferences`, `FlutterSecureStorage` and friends hold the state behind
 most "stuck on a screen" reports — a stale token, a feature flag left on, a

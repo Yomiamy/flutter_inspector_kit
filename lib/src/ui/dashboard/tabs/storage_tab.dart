@@ -43,8 +43,10 @@ class _StorageTabState extends State<StorageTab> {
   List<KeyValueEntry> _entries = [];
   String _query = '';
   bool _loading = true;
-  bool _isFetching = false;
   String? _errorMessage;
+
+  /// Identifies the newest load; older responses are discarded on arrival.
+  int _requestId = 0;
 
   @override
   void initState() {
@@ -53,31 +55,33 @@ class _StorageTabState extends State<StorageTab> {
     _loadEntries();
   }
 
+  /// Loads the selected source, ignoring any response that has been superseded.
+  ///
+  /// Blocking concurrent loads instead would drop the newer request: switching
+  /// source during a slow load would leave the old source's data on screen
+  /// under the new source's name — and this tab can delete what it shows.
   Future<void> _loadEntries() async {
-    if (!mounted || _isFetching) return;
-    _isFetching = true;
+    if (!mounted) return;
+    final requestId = ++_requestId;
+    final source = _selectedSource;
     setState(() {
       _loading = true;
       _errorMessage = null;
     });
 
     try {
-      final entries = await _selectedSource.listAll();
-      if (mounted) {
-        setState(() {
-          _entries = entries;
-          _loading = false;
-        });
-      }
+      final entries = await source.listAll();
+      if (!mounted || requestId != _requestId) return;
+      setState(() {
+        _entries = entries;
+        _loading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _loading = false;
-        });
-      }
-    } finally {
-      _isFetching = false;
+      if (!mounted || requestId != _requestId) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -157,6 +161,8 @@ class _StorageTabState extends State<StorageTab> {
   }) async {
     try {
       await write();
+      // Logged before the mounted check on purpose: the write already
+      // happened, so leaving the tab must not erase the trace.
       widget.inspector.log(auditMessage, data: auditData);
       if (!mounted) return;
       await _loadEntries();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/key_value_browser_source.dart';
@@ -8,9 +9,15 @@ import 'package:flutter_inspector_kit/src/ui/widgets/error_card.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakeKeyValueSource implements KeyValueBrowserSource {
-  FakeKeyValueSource({this.sourceName = 'Fake', List<KeyValueEntry>? entries})
-    : entries = entries ?? <KeyValueEntry>[];
+  FakeKeyValueSource({
+    this.sourceName = 'Fake',
+    List<KeyValueEntry>? entries,
+    this.gate,
+  }) : entries = entries ?? <KeyValueEntry>[];
 
+  /// When set, listAll() blocks until completed — lets a test hold one load
+  /// in flight while triggering another.
+  final Completer<void>? gate;
   final String sourceName;
   List<KeyValueEntry> entries;
   bool throwOnList = false;
@@ -26,6 +33,7 @@ class FakeKeyValueSource implements KeyValueBrowserSource {
   @override
   Future<List<KeyValueEntry>> listAll() async {
     listAllCount++;
+    if (gate != null) await gate!.future;
     if (throwOnList) throw StateError('boom');
     return entries;
   }
@@ -68,7 +76,9 @@ FlutterInspector buildInspector(List<KeyValueBrowserSource> sources) {
 
 Future<void> pumpTab(WidgetTester tester, FlutterInspector inspector) async {
   await tester.pumpWidget(
-    MaterialApp(home: Scaffold(body: StorageTab(inspector: inspector))),
+    MaterialApp(
+      home: Scaffold(body: StorageTab(inspector: inspector)),
+    ),
   );
   await tester.pumpAndSettle();
 }
@@ -274,6 +284,90 @@ void main() {
 
       expect(source.clearCount, 1);
       expect(find.textContaining('No entries'), findsOneWidget);
+    });
+  });
+
+  group('StorageTab concurrent loads', () {
+    testWidgets(
+      'switching source while a load is in flight loads the new one',
+      (tester) async {
+        final gate = Completer<void>();
+        final prefs = FakeKeyValueSource(
+          sourceName: 'Prefs',
+          entries: const [
+            KeyValueEntry(
+              key: 'prefs_key',
+              value: 'p',
+              type: KeyValueType.string,
+            ),
+          ],
+          gate: gate,
+        );
+        final secure = FakeKeyValueSource(
+          sourceName: 'Secure',
+          entries: const [
+            KeyValueEntry(
+              key: 'secure_key',
+              value: 's',
+              type: KeyValueType.string,
+            ),
+          ],
+        );
+        final inspector = buildInspector([prefs, secure]);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: StorageTab(inspector: inspector)),
+          ),
+        );
+        await tester.pump(); // Prefs is still blocked on the gate.
+
+        await tester.tap(find.byType(DropdownButton<KeyValueBrowserSource>));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.tap(find.text('Secure').last);
+        await tester.pump();
+
+        // The switch must not be swallowed by the in-flight Prefs load.
+        expect(secure.listAllCount, 1);
+
+        gate.complete();
+        await tester.pump(const Duration(seconds: 1));
+
+        // The stale Prefs response must not land on top of the new source.
+        expect(find.text('secure_key'), findsOneWidget);
+        expect(find.text('prefs_key'), findsNothing);
+      },
+    );
+
+    testWidgets('a stale response cannot overwrite a newer one', (
+      tester,
+    ) async {
+      final gate = Completer<void>();
+      final slow = FakeKeyValueSource(
+        sourceName: 'Slow',
+        entries: const [
+          KeyValueEntry(key: 'stale', value: 'x', type: KeyValueType.string),
+        ],
+        gate: gate,
+      );
+      final inspector = buildInspector([slow]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: StorageTab(inspector: inspector)),
+        ),
+      );
+      await tester.pump();
+
+      // Refresh supersedes the first load; both return the same data here, so
+      // this asserts the second request is actually issued, not blocked.
+      await tester.tap(find.byIcon(Icons.refresh));
+      await tester.pump();
+      expect(slow.listAllCount, 2);
+
+      gate.complete();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('stale'), findsOneWidget);
     });
   });
 
