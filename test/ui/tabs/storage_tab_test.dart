@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/key_value_browser_source.dart';
+import 'package:flutter_inspector_kit/src/models/log_entry.dart';
+import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/storage_tab.dart';
 import 'package:flutter_inspector_kit/src/ui/widgets/error_card.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -272,6 +274,117 @@ void main() {
 
       expect(source.clearCount, 1);
       expect(find.textContaining('No entries'), findsOneWidget);
+    });
+  });
+
+  group('StorageTab audit log', () {
+    /// KV audit entries only — ignores unrelated logs the inspector may hold.
+    List<LogEntry> kvLogs(FlutterInspector inspector) =>
+        inspector.logEntries.where((e) => e.message.contains('[KV]')).toList();
+
+    testWidgets('a successful edit logs exactly one info entry', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        sourceName: 'Prefs',
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'old', type: KeyValueType.string),
+        ],
+      );
+      final inspector = buildInspector([source]);
+      await pumpTab(tester, inspector);
+
+      await openEditAndType(tester, 'token', 'new');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      final logs = kvLogs(inspector);
+      expect(logs, hasLength(1));
+      expect(logs.single.level, LogLevel.info);
+      expect(logs.single.message, contains('token'));
+      expect(logs.single.message, contains('Prefs'));
+      // Old value belongs in data, so the message stays readable.
+      expect(logs.single.data?['oldValue'], 'old');
+      expect(logs.single.data?['newValue'], 'new');
+    });
+
+    testWidgets('a successful delete logs exactly one info entry', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        sourceName: 'Prefs',
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'abc', type: KeyValueType.string),
+        ],
+      );
+      final inspector = buildInspector([source]);
+      await pumpTab(tester, inspector);
+
+      await tester.tap(find.byIcon(Icons.delete_outline).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      final logs = kvLogs(inspector);
+      expect(logs, hasLength(1));
+      expect(logs.single.level, LogLevel.info);
+      expect(logs.single.message, contains('token'));
+    });
+
+    testWidgets('a successful clear logs exactly one info entry', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        sourceName: 'Prefs',
+        entries: const [
+          KeyValueEntry(key: 'a', value: '1', type: KeyValueType.string),
+        ],
+      );
+      final inspector = buildInspector([source]);
+      await pumpTab(tester, inspector);
+
+      await tester.tap(find.byIcon(Icons.delete_sweep));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear all'));
+      await tester.pumpAndSettle();
+
+      final logs = kvLogs(inspector);
+      expect(logs, hasLength(1));
+      expect(logs.single.level, LogLevel.info);
+      expect(logs.single.message, contains('Prefs'));
+    });
+
+    testWidgets('a failed write logs nothing', (tester) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'old', type: KeyValueType.string),
+        ],
+      )..throwOnWrite = true;
+      final inspector = buildInspector([source]);
+      await pumpTab(tester, inspector);
+
+      await openEditAndType(tester, 'token', 'new');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      // Nothing happened, so nothing may claim it did.
+      expect(kvLogs(inspector), isEmpty);
+    });
+
+    testWidgets('cancelling logs nothing', (tester) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'old', type: KeyValueType.string),
+        ],
+      );
+      final inspector = buildInspector([source]);
+      await pumpTab(tester, inspector);
+
+      await openEditAndType(tester, 'token', 'new');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(kvLogs(inspector), isEmpty);
     });
   });
 

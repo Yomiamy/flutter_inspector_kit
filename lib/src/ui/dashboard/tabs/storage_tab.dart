@@ -95,7 +95,16 @@ class _StorageTabState extends State<StorageTab> {
       message: '${entry.value}  →  $newValue',
     );
     if (!mounted || !confirmed) return;
-    await _runWrite(() => _selectedSource.setValue(entry.key, newValue));
+    await _runWrite(
+      () => _selectedSource.setValue(entry.key, newValue),
+      auditMessage: '[KV] set "${entry.key}" on ${_selectedSource.name}',
+      auditData: {
+        'source': _selectedSource.name,
+        'key': entry.key,
+        'oldValue': entry.value,
+        'newValue': newValue,
+      },
+    );
   }
 
   Future<void> _deleteEntry(KeyValueEntry entry) async {
@@ -107,26 +116,48 @@ class _StorageTabState extends State<StorageTab> {
       destructive: true,
     );
     if (!mounted || !confirmed) return;
-    await _runWrite(() => _selectedSource.remove(entry.key));
+    await _runWrite(
+      () => _selectedSource.remove(entry.key),
+      auditMessage: '[KV] removed "${entry.key}" from ${_selectedSource.name}',
+      auditData: {
+        'source': _selectedSource.name,
+        'key': entry.key,
+        'oldValue': entry.value,
+      },
+    );
   }
 
   Future<void> _clearAll() async {
     final confirmed = await showInspectorConfirm(
       context,
       title: 'Clear ${_selectedSource.name}?',
-      message: 'This removes all ${_entries.length} entries. '
+      message:
+          'This removes all ${_entries.length} entries. '
           'It cannot be undone.',
       confirmLabel: 'Clear all',
       destructive: true,
     );
     if (!mounted || !confirmed) return;
-    await _runWrite(_selectedSource.clear);
+    final clearedCount = _entries.length;
+    await _runWrite(
+      _selectedSource.clear,
+      auditMessage: '[KV] cleared ${_selectedSource.name}',
+      auditData: {'source': _selectedSource.name, 'clearedCount': clearedCount},
+    );
   }
 
-  /// Runs a write and reloads, surfacing failures instead of leaving a spinner.
-  Future<void> _runWrite(Future<void> Function() write) async {
+  /// Runs a write, records an audit log, then reloads.
+  ///
+  /// The log is written only after [write] returns, so a failed write never
+  /// leaves a trace claiming it succeeded (AC-28).
+  Future<void> _runWrite(
+    Future<void> Function() write, {
+    required String auditMessage,
+    required Map<String, dynamic> auditData,
+  }) async {
     try {
       await write();
+      widget.inspector.log(auditMessage, data: auditData);
       if (!mounted) return;
       await _loadEntries();
     } catch (e) {
