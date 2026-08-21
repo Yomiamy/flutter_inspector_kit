@@ -8,6 +8,7 @@ import 'tabs/console_tab.dart';
 import 'tabs/database_tab.dart';
 import 'tabs/navigator_tab.dart';
 import 'tabs/network_tab.dart';
+import 'tabs/storage_tab.dart';
 
 /// The full-screen modal container for the inspector dashboard.
 class DashboardModal extends StatelessWidget {
@@ -41,7 +42,9 @@ class DashboardModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasCustomTab = inspector.customTab != null;
-    final tabCount = hasCustomTab ? 5 : 4;
+    // Storage is opt-in: without a registered source the tab would be empty.
+    final hasStorageTab = inspector.keyValueSources.isNotEmpty;
+    final tabCount = 4 + (hasStorageTab ? 1 : 0) + (hasCustomTab ? 1 : 0);
 
     return DefaultTabController(
       length: tabCount,
@@ -64,6 +67,7 @@ class DashboardModal extends StatelessWidget {
             preferredSize: const Size.fromHeight(kTextTabBarHeight),
             child: _DashboardTabBar(
               inspector: inspector,
+              hasStorageTab: hasStorageTab,
               hasCustomTab: hasCustomTab,
               customTabTitle: inspector.customTabTitle,
             ),
@@ -75,6 +79,8 @@ class DashboardModal extends StatelessWidget {
             NetworkTab(inspector: inspector),
             NavigatorTab(inspector: inspector),
             DatabaseTab(inspector: inspector),
+            // Keep this list in the same order as the tabs above.
+            if (hasStorageTab) StorageTab(inspector: inspector),
             if (hasCustomTab) inspector.customTab!,
           ],
         ),
@@ -95,11 +101,13 @@ class DashboardModal extends StatelessWidget {
 class _DashboardTabBar extends StatefulWidget {
   const _DashboardTabBar({
     required this.inspector,
+    required this.hasStorageTab,
     required this.hasCustomTab,
     this.customTabTitle,
   });
 
   final FlutterInspector inspector;
+  final bool hasStorageTab;
   final bool hasCustomTab;
   final String? customTabTitle;
 
@@ -164,6 +172,8 @@ class _DashboardTabBarState extends State<_DashboardTabBar> {
         ),
         const Tab(text: 'Navigator'),
         const Tab(text: 'Database'),
+        // Keep this list in the same order as TabBarView's children.
+        if (widget.hasStorageTab) const Tab(text: 'Storage'),
         if (widget.hasCustomTab) Tab(text: widget.customTabTitle ?? 'Custom'),
       ],
     );

@@ -379,7 +379,9 @@ class FlutterInspector {
   /// Opens the full-screen dashboard modal.
   ///
   /// [initialIndex] selects the starting tab: Console (0), Network (1),
-  /// Navigator (2), Database (3).
+  /// Navigator (2), Database (3). Optional tabs are appended after these, so
+  /// the indices above never shift: Storage (when [keyValueSources] is not
+  /// empty), then a custom tab (when one is provided).
   void openDashboard({int initialIndex = 0}) {
     // navigatorKey is required, but its context is only mounted once the app
     // has built its Navigator — a call before first frame is still a no-op.
