@@ -1,3 +1,11 @@
+## 2.3.0
+
+### Added
+* **Storage tab — browse and edit key-value stores**: A new dashboard tab lists the contents of `SharedPreferences`, `FlutterSecureStorage` and friends, with a search field over keys and values and a selector to switch between registered stores. Entries can be edited, deleted individually, or wiped in bulk, so a stale token or a stuck feature flag can be cleared on-device instead of through an `adb shell` or a reinstall. The tab only appears once at least one source is registered.
+* **`KeyValueBrowserSource` — pluggable storage adapters**: Register stores through `FlutterInspector(keyValueSources: [...])` or `registerKeyValueSource(...)`, mirroring how `DatabaseBrowserSource` already works. The package ships no implementation and takes no dependency on any storage plugin — the README carries copy-paste adapter examples for `SharedPreferences` and `FlutterSecureStorage`, and each adapter takes an optional `name` so two stores of the same kind stay distinguishable in the selector. When a source cannot enumerate its keys (`readAll()` is unsupported on some platforms for secure storage), the tab surfaces a retryable error rather than an empty list, so "cannot enumerate" is never mistaken for "nothing stored".
+* **Confirmation before every write**: Edits, deletes and clear-all each require an explicit confirmation. Editing runs a type-validation step first, so a mistyped value is rejected before the confirmation dialog appears rather than after it. Clear-all names the source and the entry count it is about to wipe, and is disabled while a store is still loading — so a destructive action can never be authorised against another source's data.
+* **Writes are logged to the Console timeline**: A successful write is recorded as an `info` log carrying the key, source and type, so a change made while debugging does not become a mystery later. Cancelled and failed writes leave no log — the audit trail only ever claims what actually landed. Old and new values are masked unless the host sets `redactSensitiveData: false`, since the log is shareable and a key-value source may hold secrets.
+
 ## 2.2.0
 
 ### Added
