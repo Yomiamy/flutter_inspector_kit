@@ -390,7 +390,9 @@ rev.1 曾問「Database Tab 是否更名為 Storage Tab」。rev.2 的答案讓�
 - `lib/src/ui/dashboard/tabs/network_tab.dart`（R-2 方案 A）
 - `lib/src/models/database_browser_source.dart`
 - `pubspec.yaml` 的 `dependencies`（AC-3，逐字相同）
-- 任何既有測試檔
+- 任何既有測試的**既有斷言**——T5 與 T13 會在 `test/core/flutter_inspector_test.dart`
+  與 `test/ui/dashboard_modal_test.dart` **追加**新測試，這是允許的；不可修改或刪除
+  這兩個檔案裡原有的任何一條斷言
 
 ---
 

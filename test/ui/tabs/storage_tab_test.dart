@@ -33,9 +33,13 @@ class FakeKeyValueSource implements KeyValueBrowserSource {
   @override
   Future<List<KeyValueEntry>> listAll() async {
     listAllCount++;
+    // Snapshot before awaiting: a response must carry the data as it was when
+    // the request was issued, otherwise every response returns the latest data
+    // and a stale-response test cannot fail.
+    final snapshot = entries;
     if (gate != null) await gate!.future;
     if (throwOnList) throw StateError('boom');
-    return entries;
+    return snapshot;
   }
 
   @override
@@ -89,7 +93,14 @@ Future<void> openEditAndType(
   String key,
   String newValue,
 ) async {
-  await tester.tap(find.byIcon(Icons.edit).first);
+  // Target the row for [key], not merely the first one, so a future
+  // multi-entry test cannot silently edit the wrong entry.
+  await tester.tap(
+    find.descendant(
+      of: find.ancestor(of: find.text(key), matching: find.byType(ListTile)),
+      matching: find.byIcon(Icons.edit),
+    ),
+  );
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField).last, newValue);
   await tester.pumpAndSettle();
@@ -359,15 +370,84 @@ void main() {
       );
       await tester.pump();
 
-      // Refresh supersedes the first load; both return the same data here, so
-      // this asserts the second request is actually issued, not blocked.
+      // Change the data before refreshing, so the two in-flight responses
+      // carry different snapshots and the winner is observable.
+      slow.entries = const [
+        KeyValueEntry(key: 'fresh', value: 'y', type: KeyValueType.string),
+      ];
       await tester.tap(find.byIcon(Icons.refresh));
       await tester.pump();
       expect(slow.listAllCount, 2);
 
       gate.complete();
       await tester.pump(const Duration(seconds: 1));
-      expect(find.text('stale'), findsOneWidget);
+
+      // The second response wins even though both arrive together.
+      expect(find.text('fresh'), findsOneWidget);
+      expect(find.text('stale'), findsNothing);
+    });
+  });
+
+  group('StorageTab destructive actions during a load', () {
+    testWidgets('clear all is unavailable while a source is loading', (
+      tester,
+    ) async {
+      final gate = Completer<void>();
+      final prefs = FakeKeyValueSource(
+        sourceName: 'Prefs',
+        entries: const [
+          KeyValueEntry(key: 'a', value: '1', type: KeyValueType.string),
+          KeyValueEntry(key: 'b', value: '2', type: KeyValueType.string),
+        ],
+      );
+      final secure = FakeKeyValueSource(sourceName: 'Secure', gate: gate);
+      await pumpTab(tester, buildInspector([prefs, secure]));
+
+      await tester.tap(find.byType(DropdownButton<KeyValueBrowserSource>));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.text('Secure').last);
+      await tester.pump();
+
+      // Prefs' rows must not authorise clearing Secure.
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.delete_sweep),
+          matching: find.byType(IconButton),
+        ),
+      );
+      expect(button.onPressed, isNull);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('stale rows are dropped as soon as a load starts', (
+      tester,
+    ) async {
+      final gate = Completer<void>();
+      final prefs = FakeKeyValueSource(
+        sourceName: 'Prefs',
+        entries: const [
+          KeyValueEntry(
+            key: 'prefs_key',
+            value: '1',
+            type: KeyValueType.string,
+          ),
+        ],
+      );
+      final secure = FakeKeyValueSource(sourceName: 'Secure', gate: gate);
+      await pumpTab(tester, buildInspector([prefs, secure]));
+      expect(find.text('prefs_key'), findsOneWidget);
+
+      await tester.tap(find.byType(DropdownButton<KeyValueBrowserSource>));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.text('Secure').last);
+      await tester.pump();
+
+      expect(find.text('prefs_key'), findsNothing);
+
+      gate.complete();
+      await tester.pumpAndSettle();
     });
   });
 
@@ -398,8 +478,10 @@ void main() {
       expect(logs.single.message, contains('token'));
       expect(logs.single.message, contains('Prefs'));
       // Old value belongs in data, so the message stays readable.
-      expect(logs.single.data?['oldValue'], 'old');
-      expect(logs.single.data?['newValue'], 'new');
+      // Masked here because redaction is on by default — see the redaction
+      // tests below for both settings.
+      expect(logs.single.data?['oldValue'], '***');
+      expect(logs.single.data?['newValue'], '***');
     });
 
     testWidgets('a successful delete logs exactly one info entry', (
@@ -446,6 +528,63 @@ void main() {
       expect(logs, hasLength(1));
       expect(logs.single.level, LogLevel.info);
       expect(logs.single.message, contains('Prefs'));
+    });
+
+    testWidgets('masks values when redaction is on, keeping key and source', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        sourceName: 'Secure',
+        entries: const [
+          KeyValueEntry(
+            key: 'token',
+            value: 'secret',
+            type: KeyValueType.string,
+          ),
+        ],
+      );
+      // redactSensitiveData defaults to true.
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        keyValueSources: [source],
+      );
+      await pumpTab(tester, inspector);
+
+      await openEditAndType(tester, 'token', 'newsecret');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      final log = kvLogs(inspector).single;
+      // Values reach the clipboard via buildLogPlainText, so they are masked.
+      expect(log.data?['oldValue'], '***');
+      expect(log.data?['newValue'], '***');
+      // The trail is still useful without them.
+      expect(log.data?['key'], 'token');
+      expect(log.data?['source'], 'Secure');
+    });
+
+    testWidgets('keeps values when the host opts out of redaction', (
+      tester,
+    ) async {
+      final source = FakeKeyValueSource(
+        entries: const [
+          KeyValueEntry(key: 'token', value: 'old', type: KeyValueType.string),
+        ],
+      );
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        keyValueSources: [source],
+        redactSensitiveData: false,
+      );
+      await pumpTab(tester, inspector);
+
+      await openEditAndType(tester, 'token', 'new');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      final log = kvLogs(inspector).single;
+      expect(log.data?['oldValue'], 'old');
+      expect(log.data?['newValue'], 'new');
     });
 
     testWidgets('a failed write logs nothing', (tester) async {

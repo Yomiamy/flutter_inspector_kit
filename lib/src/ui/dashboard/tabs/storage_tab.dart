@@ -67,6 +67,9 @@ class _StorageTabState extends State<StorageTab> {
     setState(() {
       _loading = true;
       _errorMessage = null;
+      // Drop the previous source's rows immediately: keeping them visible
+      // would let a destructive action be authorised by another source's data.
+      _entries = const [];
     });
 
     try {
@@ -150,6 +153,22 @@ class _StorageTabState extends State<StorageTab> {
     );
   }
 
+  /// Builds audit data, masking values when redaction is on.
+  ///
+  /// Log `data` reaches the clipboard and the share sheet via
+  /// `buildLogPlainText`, and a key-value source may well be secure storage —
+  /// so values follow the same rule as sensitive network headers. Key, source
+  /// and type stay visible: they are what makes the trail useful.
+  Map<String, dynamic> _auditData(Map<String, dynamic> values) {
+    if (!widget.inspector.redactSensitiveData) return values;
+    return {
+      for (final entry in values.entries)
+        entry.key: _valueKeys.contains(entry.key) ? '***' : entry.value,
+    };
+  }
+
+  static const _valueKeys = {'oldValue', 'newValue'};
+
   /// Runs a write, records an audit log, then reloads.
   ///
   /// The log is written only after [write] returns, so a failed write never
@@ -163,7 +182,7 @@ class _StorageTabState extends State<StorageTab> {
       await write();
       // Logged before the mounted check on purpose: the write already
       // happened, so leaving the tab must not erase the trace.
-      widget.inspector.log(auditMessage, data: auditData);
+      widget.inspector.log(auditMessage, data: _auditData(auditData));
       if (!mounted) return;
       await _loadEntries();
     } catch (e) {
@@ -212,7 +231,7 @@ class _StorageTabState extends State<StorageTab> {
               IconButton(
                 icon: const Icon(Icons.delete_sweep),
                 tooltip: 'Clear all',
-                onPressed: _entries.isEmpty ? null : _clearAll,
+                onPressed: (_loading || _entries.isEmpty) ? null : _clearAll,
               ),
             ],
           ),
