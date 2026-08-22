@@ -3,6 +3,7 @@ export 'src/interceptors/dio_interceptor.dart';
 export 'src/models/database_browser_source.dart';
 export 'src/models/database_operation.dart';
 export 'src/models/diagnostic_info.dart';
+export 'src/models/key_value_browser_source.dart';
 export 'src/models/log_level.dart';
 export 'src/models/network_entry.dart';
 export 'src/models/network_origin.dart';

@@ -8,6 +8,7 @@ import '../models/database_browser_source.dart';
 import '../models/database_entry.dart';
 import '../models/database_operation.dart';
 import '../models/diagnostic_info.dart';
+import '../models/key_value_browser_source.dart';
 import '../models/log_entry.dart';
 import '../sources/operation_log_source.dart';
 import '../models/log_level.dart';
@@ -136,6 +137,7 @@ class FlutterInspector {
   late final FlutterInspectorNavigatorObserver _navigatorObserver;
   late final OperationLogSource _operationLogSource;
   final List<DatabaseBrowserSource> _customDatabaseSources = [];
+  final List<KeyValueBrowserSource> _keyValueSources = [];
   late final InspectorOverlayManager _overlayManager;
   final Set<TimestampedEntry> _bookmarkedEntries = <TimestampedEntry>{};
 
@@ -191,6 +193,13 @@ class FlutterInspector {
   List<DatabaseBrowserSource> get databaseSources =>
       List.unmodifiable([_operationLogSource, ..._customDatabaseSources]);
 
+  /// Retrieves the registered key-value browser sources.
+  ///
+  /// Empty unless the host app registers one — the package ships no built-in
+  /// key-value source, so there is no default entry here.
+  List<KeyValueBrowserSource> get keyValueSources =>
+      List.unmodifiable(_keyValueSources);
+
   /// Creates a new FlutterInspector instance.
   ///
   /// This should typically be instantiated once at app startup and retained
@@ -212,6 +221,7 @@ class FlutterInspector {
     int bufferSize = 500,
     NetworkNotifier? notifier,
     List<DatabaseBrowserSource>? databaseSources,
+    List<KeyValueBrowserSource>? keyValueSources,
   }) {
     if (slowRequestThreshold.isNegative) {
       throw ArgumentError.value(
@@ -231,6 +241,9 @@ class FlutterInspector {
     if (captureLifecycleEvents) _lifecycleHandler.attach();
     _navigatorObserver = FlutterInspectorNavigatorObserver(this);
     _operationLogSource = OperationLogSource(_registry.database);
+    if (keyValueSources != null) {
+      _keyValueSources.addAll(keyValueSources);
+    }
     if (databaseSources != null) {
       _customDatabaseSources.addAll(databaseSources);
     }
@@ -263,6 +276,11 @@ class FlutterInspector {
   /// Registers a database browser source.
   void registerDatabaseSource(DatabaseBrowserSource source) {
     _customDatabaseSources.add(source);
+  }
+
+  /// Registers a key-value browser source.
+  void registerKeyValueSource(KeyValueBrowserSource source) {
+    _keyValueSources.add(source);
   }
 
   /// Mounts the FAB overlay onto the screen.
@@ -361,7 +379,9 @@ class FlutterInspector {
   /// Opens the full-screen dashboard modal.
   ///
   /// [initialIndex] selects the starting tab: Console (0), Network (1),
-  /// Navigator (2), Database (3).
+  /// Navigator (2), Database (3). Optional tabs are appended after these, so
+  /// the indices above never shift: Storage (when [keyValueSources] is not
+  /// empty), then a custom tab (when one is provided).
   void openDashboard({int initialIndex = 0}) {
     // navigatorKey is required, but its context is only mounted once the app
     // has built its Navigator — a call before first frame is still a no-op.
