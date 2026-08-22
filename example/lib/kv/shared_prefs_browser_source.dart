@@ -25,25 +25,33 @@ class SharedPrefsBrowserSource implements KeyValueBrowserSource {
   @override
   Future<void> setValue(String key, Object? value) async {
     // The value arrives already parsed into the entry's original type.
-    switch (value) {
-      case final String v:
-        await _prefs.setString(key, v);
-      case final int v:
-        await _prefs.setInt(key, v);
-      case final double v:
-        await _prefs.setDouble(key, v);
-      case final bool v:
-        await _prefs.setBool(key, v);
-      case final List<String> v:
-        await _prefs.setStringList(key, v);
-    }
+    final ok = switch (value) {
+      final String v => await _prefs.setString(key, v),
+      final int v => await _prefs.setInt(key, v),
+      final double v => await _prefs.setDouble(key, v),
+      final bool v => await _prefs.setBool(key, v),
+      final List<String> v => await _prefs.setStringList(key, v),
+      _ => false,
+    };
+    _check(ok, 'write $key');
   }
 
   @override
-  Future<void> remove(String key) => _prefs.remove(key);
+  Future<void> remove(String key) async {
+    _check(await _prefs.remove(key), 'remove $key');
+  }
 
   @override
-  Future<void> clear() => _prefs.clear();
+  Future<void> clear() async {
+    _check(await _prefs.clear(), 'clear');
+  }
+
+  /// SharedPreferences reports failure by returning false rather than throwing.
+  /// Swallowing that would let the inspector log an audit trail for a write
+  /// that never landed, so turn it into an exception the tab can surface.
+  void _check(bool ok, String what) {
+    if (!ok) throw StateError('SharedPreferences failed to $what');
+  }
 
   KeyValueType _typeOf(Object? value) => switch (value) {
     int() => KeyValueType.int,

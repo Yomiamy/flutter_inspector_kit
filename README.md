@@ -24,7 +24,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🛡️ **Sensitive-Data Redaction** | Secure by default — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are masked in every share/export path | Safely share network logs with teammates or attach them to Jira tickets without leaking tokens or session cookies |
 | 🧭 **Navigator** | Track route pushes, pops, and replacements automatically; toggle between **Event History** (raw log) and **Active Stack** (live route-stack visualization). The dashboard's own routes are filtered out, so investigating never pollutes the history | Verify deep-link routing, confirm back-stack correctness, or diagnose "why did the user land on this screen?" during a QA walkthrough — and since opening detail views doesn't write into the history, the stack you read after ten minutes of digging is still your app's, not a log of your own investigation |
 | 🗄️ **Database** | Record insert / update / delete / query operations with affected-row counts and payloads; browse real tables via pluggable `DatabaseBrowserSource` (SQLite / ObjectBox adapters provided) | Verify that a "Save" action actually wrote the expected rows; browse local SQLite tables on-device without pulling the `.db` file |
-| 🔑 **Storage** | Browse, edit, delete and clear key-value stores via pluggable `KeyValueBrowserSource` (SharedPreferences / SecureStorage adapter examples provided); every write is confirmed and logged | Check whether a stale token or a stuck feature flag is behind the bug — and clear it on-device, without an adb shell |
+| 🔑 **Storage** | Browse, edit, delete and clear key-value stores via pluggable `KeyValueBrowserSource` (SharedPreferences / SecureStorage adapter examples provided); every write is confirmed, and successful writes are logged | Check whether a stale token or a stuck feature flag is behind the bug — and clear it on-device, without an adb shell |
 | 🛑 **Uncaught Error Capture** *(opt-in)* | Automatically turn uncaught errors into `error`-level Console logs via three Flutter hooks (build/layout/paint, async, `ErrorWidget`); chains existing handlers — never swallows errors | An unawaited `Future` throws deep inside a third-party package — no `try/catch` anywhere near it. Uncaught error capture logs it automatically with a full stack trace, so it shows up in Console without any manual instrumentation |
 | ⏱️ **App Lifecycle Markers** *(opt-in)* | Record every `resumed` / `inactive` / `paused` / `detached` transition as an `info` Console log, each naming the top-most page at that moment, interleaved into the merged Timeline | A batch of requests fails with timeouts that nobody can reproduce at a desk — read the Timeline and an `App lifecycle: paused · CheckoutPage` marker sits right before them, so the OS froze the network while the user switched away; the backend was never at fault. Equally useful in reverse: confirming a "refresh on resume" actually fires, and on which page |
 | 🔔 **Live Notification** *(opt-in)* | A system notification summarising the latest API call and the running total; tap to jump straight to the Network tab | Monitor API traffic in real-time while navigating the app — no need to keep the dashboard open; also useful for verifying whether the number of API calls per operation is reasonable (e.g., a single page load triggering dozens of calls hints at redundant requests) |
@@ -668,8 +668,9 @@ no dependency on any storage plugin — you inject the adapter.
 
 Every write requires an explicit confirmation — edits add a validation step
 before it, so a mistyped value is caught before the confirmation appears — and
-is recorded as an `info` log in the Console timeline, so a change made while
-debugging never becomes a mystery later. Values in that log are masked unless
+is recorded as an `info` log in the Console timeline once it succeeds, so a
+change made while debugging never becomes a mystery later. A cancelled or
+failed write leaves no log — the trail only ever claims what actually landed. Values in that log are masked unless
 the host sets `redactSensitiveData: false`, since the log is shareable and a
 key-value source may hold tokens.
 
@@ -698,25 +699,32 @@ class SharedPrefsBrowserSource implements KeyValueBrowserSource {
   @override
   Future<void> setValue(String key, Object? value) async {
     // The value already arrives parsed into the entry's original type.
-    switch (value) {
-      case final String v:
-        await _prefs.setString(key, v);
-      case final int v:
-        await _prefs.setInt(key, v);
-      case final double v:
-        await _prefs.setDouble(key, v);
-      case final bool v:
-        await _prefs.setBool(key, v);
-      case final List<String> v:
-        await _prefs.setStringList(key, v);
-    }
+    final ok = switch (value) {
+      final String v => await _prefs.setString(key, v),
+      final int v => await _prefs.setInt(key, v),
+      final double v => await _prefs.setDouble(key, v),
+      final bool v => await _prefs.setBool(key, v),
+      final List<String> v => await _prefs.setStringList(key, v),
+      _ => false,
+    };
+    _check(ok, 'write $key');
   }
 
   @override
-  Future<void> remove(String key) => _prefs.remove(key);
+  Future<void> remove(String key) async {
+    _check(await _prefs.remove(key), 'remove $key');
+  }
 
   @override
-  Future<void> clear() => _prefs.clear();
+  Future<void> clear() async {
+    _check(await _prefs.clear(), 'clear');
+  }
+
+  // SharedPreferences signals failure by returning false, not by throwing.
+  // Swallowing it would let the audit log claim a write that never landed.
+  void _check(bool ok, String what) {
+    if (!ok) throw StateError('SharedPreferences failed to $what');
+  }
 
   KeyValueType _typeOf(Object? value) => switch (value) {
     int() => KeyValueType.int,

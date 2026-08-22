@@ -31,17 +31,24 @@ class SharedPrefsDemo {
     if (_registered) return null;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', _seed['auth_token']! as String);
-      await prefs.setBool(
-        'feature_new_checkout',
-        _seed['feature_new_checkout']! as bool,
-      );
-      await prefs.setInt('retry_count', _seed['retry_count']! as int);
-      await prefs.setDouble('cache_ratio', _seed['cache_ratio']! as double);
-      await prefs.setStringList(
-        'recent_searches',
-        _seed['recent_searches']! as List<String>,
-      );
+      // set* returns false on failure instead of throwing; registering a
+      // source whose seed half-landed would show a misleading store.
+      final written = [
+        await prefs.setString('auth_token', _seed['auth_token']! as String),
+        await prefs.setBool(
+          'feature_new_checkout',
+          _seed['feature_new_checkout']! as bool,
+        ),
+        await prefs.setInt('retry_count', _seed['retry_count']! as int),
+        await prefs.setDouble('cache_ratio', _seed['cache_ratio']! as double),
+        await prefs.setStringList(
+          'recent_searches',
+          _seed['recent_searches']! as List<String>,
+        ),
+      ];
+      if (written.contains(false)) {
+        return 'SharedPreferences seeding failed: some values were rejected';
+      }
 
       _inspector.registerKeyValueSource(SharedPrefsBrowserSource(prefs));
       _registered = true;
