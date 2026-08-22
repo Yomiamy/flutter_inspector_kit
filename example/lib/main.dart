@@ -4,6 +4,7 @@ import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 import 'demos/inappwebview_demo.dart';
 import 'demos/network_demo.dart';
 import 'demos/objectbox_demo.dart';
+import 'demos/shared_prefs_demo.dart';
 import 'demos/sqlite_demo.dart';
 import 'demos/webview_demo.dart';
 
@@ -78,6 +79,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late final NetworkDemo _networkDemo;
   late final SqliteDemo _sqliteDemo;
   late final ObjectBoxDemo _objectBoxDemo;
+  late final SharedPrefsDemo _sharedPrefsDemo;
   late final WebViewDemo _webViewDemo;
   late final InAppWebViewDemo _inAppWebViewDemo;
 
@@ -87,6 +89,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _networkDemo = NetworkDemo(inspector);
     _sqliteDemo = SqliteDemo(inspector);
     _objectBoxDemo = ObjectBoxDemo(inspector);
+    _sharedPrefsDemo = SharedPrefsDemo(inspector);
     _webViewDemo = WebViewDemo(inspector);
     _inAppWebViewDemo = InAppWebViewDemo(inspector);
 
@@ -161,6 +164,11 @@ class _MyHomePageState extends State<MyHomePage> {
               ElevatedButton(
                 onPressed: () => _runSeed(_objectBoxDemo.seed),
                 child: const Text('Seed ObjectBox Demo'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _runSeed(_sharedPrefsDemo.seed),
+                child: const Text('Seed SharedPreferences Demo'),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
