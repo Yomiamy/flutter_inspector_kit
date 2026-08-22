@@ -681,12 +681,14 @@ import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SharedPrefsBrowserSource implements KeyValueBrowserSource {
-  SharedPrefsBrowserSource(this._prefs);
+  SharedPrefsBrowserSource(this._prefs, {this.name = 'SharedPreferences'});
 
   final SharedPreferences _prefs;
 
+  // Shown in the source selector. Pass a distinct name when registering more
+  // than one store, or they are indistinguishable there.
   @override
-  String get name => 'SharedPreferences';
+  final String name;
 
   @override
   Future<List<KeyValueEntry>> listAll() async {
@@ -749,12 +751,12 @@ import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageBrowserSource implements KeyValueBrowserSource {
-  SecureStorageBrowserSource(this._storage);
+  SecureStorageBrowserSource(this._storage, {this.name = 'SecureStorage'});
 
   final FlutterSecureStorage _storage;
 
   @override
-  String get name => 'SecureStorage';
+  final String name;
 
   @override
   Future<List<KeyValueEntry>> listAll() async {

@@ -781,6 +781,32 @@ void main() {
       expect(find.textContaining('No matching'), findsOneWidget);
     });
 
+    testWidgets('two stores of the same kind stay distinguishable', (
+      tester,
+    ) async {
+      // Registering two SharedPreferences-backed stores is legitimate; the
+      // selector must not show two identical labels for them.
+      final appPrefs = FakeKeyValueSource(
+        sourceName: 'App prefs',
+        entries: const [
+          KeyValueEntry(key: 'app_key', value: '1', type: KeyValueType.string),
+        ],
+      );
+      final userPrefs = FakeKeyValueSource(
+        sourceName: 'User prefs',
+        entries: const [
+          KeyValueEntry(key: 'user_key', value: '2', type: KeyValueType.string),
+        ],
+      );
+      await pumpTab(tester, buildInspector([appPrefs, userPrefs]));
+
+      await tester.tap(find.byType(DropdownButton<KeyValueBrowserSource>));
+      await tester.pumpAndSettle();
+
+      expect(find.text('App prefs'), findsWidgets);
+      expect(find.text('User prefs'), findsWidgets);
+    });
+
     testWidgets('switching source loads the newly selected one', (
       tester,
     ) async {

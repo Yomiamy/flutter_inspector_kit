@@ -7,12 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// ships no key-value implementation and takes no dependency on
 /// `shared_preferences`; the host app injects one.
 class SharedPrefsBrowserSource implements KeyValueBrowserSource {
-  SharedPrefsBrowserSource(this._prefs);
+  SharedPrefsBrowserSource(this._prefs, {this.name = 'SharedPreferences'});
 
   final SharedPreferences _prefs;
 
+  /// Shown in the Storage tab's source selector. Pass a distinct name when
+  /// registering more than one store, or they are indistinguishable there.
   @override
-  String get name => 'SharedPreferences';
+  final String name;
 
   @override
   Future<List<KeyValueEntry>> listAll() async {
