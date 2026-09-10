@@ -1253,8 +1253,12 @@ AFTER  pressure:  size=0    count=0
 | 只是某個 SDK 版本的行為 | ❌ 不成立。3.41.9 與 3.44.1 上述兩段程式碼**逐字相同**，涵蓋 `pubspec.yaml` 宣告的整個支援範圍（`flutter: ">=3.10.0"`） |
 | 覆寫 binding，在 clear 之前取值 | ❌ 要求 host 改用套件提供的 custom binding，破壞「接線零改動」前提，成本遠超價值 |
 
-> **該需求的正確形狀是 §P25（ImageCache 水位計）**——不綁任何 OS 事件，
+> ~~**該需求的正確形狀是 §P25（ImageCache 水位計）**~~——不綁任何 OS 事件，
 > 在使用者主動查看的那一刻讀取，那個時點的值是真的。
+>
+> **⚠️ 2026-09-10 更新**：§P25 本身已裁決不排程（讀一次的形狀撐不起其宣稱價值，
+> 詳見該節）。**故 Issue #158 這條需求目前無可行形狀**——「不綁 OS 事件」的方向依然正確，
+> 但唯一能讓它有用的常駐形式需輪詢，而輪詢踩 Anti-Feature #1，與 §P20 綁定待裁決。
 
 **🔴 本案最該記住的教訓（方法論，不是技術細節）**：
 
@@ -1279,12 +1283,34 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 * **哲學審查提醒**：philosophy lens 判為 **weak**——它**不提供新的因果原料**（permission 資訊 host 在 call site 已握有），kit 只多貢獻 `activeRoute` 錨點與時序。價值真實但有限，API surface 是否值得暴露待定（可能只需文件示範用既有 `log` 記即可，不必新增方法）。
 * **Effort**：trivial ｜ **排查價值**：⭐⭐
 
-### §P23. Crash 前因果鏈快照（強化既有 `captureUncaughtErrors`）— 🆕 待評估
+### ~~§P23. Crash 前因果鏈快照（強化既有 `captureUncaughtErrors`）~~ — ❌ 不排程（2026-09-10）
 
 * **痛點**：Crash rate 門檻 1.09%（Core Vital）。kit 已有 `captureUncaughtErrors`，但目前只記「錯誤本身」。
 * **方向（尚未細設計）**：crash 發生時，既有 `mergedTimeline` 已天然保留了 crash 前的完整 log/network/nav/db 事件鏈——診斷報告已能匯出。待評估的是「是否需要在 crash 當下自動觸發一次診斷報告匯出/標記」，讓 QA 拿到的 crash 報告自帶前因果鏈。
 * **注意**：這必須小心不要變成被否決的「錯誤上下文快照」（§P2，固定挑幾個維度釘在 error 旁 → 預設因果單線）。正解仍是完整 `mergedTimeline`，此項頂多是「crash 時自動觸發既有匯出」，不新增快照機制。
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐（待確認是否與既有診斷報告重疊）
+
+> **❌ 2026-09-10 裁決：不排程。** 上方「待確認是否與既有診斷報告重疊」的疑問已有答案——**重疊**。
+> 三條死因：
+>
+> 1. **因果鏈零新增**。本節自己已寫明「既有 `mergedTimeline` **已天然保留**crash 前的完整事件鏈
+>    ——診斷報告**已能匯出**」。扣掉這句，本項剩下的全部內容只有「**自動**觸發」四個字。
+>    這與 §P2 被否決的死因同構：把已經在 timeline 上的東西換一個位置，不是新增維度。
+> 2. **崩潰路徑上執行匯出，是拿宿主的穩定性換便利**。`captureUncaughtErrors` 觸發的時刻是 app 正在死的時刻，
+>    在該 handler 內做字串組裝 + 檔案 IO／share sheet 有三個具體風險：
+>    ① **error storm**——一次 crash 常連帶噴數十筆（`FlutterError.onError` 逐 widget 報），
+>    每筆都觸發匯出會產出數十份報告或直接卡死；`UncaughtErrorHandler._lastLoggedDetails`
+>    只去重「同一錯誤的雙擊」，擋不住這個。
+>    ② **匯出自身拋例外** → 在 error handler 裡再拋錯 → 遞迴。
+>    ③ **share sheet 需 `BuildContext`**，而 crash 當下 widget tree 可能正在垮（踩 flutter-styles §7.5）。
+>    debug 工具在宿主崩潰時唯一該做的是**不要讓崩潰更糟**（Never break userspace）。
+> 3. **縮到安全形狀後與 §P24 重疊**。若把「自動匯出」降級為「只在既有 log entry 的 `data` 打一個
+>    `isCrash` flag、由 §P7 的 `_kErrorRowTint` 機制上色、匯出仍由使用者按既有按鈕」——
+>    崩潰路徑上零 IO、零 context、零字串組裝，三個風險全繞開，但**剩下的價值（讓你知道剛剛 crash 了）
+>    已由 §P24 crash 系統通知（Issue #156，已完成）接走**，差別僅在系統通知 vs timeline 內標記。
+>
+> **重啟條件**：出現「QA 拿到的 crash 報告漏了前因後果」的**真實**回報（非推測）。屆時先確認
+> §P24 通知 + 既有手動匯出為何不足，再談自動化。
 
 ### §P24. Crash 系統通知（Crash Notification）— ✅ 已完成（Issue #156 · 2026-09-06）
 
@@ -1304,7 +1330,10 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
   > **且 `example/` 不能當關卡**（2026-09-06 實測）：它依賴 ObjectBox（native-only、`dart:ffi`），在該目錄跑 `flutter build web` **永遠失敗且與本功能無關**。正解是建一個只依賴本套件的最小 harness，讓兩個建構式都進編譯圖後 `flutter build web`——**編譯器擋得住，人眼擋不住**。
 * **Effort**：low（實際落地 5 任務）｜ **排查價值**：⭐⭐⭐⭐（補上網路／崩潰的通知不對稱，QA 背景測試場景剛需）
 
-### §P25. ImageCache 水位計（Image Cache Gauge）— 🆕 low priority
+### ~~§P25. ImageCache 水位計（Image Cache Gauge）~~ — ❌ 不排程（2026-09-10 · 與 §P20 綁定待裁決）
+
+> **⚠️ 本節以下設計內容維持原樣保留，但狀態已於 2026-09-10 改為不排程**——
+> 死因是「形狀與價值對不上」，詳見節尾裁決紀錄。原始評估過程有價值，故不刪。
 
 > **本項是 Issue #158 那個需求唯一可行的形狀**。該案想在 memory pressure 事件當下讀水位，
 > 但 `PaintingBinding` 在通知 observer 前就清空快取，讀到的恆為 0（完整死因見 §P21 的
@@ -1340,6 +1369,46 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
   否決 `leak_tracker` 的第 2 層理由，換個包裝而已）
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐
 
+> **❌ 2026-09-10 裁決：不排程。與 §P20 綁定，待「即時儀表能不能有」一次裁決。**
+>
+> **死因：四項宣稱價值中三項依賴連續觀察，而「不輪詢」的守則使其失效——形狀與價值對不上。**
+> 逐項核對上方價值清單在「打開時才讀一次」下是否成立：
+>
+> | 價值 | 在「讀一次」形狀下 | 為何 |
+> |:---|:---|:---|
+> | 1. 主動量測 | ✅ 成立 | 讀一次就是量測 |
+> | 2. 驗證修改有沒有效（改前 98 MB／改後 31 MB） | ✅ 成立 | 兩次刻意量測，中間隔一次 hot restart |
+> | 3. 有分母才看得出 LRU thrashing | ❌ 失效 | thrashing 的特徵是「**反覆**踢進踢出」，單一瞬間值看不出反覆 |
+> | 4. 回收行為可觀察（切背景再回來看降沒降） | ❌ 失效 | 人在 Storage tab 上時該區不會自己更新，切走再回來才重讀 |
+>
+> **另有一項原文未載的假陰性風險（2026-09-10 討論發現）**：OS 真的發出 memory pressure 時
+> 快取已被 `PaintingBinding` 清空，此時點進 tab 看到 3 MB，使用者極可能誤判為
+> 「我的圖片快取沒問題」，而事實是「剛剛才被清空過」——**清空本身不留痕跡**。
+> 這是本節「誠實劃界」段落只防了「別湊總記憶體數字」、卻沒防到的另一個誤導面向。
+> （交叉印證解：§P21 已完成，pressure 事件會進 lifecycle 時間軸，Console 上查得到——
+> 但需使用者自己想到要對照，該區自己不會講。）
+>
+> **已評估並否決的變體：常駐 overlay**（2026-09-10 提出）。把水位掛在既有
+> `InspectorOverlayManager`（`lib/src/core/inspector_overlay_manager.dart`，28 行，
+> `OverlayEntry` + FAB）上常駐顯示於宿主 app，**確實能救回上表失效的第 3、4 項與假陰性**
+> ——三者需要的都是同一件事：**連續的數值變化**。接線成本也低（基建已存在）。
+>
+> **但它的代價不是實作，是規則**：`imageCache` 無變更通知，三個 getter 是被動欄位，
+> 「伴隨操作看變化」只能定時重讀 → **輪詢**。而螢幕上常駐一個持續跳動的記憶體數字，
+> **比本節已預先釘死的「不開新 Performance tab」更接近 Anti-Feature #1 否決的即時儀表本身**，
+> 且滑坡更順（既然 overlay 能顯示記憶體，為什麼不顯示 FPS？）。
+> 採用此變體必須**正面撤銷或修改 Anti-Feature #1 的即時儀表條款**並定義輪詢頻率守則，
+> 那是改規則的決策，不是加功能。
+>
+> **🔗 與 §P20 綁定的理由**：Anti-Feature #1 同時擋著 §P20 掉幀維度（旗艦、目前待裁決）。
+> 兩者同源——都要求撤銷同一條規則的同一個面向。**分開裁決會自相矛盾**（准了 overlay 顯示
+> 記憶體卻不准顯示 jank，無正當理由），故一併留待該條規則被正式檢討時處理。
+>
+> **重啟條件**（須同時滿足）：
+> 1. Anti-Feature #1 的即時儀表條款被正式檢討（連同 §P20 裁決）
+> 2. 出現**真實**的圖片記憶體問題回報，而非推測
+> 3. 重啟時必須先解決假陰性——水位區要能分辨「本來就低」與「剛被 pressure 清空」
+
 ### 📌 2026-09-08 記憶體觀測選項全面評估（Issue #158 期間，避免日後重提）
 
 使用者引用 Google Play 三個 Vitals 頁面（[memory-usage](https://developer.android.com/topic/performance/vitals/memory-usage)
@@ -1353,7 +1422,7 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 | **LMK 事件偵測** | ❌ **需 platform channel** | Google 推薦的是 `ApplicationExitInfo` + `REASON_LOW_MEMORY`，為 Kotlin/Java API，語意是「**下次啟動時回讀**上次為何被殺」而非即時信號。Dart 層無對應 binding |
 | **Bitmap memory 宣稱對齊 Play Console** | ❌ **假精度** | `imageCache` 是 Flutter 自己的圖片快取帳面，**不等於** OS 統計的 bitmap memory（後者含 malloc heap、shared memory、graphics buffer）|
 | **ImageCache 水位 — 掛在 memory pressure 事件上** | ❌ **讀到的恆為 0** | `PaintingBinding.handleMemoryPressure()` 在通知 observer 前先 `imageCache.clear()`。Issue #158 實作完成後整案撤回，實測證據見 §P21 撤回紀錄 |
-| **ImageCache 水位 — 使用者主動查看時讀取** | ✅ **可做** | 見上方 §P25。讀取時點由使用者決定，不受 `clear()` 影響 |
+| **ImageCache 水位 — 使用者主動查看時讀取** | ✅ **技術上可做**，但 ❌ **不排程** | 讀取時點由使用者決定，不受 `clear()` 影響——**技術可行性成立**。但 §P25 已於 2026-09-10 裁決不排程，死因不在能力邊界而在**形狀與價值對不上**（讀一次救不回需要連續觀察的三項價值），詳見 §P25 裁決紀錄 |
 
 > **🔴 判準沿革（引用時務必分辨，否則會推導出錯誤的相鄰結論）**：
 > 本表的否決與 2026-09-04 否決 `leak_tracker` 的**理由完全不同**——
@@ -1363,7 +1432,11 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 >   List 逼 Full GC、Web 上 Retaining Path 恆為 null、Profile 模式因 `assert` 被消除而靜默失效）
 >
 > 三種否決不可混用。例如「記憶體資訊拿不到」這句話對第四項是**錯的**——它拿得到，
-> 只是讀的時機不對，而那正是 §P25 能成立的原因。
+> 只是讀的時機不對。
+>
+> **2026-09-10 補記**：§P25 已裁決不排程，但**死因是第四種、與本表三種都不同**——
+> 「拿得到、時機也對，但**讀一次的形狀撐不起它宣稱的價值**」（形狀與價值不匹配）。
+> 引用時勿把它併入上述任一種，否則會推導出「ImageCache 讀不到」這個錯誤結論。
 
 ### ❌ app 內不可觀測（誠實劃界，勿浪費工）
 
@@ -1384,8 +1457,13 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
    （`PaintingBinding` 先清快取才通知 observer，讀到的恆為 0；死因與實測見上方 §P21 撤回紀錄）。
    該需求改由 **§P25 水位計**承接（low priority，主動查看時讀取，不綁 OS 事件）
 2. **§P20 掉幀維度**（旗艦、對齊 Core Vital、鏈推斷價值最高）→ **⚠️ 目前為「待裁決」而非待辦**：與 Anti-Feature #1（2026-08-14 覆核）否決的變體同源，需先解決 debug build 誤報爭議；若裁決通過，另需把 timestamp 地雷釘死在計畫
-3. **§P22 權限** / **§P23 crash 鏈快照** → 依需要，兩者 API surface 都待再確認是否值得暴露
-4. **§P25 ImageCache 水位計**（low priority）→ 承接 Issue #158 撤回的需求，不綁 OS 事件
+3. **§P22 權限** → 依需要，API surface 待再確認是否值得暴露
+   （~~§P23 crash 鏈快照~~ 已於 2026-09-10 裁決不排程——因果鏈由既有 `mergedTimeline` 覆蓋、
+   崩潰路徑上做 IO 高風險、縮到安全形狀後與已完成的 §P24 重疊；詳見該節裁決紀錄）
+4. ~~**§P25 ImageCache 水位計**~~ → **已於 2026-09-10 裁決不排程**，與 §P20 綁定。
+   四項價值中三項依賴連續觀察，而連續觀察需輪詢、輪詢踩 Anti-Feature #1；
+   常駐 overlay 變體能救回價值但要求正面撤銷該條規則，與 §P20 同源，一併待裁決。
+   **Issue #158 那條需求因此目前無可行形狀**（詳見該節裁決紀錄）
 
 > **🔴 §P21 的一條結構性風險（2026-09-08 查 Google 官方文件發現，此前未載）**：
 > `didHaveMemoryPressure()` 在 Android 端是由 **`onTrimMemory`** 餵的
@@ -1495,7 +1573,7 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 | **§P4** 快速複製 Diagnostic Snippet | NetworkDetailView 一鍵 cURL + error payload | trivial~low | ⬜ |
 | **§P16** 生態日誌適配器 | `logger` (LogOutput) / `talker` (Observer) / `logging` 純介面轉譯適配器與 README 接線食譜 | trivial~low | ⬜ |
 | **§P18** 輕量網路效能統計條 | NetworkTab 頂部純計算 Stats Bar (Total / Fail / Avg Latency / Bytes) | low | ⬜ |
-| **§P25** ImageCache 水位計 | Storage tab 內常駐顯示 `currentSizeBytes`/`maximumSizeBytes`/張數，**打開時才讀不輪詢**；不開新 Performance tab | low | ⬜ |
+| ~~**§P25** ImageCache 水位計~~ | ~~Storage tab 內常駐顯示 `currentSizeBytes`/`maximumSizeBytes`/張數，**打開時才讀不輪詢**~~ — ❌ 不排程（2026-09-10）：三項價值依賴連續觀察，與「不輪詢」守則衝突；overlay 變體與 §P20 綁定待裁決 | ~~low~~ | ❌ |
 | **§P19** StackTrace 非同步鏈正規化 | 框架噪聲折疊 (`[... N frames of framework internals]`) 與非同步中斷因果鏈還原 | low~med | ✅ |
 | **§D4** DatabaseTab 搜尋/過濾 | 搜尋 + operation FilterChip | low~med | ⬜ |
 | **§P17** 原生折疊式 JSON 樹狀檢視器 | `JsonTreeViewer` 遞迴節點展開、語法高亮、路徑複製與搜尋 | med | ⬜ |
@@ -1523,6 +1601,8 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 | ~~§P14 `inspector.mark()`~~ | 與 `log()` 無功能差異，是渲染差異非資訊差異；併入 §P7 或用 emoji 約定取代 |
 | ~~§P12 離線/斷網標記~~ | 需 `connectivity_plus` 新相依，`DioExceptionType.connectionError` 已覆蓋多數情境；改寫 README 食譜 |
 | ~~§D3 ±5s 側欄~~ | 固定時間窗與「找因果」目標不匹配，由 §P2 取代 |
+| ~~§P23 Crash 前因果鏈快照~~ | 因果鏈已由既有 `mergedTimeline` 覆蓋（零新增維度）；崩潰路徑上做匯出 IO 有 error storm／遞迴／`BuildContext` 三風險；縮到安全形狀後與已完成的 §P24 重疊（2026-09-10） |
+| ~~§P25 ImageCache 水位計~~ | 四項價值中三項依賴連續觀察，而「不輪詢」守則使其失效——形狀與價值對不上；常駐 overlay 變體可救回但需正面撤銷 Anti-Feature #1 即時儀表條款，**與 §P20 同源、綁定待裁決**（2026-09-10） |
 
 ---
 
