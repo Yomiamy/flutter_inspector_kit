@@ -382,6 +382,37 @@
 - **影響範圍**：`lib/src/ui/dashboard/tabs/database_tab.dart`
 - **Effort**：low ｜ **排查價值**：⭐⭐⭐
 
+#### 🔴 動工前必讀：本節設計方向有兩處錯誤（2026-09-11 實查，Issue #159 已放棄之嘗試）
+
+Issue #159 曾依本節字面實作，過程中發現**上列設計方向本身寫錯了**。該次實作最終未發 PR
+（分支 `feature/202609/159-database-search-filter` 保留，未推 remote），但兩項發現對後續動工有效：
+
+**錯誤一：operation FilterChip 的落點錯了一層。**
+
+| 本節假設 | 實際資料模型 |
+|:---|:---|
+| DatabaseTab 一列有 operation 可篩 | 一列 = **一張表**（`DatabaseTableInfo{name, rowCount}`，`database_browser_source.dart:21`），**無 operation 欄位** |
+| 「模式完全對齊 NetworkTab」 | NetworkTab 一列 = 一個 `NetworkEntry`（有 method/status）。**兩者列的語意不在同一層級** |
+
+`DatabaseOperation` 是 **entry 層級**欄位，經 `OperationLogSource.fetchRows()`（`:66-69`）
+攤成 `#op` 欄，只在下一層 `TableRowsView` 看得到。在表清單上放 operation chip 語意不成立
+（唯一可能是「篩出含該 operation 的表」，需掃全表 entries 且結果仍是表），
+且對非 `OperationLogSource`（真實 DB）**完全無意義**——真實 DB 的表沒有 operation 概念。
+
+**動工時應改為**：表名搜尋放 `DatabaseTab`（對所有 source 有意義）；
+operation FilterChip 放 `TableRowsView`，且顯示判準用「這份資料有沒有 `#op` 欄」
+而非「source 是不是 `OperationLogSource`」——後者會讓 UI 層綁死特定 source 實作，
+前者讓真實 DB 天然走 no-op 路徑，特殊情況消失。
+
+**錯誤二：本節的「搜尋」漏了真正的需求，但那個需求已裁決不做。**
+
+本節把「搜尋」寫成 **table name / SQL operation**，而排查時真正的動作是
+**搜尋表裡的資料**（「哪筆 order 的 status 是 failed」）。該缺口已於 2026-09-11
+裁決**不排程**，理由見下方「不排程」總表——動工時**不要**因為覺得「搜尋只做表名很半殘」
+而自行補上資料搜尋，那條路已經評估過且被否決。
+
+**本節剩餘的有效範圍**：表名搜尋 + operation FilterChip（依上述修正後的落點）。
+
 ---
 
 ### §D6. Inspector 自身頁面污染 NavigatorTab（既有缺陷）— ✅ 已完成（2026-07-27 實查確認）
@@ -1586,6 +1617,18 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 >
 > **2026-08-28 生態評估新增**：納入 **§P16 生態適配器**（trivial~low）、**§P18 輕量網路統計條**（low）、**§P19 堆疊正規化**（low~med）與 **§P17 原生折疊 JSON 檢視器**（med）。四者皆為零新相依、高排查 ROI 之打磨項目。本層活躍待辦現為 6 項（§P4 / §P16 / §P18 / §D4 / §P17 / §P9）——**§P19 已於 PR #149 完成**（2026-09-01 實查確認 `log_formatters.dart:95` `normalizeStackTrace()` 與 `log_detail_view.dart:94` 的 concise/raw 切換皆已就位），故不計入。
 >
+> **📌 2026-09-11 補記（Issue #159 放棄之嘗試，教訓保留）**：§D4 曾依文件字面開發，
+> 實作完成（表名搜尋 + operation chips，610 tests 綠）後**放棄發 PR**，
+> 因為過程中發現**設計方向本身有兩處錯誤**：operation chip 落點錯了一層、
+> 「搜尋」漏了「搜表內資料」這個真正需求（後者已裁決不排程）。
+> 詳見 §D4 節新增的「動工前必讀」。**§D4 本體仍為待辦**，動工前務必先讀該段，
+> 不要重蹈同一條路。
+>
+> **這是本文件第四次狀態漂移，且型態是新的**——前三次（§D6 / §P8 / §P19）都是
+> 「標為待辦、實際已完成」，屬**狀態欄過期**；這次是**提案內容本身寫錯**
+> （落點與資料模型對不上、且遺漏核心需求），照字面實作會產出一半的功能。
+> 因此實查紀律擴充一條：**不只核對「做了沒」，還要核對「提案描述的落點與資料模型是否對得上」**。
+>
 > **§P4 的 effort 下修為 trivial~low**（2026-08-06 實查）：`buildCurl` / `buildPlainText` / `shareText`
 > 皆已存在且已接 redaction 旗標，`PopupMenuButton<_ShareAction>` 選單也已在 detail view 就位——
 > 本項實為「既有選單多加一個 enum 值 + 一個組裝 formatter」，非從零新建 UI。
@@ -1603,6 +1646,7 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 | ~~§D3 ±5s 側欄~~ | 固定時間窗與「找因果」目標不匹配，由 §P2 取代 |
 | ~~§P23 Crash 前因果鏈快照~~ | 因果鏈已由既有 `mergedTimeline` 覆蓋（零新增維度）；崩潰路徑上做匯出 IO 有 error storm／遞迴／`BuildContext` 三風險；縮到安全形狀後與已完成的 §P24 重疊（2026-09-10） |
 | ~~§P25 ImageCache 水位計~~ | 四項價值中三項依賴連續觀察，而「不輪詢」守則使其失效——形狀與價值對不上；常駐 overlay 變體可救回但需正面撤銷 Anti-Feature #1 即時儀表條款，**與 §P20 同源、綁定待裁決**（2026-09-10） |
+| ~~§D4 的「表內資料搜尋」~~（§D4 本體仍待辦） | `DatabaseBrowserSource.fetchRows(tableName, {limit, offset})` 是**分頁契約、無 `keyword` 參數**，故資料搜尋只有三種形狀且全不可接受：① **只搜已載入的那一頁**（預設 200 筆）= 半殘檢索，搜到 2 筆卻不知另有 800 筆未載入未搜，**正是本文件否決過的「切斷前後文的點查詢」**，比沒有搜尋更危險（給出看似完整的答案）；② **加 `keyword` 下推到 source** = 破壞 Host 既有實作（違反 Never break userspace），且舊實作會無聲忽略該參數、退化成形狀 ①；③ **一次載入全部再搜** = 與分頁設計正面衝突，大表全量載入是記憶體與 UI 卡頓風險，debug 工具不該為檢索便利承擔此代價。**旁證：多數同類工具（Alice / Chucker）同樣不提供 DB 表內全文搜尋，受同一結構性限制**——這不是本 kit 的疏漏，是問題本身的形狀。需求由 operation FilterChip + 欄位排序（既有 `sortRows`）+ `mergedTimeline` 的 db 事件（含 tableName 與 operation）覆蓋；要定位特定資料，正解是從時間軸的 db 事件切入而非在表格裡撈（2026-09-11 · Issue #159 開發途中裁決） |
 
 ---
 
