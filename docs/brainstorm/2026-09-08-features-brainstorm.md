@@ -1305,7 +1305,7 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 > **必須實測該時點的值**（寫個 spy/probe 跑一次），不能只確認 API 存在。
 > 這條成本是十幾行拋棄式測試碼，換掉的是一整輪實作 + review + 撤回。
 
-### §P22. 權限被拒便利方法（`permissionDenied(...)`）— 🆕 弱但有用
+### ~~§P22. 權限被拒便利方法（`permissionDenied(...)`）~~ — ❌ 不排程（2026-09-11）
 
 * **痛點**：Permission Denials 是 Additional vital。但 Flutter framework **無任何 permission binding**——沒有可被動訂閱的全域信號源（實查 `network_notifier_io.dart`：kit 只在自己的 call site 拿得到權限回傳值）。
 * **好品味設計**：
@@ -1313,6 +1313,53 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 * **公開 API**：`permissionDenied(permission, {activeRoute})`——對齊既有 `log`/`logNetwork`/`database` 每維度一具名 forward 的慣例（**非** `capture` bool flag，因為 kit 無法自動觀測、只能被動接收 host 餵的資料）。
 * **哲學審查提醒**：philosophy lens 判為 **weak**——它**不提供新的因果原料**（permission 資訊 host 在 call site 已握有），kit 只多貢獻 `activeRoute` 錨點與時序。價值真實但有限，API surface 是否值得暴露待定（可能只需文件示範用既有 `log` 記即可，不必新增方法）。
 * **Effort**：trivial ｜ **排查價值**：⭐⭐
+
+#### ❌ 裁決：不排程（2026-09-11）
+
+上方「弱但有用」的定性經兩點實查後不成立，本項降為不排程。
+
+**一、`activeRoute` 錨點不是本項的貢獻——既有 `log()` 已經自動帶了。**
+
+實查 `lib/src/core/flutter_inspector.dart:380`：`log()` 內部固定填入
+`activeRoute: _currentTopPageLabel()`，host 不必自己查、不必手動塞。於是：
+
+```dart
+// host 現在就能寫，activeRoute 自動帶上
+FlutterInspector.I.log('[permission] camera denied', level: LogLevel.warning);
+
+// §P22 原提案
+FlutterInspector.I.permissionDenied('camera');
+```
+
+**兩者產出完全相同**，差別只有省下幾個字元與統一字串格式。原提案簽章
+`permissionDenied(permission, {activeRoute})` 更是錯的——開放 caller 傳
+`activeRoute` 會與 `log()` 的自動填值製造第二份真相。本項包裝的東西本來就零成本，
+價值不是「有限」，是**趨近於零**。
+
+**二、致命問題：全清單唯一需逐 call site 手動埋的維度，且部分覆蓋比零覆蓋更危險。**
+
+kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
+
+| 維度 | 接線方式 | 漏記可能 |
+|:---|:---|:---|
+| network | Dio interceptor 接一次 | 零——所有請求自動進 |
+| nav | `NavigatorObserver` 掛一次 | 零——所有跳轉自動進 |
+| db | source 註冊一次 | 零 |
+| uncaught error | 三路 hook 接一次 | 零 |
+| **§P22 權限** | **逐個權限 call site 各埋一次** | **完全取決於開發者記性** |
+
+這與**已取消的 §P10 Rebuild 異常偵測同一條死因**——「全清單唯一需逐 widget 接線，
+非 app 層級 flag」。§P22 是同一句話的 call site 版本。
+
+而漏埋的後果比沒做更糟：host 埋了 5 個權限點、漏掉第 6 個，排查者看到時間軸上
+有其他權限事件，會**合理推論「kit 會記權限，沒出現代表沒發生」**，然後往錯方向查。
+**沒有這功能時排查者知道這塊看不到，會去別處找；有了但不完整，反而給出看似完整的答案。**
+這正是本文件否決 §D4「表內資料搜尋」用的同一條判準（半殘檢索比沒有更危險）。
+
+**需求的實際覆蓋者**：既有 `log()`。README 若要寫食譜，**必須同時寫明其不具完整性**——
+不可暗示「照這樣埋就有權限觀測能力」，因為那個完整性取決於記性，而記性不是能力。
+本項的正確歸屬更接近第七部分的「❌ app 內不可觀測（誠實劃界，勿浪費工）」，
+而非待辦清單。
 
 ### ~~§P23. Crash 前因果鏈快照（強化既有 `captureUncaughtErrors`）~~ — ❌ 不排程（2026-09-10）
 
@@ -1488,7 +1535,10 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
    （`PaintingBinding` 先清快取才通知 observer，讀到的恆為 0；死因與實測見上方 §P21 撤回紀錄）。
    該需求改由 **§P25 水位計**承接（low priority，主動查看時讀取，不綁 OS 事件）
 2. **§P20 掉幀維度**（旗艦、對齊 Core Vital、鏈推斷價值最高）→ **⚠️ 目前為「待裁決」而非待辦**：與 Anti-Feature #1（2026-08-14 覆核）否決的變體同源，需先解決 debug build 誤報爭議；若裁決通過，另需把 timestamp 地雷釘死在計畫
-3. **§P22 權限** → 依需要，API surface 待再確認是否值得暴露
+3. ~~**§P22 權限**~~ → **已於 2026-09-11 裁決不排程**——`activeRoute` 錨點既有 `log()`
+   已自動帶（`flutter_inspector.dart:380`），本項包裝成本趨近於零；且它是全清單唯一
+   需逐 call site 手動埋的維度（與已取消的 §P10 同一死因），漏埋會讓排查者誤判
+   「時間軸無權限事件 = 未發生權限拒絕」，部分覆蓋比零覆蓋更危險（詳見該節裁決紀錄）
    （~~§P23 crash 鏈快照~~ 已於 2026-09-10 裁決不排程——因果鏈由既有 `mergedTimeline` 覆蓋、
    崩潰路徑上做 IO 高風險、縮到安全形狀後與已完成的 §P24 重疊；詳見該節裁決紀錄）
 4. ~~**§P25 ImageCache 水位計**~~ → **已於 2026-09-10 裁決不排程**，與 §P20 綁定。
@@ -1507,7 +1557,7 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 > 這不影響 PR #155 已落地實作的正確性，但它是 §P25 的另一個存在理由——
 > **押注單一 OS 事件的排查路徑有結構性上限，主動量測不受此限**。
 
-> 各項寫入路徑：§P20 新增 `lib/src/models/jank_entry.dart` + `lib/src/inspectors/jank_inspector.dart` + 動 `inspector_registry.dart`/`flutter_inspector.dart`/`console_tab.dart`；§P21/§P22/§P23 皆強化既有維度，不新增檔案。
+> 各項寫入路徑：§P20 新增 `lib/src/models/jank_entry.dart` + `lib/src/inspectors/jank_inspector.dart` + 動 `inspector_registry.dart`/`flutter_inspector.dart`/`console_tab.dart`；§P21 強化既有維度、不新增檔案（~~§P22~~ / ~~§P23~~ 均已裁決不排程）。
 
 ---
 
@@ -1646,6 +1696,7 @@ review 階段的 mutation testing 之所以能揭穿它，是因為它問的不�
 | ~~§D3 ±5s 側欄~~ | 固定時間窗與「找因果」目標不匹配，由 §P2 取代 |
 | ~~§P23 Crash 前因果鏈快照~~ | 因果鏈已由既有 `mergedTimeline` 覆蓋（零新增維度）；崩潰路徑上做匯出 IO 有 error storm／遞迴／`BuildContext` 三風險；縮到安全形狀後與已完成的 §P24 重疊（2026-09-10） |
 | ~~§P25 ImageCache 水位計~~ | 四項價值中三項依賴連續觀察，而「不輪詢」守則使其失效——形狀與價值對不上；常駐 overlay 變體可救回但需正面撤銷 Anti-Feature #1 即時儀表條款，**與 §P20 同源、綁定待裁決**（2026-09-10） |
+| ~~§P22 權限被拒便利方法~~ | `activeRoute` 錨點既有 `log()` 已自動帶（`flutter_inspector.dart:380`），包裝價值趨近於零；**全清單唯一需逐 call site 手動埋的維度**，與已取消的 §P10「唯一需逐 widget 接線」同一死因。漏埋的後果比沒做更糟——排查者會誤判「時間軸無權限事件 = 未發生權限拒絕」，**部分覆蓋比零覆蓋更危險**（同 §D4 表內資料搜尋的判準）。需求由既有 `log()` 覆蓋，README 若寫食譜須明說不具完整性（2026-09-11） |
 | ~~§D4 的「表內資料搜尋」~~（§D4 本體仍待辦） | `DatabaseBrowserSource.fetchRows(tableName, {limit, offset})` 是**分頁契約、無 `keyword` 參數**，故資料搜尋只有三種形狀且全不可接受：① **只搜已載入的那一頁**（預設 200 筆）= 半殘檢索，搜到 2 筆卻不知另有 800 筆未載入未搜，**正是本文件否決過的「切斷前後文的點查詢」**，比沒有搜尋更危險（給出看似完整的答案）；② **加 `keyword` 下推到 source** = 破壞 Host 既有實作（違反 Never break userspace），且舊實作會無聲忽略該參數、退化成形狀 ①；③ **一次載入全部再搜** = 與分頁設計正面衝突，大表全量載入是記憶體與 UI 卡頓風險，debug 工具不該為檢索便利承擔此代價。**旁證：多數同類工具（Alice / Chucker）同樣不提供 DB 表內全文搜尋，受同一結構性限制**——這不是本 kit 的疏漏，是問題本身的形狀。需求由 operation FilterChip + 欄位排序（既有 `sortRows`）+ `mergedTimeline` 的 db 事件（含 tableName 與 operation）覆蓋；要定位特定資料，正解是從時間軸的 db 事件切入而非在表格裡撈（2026-09-11 · Issue #159 開發途中裁決） |
 
 ---
