@@ -299,11 +299,7 @@ class _EntryTile extends StatelessWidget {
       onTap: () => pushInspectorRoute(
         context,
         kInspectorNetworkDetailRoute,
-        (_) => NetworkDetailView(
-          entry: entry,
-          redactSensitiveData: redactSensitiveData,
-          inspector: inspector,
-        ),
+        (_) => NetworkDetailView(entry: entry, inspector: inspector),
       ),
     );
   }

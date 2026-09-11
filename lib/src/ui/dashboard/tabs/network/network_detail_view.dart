@@ -19,10 +19,10 @@ enum _ShareAction { curl, text, share, agentPrompt }
 class NetworkDetailView extends StatelessWidget {
   const NetworkDetailView({
     required this.entry,
-    this.redactSensitiveData = true,
+    bool redactSensitiveData = true,
     this.inspector,
     super.key,
-  });
+  }) : _redactParam = redactSensitiveData;
 
   final NetworkEntry entry;
 
@@ -31,10 +31,18 @@ class NetworkDetailView extends StatelessWidget {
   /// item is hidden rather than offered with no route history behind it.
   final FlutterInspector? inspector;
 
-  /// Whether share/export paths mask sensitive headers. Mirrors
-  /// [FlutterInspector.redactSensitiveData]. Defaults to `true` (secure by
-  /// default) so a NetworkDetailView built without this value still redacts.
-  final bool redactSensitiveData;
+  /// Whether share/export paths mask sensitive headers. Defaults to `true`
+  /// (secure by default) so a NetworkDetailView built without this value still
+  /// redacts.
+  ///
+  /// [inspector] wins when it is supplied: the host's
+  /// [FlutterInspector.redactSensitiveData] is the real setting, and letting a
+  /// stale bool override it would silently unmask a host that had opted in.
+  final bool _redactParam;
+
+  /// The redaction setting actually applied, resolving the two inputs above.
+  bool get redactSensitiveData =>
+      inspector?.redactSensitiveData ?? _redactParam;
 
   @override
   Widget build(BuildContext context) {

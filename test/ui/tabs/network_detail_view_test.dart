@@ -632,4 +632,39 @@ void main() {
       expect(find.text('Exception Details'), findsNothing);
     });
   });
+
+  group('NetworkDetailView — redaction precedence', () {
+    test('an inspector overrides the bool in both directions', () {
+      final entry = NetworkEntry(method: 'GET', url: 'https://example.com');
+
+      // A host that opted into redaction is not unmasked by a stale `false`.
+      final redactingHost = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      expect(
+        NetworkDetailView(
+          entry: entry,
+          redactSensitiveData: false,
+          inspector: redactingHost,
+        ).redactSensitiveData,
+        isTrue,
+      );
+
+      // And a host that opted out is honoured over the secure default.
+      final openHost = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: false,
+      );
+      expect(
+        NetworkDetailView(
+          entry: entry,
+          inspector: openHost,
+        ).redactSensitiveData,
+        isFalse,
+      );
+
+      // With no inspector the parameter still decides, defaulting to secure.
+      expect(NetworkDetailView(entry: entry).redactSensitiveData, isTrue);
+    });
+  });
 }

@@ -415,6 +415,7 @@ class FlutterInspector {
   /// Pass the entry returned for the pending request as [replaces] when
   /// logging its completed counterpart, so the pending entry is updated in
   /// place instead of producing a duplicate list item.
+  ///
   /// The route anchor is stamped here rather than at each interceptor hook, so
   /// the three hooks (`onRequest`/`onResponse`/`onError`) cannot drift apart.
   /// A completing entry inherits the anchor its pending counterpart captured:

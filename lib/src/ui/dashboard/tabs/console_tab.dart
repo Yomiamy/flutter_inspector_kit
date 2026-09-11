@@ -527,11 +527,7 @@ class _NetworkEntryRow extends StatelessWidget {
       onTap: () => pushInspectorRoute(
         context,
         kInspectorNetworkDetailRoute,
-        (_) => NetworkDetailView(
-          entry: entry,
-          redactSensitiveData: inspector.redactSensitiveData,
-          inspector: inspector,
-        ),
+        (_) => NetworkDetailView(entry: entry, inspector: inspector),
       ),
       onLongPress: onToggleBookmark,
     );

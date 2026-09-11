@@ -49,6 +49,7 @@ class NavigatorEntry implements TimestampedEntry {
   /// `activeRoute` against a navigation event means both sides must spell the
   /// route the same way, so `FlutterInspector` builds its anchor by calling
   /// this getter rather than restating the formula.
+  ///
   /// Degrades to a bare [displayName] when the two would be the same string:
   /// with no resolved [widgetType], `displayName` already *is* the route name,
   /// and appending it again reads as `/checkout (/checkout)`.

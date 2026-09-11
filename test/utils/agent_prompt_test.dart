@@ -185,6 +185,29 @@ void main() {
       expect(prompt, contains('showing the 5 most recent of 9 events'));
     });
 
+    test('exit 2: discloses a cap that lands on the last candidate', () {
+      // The cap is exactly the candidate count, so the walk stops without ever
+      // examining whether an entry point sat just beyond it. Reporting "all N"
+      // here would claim a completeness that was never checked.
+      final noise = List.generate(
+        5,
+        (i) => LogEntry(
+          level: LogLevel.debug,
+          message: 'noise $i',
+          timestamp: _Data.at(i),
+          activeRoute: _Data.route,
+        ),
+      );
+
+      final prompt = buildAgentPrompt(
+        _Data.error(),
+        timeline: _timeline(noise),
+        maxTraceBackEntries: 5,
+      );
+      expect(prompt, contains('showing the 5 most recent of 5 events'));
+      expect(prompt, isNot(contains('showing all')));
+    });
+
     test('exit 3: discloses a missing entry point', () {
       final timeline = _timeline([
         LogEntry(

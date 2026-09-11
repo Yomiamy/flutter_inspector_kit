@@ -145,8 +145,12 @@ _TraceBack _traceBack(
 
   final kept = <TimestampedEntry>[];
   var foundEntryPoint = false;
+  var hitCap = false;
   for (final e in candidates) {
-    if (kept.length >= maxEntries) break;
+    if (kept.length >= maxEntries) {
+      hitCap = true;
+      break;
+    }
     kept.add(e);
     if (e is NavigatorEntry && _kEntryActions.contains(e.action)) {
       foundEntryPoint = true;
@@ -157,7 +161,10 @@ _TraceBack _traceBack(
   if (foundEntryPoint) return _TraceBack(kept, null);
 
   final total = candidates.length;
-  if (kept.length >= maxEntries && total > kept.length) {
+  // Exhausting the cap is reported even when it lands exactly on the last
+  // candidate: the walk stopped without reaching an entry point, so claiming
+  // "all N events" would assert a completeness it never checked.
+  if (hitCap || kept.length >= maxEntries) {
     return _TraceBack(
       kept,
       '(showing the ${kept.length} most recent of $total events on this route)',
