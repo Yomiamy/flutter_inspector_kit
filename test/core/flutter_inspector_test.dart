@@ -94,6 +94,35 @@ void main() {
       );
     });
 
+    test('rejects zero or negative maxTraceBackEntries', () {
+      for (final invalid in [0, -1]) {
+        expect(
+          () => FlutterInspector(
+            navigatorKey: GlobalKey<NavigatorState>(),
+            maxTraceBackEntries: invalid,
+          ),
+          throwsArgumentError,
+          reason: 'maxTraceBackEntries: $invalid',
+        );
+      }
+    });
+
+    test('defaults maxTraceBackEntries to 50 and accepts an override', () {
+      expect(
+        FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        ).maxTraceBackEntries,
+        50,
+      );
+      expect(
+        FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          maxTraceBackEntries: 5,
+        ).maxTraceBackEntries,
+        5,
+      );
+    });
+
     test('accepts zero and positive slowRequestThreshold', () {
       final inspectorZero = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),

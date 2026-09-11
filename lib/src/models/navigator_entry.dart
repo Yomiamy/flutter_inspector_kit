@@ -41,6 +41,25 @@ class NavigatorEntry implements TimestampedEntry {
   String get displayName =>
       widgetType?.toString() ?? routeName ?? 'Unknown Route';
 
+  /// The label identifying this entry's destination, matching the format
+  /// stamped onto [LogEntry.activeRoute] and its network/database
+  /// counterparts.
+  ///
+  /// This is the single source of truth for that format: comparing an entry's
+  /// `activeRoute` against a navigation event means both sides must spell the
+  /// route the same way, so `FlutterInspector` builds its anchor by calling
+  /// this getter rather than restating the formula.
+  /// Degrades to a bare [displayName] when the two would be the same string:
+  /// with no resolved [widgetType], `displayName` already *is* the route name,
+  /// and appending it again reads as `/checkout (/checkout)`.
+  String get routeLabel {
+    final route = routeName;
+    if (route == null || route.isEmpty || route == displayName) {
+      return displayName;
+    }
+    return '$displayName ($route)';
+  }
+
   /// Returns a copy of this entry with the given fields replaced.
   NavigatorEntry copyWith({
     DateTime? timestamp,

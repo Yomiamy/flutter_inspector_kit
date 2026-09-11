@@ -38,6 +38,7 @@ class NetworkEntry implements TimestampedEntry {
     this.isReplay = false,
     this.origin = NetworkOrigin.dio,
     this.pageUrl,
+    this.activeRoute,
     Dio? sourceDio,
     DateTime? timestamp,
   }) : sourceDio = sourceDio != null ? WeakReference(sourceDio) : null,
@@ -93,6 +94,19 @@ class NetworkEntry implements TimestampedEntry {
   /// [origin] is [NetworkOrigin.webview]; `null` for native requests.
   final String? pageUrl;
 
+  /// The route the user was on when this request was **sent**, in
+  /// [NavigatorEntry.routeLabel] format.
+  ///
+  /// Captured at `onRequest` and deliberately never overwritten on completion:
+  /// the question this answers is "who issued this call", and the user may
+  /// well have navigated away while it was in flight. Stamping the completing
+  /// route would point at an innocent page — a confident wrong answer, which
+  /// is worse than none.
+  ///
+  /// Null for requests made before the first route was pushed, and for
+  /// entries built outside the Dio interceptor (e.g. WebView-originated).
+  final String? activeRoute;
+
   /// The [Dio] instance that originated this request.
   ///
   /// This is a **transient runtime reference** wrapped in a [WeakReference]
@@ -135,6 +149,7 @@ class NetworkEntry implements TimestampedEntry {
     bool? isReplay,
     NetworkOrigin? origin,
     String? pageUrl,
+    String? activeRoute,
     Dio? sourceDio,
   }) {
     return NetworkEntry(
@@ -154,6 +169,7 @@ class NetworkEntry implements TimestampedEntry {
       isReplay: isReplay ?? this.isReplay,
       origin: origin ?? this.origin,
       pageUrl: pageUrl ?? this.pageUrl,
+      activeRoute: activeRoute ?? this.activeRoute,
       sourceDio: sourceDio ?? this.sourceDio?.target,
     );
   }
@@ -176,7 +192,8 @@ class NetworkEntry implements TimestampedEntry {
         other.isComplete == isComplete &&
         other.isReplay == isReplay &&
         other.origin == origin &&
-        other.pageUrl == pageUrl;
+        other.pageUrl == pageUrl &&
+        other.activeRoute == activeRoute;
   }
 
   @override
@@ -195,6 +212,7 @@ class NetworkEntry implements TimestampedEntry {
     isReplay,
     origin,
     pageUrl,
+    activeRoute,
   );
 
   /// Number of UTF-8 bytes in the (possibly truncated) request body.

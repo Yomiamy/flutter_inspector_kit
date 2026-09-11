@@ -151,6 +151,10 @@ class FlutterInspector {
   /// Defaults to 2 seconds.
   final Duration slowRequestThreshold;
 
+  /// Caps the same-route events carried by an agent prompt. See the
+  /// constructor for why this is a fuse rather than a routine limit.
+  final int maxTraceBackEntries;
+
   late final UncaughtErrorHandler _uncaughtErrorHandler;
   late final LifecycleHandler _lifecycleHandler;
   late final InspectorRegistry _registry;
@@ -227,6 +231,11 @@ class FlutterInspector {
   ///
   /// [slowRequestThreshold] marks completed requests as slow when their
   /// duration is greater than or equal to this value. Defaults to 2 seconds.
+  ///
+  /// [maxTraceBackEntries] caps how many same-route events an agent prompt
+  /// carries. It is a fuse for long-lived pages, not a routine limit: the walk
+  /// normally stops at the route's entry point well before this. Defaults
+  /// to 50.
   FlutterInspector({
     this.customTab,
     this.customTabTitle = 'Custom',
@@ -239,6 +248,7 @@ class FlutterInspector {
     this.redactSensitiveData = true,
     this.diagnosticInfoSource,
     this.slowRequestThreshold = const Duration(seconds: 2),
+    this.maxTraceBackEntries = 50,
     int bufferSize = 500,
     NetworkNotifier? notifier,
     NetworkNotifier? crashNotifier,
@@ -250,6 +260,13 @@ class FlutterInspector {
         slowRequestThreshold,
         'slowRequestThreshold',
         'must not be negative',
+      );
+    }
+    if (maxTraceBackEntries <= 0) {
+      throw ArgumentError.value(
+        maxTraceBackEntries,
+        'maxTraceBackEntries',
+        'must be greater than zero',
       );
     }
     _overlayManager = InspectorOverlayManager(onFabTap: (_) => openDashboard());
@@ -398,8 +415,19 @@ class FlutterInspector {
   /// Pass the entry returned for the pending request as [replaces] when
   /// logging its completed counterpart, so the pending entry is updated in
   /// place instead of producing a duplicate list item.
+  /// The route anchor is stamped here rather than at each interceptor hook, so
+  /// the three hooks (`onRequest`/`onResponse`/`onError`) cannot drift apart.
+  /// A completing entry inherits the anchor its pending counterpart captured:
+  /// the anchor answers "who issued this call", and the user may have
+  /// navigated away while it was in flight. An [entry] that already carries an
+  /// `activeRoute` keeps it, so callers outside Dio stay in control.
   NetworkEntry logNetwork(NetworkEntry entry, {NetworkEntry? replaces}) {
-    return _registry.network.add(entry, replaces: replaces);
+    final anchored = entry.activeRoute != null
+        ? entry
+        : entry.copyWith(
+            activeRoute: replaces?.activeRoute ?? _currentTopPageLabel(),
+          );
+    return _registry.network.add(anchored, replaces: replaces);
   }
 
   /// Records a database operation.
@@ -415,6 +443,7 @@ class FlutterInspector {
         tableName: tableName,
         data: data,
         affectedRows: affectedRows,
+        activeRoute: _currentTopPageLabel(),
       ),
     );
   }
@@ -439,11 +468,7 @@ class FlutterInspector {
   String? _currentTopPageLabel() {
     final stack = NavigatorStackResolver().resolve(navigatorEntries);
     if (stack.isEmpty) return null;
-    final top = stack.first;
-    final route = top.routeName;
-    return (route == null || route.isEmpty)
-        ? top.displayName
-        : '${top.displayName} ($route)';
+    return stack.first.routeLabel;
   }
 
   /// Opens the full-screen dashboard modal.
