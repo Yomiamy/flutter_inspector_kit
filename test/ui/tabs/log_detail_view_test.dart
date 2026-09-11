@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/log_entry.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/console/log_detail_view.dart';
@@ -109,6 +110,64 @@ void main() {
       expect(find.text('Share concise…'), findsOneWidget);
       // No cURL option
       expect(find.text('Copy as cURL'), findsNothing);
+    });
+  });
+
+  group('LogDetailView — agent prompt', () {
+    testWidgets('hides the agent prompt item without an inspector', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(home: LogDetailView(entry: fullEntry())),
+      );
+      await tester.tap(find.byIcon(Icons.share));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Copy prompt for AI agent'), findsNothing);
+      expect(find.text('Copy concise'), findsOneWidget);
+    });
+
+    testWidgets('offers and copies the agent prompt with an inspector', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LogDetailView(entry: fullEntry(), inspector: inspector),
+        ),
+      );
+      await tester.tap(find.byIcon(Icons.share));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy prompt for AI agent'));
+      await tester.pumpAndSettle();
+
+      expect(copied, isNotNull);
+      expect(copied, contains('not a static-analysis conclusion'));
+      expect(copied, contains('Something went wrong'));
+      expect(
+        copied,
+        contains('Investigate the cause in this codebase and propose a fix.'),
+      );
     });
   });
 }
