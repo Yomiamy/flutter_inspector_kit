@@ -5,6 +5,8 @@ import 'package:flutter_inspector_kit/src/models/database_operation.dart';
 import 'package:flutter_inspector_kit/src/models/diagnostic_info.dart';
 import 'package:flutter_inspector_kit/src/models/key_value_browser_source.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
+import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
+import 'package:flutter_inspector_kit/src/models/navigator_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -92,6 +94,35 @@ void main() {
         ),
         throwsArgumentError,
       );
+    });
+
+    test('a completing request keeps its pending anchor, null included', () {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+
+      // No route has been pushed, so the send-time anchor is null. The
+      // completing entry must inherit that null rather than fall back to
+      // whatever page is open by the time the response lands.
+      final pending = inspector.logNetwork(
+        NetworkEntry(method: 'GET', url: 'https://example.com/early'),
+      );
+      expect(pending.activeRoute, isNull);
+
+      inspector.navigatorInspector.add(
+        NavigatorEntry(action: NavigatorAction.push, routeName: '/late'),
+      );
+
+      final completed = inspector.logNetwork(
+        NetworkEntry(
+          method: 'GET',
+          url: 'https://example.com/early',
+          statusCode: 200,
+          isComplete: true,
+        ),
+        replaces: pending,
+      );
+      expect(completed.activeRoute, isNull);
     });
 
     test('rejects zero or negative maxTraceBackEntries', () {

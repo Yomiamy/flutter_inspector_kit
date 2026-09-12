@@ -423,11 +423,19 @@ class FlutterInspector {
   /// navigated away while it was in flight. An [entry] that already carries an
   /// `activeRoute` keeps it, so callers outside Dio stay in control.
   NetworkEntry logNetwork(NetworkEntry entry, {NetworkEntry? replaces}) {
-    final anchored = entry.activeRoute != null
-        ? entry
-        : entry.copyWith(
-            activeRoute: replaces?.activeRoute ?? _currentTopPageLabel(),
-          );
+    if (entry.activeRoute != null) {
+      return _registry.network.add(entry, replaces: replaces);
+    }
+    // A completing entry takes its pending counterpart's anchor verbatim —
+    // null included. Falling back to the current route here would stamp a
+    // request that started before the first route with whatever page happened
+    // to be open when it finished, which is precisely the misattribution the
+    // send-time capture exists to avoid.
+    final anchored = entry.copyWith(
+      activeRoute: replaces != null
+          ? replaces.activeRoute
+          : _currentTopPageLabel(),
+    );
     return _registry.network.add(anchored, replaces: replaces);
   }
 
