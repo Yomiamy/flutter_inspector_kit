@@ -25,12 +25,12 @@
 | [`lib/src/models/timestamped_entry.dart`](../../lib/src/models/timestamped_entry.dart) | `TimestampedEntry`<br>`TimelineSource` (enum) | 混合時序軸的統一契約介面與其格式化擴充方法。定義了 `timestamp`、`displayTime` 屬性。 |
 | [`lib/src/models/log_level.dart`](../../lib/src/models/log_level.dart) | `LogLevel` (enum) | 控制台日誌的嚴重性等級（`verbose` 至 `error`）。 |
 | [`lib/src/models/log_entry.dart`](../../lib/src/models/log_entry.dart) | `LogEntry` | 單條日誌資料模型。實作了 `TimestampedEntry` 介面。 |
-| [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。含 `origin` / `pageUrl` provenance 欄位（帶預設值，向後相容）。 |
+| [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。含 `origin` / `pageUrl` provenance 欄位（帶預設值，向後相容）。`activeRoute` 於送出時捕捉、完成時不覆寫。 |
 | [`lib/src/models/network_origin.dart`](../../lib/src/models/network_origin.dart) | `NetworkOrigin` (enum) | **[新增]** 網路請求來源（`dio` / `webview`）。顯式 provenance，取代不可靠的 `sourceDio == null` 推斷（WeakReference 被 GC 後無法區分來源）。 |
 | [`lib/src/models/navigator_action.dart`](../../lib/src/models/navigator_action.dart) | `NavigatorAction` (enum) | 導航動作類型（`push`、`pop`、`replace`、`remove`）。 |
-| [`lib/src/models/navigator_entry.dart`](../../lib/src/models/navigator_entry.dart) | `NavigatorEntry` | 導航事件資料模型。實作 `TimestampedEntry`。 |
+| [`lib/src/models/navigator_entry.dart`](../../lib/src/models/navigator_entry.dart) | `NavigatorEntry` | 導航事件資料模型。實作 `TimestampedEntry`。`routeLabel` 為路由標籤格式的單一真相來源，供各維度 `activeRoute` 蓋章共用。 |
 | [`lib/src/models/database_operation.dart`](../../lib/src/models/database_operation.dart) | `DatabaseOperation` (enum) | 資料庫操作類型（`insert`、`update`、`delete`、`query`）。 |
-| [`lib/src/models/database_entry.dart`](../../lib/src/models/database_entry.dart) | `DatabaseEntry` | SQL 日誌資料模型。實作 `TimestampedEntry`。 |
+| [`lib/src/models/database_entry.dart`](../../lib/src/models/database_entry.dart) | `DatabaseEntry` | SQL 日誌資料模型。實作 `TimestampedEntry`。含寫入時記錄的 `activeRoute` 錨點。 |
 | [`lib/src/models/database_browser_source.dart`](../../lib/src/models/database_browser_source.dart) | `DatabaseBrowserSource`<br>`DatabaseTableInfo`<br>`DatabaseTablePage` | 定義自訂資料庫結構與資料的分頁讀取契約，用於資料庫瀏覽器 Tab。 |
 | [`lib/src/models/diagnostic_info.dart`](../../lib/src/models/diagnostic_info.dart) | `DiagnosticInfo`<br>`DiagnosticInfoSource` | **[新增]** 元數據模型與其 Host 收集介面。欄位皆為 nullable，在 Web 載入或 Host 獲取失敗時會安全降級為 `N/A`。 |
 
@@ -62,6 +62,7 @@
 
 | 檔案路徑 | 關鍵類別/列舉 | 單一職責 (Single Responsibility) |
 | :--- | :--- | :--- |
+| [`lib/src/utils/agent_prompt.dart`](../../lib/src/utils/agent_prompt.dart) | `buildAgentPrompt` | **[新增]** 把單筆事件與同路由的稍早事件組成交接給 coding agent 的 Markdown 提示。純函式，回溯以 `activeRoute` 為界並在觸頂時揭露截斷。 |
 | [`lib/src/utils/log_formatters.dart`](../../lib/src/utils/log_formatters.dart) | - | 將日誌資料模型格式化為單行與純文字的工具方法。 |
 | [`lib/src/utils/network_formatters.dart`](../../lib/src/utils/network_formatters.dart) | `ReplayRequest` | 提供網絡格式化功能，包含 `buildCurl` 產生 cURL 指令與 `prettyJson` 縮排工具。 |
 | [`lib/src/utils/network_utils.dart`](../../lib/src/utils/network_utils.dart) | `NetworkStatusGroup`<br>`NetworkFilter` | 提供網絡搜尋、過濾邏輯與狀態碼 Chip 對應常數。 |
