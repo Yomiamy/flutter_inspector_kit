@@ -27,9 +27,18 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-09-06 · v2.4.0）
+## 📊 完成度總覽（截至 2026-09-12 · v2.4.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
+>
+> **📝 更新（2026-09-12）**：新增 **§P26 Agent 交接提示（Agent Handoff Prompt）**（Issue #160 / PR #161，已完成）。
+> 兩個 detail view 的分享選單各多一個「Copy prompt for AI agent」，把單筆事件連同
+> 「同一路由上稍早發生的事」組成可直接貼給 coding agent 的 Markdown。連帶把
+> `activeRoute` 錨點從原本只有 `log()` 一處，補齊到 network 與 database 兩維度
+> （`NetworkEntry.activeRoute` 於送出時捕捉、完成時不覆寫；`DatabaseEntry.activeRoute`
+> 於寫入時記錄），並把路由標籤格式收斂為 `NavigatorEntry.routeLabel` 單一來源。
+> **這連帶影響 §P22 的裁決依據**——該節「`activeRoute` 錨點既有 `log()` 已自動帶」
+> 的敘述仍然成立，但行號已由 `:380` 位移至 `:397`，且錨點覆蓋面已擴大（見該節備註）。
 >
 > **📝 更新（2026-09-06）**：新增 **§P24 Crash 系統通知**（Issue #156，已完成），
 > 並連帶讓 **§P11 NetworkNotifier 重構**落地——§P11 原記「應與 §P1 綁定排程」，
@@ -543,6 +552,12 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
     Markdown fenced block 的 formatter（`network_formatters.dart` 新增一個函式）。
   - ⚠️ 注意 `diagnostic_report.dart:186` 已記載「固定 3-backtick fence 會被內容中的 fence 打斷」
     的既有教訓，新 formatter 產 fenced block 時沿用該處的處理方式，勿重寫一份。
+  - 🔴 **範圍已被 §P26 壓縮（2026-09-12 · PR #161）**：新落地的 `agentPrompt` 選單項
+    同樣輸出 Markdown、同樣帶 error payload 與 timestamp，且已佔用 `_ShareAction` 的一個值。
+    實查 `agent_prompt.dart` 全檔**未呼叫 `buildCurl`**，故本項尚存的獨立價值收斂為
+    「**cURL + error payload 併進單一 fenced block**」這一點。
+    **動工前先裁決本項與 `agentPrompt` 是否合併**（例如在既有 prompt 中補一段 cURL），
+    否則會在同一個選單裡做出兩個近似選項——那正是本文件反覆否決的「為不存在的區別打補丁」。
 
 ### §P5. Console Timeline 自動跳轉最新 Error（Jump to Latest Error）— ✅ 已完成（PR #128 · 2026-08-14，隨 §D1 合併落地）
 
@@ -1408,6 +1423,38 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   > **且 `example/` 不能當關卡**（2026-09-06 實測）：它依賴 ObjectBox（native-only、`dart:ffi`），在該目錄跑 `flutter build web` **永遠失敗且與本功能無關**。正解是建一個只依賴本套件的最小 harness，讓兩個建構式都進編譯圖後 `flutter build web`——**編譯器擋得住，人眼擋不住**。
 * **Effort**：low（實際落地 5 任務）｜ **排查價值**：⭐⭐⭐⭐（補上網路／崩潰的通知不對稱，QA 背景測試場景剛需）
 
+### §P26. Agent 交接提示（Agent Handoff Prompt）— ✅ 已完成（Issue #160 / PR #161 · 2026-09-12）
+
+> **痛點**：排查者在 detail view 看到一筆失敗後，要把它交給 coding agent 處理時，
+> 得手動複製訊息、翻時間軸找前後文、再自己組成一段說明。既有的「Copy / Share」
+> 只給得出**單筆事件**，而 agent 真正需要的是「這件事發生前，同一頁還發生了什麼」。
+
+* **好品味設計（核心洞察）**：
+  > 不新增維度、不新增 buffer。所需資訊全部已在 `mergedTimeline()` 上——
+  > 缺的只是一個把「錨點事件 + 同路由的稍早事件」組成文字的純函式。
+  - 新增 `lib/src/utils/agent_prompt.dart` 的 `buildAgentPrompt(entry, {timeline, redact, maxTraceBackEntries})`，
+    輸出四段式 Markdown：誠實邊界宣告 → Observed event → Where（stack trace）→ Earlier on this route → Task。
+  - 兩個 detail view 的既有 `PopupMenuButton<_ShareAction>` 各加一個 `agentPrompt` 值
+    （文案「Copy prompt for AI agent」），**不新建按鈕**。
+* **實際落地與原構想的差異**：
+  - **回溯範圍不是固定時間窗，而是「同一 `activeRoute` 且早於錨點」**，走到路由進入點即停。
+    這與 §D3／§P2 兩度否決的「±5s 固定窗」不同——邊界由使用者實際的導航行為決定，不是猜的。
+  - 走訪上限 `maxTraceBackEntries`（預設 50）是**保險絲不是常規限制**，且**觸頂時會在輸出中揭露**，
+    避免 agent 把被截斷的歷史讀成完整歷史。
+  - Prompt **刻意不給推測原因**：kit 有執行期事實但沒有 codebase，講錯的原因比不講更貴。
+* **連帶落地：`activeRoute` 錨點補齊三維度**（本項的前置，原本只有 `log()` 有）：
+  - `NetworkEntry.activeRoute`：於 `logNetwork()` 統一蓋章而非各 interceptor hook 自行處理，
+    避免三個 hook 漂移；**送出時捕捉、完成時不覆寫**（回答的是「誰發起這個呼叫」，
+    請求在途中使用者可能已離開該頁，蓋完成時的路由會指向無辜頁面）。
+  - `DatabaseEntry.activeRoute`：於寫入時記錄。
+  - `NavigatorEntry.routeLabel`：路由標籤格式的**單一真相來源**，`FlutterInspector`
+    改為呼叫它而非各自複述公式；相同字串時退化為裸 `displayName`，避免 `/checkout (/checkout)`。
+* **公開 API**：建構式參數 `int maxTraceBackEntries = 50`（對齊 `slowRequestThreshold` 的門檻慣例，拒絕 ≤ 0）；
+  `LogDetailView` / `NetworkDetailView` 新增選填 `inspector` 參數——**為 null 時隱藏該選單項**，
+  因為 dashboard 外建構的 detail view 沒有時間軸可回溯，給一個空歷史比不給更危險。
+* **重用**：`mergedTimeline()`、`normalizeStackTrace()`（§P19）、既有分享選單與 redaction 旗標。
+* **Effort**：實際落地 6 任務 ｜ **排查價值**：⭐⭐⭐⭐（把「排查完還要重講一遍給 agent」這段摩擦砍掉）
+
 ### ~~§P25. ImageCache 水位計（Image Cache Gauge）~~ — ❌ 不排程（2026-09-10 · 與 §P20 綁定待裁決）
 
 > **⚠️ 本節以下設計內容維持原樣保留，但狀態已於 2026-09-10 改為不排程**——
@@ -1536,7 +1583,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
    該需求改由 **§P25 水位計**承接（low priority，主動查看時讀取，不綁 OS 事件）
 2. **§P20 掉幀維度**（旗艦、對齊 Core Vital、鏈推斷價值最高）→ **⚠️ 目前為「待裁決」而非待辦**：與 Anti-Feature #1（2026-08-14 覆核）否決的變體同源，需先解決 debug build 誤報爭議；若裁決通過，另需把 timestamp 地雷釘死在計畫
 3. ~~**§P22 權限**~~ → **已於 2026-09-11 裁決不排程**——`activeRoute` 錨點既有 `log()`
-   已自動帶（`flutter_inspector.dart:380`），本項包裝成本趨近於零；且它是全清單唯一
+   已自動帶（`flutter_inspector.dart:397`），本項包裝成本趨近於零；且它是全清單唯一
    需逐 call site 手動埋的維度（與已取消的 §P10 同一死因），漏埋會讓排查者誤判
    「時間軸無權限事件 = 未發生權限拒絕」，部分覆蓋比零覆蓋更危險（詳見該節裁決紀錄）
    （~~§P23 crash 鏈快照~~ 已於 2026-09-10 裁決不排程——因果鏈由既有 `mergedTimeline` 覆蓋、
@@ -1696,7 +1743,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | ~~§D3 ±5s 側欄~~ | 固定時間窗與「找因果」目標不匹配，由 §P2 取代 |
 | ~~§P23 Crash 前因果鏈快照~~ | 因果鏈已由既有 `mergedTimeline` 覆蓋（零新增維度）；崩潰路徑上做匯出 IO 有 error storm／遞迴／`BuildContext` 三風險；縮到安全形狀後與已完成的 §P24 重疊（2026-09-10） |
 | ~~§P25 ImageCache 水位計~~ | 四項價值中三項依賴連續觀察，而「不輪詢」守則使其失效——形狀與價值對不上；常駐 overlay 變體可救回但需正面撤銷 Anti-Feature #1 即時儀表條款，**與 §P20 同源、綁定待裁決**（2026-09-10） |
-| ~~§P22 權限被拒便利方法~~ | `activeRoute` 錨點既有 `log()` 已自動帶（`flutter_inspector.dart:380`），包裝價值趨近於零；**全清單唯一需逐 call site 手動埋的維度**，與已取消的 §P10「唯一需逐 widget 接線」同一死因。漏埋的後果比沒做更糟——排查者會誤判「時間軸無權限事件 = 未發生權限拒絕」，**部分覆蓋比零覆蓋更危險**（同 §D4 表內資料搜尋的判準）。需求由既有 `log()` 覆蓋，README 若寫食譜須明說不具完整性（2026-09-11） |
+| ~~§P22 權限被拒便利方法~~ | `activeRoute` 錨點既有 `log()` 已自動帶（`flutter_inspector.dart:397`），包裝價值趨近於零；**全清單唯一需逐 call site 手動埋的維度**，與已取消的 §P10「唯一需逐 widget 接線」同一死因。漏埋的後果比沒做更糟——排查者會誤判「時間軸無權限事件 = 未發生權限拒絕」，**部分覆蓋比零覆蓋更危險**（同 §D4 表內資料搜尋的判準）。需求由既有 `log()` 覆蓋，README 若寫食譜須明說不具完整性（2026-09-11） |
 | ~~§D4 的「表內資料搜尋」~~（§D4 本體仍待辦） | `DatabaseBrowserSource.fetchRows(tableName, {limit, offset})` 是**分頁契約、無 `keyword` 參數**，故資料搜尋只有三種形狀且全不可接受：① **只搜已載入的那一頁**（預設 200 筆）= 半殘檢索，搜到 2 筆卻不知另有 800 筆未載入未搜，**正是本文件否決過的「切斷前後文的點查詢」**，比沒有搜尋更危險（給出看似完整的答案）；② **加 `keyword` 下推到 source** = 破壞 Host 既有實作（違反 Never break userspace），且舊實作會無聲忽略該參數、退化成形狀 ①；③ **一次載入全部再搜** = 與分頁設計正面衝突，大表全量載入是記憶體與 UI 卡頓風險，debug 工具不該為檢索便利承擔此代價。**旁證：多數同類工具（Alice / Chucker）同樣不提供 DB 表內全文搜尋，受同一結構性限制**——這不是本 kit 的疏漏，是問題本身的形狀。需求由 operation FilterChip + 欄位排序（既有 `sortRows`）+ `mergedTimeline` 的 db 事件（含 tableName 與 operation）覆蓋；要定位特定資料，正解是從時間軸的 db 事件切入而非在表格裡撈（2026-09-11 · Issue #159 開發途中裁決） |
 
 ---
