@@ -27,6 +27,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🔑 **Storage** | Browse, edit, delete and clear key-value stores via pluggable `KeyValueBrowserSource` (SharedPreferences / SecureStorage adapter examples provided); every write is confirmed, and successful writes are logged | Check whether a stale token or a stuck feature flag is behind the bug — and clear it on-device, without an adb shell |
 | 🧵 **Readable Stack Traces** | Framework-internal frames collapse into a `[... N frames of framework internals]` marker (boundary frames preserved) and async suspensions render as `<-- async gap -->`; a raw/concise toggle switches the view, and the share menu exports either form explicitly | An uncaught error produces 40 lines of `package:flutter/…` around the two lines of your own code that matter — the concise view puts your frames back on screen without scrolling, and the raw form is one tap away when you need the full trace |
 | 🧭 **Log Route Context** | Every log entry records the top-most page at the moment it was written, shown in detail views and exports | The same "token refresh failed" error means different things from the checkout screen and from a background refresh — the recorded route tells the two apart when reading the timeline later |
+| 🤖 **Agent Handoff Prompt** | Copy any log or network entry as a Markdown prompt for a coding agent — the event's own facts, its stack trace, and what else happened earlier on the same route, bounded by the visit rather than a fixed time window | You find the failing call but the fix is in code you don't know — instead of retyping the error and hunting the timeline for context, copy the prompt and paste it into your agent; it arrives with the preceding same-route events already assembled, and with an explicit note that the cause is unknown so the agent doesn't treat the failing line as the faulty one |
 | 🛑 **Uncaught Error Capture** *(opt-in)* | Automatically turn uncaught errors into `error`-level Console logs via three Flutter hooks (build/layout/paint, async, `ErrorWidget`); chains existing handlers — never swallows errors | An unawaited `Future` throws deep inside a third-party package — no `try/catch` anywhere near it. Uncaught error capture logs it automatically with a full stack trace, so it shows up in Console without any manual instrumentation |
 | ⏱️ **App Lifecycle Markers** *(opt-in)* | Record every `resumed` / `inactive` / `paused` / `detached` transition as an `info` Console log, each naming the top-most page at that moment, interleaved into the merged Timeline | A batch of requests fails with timeouts that nobody can reproduce at a desk — read the Timeline and an `App lifecycle: paused · CheckoutPage` marker sits right before them, so the OS froze the network while the user switched away; the backend was never at fault. Equally useful in reverse: confirming a "refresh on resume" actually fires, and on which page |
 | 🔔 **Live Notification** *(opt-in)* | A system notification summarising the latest API call and the running total; tap to jump straight to the Network tab | Monitor API traffic in real-time while navigating the app — no need to keep the dashboard open; also useful for verifying whether the number of API calls per operation is reasonable (e.g., a single page load triggering dozens of calls hints at redundant requests) |
@@ -53,7 +54,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^2.4.0
+  flutter_inspector_kit: ^2.5.0
 ```
 
 Then run `flutter pub get`.
@@ -462,6 +463,35 @@ inspector.log('Token refresh failed', level: LogLevel.error);
 ```
 
 The same error logged from a checkout screen and from a background refresh are usually different bugs; the route is what tells them apart after the fact.
+
+### Hand an entry to a coding agent
+
+Log and network detail views carry a **Copy prompt for AI agent** action in the share menu. It renders the entry you are viewing as a Markdown prompt you can paste straight into a coding agent.
+
+The prompt carries four things:
+
+1. an explicit note that this is an execution-time observation and **not** a diagnosis, so the failing frame is not mistaken for the faulty one;
+2. the entry's own facts;
+3. its stack trace, in the concise form, when it has one;
+4. **what else happened earlier on the same route** — the part that is tedious to gather by hand.
+
+That last section is bounded by the route the user was actually on: the walk back stops where they entered the page. A page open for four seconds and one open for four minutes both yield exactly the events belonging to that visit, which a fixed `±n` seconds window cannot do.
+
+Requests, database operations and logs all record the page they happened on, so the trace-back works across sources:
+
+```dart
+final inspector = FlutterInspector(
+  // A fuse for long-lived pages, not a routine limit — the walk normally
+  // stops at the route's entry point well before this. Defaults to 50.
+  maxTraceBackEntries: 50,
+);
+```
+
+When the cap or the end of the buffer is reached, the prompt says so in the output — a truncated history is never handed over as a complete one. Redaction follows your `redactSensitiveData` setting, so a prompt masks exactly what any other share path masks.
+
+> The prompt deliberately suggests **no cause**. The package holds runtime facts but not your codebase; a confidently wrong cause costs more than none, so naming one is left to the agent that can actually read the source.
+
+> The captured data is marked as untrusted inside the prompt. A response body or a log line can contain text shaped like an instruction, and the prompt is pasted directly into an agent.
 
 ### Uncaught error capture (opt-in)
 
