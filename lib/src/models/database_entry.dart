@@ -12,6 +12,7 @@ class DatabaseEntry implements TimestampedEntry {
     required this.tableName,
     this.data,
     this.affectedRows,
+    this.activeRoute,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
@@ -31,6 +32,14 @@ class DatabaseEntry implements TimestampedEntry {
   /// Optional number of affected rows.
   final int? affectedRows;
 
+  /// The route the user was on when this operation ran, in
+  /// [NavigatorEntry.routeLabel] format.
+  ///
+  /// Recorded at write time rather than derived later: it is what anchors this
+  /// entry to a user-facing context on the merged timeline. Null when the
+  /// navigator stack was empty (e.g. before the first route was pushed).
+  final String? activeRoute;
+
   /// Returns a copy of this entry with the given fields replaced.
   DatabaseEntry copyWith({
     DateTime? timestamp,
@@ -38,6 +47,7 @@ class DatabaseEntry implements TimestampedEntry {
     String? tableName,
     Map<String, dynamic>? data,
     int? affectedRows,
+    String? activeRoute,
   }) {
     return DatabaseEntry(
       timestamp: timestamp ?? this.timestamp,
@@ -45,6 +55,7 @@ class DatabaseEntry implements TimestampedEntry {
       tableName: tableName ?? this.tableName,
       data: data ?? this.data,
       affectedRows: affectedRows ?? this.affectedRows,
+      activeRoute: activeRoute ?? this.activeRoute,
     );
   }
 
@@ -55,12 +66,19 @@ class DatabaseEntry implements TimestampedEntry {
         other.operation == operation &&
         other.tableName == tableName &&
         mapEquals(other.data, data) &&
-        other.affectedRows == affectedRows;
+        other.affectedRows == affectedRows &&
+        other.activeRoute == activeRoute;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(timestamp, operation, tableName, data, affectedRows);
+  int get hashCode => Object.hash(
+    timestamp,
+    operation,
+    tableName,
+    data,
+    affectedRows,
+    activeRoute,
+  );
 
   @override
   String toString() =>

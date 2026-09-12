@@ -105,8 +105,7 @@ class _NetworkTabState extends State<NetworkTab> {
                   itemCount: entries.length,
                   itemBuilder: (context, index) => _EntryTile(
                     entry: entries[index],
-                    redactSensitiveData: widget.inspector.redactSensitiveData,
-                    slowRequestThreshold: widget.inspector.slowRequestThreshold,
+                    inspector: widget.inspector,
                   ),
                 ),
         ),
@@ -242,15 +241,13 @@ class _FilterChips extends StatelessWidget {
 
 /// A single network request row that opens [NetworkDetailView] on tap.
 class _EntryTile extends StatelessWidget {
-  const _EntryTile({
-    required this.entry,
-    required this.redactSensitiveData,
-    required this.slowRequestThreshold,
-  });
+  const _EntryTile({required this.entry, required this.inspector});
 
   final NetworkEntry entry;
-  final bool redactSensitiveData;
-  final Duration slowRequestThreshold;
+  final FlutterInspector inspector;
+
+  bool get redactSensitiveData => inspector.redactSensitiveData;
+  Duration get slowRequestThreshold => inspector.slowRequestThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -302,10 +299,7 @@ class _EntryTile extends StatelessWidget {
       onTap: () => pushInspectorRoute(
         context,
         kInspectorNetworkDetailRoute,
-        (_) => NetworkDetailView(
-          entry: entry,
-          redactSensitiveData: redactSensitiveData,
-        ),
+        (_) => NetworkDetailView(entry: entry, inspector: inspector),
       ),
     );
   }

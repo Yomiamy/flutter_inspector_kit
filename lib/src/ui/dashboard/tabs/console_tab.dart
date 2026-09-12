@@ -453,7 +453,7 @@ class _LogEntryRow extends StatelessWidget {
           ? () => pushInspectorRoute(
               context,
               kInspectorLogDetailRoute,
-              (_) => LogDetailView(entry: entry),
+              (_) => LogDetailView(entry: entry, inspector: inspector),
             )
           : null,
       onLongPress: onToggleBookmark,
@@ -527,10 +527,7 @@ class _NetworkEntryRow extends StatelessWidget {
       onTap: () => pushInspectorRoute(
         context,
         kInspectorNetworkDetailRoute,
-        (_) => NetworkDetailView(
-          entry: entry,
-          redactSensitiveData: inspector.redactSensitiveData,
-        ),
+        (_) => NetworkDetailView(entry: entry, inspector: inspector),
       ),
       onLongPress: onToggleBookmark,
     );

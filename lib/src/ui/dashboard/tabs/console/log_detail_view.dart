@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/flutter_inspector.dart';
 import '../../../../models/log_entry.dart';
+import '../../../../utils/agent_prompt.dart';
 import '../../../../utils/log_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
@@ -9,15 +11,24 @@ import '../../../widgets/key_value_table.dart';
 import '../../../theme/theme.dart';
 
 /// Actions exposed in the detail view's share menu.
-enum _ShareAction { copyConcise, copyRaw, shareConcise, shareRaw }
+enum _ShareAction { copyConcise, copyRaw, shareConcise, shareRaw, agentPrompt }
 
 /// A full-screen, structured view of a single [LogEntry], showing General
 /// info, an optional Stack Trace section, and a Data section plus sharing
 /// (plain text / system share).
 class LogDetailView extends StatefulWidget {
-  const LogDetailView({required this.entry, super.key});
+  const LogDetailView({required this.entry, this.inspector, super.key});
 
   final LogEntry entry;
+
+  /// Supplies the merged timeline and redaction/cap settings the agent prompt
+  /// needs — the entry alone cannot answer "what else happened on this route".
+  ///
+  /// Optional, and null hides the agent-prompt menu item: a detail view built
+  /// outside the dashboard has no timeline to trace back through, and offering
+  /// the action with nothing behind it would hand over an empty history as
+  /// though it were a complete one.
+  final FlutterInspector? inspector;
 
   @override
   State<LogDetailView> createState() => _LogDetailViewState();
@@ -36,23 +47,28 @@ class _LogDetailViewState extends State<LogDetailView> {
           PopupMenuButton<_ShareAction>(
             icon: const Icon(Icons.share),
             onSelected: (action) => _onShare(context, action),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              const PopupMenuItem(
                 value: _ShareAction.copyConcise,
                 child: Text('Copy concise'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: _ShareAction.copyRaw,
                 child: Text('Copy raw'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: _ShareAction.shareConcise,
                 child: Text('Share concise…'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: _ShareAction.shareRaw,
                 child: Text('Share raw…'),
               ),
+              if (widget.inspector != null)
+                const PopupMenuItem(
+                  value: _ShareAction.agentPrompt,
+                  child: Text('Copy prompt for AI agent'),
+                ),
             ],
           ),
         ],
@@ -90,8 +106,9 @@ class _LogDetailViewState extends State<LogDetailView> {
 
   Widget _stackTraceSection(BuildContext context) {
     final stackTrace = widget.entry.stackTrace!;
-    final displayedStackTrace =
-        _isConcise ? normalizeStackTrace(stackTrace) : stackTrace;
+    final displayedStackTrace = _isConcise
+        ? normalizeStackTrace(stackTrace)
+        : stackTrace;
 
     return DetailSection(
       title: 'Stack Trace',
@@ -137,14 +154,26 @@ class _LogDetailViewState extends State<LogDetailView> {
     final messenger = ScaffoldMessenger.of(context);
 
     final bool isConcise =
-        action == _ShareAction.copyConcise || action == _ShareAction.shareConcise;
+        action == _ShareAction.copyConcise ||
+        action == _ShareAction.shareConcise;
 
-    final String logText = buildLogPlainText(
-      widget.entry,
-      isConcise: isConcise,
-    );
+    final host = widget.inspector;
+    final String logText = (action == _ShareAction.agentPrompt && host != null)
+        ? buildAgentPrompt(
+            widget.entry,
+            timeline: host.mergedTimeline(),
+            redact: host.redactSensitiveData,
+            maxTraceBackEntries: host.maxTraceBackEntries,
+          )
+        : buildLogPlainText(widget.entry, isConcise: isConcise);
 
     switch (action) {
+      case _ShareAction.agentPrompt:
+        if (host == null) return;
+        await Clipboard.setData(ClipboardData(text: logText));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Agent prompt copied to clipboard')),
+        );
       case _ShareAction.copyConcise:
       case _ShareAction.copyRaw:
         await Clipboard.setData(ClipboardData(text: logText));

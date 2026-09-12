@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/flutter_inspector.dart';
 import '../../../../models/network_entry.dart';
+import '../../../../utils/agent_prompt.dart';
 import '../../../../utils/network_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
@@ -10,23 +12,37 @@ import '../../../widgets/key_value_table.dart';
 import '../../../theme/theme.dart';
 
 /// Actions exposed in the detail view's share menu.
-enum _ShareAction { curl, text, share }
+enum _ShareAction { curl, text, share, agentPrompt }
 
 /// A full-screen, structured view of a single [NetworkEntry], showing request
 /// and response sections plus sharing (cURL / plain text / system share).
 class NetworkDetailView extends StatelessWidget {
   const NetworkDetailView({
     required this.entry,
-    this.redactSensitiveData = true,
+    bool redactSensitiveData = true,
+    this.inspector,
     super.key,
-  });
+  }) : _redactParam = redactSensitiveData;
 
   final NetworkEntry entry;
 
-  /// Whether share/export paths mask sensitive headers. Mirrors
-  /// [FlutterInspector.redactSensitiveData]. Defaults to `true` (secure by
-  /// default) so a NetworkDetailView built without this value still redacts.
-  final bool redactSensitiveData;
+  /// Supplies the merged timeline an agent prompt traces back through. When
+  /// null — a detail view built outside the dashboard — the agent-prompt menu
+  /// item is hidden rather than offered with no route history behind it.
+  final FlutterInspector? inspector;
+
+  /// Whether share/export paths mask sensitive headers. Defaults to `true`
+  /// (secure by default) so a NetworkDetailView built without this value still
+  /// redacts.
+  ///
+  /// [inspector] wins when it is supplied: the host's
+  /// [FlutterInspector.redactSensitiveData] is the real setting, and letting a
+  /// stale bool override it would silently unmask a host that had opted in.
+  final bool _redactParam;
+
+  /// The redaction setting actually applied, resolving the two inputs above.
+  bool get redactSensitiveData =>
+      inspector?.redactSensitiveData ?? _redactParam;
 
   @override
   Widget build(BuildContext context) {
@@ -38,16 +54,24 @@ class NetworkDetailView extends StatelessWidget {
           PopupMenuButton<_ShareAction>(
             icon: const Icon(Icons.share),
             onSelected: (action) => _onShare(context, action),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              const PopupMenuItem(
                 value: _ShareAction.curl,
                 child: Text('Copy as cURL'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: _ShareAction.text,
                 child: Text('Copy as text'),
               ),
-              PopupMenuItem(value: _ShareAction.share, child: Text('Share…')),
+              const PopupMenuItem(
+                value: _ShareAction.share,
+                child: Text('Share…'),
+              ),
+              if (inspector != null)
+                const PopupMenuItem(
+                  value: _ShareAction.agentPrompt,
+                  child: Text('Copy prompt for AI agent'),
+                ),
             ],
           ),
         ],
@@ -230,6 +254,22 @@ class NetworkDetailView extends StatelessWidget {
   Future<void> _onShare(BuildContext context, _ShareAction action) async {
     final messenger = ScaffoldMessenger.of(context);
     switch (action) {
+      case _ShareAction.agentPrompt:
+        final host = inspector;
+        if (host == null) return;
+        await Clipboard.setData(
+          ClipboardData(
+            text: buildAgentPrompt(
+              entry,
+              timeline: host.mergedTimeline(),
+              redact: redactSensitiveData,
+              maxTraceBackEntries: host.maxTraceBackEntries,
+            ),
+          ),
+        );
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Agent prompt copied to clipboard')),
+        );
       case _ShareAction.curl:
         await Clipboard.setData(
           ClipboardData(text: buildCurl(entry, redact: redactSensitiveData)),
