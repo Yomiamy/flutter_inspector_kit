@@ -2006,3 +2006,125 @@ fs 層限制候選（上表三個 ❌ 項技術上同樣做得到，差別在採
 > ~~§W1 只在「quick 中途超標」時觸發，本 repo 至今未發生~~（已於 2026-08-26 解決）；
 > §W2 是安全強度不足而非功能故障，委派本身正常運作，hook 也確實掛著。
 > 兩者皆非阻擋項，可依實際需要排程。
+
+---
+
+## 🟠 第四部分之二：拆分殘留的交叉指涉與 effort 斷裂（2026-09-13 · orchestration 框架調研副產物）
+
+> **由來**：一輪「GitHub 知名 orchestration 框架 × gen-dev-workflow 機制比對」調研
+> （6 框架並行 + 收斂：LangGraph / CrewAI / AutoGen-AG2 / OpenHands+SWE-agent /
+> Claude-Flow 系 worktree orchestrator / Temporal+DBOS 耐久執行引擎）。
+>
+> **調研的主結論是「無機制可搬」**——10 個候選項中 3 個 recommend，而三者**全部是本專案既有
+> 設計的接線鬆脫，不是外部移植**；28 項明確排除（含容器隔離、checkpointer 資料庫、
+> LLM 決定路由、deterministic replay、StuckDetector 等）。本節只記錄那三項待辦，
+> 調研本體的框架比對矩陣與「基準優勢八項」不在此展開（非本檔主題）。
+>
+> **三項皆為 SKILL.md 拆分（PR #141）的殘留**，與 §W1／§W2 的「既有設計缺口」性質不同，
+> 故另立一節而非續編 §W 序列的語意——但編號仍沿用 §W 以維持單一序列。
+>
+> ⚠️ **狀態欄紀律**：本節三項於記錄時均為 `⬜ 待辦`。**PR 合併後才回寫 `✅ 已完成` 並補
+> commit SHA**——本檔已有四次「標為待辦／實際已完成」或「標為完成／實際只做一半」的漂移
+> 紀錄（§D6 / §P8 / §P19 / §D4，見 features-brainstorm），未合併就標完成會製造第五次。
+
+### §W3. `delegation-and-parallel.md:4` 的交叉指涉指向不存在的小節 — ⬜ 待辦
+
+**問題**：該檔引言宣稱「高頻查閱的『推論等級表』4 行**已內嵌在主檔的「Model 與委派策略」小節**」。
+實查 `SKILL.md` 六個標題（`:13` / `:19` / `:30` / `:156` / `:174` / `:204`）**無此小節**，
+且全檔無 `effort` 字樣。那個「Model 與委派策略」標題實際位於 **本檔自己的 `:6`**
+——它把自己的小節名當成主檔的小節名來引用。
+
+**研判為拆分殘留**：等級表原在 1017 行的單體 SKILL.md 內，拆分後整段搬進 reference（連同標題），
+這句交叉指涉未跟著修，於是變成「宣稱主檔有一個其實搬到自己身上的小節」。
+
+**危害有界但會自我延續**：
+- 正確的等級表就在同檔往下 8 行（`:12`），且 `SKILL.md:212` 的 References 索引獨立運作
+  並指向本檔，所以讀者走不進死路——**這不是可及性問題**。
+- 真正的成本是**誤導下一次修改**：讀到「已內嵌在主檔」的維護者可能認為那是既定設計，
+  於是在主檔真的補一個小節——而那會逆轉「1017 行 → 約 200 行主檔」的拆分決定，
+  去解一個不存在的問題。
+- 次要成本：引言首段就有指向不存在位置的交叉指涉，會讓讀者對該檔後續**真正吃重的**
+  斷言（effort 必須顯式帶入、retry ladder、不委派硬規則）一併打折。
+
+**修法**：砍掉前半句，把「推論等級表」併入「本檔收錄」清單並標注為唯一定義處。
+不動主檔、不動架構。
+
+**Effort**：trivial ｜ **價值**：⭐⭐（防止未來的逆向改動，非修復當下故障）
+
+### §W4. `execution-modes.md` quick 模式的 reviewer 派發漏帶 `effort` — ⬜ 待辦
+
+**問題**：`references/execution-modes.md` 的 quick 模式步驟 ③ 寫
+`Task("reviewer", "快掃 <branch> diff，單 lens：correctness")`，**未帶 `effort`**。
+
+**實查對照**（確認這是唯一一處真漏的）：
+
+| 檔案 | `Task(...)` 派發點 | 帶 effort |
+|:---|:---:|:---:|
+| `command-cheatsheet.md` | 12 處 | ✅ 全帶（含 `:31-32` 一處跨行呼叫，`effort` 在續行） |
+| `execution-modes.md:22` | 1 處 | ❌ **唯一漏的** |
+| `SKILL.md` 主檔 | 0 處（流程圖只寫等級名，無 `Task(...)` 範例） | — |
+
+**實際後果**（這是三項中唯一有行為影響的）：`model` 仍為 `opus`（綁 `reviewer.md` frontmatter，
+自動生效），但 `effort` 落回**主對話當下的 session effort**——因 `a6fcd29` 已移除逐 agent 的
+`effort:` frontmatter 綁定，改為子 agent 預設繼承 session effort，呼叫端不帶就沒有任何東西
+補上 `xhigh`。設計意圖是 `opus` + `xhigh`，實得 `opus` + 不確定值。
+
+**為何此處的降級比別處嚴重**：quick 模式**無 verifier 兩階段驗收**（那是 STAGE 2 的機制）、
+不拆任務、主對話直接實作，這次 reviewer 派發是該模式**唯一的品質關卡**，
+「不讓同源 model 自審」全靠它撐著。而 lens 已收窄為單一 correctness
+（完整流程的 STAGE 3 是多 angle），effort 再落回預設 = **兩層折扣疊在同一個關卡上**。
+
+**修法**：補 `effort: "xhigh"`，並加註「不可省略」與原因。
+
+**Effort**：trivial ｜ **價值**：⭐⭐⭐⭐（唯一有實際行為後果者）
+
+### §W5. `xhigh` 風險註記已過期，且其建議措施會誘導錯誤降級 — ⬜ 待辦
+
+**問題**：`delegation-and-parallel.md:27-29` 把 `effort: 'xhigh'` 的 400 錯誤記為
+「已知風險（實測案例，**未完全排除**）」，並稱「Claude Code 是否會在帶 `xhigh` 時自動連帶
+開啟 thinking，**目前未經驗證**」。**該風險現已查證，定性須改寫**：
+
+| | 原註記的說法 | 查證後的實況 |
+|:---|:---|:---|
+| 性質 | 未經驗證的風險 | **上游已知 bug**，有兩張 issue 追蹤 |
+| API 規則 | 未載明 | `xhigh`/`max` 下 thinking **不可關閉**，`thinking:{type:"disabled"}` 併用一律 400（[官方 effort 文件](https://platform.claude.com/docs/en/build-with-claude/effort)）。故 `xhigh` 本身支援，它要求 thinking 同時開著，是**組合約束** |
+| 根因 | 不明 | Claude Code **未把 `alwaysThinkingEnabled: true` 翻譯成對外請求的 `thinking:{type:"adaptive"}`**，session 靜默在無 thinking 狀態下跑（[#79798](https://github.com/anthropics/claude-code/issues/79798)、[#76689](https://github.com/anthropics/claude-code/issues/76689)；後者標題明載「despite alwaysThinkingEnabled: true」） |
+| 可否事先排除 | 暗示可驗證後排除 | **不能**——「靜默不送 thinking」正是該 bug 的症狀，**無法從自己的 settings 推斷實際有沒有送出** |
+
+**原註記的第二個問題（比過期更值得修）**：它建議「若某次派發真的撞到這個 400，
+**先把該次呼叫的 effort 降到 `high` 復原可用性**」。在知道根因後，降 effort 只是**繞過**
+而非修復——真正的修復是確認 thinking 有送出。而該註記同段又禁止「默默把全表降級成 `high`」，
+於是形成自我矛盾的指引：**它建議的動作正是它自己禁止的那個動作的第一步**。
+實際風險是養成「一遇 reviewer 失敗就先懷疑 effort、順手降級」的習慣，
+而降級的後果正是抹掉 STAGE 2/3 要的差異化。
+
+**連帶缺口（retry ladder 未分類失敗）**：此 400 是**基礎設施錯誤**而非 model 能力不足，
+且**必然重現**（參數沒變就再撞一次）。現行 retry ladder 對失敗不分類，於是：
+撞 400 → 算第 1 次 → 同 tier 重派 → 必然又 400 → 算第 2 次 → 觸發 tier 升級 →
+但 planner/reviewer/verifier 已在最高 tier → 走到「停止並等使用者決策」。
+**三次派發全部注定失敗，且給出錯誤診斷**（把參數問題診斷成 model 不夠強）。
+
+> **外部佐證（本項是三項中唯一有跨框架收斂支撐的）**：「把暫時性／機械性錯誤與實質任務
+> 失敗分開計算」在調研的 6 個框架中有 5 個獨立實作——Temporal `RetryPolicy.NonRetryableErrorTypes`、
+> Inngest `NonRetriableError`／`RetryAfterError`、LangGraph `RetryPolicy.retry_on`（預設只重試
+> 連線錯誤與 5xx）、SWE-agent `max_requeries`（格式／被擋動作／bash 語法錯誤與成本上限分開算）、
+> Restate terminal error。獨立設計的收斂是「該機制承重而非流行」的最強訊號。
+
+**修法**：① 改寫 `:27-29` 為「上游已知 bug + API 組合約束 + 撞到時的正確反應順序」，
+明確區分「繞過」與「修復」；② retry ladder 的失敗分析加一條「基礎設施錯誤不計入失敗次數」
+（400 effort/thinking 先查 thinking 是否送出、429/5xx/連線中斷同 tier 重派 1 次）；
+③ 清單刻意維持極小，**禁止擴寫成投機的暫時性錯誤分類學**——字串比對錯誤訊息終究會誤判，
+誤判代價（多一次同 tier 重試）必須小於它解決的問題。
+
+**Effort**：trivial ｜ **價值**：⭐⭐⭐（防止對著參數問題做無效 tier 升級 + 修掉自我矛盾的指引）
+
+> **⚠️ 三項皆為文件層面、不動程式碼**：`wf-state.sh`（421 行）查 `retry`／`tier`／`升級`
+> **零命中**——retry ladder 自始是給 orchestrator 讀的 markdown 指示，**無程式碼落點**，
+> 故 §W5 的修法是改規則文字而非加 bash 分支。
+> 這也順帶暴露一個結構事實（**本次不修，僅記錄**）：stage 轉移與暫停點棘輪都有
+> `wf-state.sh` 的 `exit 1` 硬強制，而 retry ladder 的「最多升級一次」**無任何程式強制**，
+> 靠 orchestrator 在 context 裡記帳——context 被摘要壓縮或跨 session 續接時計數可能丟失，
+> 且 state schema 無 `retry_count`／`failure_class` 欄位可承接。
+> **暫不加欄位**：無實際事故顯示 retry 失控過，而加欄位要同步處理「誰遞增／何時歸零／
+> 跨 session 怎麼接」，複雜度超過已知問題的嚴重度。待真的發生「莫名升級到最強仍失敗
+> 且事後查不出升級過幾次」才是動工時機。

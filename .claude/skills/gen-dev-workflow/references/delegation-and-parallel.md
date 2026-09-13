@@ -1,7 +1,7 @@
 # Model 委派與並行契約（gen-dev-workflow 參考）
 
 > 本檔是 `gen-dev-workflow` 主 skill 的委派與並行參考。主檔（`../SKILL.md`）在派發子 agent、決定並行、或處理失敗 retry 時指向這裡。
-> 高頻查閱的「推論等級表」4 行已內嵌在主檔的「Model 與委派策略」小節；本檔收錄完整綁定原則、風險註記、Stage 分配、implementer 分級、不委派硬規則，以及並行契約全文。
+> 本檔收錄「推論等級表」（唯一定義處）、完整綁定原則、風險註記、Stage 分配、implementer 分級、不委派硬規則，以及並行契約全文。
 
 ## Model 與委派策略
 
@@ -24,9 +24,18 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），主�
 - Workflow `agent()` 呼叫：`agentType: '<agent 名>'` 仍沿用 frontmatter 的 model 綁定；effort 另用 `opts.effort` 依本表帶入（frontmatter 已無 effort 可沿用，省略等於落回 session 預設）。
 - 要調整某角色的等級 → model 改該 agent 檔一行；effort 改本表一行，兩處呼叫端（Task 派發與 Workflow `agent()` 範例）跟著本表走，不散落各處硬編碼。
 
-> 🔴 **已知風險（實測案例，未完全排除）：`effort: 'xhigh'` 在 thinking 未開啟時，於 Opus 4.8 上曾實際遇到 `400 output_config.effort 'xhigh' is not supported when thinking is disabled on this model`。**
-> Claude Code 的 `Task`/`Agent`/Workflow `agent()` 呼叫是否會在帶 `effort: 'xhigh'`（或 `max`）時自動連帶開啟 thinking，**目前未經驗證**——若沒有，本表對 planner/reviewer/verifier（`xhigh`）與 implementer（`max`）的派發範例都可能在實際執行時 400。錯誤訊息本身指出安全退路：`effort: 'high'` 以下不受此限。
-> 在此風險被驗證排除之前：若某次派發真的撞到這個 400，先把該次呼叫的 effort 降到 `high` 復原可用性，並回來這裡更新本表——**不要**默默把全表降級成 `high`（那會抹掉 STAGE 2/3 原本要的差異化），也不要無視這條風險繼續往更多派發點複製 `xhigh`/`max`。
+> 🔴 **已知失敗模式（非本表設計問題）：`effort: 'xhigh'`／`'max'` 可能回 `400 output_config.effort 'xhigh' is not supported when thinking is disabled on this model`。** 客戶端的歷史 bug 已於 `2.1.221` 修復；現行版本下的成因是 **thinking 被關掉**（使用者關閉或組織未啟用），而非客戶端靜默丟棄。
+>
+> **API 層的規則因 model 而異（[官方 per-model 表格](https://platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting#thinking-support-defaults-and-rejected-configurations-by-model)，footnote 2）**：**Opus 5 起**（含後續世代——原文為「applies to Claude Opus 5 and later models」，故換代後仍適用，不需回頭改本行）在 `xhigh` / `max` 下強制 thinking 不可被關閉，`thinking: {type: "disabled"}` 與它們併用一律 400，且**每次請求都驗**。**Opus 4.7 / 4.8 不受此限**（該表「Rejected with 400」欄只列 `"enabled"`，不含 `"disabled"`）。所以這是**世代性的組合約束**，不是通用 API 規則。
+>
+> **Claude Code 側的歷史 bug（已修復，保留為版本下限記錄）**：舊版曾把 session 層級的 effort 洩漏進內部 sub-request（WebSearch 的請求硬編 `thinking:{type:"disabled"}` 卻沿用 session 的 `xhigh`），造成 400。**已於 `2.1.221` 修復**（changelog：「Fixed WebSearch failing with a 400 error at effort `xhigh`/`max` when thinking is disabled」），[#79798](https://github.com/anthropics/claude-code/issues/79798) 已 closed。維護者另於 `2.1.233` 實際擷取對外請求本體驗證：`alwaysThinkingEnabled: true`（乃至完全不設該鍵）在 Opus 4.8 上都會送出 `thinking:{type:"adaptive"}`，**只有明確關閉 thinking 才會送 `disabled`**——即「session 靜默無 thinking」在現行版本不成立。[#76689](https://github.com/anthropics/claude-code/issues/76689) 仍 open，但其 Opus 5 變體的觸發條件是**使用者自己關掉 thinking**（Tab 熱鍵／`/config`，回報者自述 100% 可重現）；另有 #79798 的回報者確認**組織設定未啟用 extended thinking** 會造成同一錯誤。兩者都不是客戶端靜默丟棄。
+>
+> **撞到時的正確反應**（依序）：
+> 1. 先確認該次派發是否為「目標 model 為 Opus 5 或更新世代，且 effort 為 `xhigh`/`max`」這一已知危險組合——這是編排者可直接核對的資訊（frontmatter 綁定的 model 別名 + 呼叫時帶的 effort 參數），不需查原始 HTTP body。若命中，接著查**本 session 的 thinking 是否被關掉**（Tab 熱鍵／`/config`／組織設定未啟用 extended thinking）——那才是現行版本下的實際成因，正解是開回 thinking 而非動 effort。若 Claude Code 版本低於 `2.1.221`，先升級。
+> 2. 若上述都排除仍 400，降 `effort` 到 `high` 以下是**繞過、不是修復**——它讓該次派發跑得完，但犧牲了該角色本來要的推論強度。若用了，就該當成暫時措施而非新基準，並回報使用者。
+> 3. **不要**默默把全表降級成 `high`（那會抹掉 STAGE 2/3 原本要的差異化），也不要無視這條風險繼續往更多派發點複製 `xhigh`/`max`。
+>
+> **與 retry ladder 的關係**：這是基礎設施錯誤，**不是 model 能力不足**。它必然重現（參數沒變就再撞一次），所以若計入「同 tier 失敗 2 次」會直接觸發無效的 tier 升級——而 planner/reviewer/verifier 已在最高 tier，升級無處可升，只會走到「停止並等使用者決策」。詳見下方「退回路徑」的失敗分類。
 
 ### Stage 層級的基準分配
 
@@ -112,6 +121,11 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 
 ```text
 失敗單元 → 分析原因
+  ├─ 基礎設施錯誤  → **不計入失敗次數**（見下方「為什麼要分類」）
+  │                   400 effort/thinking → 先確認是否命中已知組合（見上方 🔴 註記），非原樣重派
+  │                   429 / 5xx / 連線中斷 → 同 tier 重派 1 次，再依重派結果分流：
+  │                     · 仍是基礎設施錯誤 → 停止並回報使用者，不升級 tier（升級對基礎設施錯誤無效）
+  │                     · 變成其他失敗類型 → 回本表重新分類，走該類型自己的分支
   ├─ context 不足  → 補 context，重派同 model（最多 1 次）
   ├─ 任務過大      → 拆成更小單元，重新並行/序列
   ├─ 計畫本身有誤  → 退回 planner（STAGE 0b），不在 STAGE 2 硬修
@@ -124,5 +138,9 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 ```
 
 > **Tier Upgrade 紀錄：** 當觸發 tier 升級時，必須在進度回報行中明確註記（例如：`[任務 N 升級至 標準 model]`），讓使用者知悉該任務正動用更高成本嘗試解決。
+
+> **為什麼基礎設施錯誤要與能力不足分開算：** 升級 tier 的前提是「這個執行者不夠強」。基礎設施錯誤（參數不被支援、限流、服務端錯誤、連線中斷）與 model 強弱無關，**換更強的 model 對它零幫助**。若混為一談，一次 `xhigh` 的 400 會吃掉兩次同 tier 重試（必然重現）再觸發升級，而最高 tier 無處可升，最終走到「停止並等使用者決策」——三次派發全部注定失敗，且給出錯誤診斷。
+>
+> 清單刻意維持極小，**只列實際觀測到或判斷無歧義的**：`400` effort/thinking（已記錄的事故，見上方 🔴 註記）、`429` 限流、`5xx`、連線中斷。**不要**擴寫成一份投機的暫時性錯誤分類學——字串比對錯誤訊息終究會誤判，而誤判的代價（多一次同 tier 重試）必須小於它要解決的問題。
 
 **與 STAGE 3 退回的關係：** STAGE 2 內部失敗在 STAGE 2 內 retry；STAGE 3 審查不通過才退回 STAGE 2 整體重做。兩者是不同層級的迴圈，不可混用。

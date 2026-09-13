@@ -19,8 +19,12 @@ quick <描述或 #issue>
    - 不拆任務、不逐任務暫停；模糊需求仍問（≤2 個問題）
    - 改完跑相關測試（不重跑整套）
   ▼
-③ Task("reviewer", "快掃 <branch> diff，單 lens：correctness")
+③ Task("reviewer", "快掃 <branch> diff，單 lens：correctness", effort: "xhigh")
    - 保住「不讓同源 model 自審」原則；發現問題 → 主對話修正後重掃
+   - effort 依「推論等級表」帶入（reviewer = 最強推論）。**不可省略**——
+     quick 模式無 verifier 兩階段驗收，這是唯一的品質關卡，
+     且 lens 已收窄為單一 correctness，effort 再落回 session 預設
+     等於兩層折扣疊在同一個關卡上
   ▼
 ④ 呼叫 gen-commit skill 執行 commit → 用 gen-pr skill 產 PR 草稿
   ▼
