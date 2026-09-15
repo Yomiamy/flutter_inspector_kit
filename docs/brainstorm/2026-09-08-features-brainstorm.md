@@ -3,7 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
-> * **2026-09-16**：**新增 §P27 Agent 分析橋接（Agent Analysis Bridge）— 設計中、未排程**——延伸 §P26，補上它沒覆蓋的兩個場景：**A. QA 在裝置上當下看到判斷**、**B. 開發者事後讓 agent 去問那台機器**。調研確認 GitHub 生態的 Flutter AI 除錯工具（marionette_mcp / mcp_flutter / flutter_agent_lens / 官方 Dart MCP）**全數依賴 Dart VM Service**，要求「開發機 + debug build + 連線」，而本套件的場景恰好相反（QA 的手機、release-ish build、開發者不在現場）——**MCP 對本套件是形狀不對，不是還沒做**。定案形狀為**雙向橋接**：kit 開三個具名查詢供 host 包成 tool schema 給 LLM，host 再把分析結論注入回 kit 顯示；方向由內而外，kit 不監聽任何連線，同時解掉開 port 資安、協定綁定、套件純淨性三個問題。三條釘死的邊界：**API key 一律 host 持有**（kit 內建網路呼叫等於替所有下游 App 決定資料能否外流）、**分析結果走獨立 tab 不進 timeline**（推測不得混入事實流）、**引用關係須來自實際 tool call 回傳值**而非 LLM 自述。三個實質問題已裁決：**懸空引用是假問題**（kit 無永久儲存 → 存活綁引用、讀取時過濾，**`RingBuffer` 零修改**，加 `onEvict` 會撞不變式 #1）、**注入介面純 append**（不可更新撤回 → 不需自身 id，但時間戳成必要；只開批次因 worst case 是一次回應多條結論）、**id 為全域遞增計數器 + 來源前綴**（**嚴禁位置相關方案**——索引重用會造成靜默的錯誤引用，比懸空更糟）。裁決後的意外收穫：**零核心修改**，唯一動到既有程式碼處是四個 model 各加 `final String id`（排除於 `==`/`hashCode`，沿用 `sourceDio` 先例）。**❌ 明確否決** MCP server、Android AppFunctions（Kotlin KSP + Android 16+ + private preview allowlist）、嵌入 on-device model（FunctionGemma 270M 即 284 MB，且模型在裝置上但 codebase 不在 → 產出有自信的錯誤原因，違反 kit 自訂的誠實邊界）。完整設計見 `docs/features/2026-09-15-agent-analysis-bridge.md`；尚餘三項機械決定（查詢簽章、tab UI、通知時機）未定。檔名日期前綴維持 `2026-09-12`（§P27 尚未動工，非實質功能變更）。
+> * **2026-09-16**：**新增 §P27 Agent 分析橋接（Agent Analysis Bridge）— 設計中、未排程**——延伸 §P26，補上它沒覆蓋的兩個場景：**A. QA 在裝置上當下看到判斷**、**B. 開發者事後讓 agent 去問那台機器**。調研確認 GitHub 生態的 Flutter AI 除錯工具（marionette_mcp / mcp_flutter / flutter_agent_lens / 官方 Dart MCP）**全數依賴 Dart VM Service**，要求「開發機 + debug build + 連線」，而本套件的場景恰好相反（QA 的手機、release-ish build、開發者不在現場）——**MCP 對本套件是形狀不對，不是還沒做**。定案形狀為**雙向橋接**：kit 開三個具名查詢供 host 包成 tool schema 給 LLM，host 再把分析結論注入回 kit 顯示；方向由內而外，kit 不監聽任何連線，同時解掉開 port 資安、協定綁定、套件純淨性三個問題。三條釘死的邊界：**API key 一律 host 持有**（kit 內建網路呼叫等於替所有下游 App 決定資料能否外流）、**分析結果走獨立 tab 不進 timeline**（推測不得混入事實流）、**引用關係須來自實際 tool call 回傳值**而非 LLM 自述。三個實質問題已裁決：**懸空引用是假問題**（kit 無永久儲存 → 存活綁引用、讀取時過濾，**`RingBuffer` 零修改**，加 `onEvict` 會撞不變式 #1）、**注入介面純 append**（不可更新撤回 → 不需自身 id，但時間戳成必要；只開批次因 worst case 是一次回應多條結論）、**id 為全域遞增計數器 + 來源前綴**（**嚴禁位置相關方案**——索引重用會造成靜默的錯誤引用，比懸空更糟）。裁決後的意外收穫：**零核心修改**，唯一動到既有程式碼處是四個 model 各加 `final String id`（排除於 `==`/`hashCode`，沿用 `sourceDio` 先例）。**❌ 明確否決** MCP server、Android AppFunctions（Kotlin KSP + Android 16+ + private preview allowlist）、嵌入 on-device model（FunctionGemma 270M 即 284 MB，且模型在裝置上但 codebase 不在 → 產出有自信的錯誤原因，違反 kit 自訂的誠實邊界）。三項機械決定同日一併裁決完畢：**查詢回傳 JSON-safe Map 且不做分頁**（游標會撞上 evict，正確處理需快照而快照撞不變式 #2——與 §6.1 同源的約束在不同題目給出同樣答案；`limit` 截斷須揭露，這也正是回傳 Map 而非 List 的必然結果）、**分析 tab 全部重用既有元件**（`_oneLiner()` 需改公開、`pushInspectorRoute` 沿用 §D6 成果；🔴 tab 隱藏判準是「從未注入過」而非「目前無可顯示」，否則 tab 會在引用陸續 evict 後憑空消失）、**通知由 kit 於 `addAnalyses()` 自動發**（opt-in、自有 `AlertThrottler`、一批一則、點擊跳分析 tab——實查確認既有機制已完全支援，`onTap` closure 在建構時就綁好目標 tab，丟棄 payload 非缺陷）。**⚠️ 動工前先決條件**：新增 `NetworkNotifier.analysis()` 確實觸及條件匯出雙面（不變式 #4）而 `flutter test` 抓不到簽章漂移，須備妥最小 Web build harness。完整設計見 `docs/features/2026-09-15-agent-analysis-bridge.md`（**六題全清、無未決項，但尚未排程動工**）。檔名日期前綴維持 `2026-09-12`（§P27 尚未動工，非實質功能變更）。
 > * **2026-09-08**：**§P21 附加 ImageCache 水位案（Issue #158）實作完成後整案撤回**——原想在 memory pressure 那筆 warning 尾巴附上 `imageCache 98.2 MB/100.0 MB (212 imgs)`，賣點是「水位只有 3 MB 就能排除圖片方向」的否證能力。實作完成、584 測試全綠、analyze 零新增，但 code review 階段以 spy observer 實測發現 **`PaintingBinding.handleMemoryPressure()`（`painting/binding.dart:160`）在通知 observer 之前就 `imageCache.clear()`**，`didHaveMemoryPressure()` 內讀到的分子與張數**恆為 0**（`BEFORE: size=256 count=1` → `INSIDE observer: size=0 count=0`）。功能因此永遠輸出 `imageCache 0 B/...`，賣點反轉為**假否證**（會讓排查者排除正確方向），踩到 Anti-Feature #3「假精度比沒有資訊更糟」的判準，故 branch 重置、零程式碼留下。已查證 3.41.9 與 3.44.1 該兩段程式碼逐字相同（涵蓋整個支援範圍）、真實 OS 事件同路徑、`liveImageCount` 亦為 0。該需求改由**新增的 §P25 ImageCache 水位計**承接（主動查看時讀取，不綁 OS 事件）。同時新增「2026-09-08 記憶體觀測選項全面評估」表（RSS+Swap / LMK / bitmap 對齊 / 兩種水位讀法共五項逐一判定）與 §P21 的 `onTrimMemory` deprecation 風險註記。**本案的方法論教訓已寫入 §P21 撤回紀錄：查證「API 存在且可讀」不等於查證「在我要讀的那個時點，讀到的值有意義」。** 檔名日期前綴由 `2026-09-01` 更新至 `2026-09-08`。
 > * **2026-09-04**：**官方 `dart-lang/leak_tracker` 深度評估與架構裁決**——針對官方記憶體洩漏分析套件深入研究其運作機制（Flutter `MemoryAllocations`、`Finalizer`、`WeakReference`、`reachabilityBarrier`、`vm_service`）、執行時期代價（`forceGC` 之激進記憶體分配造成的嚴重 Jank、定時輪詢與堆疊捕獲開銷）及跨平台限制（Web/WASM 下 Retaining Path 為 null、無法建立 VM Service WebSocket、`reachabilityBarrier` 不可用）。從 Linus 模式五層分解進行裁決，確立「堅決拒絕 Direct In-App 內建整合」的鐵律，更新第 2 節矩陣評分，增補第 3 節「核心決策三：拒絕 In-App 記憶體洩漏追蹤」，並提供純記錄導向之可選適配（Adapter/Recipe）規範。
 > * **2026-09-04**：**§P21 記憶體壓力事件完成**——PR #155 合入 main（issue #154）。落地形式與原提案的差異只有一處：原本「二擇一待定」的旗標選擇**已裁決併入既有 `captureLifecycleEvents`**，不新增 `captureMemoryPressure`——兩者是同一個 observer 上的 callback、共用同一組 attach/detach，拆兩個旗標只是多一個特殊情況。其餘照提案落地：`LifecycleHandler` 多覆寫一個 `didHaveMemoryPressure()`，記為 `LogLevel.warning`（非 info——這是 OOM/LMK 前導信號，必須能被既有 warning/error 過濾撈起來，不能沉在資訊流裡），沿用既有 `topPageLabel` 後綴，零新增 Entry/Inspector/RingBuffer、零新相依。callback 內以 try-catch 包住：本套件 SDK 下限（Flutter >=3.10.0）的 `handleMemoryPressure()` 逐一走訪 observer 且**無** per-observer try-catch（per-observer 保護是 3.44.0 才加入），逸出的例外會中斷廣播、波及排在後面的每個 observer。`example/` 另補一顆 `Simulate Memory Pressure` 按鈕（走 `WidgetsBinding.instance.handleMemoryPressure()`，與 OS 真實回報同一條 observer 廣播路徑）。檔名日期前綴由 `2026-09-01` 更新至 `2026-09-04`。
@@ -1443,10 +1443,10 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **重用**：`mergedTimeline()`、`normalizeStackTrace()`（§P19）、既有分享選單與 redaction 旗標。
 * **Effort**：實際落地 6 任務 ｜ **排查價值**：⭐⭐⭐⭐（把「排查完還要重講一遍給 agent」這段摩擦砍掉）
 
-### §P27. Agent 分析橋接（Agent Analysis Bridge）— 🟡 設計中（2026-09-16 · 未排程）
+### §P27. Agent 分析橋接（Agent Analysis Bridge）— 🟢 設計完成、未排程（2026-09-16）
 
 > **📄 完整設計**：[`docs/features/2026-09-15-agent-analysis-bridge.md`](../features/2026-09-15-agent-analysis-bridge.md)
-> （本節為摘要；三個實質問題已裁決，三個機械問題待定，**尚未動工**）
+> （本節為摘要；**六題全數裁決完畢、無未決項**，但**尚未排程、尚未動工**）
 
 > **痛點**：§P26 只覆蓋了「開發者手動複製單筆事件貼給 agent」。兩個真實場景仍空著：
 > **A. QA 在手機上、當下**——點一下就看到「這看起來像 token 過期」；
@@ -1510,11 +1510,27 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
     親手違反 kit 自訂的誠實邊界。
   > 上述三項若平台條件改變可重新裁決，但**不得在條件未變時重提**。
 
-* **🟡 待定（三項機械決定）**：查詢的確切簽章與回傳型別、分析 tab 的 UI
-  （已知硬性義務：部分失效時必須揭露「其中 N 筆已不在緩衝區」）、
-  以及 A 場景是否主動通知（§P24 已有形狀可循）。
+* **機械決定（2026-09-16 一併裁決完畢，六題全清）**：
+  - **查詢回傳 JSON-safe `Map`，不做分頁**——靠 `limit`（預設 50／上限 200）+ `timeRange` 收斂。
+    否決分頁的關鍵理由與 §6.1 同源：**游標會撞上 evict**（翻到第 3 頁時第 1 頁可能已消失），
+    要正確處理就得引入快照，而快照撞不變式 #2。
+    **`limit` 截斷必須揭露**（`total` / `truncated`），否則 LLM 會把 50 筆當全部——
+    這也正是回傳 Map 而非 List 的必然結果，`List` 沒地方放那兩個欄位。
+  - **分析 tab 全部重用既有元件**：引用顯示事件摘要（重用 `_oneLiner()`，
+    需由私有改公開）而非 id chip、點擊原地開 detail view（走 §D6 成果 `pushInspectorRoute`）、
+    失效引用灰掉並標註。**🔴 tab 隱藏判準是「從未注入過」而非「目前無可顯示」**——
+    後者會讓 tab 在引用陸續 evict 後憑空消失，使用者剛剛還在看它。
+  - **通知由 kit 於 `addAnalyses()` 自動發**，opt-in、持有自己的 `AlertThrottler`、
+    **一批注入一則**（不可依賴節流窗擋，那是副作用非設計）、點擊跳分析 tab。
+    實查確認既有機制**已完全支援**：`onTap` closure 在建構時就綁好目標 tab
+    （crash → index 0、network → index 1），丟棄 payload 不是缺陷。
 
-* **Effort**：未估 ｜ **排查價值**：⭐⭐⭐⭐⭐（把 A/B 兩個場景一次補上，且零核心修改）
+* **⚠️ 動工前先決條件**：新增 `NetworkNotifier.analysis()` **確實觸及條件匯出雙面**
+  （不變式 #4），而 `flutter test` 抓不到 `_io`/`_web` 簽章漂移——
+  須備妥最小 Web build harness（`example/` 不能當關卡，它依賴 ObjectBox 必然失敗）。
+  另需四個 `copyWith` 的 id 繼承測試。
+
+* **Effort**：未估 ｜ **排查價值**：⭐⭐⭐⭐⭐（把 A/B 兩個場景一次補上，核心類別零修改）
 
 ### ~~§P25. ImageCache 水位計（Image Cache Gauge）~~ — ❌ 不排程（2026-09-10 · 與 §P20 綁定待裁決）
 

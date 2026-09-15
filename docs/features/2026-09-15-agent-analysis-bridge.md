@@ -139,6 +139,46 @@ traceFrom(id)                                          // 同路由回溯
 `diagnostic_report.dart`**，不發明新概念。`timeRange` 維持 `Duration?`
 （`null` = 全部時間），沿用既有設計理由：「all 的情況否則會變成每個 switch 裡的特殊分支」。
 
+### 4.3 回傳型別與收斂機制
+
+**裁決一：回傳 JSON-safe `Map`，非 `List<TimestampedEntry>`。**
+
+host 終究要把結果序列化餵給 LLM，kit 直接給 Map 省掉中間一層。
+
+**裁決二：不實作分頁，靠 `limit` + `timeRange` 收斂。**
+
+差別在**誰負責縮小範圍**：分頁是 kit 把大結果切片（LLM 翻頁），
+收斂是 LLM 換條件重問（`query(timeRange: 30s, errorsOnly: true)`）。
+
+> **三個理由**：
+> 1. **LLM 本來就這樣用**——拿到 50 筆雜訊，自然的下一步是換條件重問，
+>    而非要第 51–100 筆。翻頁是人類 UI 的習慣，不是 agent 的。
+> 2. **🔴 游標會遇上 evict**——buffer 一直在變，翻到第 3 頁時第 1 頁可能已不存在。
+>    要正確處理就得引入快照，而**快照撞不變式 #2**（§6.1 已為此否決過一次）。
+> 3. **`traceFrom(id)` 已覆蓋「要看更多」的主要情境**——LLM 通常不是想看更多
+>    *無關*事件，而是想看某錨點*周圍*的事件，那正是 `traceFrom` 做的事。
+
+**裁決三：🔴 `limit` 截斷必須揭露。**
+
+```dart
+{
+  'entries': [...],   // 實際回傳
+  'total': 200,       // 符合條件的總數
+  'truncated': true,  // limit 是否砍過
+}
+```
+
+> 不揭露的話，LLM 會把 50 筆當成全部，推出「這段時間只有 50 個事件」的錯誤結論。
+> 這與 `_traceBack()` 觸頂揭露（§P26）是同一個問題，沿用同一裁決。
+>
+> **這也正是回傳 Map 而非 List 的必然結果**——`List` 沒地方放 `total` 與 `truncated`。
+> 兩個裁決相配，非巧合。
+
+**`limit` 預設 50、上限 200。**
+
+> buffer 才 500 筆，超過 200 已接近「全撈」，那是 `timeRange` 該處理的事，不是 `limit`。
+> 此值非一錯即需重來的決定，實測不足再調。
+
 ---
 
 ## 5. Entry ID（丙案：掛在各 model，不進契約）
@@ -334,11 +374,106 @@ void addAnalyses(List<AgentAnalysis> analyses);
 > 因此**能顯示的分析數量天然被 500 卡住**——QA 跑再久都一樣。
 > 積壓的死資料僅為純文字（幾百條約數十 KB），且整場結束即消失。
 
+### 6.5 分析 tab 的 UI：全部重用既有元件
+
+每條分析持有：結論文字、引用 id 列表、時間戳（§6.2）。呈現形式：
+
+```
+┌──────────────────────────────────────────────┐
+│ 14:32:07                                     │
+│ 這個 401 看起來是 token 過期，因為前面的        │
+│ refresh 請求打在錯的 endpoint…                 │
+│                                              │
+│ ▸ 依據 5 筆事件                                │
+│   14:31:55 [NET] GET /auth/refresh 404        │
+│   14:32:01 [LOG/error] Token refresh failed   │
+│   14:30:12 [LOG/info] …（灰）已不在緩衝區       │
+└──────────────────────────────────────────────┘
+```
+
+**裁決一：🔴 tab 的隱藏條件是「從未注入過」，不是「目前沒有可顯示的」。**
+
+host 未曾注入任何分析 → 隱藏該 tab。
+（同 §P26「`inspector` 為 null 時隱藏選單項」的紀律：**沒有東西可給時，不要給一個空殼**。
+絕大多數使用者不接 LLM，不該一直看到一個永遠空的 tab。）
+
+> **但一旦注入過，該 tab 在此 App 生命週期內永久存在。**
+>
+> 若判準寫成「目前可顯示數 == 0」，則當引用陸續 evict、分析全部失效時，
+> **tab 會憑空消失**——使用者剛剛還在看它。全部失效時應顯示空狀態，而非讓 tab 蒸發。
+
+**裁決二：引用顯示事件摘要，重用 `_oneLiner()`。**
+
+不顯示 `[network_12]` 這類 id chip——§5.4 才剛裁決前綴是實作細節、host 不得 parse，
+給使用者看更無道理。
+
+> `agent_prompt.dart` 的 `_oneLiner()` 已覆蓋四種型別且格式統一，**不重新發明**。
+> ⚠️ **實作註記**：該函式目前為私有（`agent_prompt.dart:218`），需改為公開。
+>
+> 代價是佔空間（5 筆引用即 5 行）→ 預設折疊，點「依據 N 筆事件」展開。
+
+**裁決三：點擊原地開 detail view，走 `pushInspectorRoute`。**
+
+> §P26 已把 `LogDetailView` / `NetworkDetailView` 接好（皆收 `inspector` 參數）。
+> 跳去 Console tab 再捲動需另做捲動定位，且 **§D6 的教訓**是 dashboard 內 push route
+> 會污染 NavigatorTab——`pushInspectorRoute` 正是該案的成果，
+> 已是 `console_tab` / `network_tab` / `database_tab` 三處的既有慣例，直接沿用。
+
+**裁決四：失效的引用灰掉並標註，非整條加提示。**
+
+使用者要知道的是「**哪一筆**沒了」，不是「有東西沒了」。
+（履行 §6.1 裁決三的揭露義務：不得讓失效引用看起來仍可點擊卻無反應。）
+
+### 6.6 通知：kit 於 `addAnalyses()` 自動發，點擊跳分析 tab
+
+**裁決一：由 kit 自動發，非交給 host。**
+
+`addAnalyses()` 被呼叫時即發通知。
+
+**裁決二：預設 off，需 opt-in。**
+
+`showNetworkNotification` 與 §P24 crash notification 皆為 opt-in，沿用同慣例。
+裝本套件的人多數不接 LLM，預設彈通知是替他們做決定。
+
+**裁決三：持有自己的 `AlertThrottler` 實例。**
+
+> §P24 的紀律：crash 持有自己的實例，與 network 節流互不干擾。分析通知同理，**不共用**。
+
+**裁決四：🔴 一批注入 = 一則通知，非 N 則。**
+
+> §6.3 已裁決批次只 `_bump()` 一次，通知同理。一次 LLM 回應產出 5 條結論就彈 5 則通知，
+> 是騷擾不是提示。
+>
+> **且不得依賴 `AlertThrottler` 來擋**——2 秒窗確實會吃掉同批的後 4 則，
+> 但那是**副作用而非設計**。應在 `addAnalyses()` 層面就決定「一批一則」。
+
+**裁決五：點擊跳分析 tab——既有機制已完全支援，無需擴充。**
+
+```dart
+NetworkNotifier.analysis(onTap: () => openDashboard(initialIndex: N));
+```
+
+> **實查結論（2026-09-16）**：`network_notifier_io.dart:149` 的
+> `onDidReceiveNotificationResponse: (_) => onTap?.call()` **丟棄 payload**，
+> 初看像是「無法區分通知來源」的缺陷——**實則不然**。
+>
+> 每個通知類型在建構時就綁好自己的 `onTap` closure
+> （`flutter_inspector.dart:328` crash → `initialIndex: 0`；
+> `:344` network → `initialIndex: 1`），哪則通知開哪個 tab 在那一行就決定了，
+> payload 根本不需要。新增 `.analysis()` 照抄同一模式即可。
+>
+> **連帶：不變式 #4 的風險大幅降低**——新增建構式仍須 `_io` / `_web` 兩側同步，
+> 但這是**照抄既有模式**，而非改動既有簽章（後者才是 §P24 記載的最大破壞風險）。
+
 ## 7. 破壞性分析
 
-> **裁決後的整體結論**：本設計**不修改任何核心類別**。
-> `RingBuffer`、`TimestampedEntry` 契約、四個 inspector 全部零修改；
-> 唯一動到既有程式碼的地方是四個 model 各加一個 `final String id`。
+> **裁決後的整體結論**：本設計**不修改任何核心類別**——
+> `RingBuffer`、`TimestampedEntry` 契約、四個 inspector 全部零修改。
+>
+> 動到既有程式碼的僅三處，且全為**加法或可見性調整**，無既有簽章變更：
+> 1. 四個 model 各加 `final String id`（排除於 `==`/`hashCode`）
+> 2. `agent_prompt.dart` 的 `_oneLiner()` 由私有改為公開（§6.5）
+> 3. 新增 `NetworkNotifier.analysis()` 建構式（§6.6，**須 `_io`/`_web` 雙面同步**）
 
 | 風險 | 嚴重度 | 處置 |
 |:---|:---|:---|
@@ -350,7 +485,7 @@ void addAnalyses(List<AgentAnalysis> analyses);
 | 不變式 #1（`onMutate` 通道） | 🟢 低 | 查詢全程唯讀；**`RingBuffer` 零修改**，未新增 evict 通知通道（§6.1）；批次注入只 `_bump()` 一次（§6.3） |
 | 不變式 #2（指標語義） | 🟢 低 | `mergedTimeline()` 只讀不複製；id 繼承使引用自動反映最新狀態；**無快照**（§6.1） |
 | 不變式 #3（緩衝型／即時查詢型分流） | 🟢 低 | 分析結果不進 timeline、由 host 主動塞入，天然落在即時查詢型一側（§3.2） |
-| 不變式 #4（條件匯出雙向簽章） | 🟢 低 | **不觸碰** `share_text` / `network_notifier`，無 `_io`/`_web` 面 |
+| 不變式 #4（條件匯出雙向簽章） | 🔴 高 | ⚠️ **§6.6 通知裁決後已改變**：新增 `NetworkNotifier.analysis()` **確實觸及** `_io`/`_web` 雙面。屬照抄既有模式（非改動既有簽章），但 `flutter test` **抓不到**漂移——動工前須備妥 Web build harness（§9.1 第 2 點）。`share_text` 仍不觸碰 |
 | 不變式 #5（套件純淨性） | 🟢 低 | 零新增依賴；`dart:convert` 已於 `diagnostic_report.dart` 使用 |
 
 ---
@@ -370,24 +505,31 @@ void addAnalyses(List<AgentAnalysis> analyses);
 
 ---
 
-## 9. 🔴 未決項（下一輪 brainstorm）
+## 9. ✅ 設計已完成（2026-09-16）
 
-三個**實質**設計問題已於 2026-09-15～16 裁決完畢（懸空引用 → §6.1、注入介面 → §6.2、
-id 生成 → §5.4）。以下三項屬**機械決定**——不太可能在實作中翻盤，
-不像已裁決的那些（`RingBuffer` 動不動、id 重不重用）一錯就得重來：
+**六題全數裁決完畢，無未決項。**
 
-1. **三個查詢的確切簽章** — 參數型別、回傳型別（`TimestampedEntry` 還是 JSON-safe Map？）、
-   分頁機制、`limit` 預設值與上限。
-   > 過濾維度已定（§4.2 重用 `diagnostic_report` 三維度）、id 格式已定（§5.4），
-   > 剩下的是填空。
+| # | 問題 | 裁決 | 節次 |
+|:---|:---|:---|:---|
+| 1 | 懸空引用與持久化 | 綁引用、讀取時過濾、`RingBuffer` 零修改 | §6.1 |
+| 2 | 注入介面形狀 | 純 append、批次、帶時間戳、無自身 id | §6.2 |
+| 3 | Entry id 生成 | 全域計數器 + 來源前綴，嚴禁位置相關方案 | §5.4 |
+| 4 | 查詢簽章 | JSON-safe Map、不分頁、截斷須揭露 | §4.3 |
+| 5 | 分析 tab UI | 全部重用既有元件（`_oneLiner` / `pushInspectorRoute`） | §6.5 |
+| 6 | 通知時機 | kit 自動發、opt-in、一批一則、跳分析 tab | §6.6 |
 
-2. **分析 tab 的 UI** — 列表還是卡片、如何呈現引用關係、點擊跳回 timeline 的互動。
-   > 🔴 **已知一條硬性義務**（§6.1 裁決三）：部分失效時必須揭露
-   > 「其中 N 筆已不在緩衝區」，不得讓失效引用看起來仍可點擊卻無反應。
+### 9.1 動工前的先決條件
 
-3. **A 場景的顯示時機** — 分析結果注入後，是否主動通知（如 §P24 crash notification 的形狀）？
-   還是僅被動存在於 tab 中等待查看？
-   > §P24 已有可循的形狀（`AlertThrottler`、掛在 `onLog` 而非公開 API 的接線判斷）。
+本設計**尚未排程**。若要進入實作，建議先行確認：
+
+1. **產出實作計畫**——依 repo 慣例寫入 `docs/plans/YYYY-MM-DD-<topic>.md`，
+   拆解任務並定義驗收條件。
+2. **🔴 Web build harness**——§P24 已記載：`_io`/`_web` 簽章漂移是最大破壞風險，
+   而 `flutter test` **完全抓不到**（測試跑在 VM 上全程走 `_io`）。
+   本設計新增 `NetworkNotifier.analysis()` 建構式，同樣需要最小 harness 跑
+   `flutter build web` 把兩個建構式都納入編譯圖。**`example/` 不能當關卡**
+   （依賴 ObjectBox，native-only，該目錄的 `flutter build web` 永遠失敗且與本功能無關）。
+3. **四個 `copyWith` 的 id 繼承測試**——見 §7 風險表第三列。
 
 ---
 
