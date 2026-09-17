@@ -3,6 +3,12 @@
 > **📝 合併紀錄**：
 > 本文件整併了 `2026-07-17` 與 `2026-07-30` 的腦力激盪記錄。依據時間軸與完成度，前半部記錄歷史遺留 Bug、流程漏洞的分析與修復；後半部基於系統穩固的基礎，進行開源多 Agent 框架的深度比對，並提出 2.0 架構的具體優化提案。
 >
+> **2026-09-17 新增第五部分**：**addyosmani/agent-skills 開源 Skill 體系比對**。
+> Addy Osmani 的 agent-skills（25 skills、9 slash commands、跨 10+ agent 平台）
+> 與我們 gen-dev-workflow 的完整對位分析。核心結論：Addy「寬而淺」（廣度取勝），
+> 我們「窄而深」（深度取勝）。最值得借鏡的 4 項：Slash Command 簡化入口、
+> `/build auto` 自動模式、`interview-me` 一問一答需求探索、共享 `references/` checklist。
+>
 > **2026-08-15 新增第三部分**：**知名開發者的實務工作流比對**（Huntley 的 Ralph、
 > HumanLayer 的 ACE-FCA、Harper Reed 三件式、Hashimoto 的 16-session、Kent Beck 的
 > Augmented Coding、Böckeler 的 Harness Engineering、Vincent 的 Superpowers，
@@ -2006,3 +2012,275 @@ fs 層限制候選（上表三個 ❌ 項技術上同樣做得到，差別在採
 > ~~§W1 只在「quick 中途超標」時觸發，本 repo 至今未發生~~（已於 2026-08-26 解決）；
 > §W2 是安全強度不足而非功能故障，委派本身正常運作，hook 也確實掛著。
 > 兩者皆非阻擋項，可依實際需要排程。
+
+---
+
+## 🟤 第五部分：addyosmani/agent-skills 開源 Skill 體系比對 (2026-09-17)
+
+> **來源**：<https://github.com/addyosmani/agent-skills>
+> **查證方式**：以 `read_url_content` 讀取 repo README（raw）、以 subagent 研究 skills/、hooks/、
+> agents/、references/、commands/ 目錄結構與各 SKILL.md 內容。本地側由另一 subagent
+> 平行研究 `.agents/` 下的 27 個核心 skill、hooks.json、rules/ 與 agents/ 完整內容。
+>
+> **定位與第二、三部分的差異**：
+> - §第二部分比的是**學術多 Agent 框架**（MetaGPT、AutoGen、SWE-agent、ChatDev）
+> - §第三部分比的是**具名工程師的手工流程**（Huntley、Horthy、Reed、Beck 等）
+> - 本部分比的是**另一套同構的 skill 體系**——同樣用 SKILL.md + slash command 驅動，
+>   但面向**通用 Web 開發**而非 Flutter package 開發，且由 Google Chrome 團隊的
+>   Addy Osmani 維護。這是第一次比到「跟我們做的事幾乎一模一樣、但設計取捨完全不同」的系統。
+
+### 1. 系統概覽
+
+**addyosmani/agent-skills**：25 個 skills、9 個 slash commands、跨 10+ agent 平台（Claude Code、Cursor、Antigravity CLI、Gemini CLI、Windsurf、Kiro、Copilot、Codex、Command Code、OpenCode），並有 `npx skills add` CLI 一行安裝。
+
+**gen-dev-workflow**：61 個 skills、14 個 agent profiles、3 個 hooks、2 份 rules、`wf-state.sh` 狀態機，深度整合 GitHub Issue/PR/Worktree，綁定 Antigravity CLI + Flutter/Dart 生態。
+
+### 2. 架構比對矩陣
+
+| 比較維度 | addyosmani/agent-skills | gen-dev-workflow |
+|:---|:---|:---|
+| **開發階段覆蓋** | 完整生命週期 + 非功能面向（安全、效能 audit、無障礙、DevOps、DB 設計、監控） | 完整生命週期，非功能面向僅由 rules 段落覆蓋 |
+| **入口設計** | 9 個直覺 slash commands（`/spec`, `/plan`, `/build`, `/review`, `/ship`） | `gen xxx` 系列指令（較冗長）+ 自動觸發 |
+| **自動模式** | `/build auto`：審批 plan 一次後全自動執行 | 無等價物。`pause_level=autonomous` 是最接近的，但仍非一鍵 |
+| **需求探索** | `interview-me`：一次一問、自適應追問、合成 brief | `brainstorming`：分析式探索意圖與替代方案 |
+| **狀態持久化** | 依賴 plan 檔 markdown 打勾 | JSON state 檔 + shell 轉移表 + 棘輪校驗 |
+| **品質約束** | `environment-and-constraints`（`.constraints.md`動態探測） | 靜態 rules + hooks 強制 + Ponytail 過度工程偵測 |
+| **Hook 機制** | 有 context 自動偵測啟動（設計 API → 自動載入 api skill） | 有確定性 Sensor hooks（PreToolUse/PostToolUse） |
+| **Code Review** | 五軸單向審查 | 三向閉環（requesting → receiving → pr-review） |
+| **Git 自動化** | `git-workflow-and-branching`（方法論，非自動化） | `gen-branch` + `gen-commit` + `gen-pr` + `gen-pr-comment`（完整自動化鏈） |
+| **並行執行** | 無 | subagent-driven-development + dispatching-parallel-agents |
+| **Agent 角色** | Build/Review/Spec/Plan 四角色 | 14 個專用 agent（含 verifier 唯讀對抗式驗收） |
+| **共享 checklist** | `references/` 集中管理（DRY） | 散在 rules/、各 skill 內、hook 中 |
+| **跨平台** | 10+ agent 平台 | 綁定 Antigravity CLI |
+| **Release/Ship** | CHANGELOG + version bump + release notes | 僅 PR 建立（`finishing-a-development-branch`） |
+| **設計哲學層** | 無 | Linus 5 層分析 + Ponytail/Superpowers/Linus 三角色分工 |
+
+### 3. 功能對位細節（22 項）
+
+| 開發階段 | addyosmani/agent-skills | 我們的系統 | 判斷 |
+|---------|------------------------|-----------|:---:|
+| 需求探索 | `interview-me`（一次一問，自適應） | `brainstorming`（分析式，替代方案探索） | 🟡 |
+| 規格撰寫 | `spec-driven-development`（PRD 模板，含 success metrics） | `branch-ticket-issue-doc` + `issue-spec-prep` | 🟡 |
+| 計畫拆分 | `planning-and-task-management`（S/M/L 複雜度） | `writing-plans`（artifact 管理、審批流） | 🟢 我們 |
+| 實作執行 | `build-and-implementation`（逐任務 TDD + commit） | `executing-plans` + subagent 並行 | 🟢 我們 |
+| TDD | `test-driven-development` | `test-driven-development` | 🟡 |
+| 品質約束 | `environment-and-constraints` | rules + hooks | 🟡 |
+| Code Review | `code-review-and-quality`（五軸） | `code-review-commons` + 三向閉環 | 🟢 我們 |
+| 發布 | `shipping-and-release`（完整 checklist） | `finishing-a-development-branch` | 🔴 Addy |
+| Git 工作流 | `git-workflow-and-branching` | gen-branch/commit/pr/pr-comment | 🟢 我們 |
+| Debug | `debugging-and-troubleshooting` | 無專用 skill | 🔴 Addy |
+| 效能 | `performance-optimization` + `web-performance-audit` | 無（僅 flutter-styles 段落） | 🔴 Addy |
+| 安全 | `security-and-input-validation` | 無 | 🔴 Addy |
+| API 設計 | `api-and-interface-design` | 無（靠 Linus 規則） | 🔴 Addy |
+| 重構/技術債 | `refactoring-and-tech-debt` | 無 | 🔴 Addy |
+| 文件維護 | `documentation-maintenance` | 無 | 🔴 Addy |
+| 依賴管理 | `dependency-management` | `dart-resolve-package-conflicts`（Dart 專用） | 🟡 |
+| 無障礙 | `accessibility-compliance` | 無 | 🔴 Addy |
+| Logging | `logging-and-observability` | 無 | 🔴 Addy |
+| DevOps | `devops-and-infrastructure` | 無 | 🔴 Addy |
+| DB 設計 | `database-and-data-layer` | 無 | 🔴 Addy |
+| 監控告警 | `monitoring-and-alerting` | 無 | 🔴 Addy |
+| 簡化程式碼 | `code-simplification`（主動呼叫） | Ponytail hook（被動偵測） | 🟡 |
+
+**統計**：🟢 我們更強 4 項、🟡 各有千秋 7 項、🔴 Addy 更好 11 項。
+11 項紅燈中有 9 項是**非功能面向的 skill**（安全、效能、DevOps 等），我們缺的是「廣度」而非「深度」。
+
+### 4. 優缺點總評
+
+#### addyosmani/agent-skills
+
+| ✅ 優點 | ❌ 缺點 |
+|:--------|:--------|
+| 生命週期覆蓋完整（含 9 類非功能面向 skills） | 無 Hook 強制機制（Guide only，無 Sensor） |
+| Slash Command 直覺（9 個指令映射 SDLC） | 無 Git 自動化鏈（branch/commit/PR 需手動） |
+| `/build auto` 一鍵全自動（審批一次後） | 無 GitHub Issue 深度整合 |
+| `interview-me` 一問一答 UX 極佳 | 無 subagent 並行能力 |
+| 跨 10+ agent 平台 + `npx skills add` | 無「接收 review」的技術驗證機制 |
+| `references/` DRY checklist | 無 Linus 式品味判斷層 |
+| Context 自動偵測啟動 skill | 寬泛但淺，每個 skill 深度有限 |
+| Agent 角色定義（Build/Review/Spec/Plan） | 無 worktree/workspace 隔離 |
+| 語言/框架無關 | `references/` 單獨安裝不可用（#361） |
+
+#### gen-dev-workflow
+
+| ✅ 優點 | ❌ 缺點 |
+|:--------|:--------|
+| Hook 驅動品質保證（Ponytail + Superpowers + stage-check + delegate-cwd） | 非功能面向缺失（無安全、效能 audit、DevOps 等） |
+| GitHub 深度整合（Issue → Branch → Commit → PR → Review 全自動化） | Flutter 專屬，不通用 |
+| Subagent 並行（dispatching + SDD） | 無 Slash Command 簡化入口（`gen xxx` 較冗長） |
+| Code Review 三向閉環（requesting → receiving → pr-review） | 無 `/build auto` 一鍵全自動模式 |
+| Linus 5 層分析 + 三角色分工 | 無 `interview-me` 式互動需求探索 |
+| Worktree 隔離 + delegate-cwd Sensor | 無 Release/Ship 完整流程 |
+| 14 個專用 Agent（含唯讀 verifier/reviewer） | 無共享 checklist（品質標準散落各處） |
+| wf-state.sh 狀態機 + 棘輪（確定性約束） | 跨平台性差（綁 Antigravity CLI） |
+| verification-before-completion 強制驗證 | 61 skills 學習曲線陡 |
+| Branch 命名規範化 | 文件化 skill 不足 |
+
+### 5. 可借鏡做法（分優先級）
+
+#### (A) 🔥 高優先（4 項，立即有價值）
+
+##### A1. Slash Command 簡化入口
+
+**Addy 做法**：`/spec` `/plan` `/build` `/review` `/ship` 9 個直覺指令。
+
+**我們的差距**：使用者需要知道 61 個 skill 名字（或至少知道 `gen dev-workflow`），認知負擔過高。`gen-dev-workflow` 雖然是統一入口，但其指令名不夠直覺。
+
+**建議**：把 `gen dev-workflow` 的各 stage 直接暴露為頂層指令：
+- `gen spec` → brainstorming + issue-spec-prep
+- `gen plan` → writing-plans
+- `gen build` → executing-plans（或 subagent-driven-development）
+- `gen review` → requesting-code-review + gen-pr-code-review
+- `gen ship` → finishing-a-development-branch + release 流程
+
+**effort**：低（純 skill 包裝，不動 wf-state.sh）| **價值**：⭐⭐⭐（認知負擔直接砍一半）
+
+##### A2. `/build auto` 自動執行模式
+
+**Addy 做法**：審批 plan 一次後，自動逐任務執行（TDD + commit），僅在失敗或風險時暫停。
+
+**我們的差距**：`pause_level=autonomous` 最接近，但需要手動 set，且語意不夠明確。使用者要的是「我已經看過 plan 了，幫我全部做完」。
+
+**建議**：在 `executing-plans` 加入 `auto` 模式旗標。Plan 審批後自動執行所有任務，每個任務仍跑 TDD + gen-commit，但不逐步暫停。配合我們既有的 subagent 並行，效果會比 Addy 版更強（他是序列的，我們可以並行）。
+
+**effort**：中（需修改 SKILL.md + 可能動 wf-state.sh 的 pause 邏輯）| **價值**：⭐⭐⭐（最大 UX 痛點之一，即 §1 痛點一「高頻打擾器」的終極解法）
+
+> **📌 與本文件既有結論的關係**：這正是 §2.1 痛點一（Human-in-the-loop 頻率過高）
+> 與 §3 提案 1（`pause_level`）的**更進一步**。`pause_level=balanced` 解決了
+> 「每個 task 都停」的問題，但使用者仍需在 stage 邊界確認。`/build auto` 把
+> 確認點壓到「plan 一次 + 失敗時」，是 `autonomous` 的正式化與 UX 包裝。
+
+##### A3. `interview-me` 一問一答需求探索
+
+**Addy 做法**：一次只問一個問題，根據回答自適應下一個問題，涵蓋問題定義、使用者、約束、成功標準，最後合成 brief 交給 spec 階段。
+
+**我們的差距**：`brainstorming` 是分析式的——agent 自己想完再提出方案讓使用者確認。對「使用者腦中只有模糊想法」的場景，缺少漸進式引導。
+
+**建議**：
+- 方案 A（最小改動）：在 `brainstorming` SKILL.md 中加入「interview mode」分支——當使用者需求描述不足 50 字時，自動切入一問一答模式。
+- 方案 B（新 skill）：建立獨立的 `interview-me` skill，位於 brainstorming 上游。
+
+**effort**：低（純 SKILL.md 修改）| **價值**：⭐⭐⭐（需求探索的 UX 明顯改善）
+
+##### A4. 共享 `references/` checklist 機制
+
+**Addy 做法**：`references/` 目錄放跨 skill 共享的品質 checklist（code review、安全、效能、無障礙），多個 skill 引用同一份。
+
+**我們的差距**：品質標準散在三處——`rules/expert-rules.md`（Linus 哲學）、`rules/flutter-styles.md`（Dart 規範）、各 skill 內嵌的規則。更新一處其他地方不同步。`gen-dev-workflow` 自己有 8 份 `references/`，但那是流程文件而非品質 checklist。
+
+**建議**：建立 `.agents/references/` 目錄（或在既有 `.agents/skills/gen-dev-workflow/references/` 同層新建共用層）：
+- `references/code-review-checklist.md`（從 code-review-commons 提取）
+- `references/flutter-performance-checklist.md`（從 flutter-styles.md 效能段落提取）
+- `references/dart-style-checklist.md`（從 flutter-styles.md 提取速查版）
+- `references/tdd-discipline.md`（從 test-driven-development 提取）
+
+各 skill 改為引用同一份 reference，而非各自嵌入。
+
+**effort**：低（拆檔 + 改引用路徑）| **價值**：⭐⭐（DRY 原則，降低維護成本）
+
+> **📌 已知風險（Addy 自己踩到的）**：單獨安裝 skill 時 `references/` 不可用
+> （tracked as issue #361）。我們若走此路需確保 skill 在無 references/ 時仍能 fallback。
+
+---
+
+#### (B) 🟡 中優先（3 項，值得規劃）
+
+##### B1. Release/Ship 完整流程
+
+**缺口**：`finishing-a-development-branch` 只做到 PR 建立。缺少：
+- `gen changelog`（自動從 conventional commits 生成 CHANGELOG）
+- `gen release-notes`
+- Version bump 自動化（`pubspec.yaml` 的 version 欄位）
+
+**effort**：中 | **價值**：⭐⭐⭐（Flutter package 的 publish 流程確實需要）
+
+> **📌 注意**：`gen-update-publish-info` skill 已存在（見 skills 列表），
+> 需先確認其覆蓋範圍再決定要新增什麼。
+
+##### B2. Context 自動偵測啟動 skill
+
+**Addy 做法**：設計 API 時自動啟動 `api-and-interface-design`，建 UI 時自動啟動 `frontend-ui-engineering`。
+
+**建議**：擴展 `hooks.json` 或 SKILL.md 的 activation 規則：
+- 正在改 `_bloc.dart` → 自動引用 BLoC 規範段落
+- 正在寫測試 → 自動載入 TDD skill 規則
+- 正在改 `pubspec.yaml` → 自動載入依賴管理規範
+
+**effort**：中（需研究 Antigravity 的 hook 能力邊界）| **價值**：⭐⭐
+
+##### B3. Agent 角色簡化定義
+
+**Addy 做法**：Build Agent / Review Agent / Spec Agent / Plan Agent 四個高階角色，語意清晰。
+
+**我們的差異**：我們有 14 個 agent，粒度更細（planner, brancher, implementer, verifier, reviewer, publisher, responder...），角色分離更嚴格。但新手理解成本高。
+
+**建議**：不動既有 agent，而是加一層文件映射——讓使用者知道「Build = implementer + verifier」「Review = reviewer + responder」等。或在 `gen dev-workflow` 的文件中加入角色對照表。
+
+**effort**：極低（純文件）| **價值**：⭐（降低認知負擔）
+
+---
+
+#### (C) 🔵 低優先（3 項，參考但非急需）
+
+##### C1. 通用性 Skills（安全、效能 Audit、重構、文件維護）
+
+22 項功能對位中 9 項紅燈來自非功能面向。但本 package 是 Flutter inspector kit（非 Web App），
+安全面向（`security-and-input-validation`）的攻擊面完全不同，照搬無意義。
+效能面向（`web-performance-audit`）對 Flutter 也不適用。
+
+**值得建立的**：
+- `code-simplification`（主動版，Ponytail hook 是被動的）→ 一個 `gen simplify` 指令
+- `refactoring-and-tech-debt`（結合 Linus 品味判斷）
+
+**不需要的**：web-performance-audit、accessibility-compliance、devops-and-infrastructure、
+database-and-data-layer、monitoring-and-alerting、logging-and-observability（本 package 無此需求）。
+
+##### C2. 跨平台安裝機制
+
+Addy 的 `npx skills add` 是社群推廣工具。我們目前無此需求。
+留意 Antigravity CLI 的 plugin 機制即可。
+
+##### C3. `code-simplification` 主動 Skill
+
+Ponytail hook 在每次 write/edit 後被動檢查。
+可加一個 `gen simplify` 指令，主動對指定檔案/模組做簡化分析。
+
+---
+
+### 6. Linus 式總評
+
+> **Addy 的系統有一個我們缺的好品味：UX 設計。**
+> 9 個 slash commands 把「使用者在開發流程的哪個階段」這個問題降維成一個動詞。
+> 我們的 61 個 skills 是程式設計師腦中的完美分類法——每個概念都精確、
+> 每個邊界都清晰——但使用者要的不是分類法，是入口。
+> **把內部複雜度暴露成外部介面 = 爛設計。**
+>
+> 但他的系統也有一個致命弱點：**所有約束都是 Guide，沒有一個是 Sensor。**
+> `spec-driven-development` 告訴你「先寫 spec」，但如果你直接 `/build` 跳過呢？
+> 什麼都不會擋你。沒有 `wf-state.sh` 的轉移表、沒有 `wf-guard-stage-check.sh` 的
+> `exit 2` 阻擋、沒有 Ponytail 在每次 write 後檢查你是不是過度工程。
+> 他的 25 個 skills 是 25 份「如何做好的手冊」；
+> 我們的系統是「做不好就過不了的閘門」。
+> **Guide 可以被忽略，Sensor 不行。**——Böckeler
+>
+> **結論：學他的 UX，保留我們的 Sensor。**
+> 具體就是 A1~A4 四項：簡化入口、auto 模式、interview-me、共享 checklist。
+> 這四項全部是 SKILL.md 層面的改良，不動 wf-state.sh、不動 hooks、
+> 不降低任何確定性保護——只是把入口做得更好。
+> **如果 Ponytail 的極簡紀律是「砍到不能再砍」，
+> 那這四項的原則是「入口簡單到不能再簡單」。**
+
+### 7. 建議動工順序
+
+| 順位 | 項目 | 理由 | effort | 價值 |
+|:---:|:-----|:-----|:---:|:---:|
+| 1 | **A1 Slash Command 簡化入口** | 認知負擔是目前最大 UX 瓶頸 | 低 | ⭐⭐⭐ |
+| 2 | **A2 `/build auto` 模式** | 解決 §2.1 痛點一的終極解法，且與 pause_level 正交 | 中 | ⭐⭐⭐ |
+| 3 | **A3 interview-me 模式** | 需求探索 UX 明顯缺口 | 低 | ⭐⭐⭐ |
+| 4 | **A4 共享 references/ checklist** | DRY 原則，降低維護成本 | 低 | ⭐⭐ |
+| 5 | B1 Release/Ship 流程 | Flutter package publish 確實需要 | 中 | ⭐⭐⭐ |
+| 6 | B2 Context 自動偵測 | 降低手動選 skill 的負擔 | 中 | ⭐⭐ |
+
+> **📌 四項截至此日全部仍是提案，未動任何程式碼。**
+> 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
+
