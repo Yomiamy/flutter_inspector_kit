@@ -2284,3 +2284,145 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 > **📌 四項截至此日全部仍是提案，未動任何程式碼。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
+
+---
+
+### 8. 第二輪比對：強制機制與已驗證缺陷 (2026-09-17 追加)
+
+> **與 §5 的分工**：§5 比的是**功能與 UX**（slash command、auto 模式、需求探索），
+> 本節比的是**強制機制**（誰能真的擋住錯誤）與**本地已驗證的缺陷**。兩節無重疊。
+>
+> **方法論與可信度**：以 Workflow 三階段執行（Recon 7 agent 平行 → Contrast 5 維度 → 每項建議 3 lens 對抗驗證）。
+> **⚠️ 對抗驗證階段 72 個 agent 全數因 session limit 失敗**，故下列每一項改由主對話**逐條讀原始碼核實行號**。
+> 結論本身有 file:line 佐證，但**少了一輪獨立反駁**。標記為「已核實」者為主對話親自查證。
+
+#### 8.1 核心判斷：兩者不是同類東西
+
+| | addyosmani/agent-skills | gen-dev-workflow |
+|:---|:---|:---|
+| 本質 | 可攜的 **skill library**（25 skill 橫向覆蓋 lifecycle） | 單專案的**流程狀態機**（7 stage 縱向編排） |
+| 強制力 | 散文：Rationalizations 表 + Verification checklist | **腳本**：`wf-state.sh` 13 處 `die`、2 支 exit 2 的 PreToolUse hook |
+| 人機互動 | `/build auto` 一句「等使用者明確同意」 | 7 暫停點 + `pause_level` 三檔 + 棘輪不可繞過 |
+| 品保 | `skill-lint.js` + TF-IDF routing evals（CI 擋） | 無（無 CI、無 skill 結構檢查） |
+| 適用面 | 6 種 agent 平台共用一份 `skills/` | 綁死本 repo |
+
+**我們贏的地方（上游完全沒有）**：
+- `apply_sets()` 白名單讓 `stage` / `awaiting_confirmation` 無法被 `set` 寫入——棘輪在**機制層**無法繞過。
+- `wf-guard-delegate-cwd.sh` 把「請在正確 worktree 工作」從道德勸說變成 `git status --porcelain` 前後快照的**感測器**。
+- verifier(opus) 與 implementer(sonnet) 分離的對抗式驗收。
+
+上游這三項全部只有 prompt 散文。
+
+**上游贏的地方**：lifecycle 廣度、`skill-lint.js` 讓結構成為 CI 不變式、**豁免寫在 validator 裡而非被檢查的檔案裡**（貢獻者無法自我認證）、evals fixture 刻意設計成「照字面讀 bug report 會失敗」。
+
+#### 8.2 建議項目（B4 已由使用者判定不需處理，此處保留編號以利追溯）
+
+##### 🔴 B6. release 四處版號：skill 少一處，且已出過事（P0）
+
+- **現況（已核實）**：`gen-update-publish-info/SKILL.md` grep `version.dart` = **0 命中**，但 `CLAUDE.md` §4 要求四處同步。
+- **已發生**：v1.6.0 發布時 `lib/src/version.dart` 停在 `1.5.0`，`FlutterInspector.version` 輸出錯誤版號，事後以 commit `0bd3b7e` 補修。memory `project-release-version-dart-gap.md` 記有「修 skill」TODO，**尚未執行**。
+- **現狀**：四處皆 2.4.0，無活 bug，但**成因原封不動**。
+- **改法**：(1) SKILL.md 補第四處（表格加列、「三處都要改」→「四處」）；(2) `test/version_test.dart` 加兩行 expect（README `^$version`、CHANGELOG 首行 `## $version`）。
+- **關鍵**：無 CI，**測試套件是唯一能真正擋住的地方**。
+
+##### 🔴 B1. Bug 1.6 workaround 正在腐蝕 `--confirmed`（P0）
+
+- **現況（已核實）**：`references/state-machine.md:96` 教模型在 STAGE 1 收尾連下兩個 `advance --confirmed`，而該旗標唯一語義是「使用者在對話中確認過」——**當下沒有使用者**。
+- **根因（已核實）**：`wf-state.sh:240` 的 `promote` 只寫 `.branch`、不動 `.stage`，卡在 `0a`，後續 `stage-done 1` 必被擋。**繞道是腳本逼出來的，非模型偷懶**。
+- **危害**：每跑一次流程就練習一次假報確認。習慣養成後，strict / balanced 等於偷偷退化成 autonomous——而 autonomous 依文件須「先警示並取得明確同意」才可用，等於繞過該警示。
+- **改法**：`promote` 的 jq 改 `.branch = $b | .stage = "1"`，刪掉 `state-machine.md:96` 整塊 workaround。**改 1 行、刪 6 行**。
+- **✅ 無人值守不受影響（已核實）**：`wf-state.sh:313` 的 `--confirmed` 檢查前綴是 `[ "$awaiting" = "true" ]`；autonomous 下 `should_pause()` 回 `false`（L148）、`stage-done` 寫入 `awaiting_confirmation=false`（L267），整句短路，**`--confirmed` 根本不會被要求**。B1 反而讓 autonomous 更乾淨（省下兩次多餘 advance）。
+- **兩者分工**：`pause_level` 管「這條流程要不要問」；`--confirmed` 管「這一次停下來後使用者答了沒」。要無人值守就設 autonomous，那是正門；B1 是把後門關上。
+
+##### 🟡 B3. guard 在 clone 後全失效（P1）
+
+- **現況（已核實）**：5 支 hook 腳本皆已 commit，但唯一掛載它們的 `.claude/settings.local.json` 被 global gitignore（`~/.config/git/ignore`）擋掉，且 `.claude/settings.json` **不存在**。
+- **後果**：clone 到新機器 → 腳本都在，沒東西啟動它們。兩支 exit 2 守衛**靜默失效，無任何錯誤訊息**。倉庫裝了槍但沒有扳機。
+- **改法**：新建**專案層** `/Users/yomiry/StudioWorkspace/flutter_inspector/.claude/settings.json`（非全域 `~/.claude/settings.json`——這些 hook 只對本 repo 有意義），**搬**入 3 條守衛，commit。
+- **搬哪幾條**（`settings.local.json` 現有 4 條）：
+
+  | # | 事件 | matcher | 腳本 | 搬？ |
+  |:-:|:---|:---|:---|:-:|
+  | 1 | PreToolUse | `Agent` | `wf-guard-stage-check.sh` | ✅ |
+  | 2 | PreToolUse | `mcp__gemini-cli__ask-gemini` | `wf-guard-delegate-cwd.sh pre` | ✅ |
+  | 3 | PostToolUse | `Bash` | `cbm-reindex-on-pr.sh` | ❌ 留 local |
+  | 4 | PostToolUse | `mcp__gemini-cli__ask-gemini` | `wf-guard-delegate-cwd.sh post` | ✅ |
+
+  第 3 條是 codebase-memory 重建索引、非守衛，且依賴 cbm MCP server 存在；留在 local 可讓 `settings.json` 語意乾淨（只放「本 repo 的流程守衛」）。
+- **⚠️ 是「搬」不是「複製」**：兩邊都註冊同一支 hook 會雙掛載、每次觸發跑兩次。權限清單與 skillOverrides 留在 local 不動。
+
+##### 🟡 B2. STAGE 3 完成度閘門是死的（P1）
+
+- **現況（已核實）**：`wf-state.sh:320` 的「任務沒做完不准進審查」被 `[ "$total" != "null" ]` 守著；`init`（L217）寫入 `total_tasks:null`；全 repo 中 `total_tasks` 僅出現在 `wf-state.sh` 自身與 `state-machine.md:117`/`:140`，**而那兩處是 JSON schema 範例、非操作指示**。
+- **結論**：`set` 白名單雖含 `total_tasks`（L175，技術上可設），但**沒有任何地方教人設**，故實務上永遠是 null，**閘門從未觸發過**。
+- **擋哪裡**：只擋 `advance <檔> 3`（STAGE 2→3）。其餘階段不受影響（該段 code 僅在 `[ "$next" = "3" ]` 時進入）。
+- **真正危害**：不是「少一道保護」（漏做任務 reviewer 本來就會抓），而是**假保護**——`state-machine.md:117` 範例寫著 `"total_tasks": 5`，讀者會以為機制是活的。
+- **改法**：二選一，**別留半殘**。(a) SKILL.md 的 STAGE 1→2 交接加一步 `wf-state.sh set <檔> total_tasks=<N>`；(b) 連同 schema 欄位一併刪除。
+- **不改變操作手感**：正常做完所有任務時 `completed_tasks == total_tasks`，閘門靜默放行，只在異常時出聲。
+
+##### 🟡 B5. effort 分層表可能從未生效（P1）
+
+- **現況**：`delegation-and-parallel.md:10` 自承 commit `a6fcd29` 移除 agent frontmatter 的 `effort:` 後，STAGE 2 便宜 / STAGE 3 最強的分層**只有每次手動帶參數才會發生**，漏帶無任何訊號。
+- **附帶風險**：文件自記 `effort: xhigh` 在 thinking 未開啟時曾撞 `400`，代表該路徑實際被走過且會靜默降級。
+- **改法**：二選一——放回 frontmatter，或砍掉分層表只留 `model` 欄（那個有真綁定）。**別留著說謊**。
+- **原則來源**：上游 `orchestration-patterns.md` 規定 pattern 須實際用過兩次並有具名產物才准入冊——「premature catalog entries become aspirational documentation」。
+
+##### 🟢 A1. skill frontmatter linter（P2）
+
+- **現況（已核實）**：`gen-rn-br/SKILL.md` **完全沒有 YAML frontmatter**（開頭直接是 `#` 標題），無 `name` / `description` → Claude 無法靠描述路由到它，**靜默失效、無任何訊號**。58 個 skill 無任何結構檢查。
+- **改法**：約 40 行 shell，只查三件事：SKILL.md 存在、frontmatter 可解析且 `name`/`description` 俱在、`name` 與目錄名相符。掛進 Makefile（已有 `analyze_lint` / `format` / `fix`）。
+- **不抄**：上游 275 行版本的 required-sections（Overview/When to Use/Rationalizations/Red Flags/Verification）與豁免清單。我們沒有統一段落模板，為餵飽 linter 去發明一個再回改 58 個檔是本末倒置。
+
+##### 🟢 A2. verifier 加「證據形狀」（P2）
+
+- **概念**：驗收項不寫**結論**，寫**必須交出什麼證物才算數**。上游寫法對比：
+  - ❌ `Tests pass` → ✅ `The full suite, run with the repository's own test command`
+  - ❌ `Bug is fixed` → ✅ `A reproduction test that failed before the fix and passes after`
+- **為何有效**：「tests pass」不可證偽——跑 1 個檔和跑 554 個檔這句話都成立。指定動作與工具後，做沒做一眼可辨。
+- **本地缺口**：`verifier.md` 已有好態度（「測試失敗一律 FAIL、不以環境問題帶過」「不准『大致還行』」），但**沒給數字**。最危險情境：analyze 吐 9 個 info，verifier 判斷「都是既有雜訊」而放行——`CLAUDE.md` §3 的 7-info 基線不在它的驗收契約裡。
+- **改法**（約 4 行，加進 code quality 階段）：
+  - 以 `flutter test` 跑完整套，**引述**實際通過數（基線 554 tests）
+  - 以 `flutter analyze lib/ test/` 檢查，**引述**完整輸出
+  - 對照 §3 的 7 個既有 info，**逐一指認**第 8 個以後的歸屬；數量若 ≤ 7 須說明是哪 7 個
+- **關鍵是「引述」**：要求貼出實際輸出而非回報判斷。光有數字不夠——總數對但內容換掉（原 7 個改掉 2 個、新增 2 個）仍會漏。
+- **不抄**：上游 Rationalizations / Red Flags 三件套。Linus 模式與 Ponytail 已佔住「反駁藉口」這個位置。
+
+##### 🟢 A3. STAGE 3 依 diff 大小決定開幾個 lens（P2）
+
+- **現況（已核實）**：`workflow-parallel.md` 適用點 3 固定開 5 個 lens（correctness / security / 回歸風險 / 測試覆蓋 / 過度工程），每個 `effort: 'xhigh'`。既有規則管的是「跑完怎麼收斂」與**安全性**（路徑衝突、暫停點位置），**缺的是「這次該開幾個」的規模判準**。
+- **上游 Pattern 3 四問句**：能同時跑無排序問題？各 lens 產出是不同**種類**的 finding？merge 裝得進剩餘 context？等待時間長到讓並行有感？任一 no 即退回單 persona。
+- **命中的痛點**：小 diff 上 correctness / 回歸風險 / 測試覆蓋極可能回傳**同一組 finding 換三種說法**——付 3 倍 xhigh 買 1 份情報，reviewer 還要多花力氣去重；5 份報告全進主對話，逼近 150k gate 時會炸。
+- **改法**（約 8 行文件、零程式碼）：`diff < 200 行` → 只開 correctness + 過度工程；`≥ 200 行` → 全 5 個。額外收斂：未觸及 network / 條件匯出 / 序列化 → 去掉 security；未觸及 RingBuffer / mergedTimeline / listener 註銷 → 去掉回歸風險；已逼近 100k 警戒 → 一律 2 個。
+- **為何保留這兩個**：correctness 永不可省；過度工程 lens 找「不該存在的東西」，與其他四個（找缺陷）**天然不重疊**，小 diff 上性價比最高。
+- **值得做的理由**：三個適用點中只有這個是**固定成本**（另兩個 fan-out 寬度由任務數決定），故只有它會在小改動上穩定浪費。
+
+#### 8.3 明確不建議抄
+
+| 項目 | 理由 |
+|:---|:---|
+| Rationalizations 表 ×61 份 | Linus 模式 + Ponytail 已佔住「反駁藉口」位置，再加一層是重複 |
+| 多平台 adapter / npx installer / TF-IDF routing evals CI | 單人單 repo、無第二消費端、無 CI 可掛。那是 25 skill × 6 平台的規模才划算 |
+| observability / performance / a11y skill | 上游有、我們沒有，但這是單一 Flutter debug package，**缺得正確** |
+| B4 review checklist 改寫 | 使用者 2026-09-17 判定不需處理 |
+
+#### 8.4 附帶發現（非上游比較）
+
+`.claude/agents/` 有 **7 個孤兒 agent**（`sdd-planner` / `feature-worker` / `release-checker` / `interface-designer` / `context-collector` / `architecture-reviewer` / `test-worker`）：在 `gen-dev-workflow` 全文 **0 引用**（已核實），產出路徑（`docs/issues/`、`.agent-output/`）與主線（`docs/plans/`）不交集，最後一次實質改動是 bootstrap 那次。另 `context-collector` 同時存在 agent 與 skill 兩個同名實體。
+
+Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過就刪，問題自己消失。真要留則需在 `command-cheatsheet.md` 加 STAGE↔agent 對照表，並在該 7 檔各加一行「非 gen-dev-workflow 主線，僅手動叫用」。
+
+#### 8.5 建議動工順序
+
+| 順位 | 項目 | 理由 | effort | 狀態 |
+|:---:|:-----|:-----|:---:|:---|
+| 1 | **B6** release 四處版號 | 已實際出過事（v1.6.0），成因原封不動 | 低 | 提案 |
+| 2 | **B1** promote 推進 stage | 唯一硬強制的人機閘門正被自家文件磨掉 | 極低（改1刪6） | 提案 |
+| 3 | **B3** 專案層 settings.json | 守衛在 clone 後靜默失效 | 極低 | 提案 |
+| 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | 提案 |
+| 5 | **B5** effort 分層表 | 可能從未生效且無訊號 | 低 | 提案 |
+| 6 | A1 skill linter | 已知 1 檔中招，寫一次永久擋住 | 低 | 提案 |
+| 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | 提案 |
+| 8 | A3 lens 規模判準 | 省錢兼防 context 爆炸，不修 bug | 極低 | 提案 |
+
+> **📌 8 項截至 2026-09-17 全部仍是提案，未動任何程式碼。**
+> 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
