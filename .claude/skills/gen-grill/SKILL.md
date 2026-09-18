@@ -19,6 +19,12 @@ description: 在 planner 產出規格之前盤問需求，直到問題定義、�
 2. **盤問**缺漏的那幾項，直到補齊
 3. **產出** brief 交給 planner
 
+## 🔴 本 skill 不產生任何文件
+
+唯一產出是 brief——**一段印在對話裡的結構化文字，不落檔**。不論是 STAGE 0·grill 自動觸發、使用者單獨打 `/gen-grill`、還是 quick 模式，都一樣。
+
+文件一律由後面兩個 stage 產出：`docs/features/`（STAGE 0a）與 `docs/plans/`（STAGE 0b）。盤問階段**不寫檔、不提方案、不求批准**。
+
 ### 與 `brainstorming` 的邊界
 
 **本 skill 不呼叫 `brainstorming`。** 該 skill 的流程是有序的——以其 Architectural path 為例，提問只是第 3 步，後續強制「提出 2-3 個方案 → 展示設計逐節取得批准 → 寫設計文件 → 使用者審閱 → 呼叫 `writing-plans`」，其明訂終態是 `writing-plans`（`brainstorming/SKILL.md:150`、`:231`），不會回到呼叫端。
@@ -31,8 +37,6 @@ description: 在 planner 產出規格之前盤問需求，直到問題定義、�
 |:---|:---|:---|
 | **`gen-grill`**（本 skill） | 只問缺漏項，補齊即停 | 回傳 brief 給 planner |
 | **`brainstorming`** | 完整設計流程（提問 → 方案 → 設計 → 文件） | `writing-plans` |
-
-本流程的設計與計畫由 STAGE 0a/0b 的 planner 負責，**盤問階段不產生任何文件、不提方案、不求批准**。
 
 ## 收斂判準（五項）
 
