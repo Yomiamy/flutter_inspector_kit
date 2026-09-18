@@ -23,7 +23,7 @@ description: 在 planner 產出規格之前盤問需求，直到問題定義、�
 
 **本 skill 不呼叫 `brainstorming`。** 該 skill 的流程是有序的——以其 Architectural path 為例，提問只是第 3 步，後續強制「提出 2-3 個方案 → 展示設計逐節取得批准 → 寫設計文件 → 使用者審閱 → 呼叫 `writing-plans`」，其明訂終態是 `writing-plans`（`brainstorming/SKILL.md:150`、`:231`），不會回到呼叫端。
 
-整套跑下來會在 STAGE 0a 之前就產生設計文件與實作計畫，與 STAGE 0a 的 `docs/features/` 和 STAGE 0b 的 `docs/plans/` 重複，且流程會停在 `writing-plans` 而不是回來產 brief。
+**若**改以呼叫它來盤問，它會把自己那一整套跑完：在 STAGE 0a 之前就先產出一份設計文件與一份實作計畫，與 STAGE 0a 的 `docs/features/` 和 STAGE 0b 的 `docs/plans/` 重複；而且流程會停在 `writing-plans`，不會回來產 brief。**這是不呼叫它的理由，不是本 skill 的行為。**
 
 所以兩者的分工是：
 
