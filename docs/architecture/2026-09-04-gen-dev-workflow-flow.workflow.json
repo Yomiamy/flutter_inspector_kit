@@ -1,0 +1,304 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "gen-dev-workflow 執行流程",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "gate-to-plan",
+        "label": "盤問到計畫",
+        "focus": [
+          "grill",
+          "spec",
+          "plan"
+        ],
+        "note": "planner 動工前先讓需求收斂：五項判準齊備或短路放行，但 Q5 既有覆蓋實查一律要跑。"
+      },
+      {
+        "id": "build-to-review",
+        "label": "實作到審查",
+        "focus": [
+          "issue_worktree",
+          "implement",
+          "review"
+        ],
+        "note": "逐任務分級派發，verifier 兩階段驗收；審查不過直接退回 STAGE 2。"
+      },
+      {
+        "id": "after-pr",
+        "label": "PR 之後",
+        "focus": [
+          "publish",
+          "pr_done",
+          "reply_review",
+          "cleanup"
+        ],
+        "note": "STAGE 5／6 是獨立入口，須先用 wf-state.sh 推進狀態才能派發。"
+      }
+    ],
+    "viewBox": [
+      1180,
+      700
+    ]
+  },
+  "lanes": [
+    {
+      "id": "planning",
+      "label": "規劃 (planner)"
+    },
+    {
+      "id": "build",
+      "label": "實作與審查"
+    },
+    {
+      "id": "release",
+      "label": "發布"
+    },
+    {
+      "id": "post",
+      "label": "獨立入口 (手動觸發)",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "converge",
+      "label": "收斂需求",
+      "fromCol": 0,
+      "toCol": 0,
+      "variant": "emphasis"
+    },
+    {
+      "id": "design",
+      "label": "規格 + 計畫",
+      "fromCol": 1,
+      "toCol": 2
+    },
+    {
+      "id": "execute",
+      "label": "實作 + 審查",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "ship",
+      "label": "發布 + 收尾",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "grill",
+    "spec",
+    "plan",
+    "issue_worktree",
+    "implement",
+    "review",
+    "publish"
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "grill"
+    ],
+    "allowedTerminals": [
+      "pr_done",
+      "cleanup"
+    ],
+    "requiredEdges": [
+      {
+        "from": "grill",
+        "to": "spec"
+      },
+      {
+        "from": "review",
+        "to": "implement"
+      }
+    ],
+    "requiredPaths": [
+      {
+        "from": "grill",
+        "to": "publish"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "grill",
+      "lane": "planning",
+      "col": 0,
+      "type": "security",
+      "label": "STAGE 0·grill",
+      "sublabel": "gen-grill 盤問",
+      "tag": "Q5 必跑"
+    },
+    {
+      "id": "spec",
+      "lane": "planning",
+      "col": 1,
+      "type": "backend",
+      "label": "STAGE 0a",
+      "sublabel": "功能規格",
+      "tag": "⏸ 暫停"
+    },
+    {
+      "id": "plan",
+      "lane": "planning",
+      "col": 2,
+      "type": "backend",
+      "label": "STAGE 0b",
+      "sublabel": "實作計畫",
+      "tag": "⏸ 暫停"
+    },
+    {
+      "id": "issue_worktree",
+      "lane": "build",
+      "col": 3,
+      "type": "cloud",
+      "label": "STAGE 1",
+      "sublabel": "Issue + Worktree",
+      "tag": "⏸ 暫停"
+    },
+    {
+      "id": "implement",
+      "lane": "build",
+      "col": 4,
+      "type": "frontend",
+      "label": "STAGE 2",
+      "sublabel": "逐任務實作",
+      "tag": "⏸ 每任務"
+    },
+    {
+      "id": "review",
+      "lane": "build",
+      "col": 5,
+      "type": "security",
+      "label": "STAGE 3",
+      "sublabel": "reviewer 審查",
+      "tag": "⏸ 暫停"
+    },
+    {
+      "id": "publish",
+      "lane": "release",
+      "col": 5,
+      "type": "cloud",
+      "label": "STAGE 4",
+      "sublabel": "gen-pr 產描述",
+      "tag": "⏸ 暫停"
+    },
+    {
+      "id": "pr_done",
+      "lane": "release",
+      "col": 4,
+      "type": "external",
+      "label": "PR 建立 ✦",
+      "sublabel": "branch 保留"
+    },
+    {
+      "id": "reply_review",
+      "lane": "post",
+      "col": 3,
+      "type": "messagebus",
+      "label": "STAGE 5",
+      "sublabel": "回覆 review",
+      "tag": "先 advance 5"
+    },
+    {
+      "id": "cleanup",
+      "lane": "post",
+      "col": 5,
+      "type": "messagebus",
+      "label": "STAGE 6",
+      "sublabel": "清 worktree",
+      "tag": "PR 合併後"
+    }
+  ],
+  "edges": [
+    {
+      "from": "grill",
+      "to": "spec",
+      "label": "brief 交 planner",
+      "variant": "emphasis"
+    },
+    {
+      "from": "spec",
+      "to": "plan",
+      "label": "規格已確認"
+    },
+    {
+      "from": "plan",
+      "to": "issue_worktree",
+      "label": "計畫已確認",
+      "variant": "emphasis"
+    },
+    {
+      "from": "issue_worktree",
+      "to": "implement",
+      "label": "cd 進 worktree"
+    },
+    {
+      "from": "implement",
+      "to": "review",
+      "label": "任務全數完成"
+    },
+    {
+      "from": "review",
+      "to": "publish",
+      "label": "審查通過",
+      "variant": "emphasis"
+    },
+    {
+      "from": "publish",
+      "to": "pr_done",
+      "label": "確認發布"
+    },
+    {
+      "from": "review",
+      "to": "implement",
+      "label": "不通過，退回修正",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "pr_done",
+      "to": "reply_review",
+      "label": "收到 review 意見",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "from": "reply_review",
+      "to": "publish",
+      "label": "修正後更新 PR",
+      "variant": "dashed",
+      "role": "return"
+    },
+    {
+      "from": "pr_done",
+      "to": "cleanup",
+      "label": "PR 實際合併",
+      "variant": "dashed",
+      "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "閘門先於規劃",
+      "items": [
+        "STAGE 0·grill 在 planner 之前，需求沒收斂不進 0a",
+        "短路只跳過 Q1–Q4，Q5 既有覆蓋實查一律要跑"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "全流程紀律",
+      "items": [
+        "7 個暫停點各對應一次 wf-state.sh stage-done，未確認就 advance 會被腳本拒絕",
+        "任何 stage 要 commit 一律用 gen-commit skill"
+      ]
+    }
+  ]
+}
