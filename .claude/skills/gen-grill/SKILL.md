@@ -21,7 +21,7 @@ description: 在 planner 產出規格之前盤問需求，直到問題定義、�
 
 ### 與 `brainstorming` 的邊界
 
-**本 skill 不呼叫 `brainstorming`。** 該 skill 的 checklist 是 `MUST` 且有序的——提問只是其第 2 步，後續強制「提出 2-3 個方案 → 展示設計取得批准 → 寫設計文件 → 呼叫 `writing-plans`」，其明訂終態是 `writing-plans`（`brainstorming/SKILL.md:53`），不會回到呼叫端。
+**本 skill 不呼叫 `brainstorming`。** 該 skill 的流程是有序的——以其 Architectural path 為例，提問只是第 3 步，後續強制「提出 2-3 個方案 → 展示設計逐節取得批准 → 寫設計文件 → 使用者審閱 → 呼叫 `writing-plans`」，其明訂終態是 `writing-plans`（`brainstorming/SKILL.md:150`、`:231`），不會回到呼叫端。
 
 整套跑下來會在 STAGE 0a 之前就產生設計文件與實作計畫，與 STAGE 0a 的 `docs/features/` 和 STAGE 0b 的 `docs/plans/` 重複，且流程會停在 `writing-plans` 而不是回來產 brief。
 

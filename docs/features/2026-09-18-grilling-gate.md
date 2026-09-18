@@ -23,7 +23,7 @@
 
 | 文件宣稱 | 實查 | 判定 |
 |:---|:---|:---|
-| `brainstorming` 是分析式、缺漸進引導 | `brainstorming/SKILL.md:9` 明寫 "ask questions **one at a time**"；`:63-65` 有「一次一問」「偏好選擇題」「只問一個」三條；`:113` Key Principles 首條即 **"One question at a time"** | ❌ **證偽**——一問一答機制已完整存在 |
+| `brainstorming` 是分析式、缺漸進引導 | `brainstorming/SKILL.md:169` 明寫 "ask questions one at a time"；`:171` 要求「只問一個問題」；其 Architectural path 的第 3 步即為逐項提問 | ❌ **證偽**——一問一答機制已完整存在 |
 | STAGE 0a 是 planner 直接產規格 | `.claude/agents/planner.md:26` 的「使用的 Skills」明列 `brainstorming — 需求探索` | ⚠️ **部分證偽**——planner 契約上要用 brainstorming |
 | （文件未提） | `grep -rn "brainstorming" .claude/skills/gen-dev-workflow/` = **0 命中** | 🔴 **真正的缺口在此** |
 
@@ -86,7 +86,7 @@
 
 | 項目 | 理由 |
 |:---|:---|
-| **重寫一問一答的問法** | `brainstorming` 已有（`:63-65`、`:113`）。本項驅動它，不取代它 |
+| **重寫一問一答的問法** | `brainstorming` 已有（`:169`、`:171`）。本項沿用其紀律，不重寫 |
 | **改 `brainstorming/SKILL.md`** | 它是 superpowers 上游 skill，本 repo 不持有。改它會在上游更新時衝突。**只從外部呼叫，不修改** |
 | **新增 wf-state.sh stage** | 使用者已裁決「不接狀態機」。轉移表維持 `0a→0b→1→2→3→4` 不變，grill 發生在 0a 內部、腳本無感 |
 | **新增暫停點** | 盤問本身就是對話，不需要額外的 `stage-done` 棘輪。STAGE 0a 既有的規格確認暫停點不變 |
