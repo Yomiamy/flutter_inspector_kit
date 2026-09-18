@@ -1,6 +1,7 @@
 # gen-dev-workflow 全階段分析報告
 
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-09-19**：同步 PR #167（Issue #166）——新增 STAGE 0·grill 需求盤問關卡與 `gen-grill` skill。(1) 「各階段詳細分析」新增 STAGE 0·grill 一節；(2) 缺點表「錯誤傳播」列標註部分緩解；(3) 總覽的 stage 敘述補上本關卡。注意此關卡**不動狀態機、不是暫停點、不產生文件**，故 state machine 轉移表與 7 個暫停點的既有敘述維持不變。
 > * **2026-09-04**：補上三處文件從未涵蓋的既有機制，並更新兩項因此失效的判斷。(1) 新增「Hook 強制層」章節——四個已註冊 hook（`wf-guard-stage-check`、`wf-guard-delegate-cwd` pre/post、`cbm-reindex-on-pr`）此前在本文件 0 次提及，其中兩個直接強制本 workflow 自身的規則；(2) 新增 batch 批次模式（此前僅 quick 模式有專節）；(3) 新增「Claude Workflow 編排」可選加速層。連帶修正：「委派後端依賴」缺點中「工作目錄靠 prompt 約束，屬文件層自律而非程式強制」一句已被 `wf-guard-delegate-cwd` 推翻，改為「pre 端已程式強制」；「最危險的假設」補上 hook 層作為第二道非自律防線。新增流程總覽圖連結。
 > * **2026-08-12**：PR review 回應階段的一致性修正（PR #126）。四處敘述本身自相矛盾，非新增功能：(1) STAGE 2 驗收責任人在 `implementer.md`、SKILL.md、本文件三處定義不一，統一為「委派 verifier 做兩階段驗收、implementer 只複核」；(2) STAGE 6 清理執行模型在本文件表格、mermaid 圖 E6/F6、SKILL.md 摘要表之間矛盾，統一為「主對話執行、不委派」；(3) `publisher.md` 唯讀派發同時宣稱「不得跨出目錄」又說明會讀全域 CLAUDE.md，改為誠實描述限制；(4) `brancher.md` 重試對帳規則原寫「找到既有資源就復用」，與 `ticket-id-dev-prep`「已存在則停止回報」衝突，收緊為「僅復用能證明屬於本次嘗試的資源」。
 > * **2026-08-10**：**委派後端由 `agy -p` headless 改為 `gemini-mcp-tool`（MCP）**。底層後端不變（仍是 antigravity-cli），換掉的是傳輸層——`agy -p` 不吃 stdin、權限卡死，委派實際一律落到 fallback；MCP 路徑實測可寫檔、可跑 shell、可 `git commit`。同步更新各 stage 委派欄、Model 策略、缺點表「agy 依賴」項，新增 MCP 路徑的三條委派紀律與已知限制。
@@ -12,7 +13,7 @@
 
 > 📊 **視覺化總覽**：[`2026-09-04-gen-dev-workflow-flow.html`](2026-09-04-gen-dev-workflow-flow.html)（同目錄，瀏覽器開啟）——一張圖涵蓋主路徑、sub-agent 的 model/effort、MCP 委派點與 hook 攔檢層。本文件是文字分析，該圖是流程總覽，兩者互補。
 
-`gen-dev-workflow` 是一個**全自動開發流程編排器**，從使用者說「幫我做 X 功能」到 PR 建立，共 6 個 stage（0a → 0b → 1 → 2 → 3 → 4），外加兩個獨立入口的 STAGE 5（回覆 PR review）與 STAGE 6（PR 合併後清理 worktree），以及小修正用的 **quick 模式**（單暫停點快速通道，不建 worktree）。核心機制是 **Claude 做總指揮 + `gemini-mcp-tool`（MCP）做委派執行**。自 STAGE 1 起，整條流程搬進一個獨立 worktree 執行——worktree 才是真正的隔離邊界。
+`gen-dev-workflow` 是一個**全自動開發流程編排器**，從使用者說「幫我做 X 功能」到 PR 建立，共 6 個 stage（0a → 0b → 1 → 2 → 3 → 4，前方另有不進狀態機的 STAGE 0·grill 需求盤問關卡），外加兩個獨立入口的 STAGE 5（回覆 PR review）與 STAGE 6（PR 合併後清理 worktree），以及小修正用的 **quick 模式**（單暫停點快速通道，不建 worktree）。核心機制是 **Claude 做總指揮 + `gemini-mcp-tool`（MCP）做委派執行**。自 STAGE 1 起，整條流程搬進一個獨立 worktree 執行——worktree 才是真正的隔離邊界。
 
 > **📌 委派後端的傳輸層變更（2026-08-10）**：後端一直是 antigravity-cli，但**傳輸層由 `agy -p` headless 改為 MCP 工具 `mcp__gemini-cli__ask-gemini`**。原因：`agy -p` 不吃 stdin、權限會卡死（見 [`brainstorm §2.3`](../brainstorm/2026-09-13-workflow-brainstorm.md)），委派實際一律落到 fallback，「委派」名存實亡。MCP 路徑經實測可寫檔、可改既有檔、可跑 shell 與 `git commit`，是同一後端唯一能真正委派的通道。
 >
@@ -28,6 +29,27 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 ---
 
 ## 各階段詳細分析
+
+### STAGE 0·grill：需求盤問（planner 之前的必經步驟）
+
+| 項目 | 內容 |
+|------|------|
+| **Agent** | 無（主對話呼叫 `gen-grill` skill，不派發 agent） |
+| **Model** | 主對話自身 |
+| **委派** | 無委派 |
+| **並行** | 無 |
+| **產出** | **不落檔**——唯一產出是印在對話裡的結構化 brief，交給 planner |
+| **暫停點** | **不是暫停點**（盤問本身即對話往返，無 `stage-done` 棘輪） |
+
+**收斂判準五項：** 問題定義／觸發場景／成功標準／範圍邊界／**既有覆蓋實查**。任一項缺 → 針對該項提問（一次一個，優先選擇題）→ 答完重新判定。
+
+**短路條件**（已有文件背書／已 triage 的 issue／機械性改動／quick 模式）只跳過前四項，**既有覆蓋實查一律要跑**——本 repo 的 misalignment 主因是文件與實況漂移，而漂移恰好都發生在「看起來已有文件背書」的項目上。
+
+**不動狀態機。** 此關卡發生在 `wf-state.sh init` 之後、planner 派發之前，轉移表維持 `0a→0b→1→2→3→4`，7 個暫停點不變。
+
+> issue-id 路徑（跳過 STAGE 0a/0b）不經過本關卡，改在 STAGE 1 取得 issue 內容**之後**補跑既有覆蓋實查——該項判斷需要具體需求，只有 issue ID 無從判斷。
+
+---
 
 ### STAGE 0a：功能規格（What & Why）
 
@@ -441,7 +463,7 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 | **STAGE 5/6 脫節** | 獨立入口與主流程不連貫 | 🟡 低 | STAGE 5、6 都是「獨立入口」。STAGE 5 串聯 responder → reviewer → publisher，邏輯與主流程部分重疊卻又獨立，若修改引入新 bug 沒有機制退回 STAGE 2；STAGE 6 雖已新增文件同步（gen-sync-docs-by-branchs → gen-commit）避免 docs 過期，但仍脫離主流程，靠使用者手動觸發、不自動偵測 PR 合併狀態，誤觸發（PR 未真正合併就清理）無自動防護，只靠使用者自律 |
 | **文件 vs 執行** | Skill 是文件，不是程式 | 🟡 中（原 🔴 高） | 可程式化的 guard 已從文件搬進 `scripts/wf-state.sh`：(1) state machine 實作——sequence 模式非法 stage 轉移直接 exit 1（合法路徑 0a→0b→1→2→3→4、3→2、4→done 寫死在轉移表；quick/jump 不套用轉移表，quick 升級走單向 `upgrade` 指令）；(2) 暫停點棘輪——`stage-done`/`task-done` 後未帶 `--confirmed` 的 `advance` 一律拒絕，跳過暫停點從「無聲遺忘」變成必須蓄意加旗標的可稽核動作；(3) `set` 白名單禁改 `stage`/確認旗標，防繞過。**殘餘風險**：LLM 仍可能根本不呼叫腳本（只能靠 SKILL.md 明文禁止手寫 JSON），context 用量估算依然無法程式化 |
 | **Hook 層脆弱** | 掛載點不進版控、matcher 與通道耦合 | 🟡 中 | Hook 是目前唯一不依賴 LLM 自律的防線，但自身有三個缺口：(1) 掛載於 `.claude/settings.local.json`，**本地設定不進版控**——換機器、重裝或新 clone 都不會有，且失效時無聲無息；(2) 兩個 delegate guard 的 matcher 寫死 `mcp__gemini-cli__ask-gemini`、reindex 寫死 `Bash`，**換委派傳輸層或把 GitHub 操作改走 MCP 都會讓對應 hook 靜默失效**（2026-08-10 已換過一次通道，這是真實而非假想的風險）；(3) false positive 防護以「無 state 檔即放行」為條件，等於「不寫 state 反而繞過 guard」——為避免誤擋而接受的代價 |
-| **錯誤傳播** | 早期 stage 錯誤會放大 | 🟡 中 | 如果 STAGE 0a 的功能規格就有偏差，使用者確認了（可能沒仔細看），後面所有 stage 都在錯誤基礎上工作。flow 沒有後期發現早期問題的回溯機制 |
+| **錯誤傳播** | 早期 stage 錯誤會放大 | 🟡 中 | 如果 STAGE 0a 的功能規格就有偏差，使用者確認了（可能沒仔細看），後面所有 stage 都在錯誤基礎上工作。flow 沒有後期發現早期問題的回溯機制。**2026-09-18 部分緩解**：新增 STAGE 0·grill 前置盤問（見上），在 planner 動工前先要求五項判準齊備，其中「既有覆蓋實查」強制查 codebase 而非只信文件敘述。但這只擋住**進入**規格階段時的偏差，「後期發現早期問題的回溯機制」仍然沒有 |
 | **STAGE 1 斷裂** | ~~`promote` 後 `stage-done 1` 恆遭拒（Bug 1.6）~~ | ✅ 已解決 | 2026-07-30 已透過修改 SKILL.md 工作流指示 (Workaround) 解決。正常 sequence 流程如今會依序執行 `advance 0b` 與 `advance 1`，強行推進 stage 來滿足 guard 的要求，而不去改動 `promote` 共用底層腳本。詳見 [`docs/brainstorm/2026-09-13-workflow-brainstorm.md`](../brainstorm/2026-09-13-workflow-brainstorm.md) §6。 |
 | **狀態機漏洞** | ~~缺少任務完成與 STAGE 5 閉環校驗~~ | ✅ 已解決 | 2026-07-21 已在 `wf-state.sh` 補齊 `completed_tasks` 數量是否與 `total_tasks` 吻合的檢查，並於 STAGE 5 轉移表加上 `reviewer -> responder` 退回規則，防堵漏洞。（註：該校驗初版誤在頂層 `case` 分支用 `local`，一觸發即 `set -e` crash，已由「腳本脆弱性」列的 Bug 1.5 修正。） |
 | **腳本脆弱性** | ~~`wf-state.sh` 隱含多個 Bash Bug~~ | ✅ 已解決 | 2026-07-21 修復了 5 個 Bash 執行階段漏洞：參數不足導致 `shift 2` crash、無 `=` 的 `set` 參數致 JSON 損毀、負數被錯誤轉為字串、原子寫入失敗時殘留暫存檔，以及 `advance` 任務校驗誤用函式外 `local` 致 `set -e` crash（Bug 1.5，曾堵死 STAGE 2→3 主流程，屬「狀態機漏洞」修復引入的回歸）。 |
