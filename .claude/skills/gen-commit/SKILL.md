@@ -97,6 +97,7 @@ EOF
 ```
 
 **訊息規則：**
+- 語言：subject 與 body 一律英文（`docs/`、Issue、PR 描述維持 zh-tw）
 - Type：`feat` / `fix` / `refactor` / `test` / `chore` / `build` / `ci` / `docs`
 - Scope：標示受影響的*區域*而非檔案 —— 用 `build(deps)` 而非 `build(pubspec)`。當一個檔案拆成多筆 commit 時，scope 就是區分它們的依據。
 - Subject 行 ≤ 72 字元，使用祈使語氣（"add"、"fix"、"remove" —— 不要 "added"、"fixes"）
