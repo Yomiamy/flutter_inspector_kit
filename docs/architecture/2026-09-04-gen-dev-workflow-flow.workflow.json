@@ -57,7 +57,7 @@
     },
     {
       "id": "post",
-      "label": "獨立入口 (手動觸發)",
+      "label": "獨立入口與 Hook 守衛",
       "variant": "exception"
     }
   ],
@@ -101,11 +101,15 @@
   ],
   "semanticChecks": {
     "allowedRoots": [
-      "grill"
+      "grill",
+      "guard_stage",
+      "guard_cwd"
     ],
     "allowedTerminals": [
       "pr_done",
-      "cleanup"
+      "cleanup",
+      "guard_stage",
+      "guard_cwd"
     ],
     "requiredEdges": [
       {
@@ -213,6 +217,26 @@
       "label": "STAGE 6",
       "sublabel": "清 worktree",
       "tag": "PR 合併後"
+    },
+    {
+      "id": "guard_stage",
+      "lane": "post",
+      "col": 0,
+      "type": "security",
+      "label": "stage-check",
+      "sublabel": "matcher: Agent",
+      "tag": "exit 2",
+      "width": 150
+    },
+    {
+      "id": "guard_cwd",
+      "lane": "post",
+      "col": 1,
+      "type": "security",
+      "label": "delegate-cwd",
+      "sublabel": "matcher: ask-gemini",
+      "tag": "pre+post",
+      "width": 150
     }
   ],
   "edges": [
@@ -294,9 +318,10 @@
     },
     {
       "dot": "cyan",
-      "title": "全流程紀律",
+      "title": "兩層強制：腳本 + Hook",
       "items": [
-        "7 個暫停點各對應一次 wf-state.sh stage-done，未確認就 advance 會被腳本拒絕",
+        "暫停點棘輪：未確認就 advance，wf-state.sh 直接拒絕",
+        "PreToolUse hook 只有 exit 2 具阻擋力，exit 1 動作照跑",
         "任何 stage 要 commit 一律用 gen-commit skill"
       ]
     }
