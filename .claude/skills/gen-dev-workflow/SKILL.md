@@ -159,10 +159,16 @@ description: |
     → 【文件同步】先呼叫 gen-sync-docs-by-branchs skill，以當前處理的分支為
       目標，把該分支的實際變更回寫到 docs 下的發想／結構說明文件
       （brainstorm、architecture 等）
-    → 【提交同步結果】呼叫 gen-commit skill 將文件變更 commit 進 git
+    → 【提交同步結果】將文件變更 commit（移除 worktree 前必須完成）
     → 呼叫 worktree-close-cleanup skill 移除 STAGE 1 建立的 worktree
     → 僅移除 worktree 本身，**對應 branch 一律保留、不刪除**
 ```
+
+---
+
+## Commit 規則
+
+🔴 **任何 stage、任何時候要 commit，一律用 `gen-commit` skill。**
 
 ---
 
