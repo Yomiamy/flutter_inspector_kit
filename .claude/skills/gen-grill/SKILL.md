@@ -11,15 +11,28 @@ description: 在 planner 產出規格之前盤問需求，直到問題定義、�
 
 ## 🔴 本 skill 不自帶問法
 
-盤問由既有的 `brainstorming` skill 執行——它已具備完整的一次一問機制（一次只問一個、偏好選擇題、聚焦 purpose/constraints/success criteria）。
+盤問沿用 `brainstorming` 已驗證的提問紀律（一次只問一個、偏好選擇題、聚焦 purpose / constraints / success criteria）。
 
 本 skill 的職責只有三件事：
 
 1. **判定**需求是否收斂（對照下方五項判準）
-2. **驅動** `brainstorming` 盤問缺漏的那幾項
+2. **盤問**缺漏的那幾項，直到補齊
 3. **產出** brief 交給 planner
 
-重寫一套問法等於做出第二份同樣的東西。呼叫它，不取代它。
+### 與 `brainstorming` 的邊界
+
+**本 skill 不呼叫 `brainstorming`。** 該 skill 的 checklist 是 `MUST` 且有序的——提問只是其第 2 步，後續強制「提出 2-3 個方案 → 展示設計取得批准 → 寫設計文件 → 呼叫 `writing-plans`」，其明訂終態是 `writing-plans`（`brainstorming/SKILL.md:53`），不會回到呼叫端。
+
+整套跑下來會在 STAGE 0a 之前就產生設計文件與實作計畫，與 STAGE 0a 的 `docs/features/` 和 STAGE 0b 的 `docs/plans/` 重複，且流程會停在 `writing-plans` 而不是回來產 brief。
+
+所以兩者的分工是：
+
+| | 職責 | 終態 |
+|:---|:---|:---|
+| **`gen-grill`**（本 skill） | 只問缺漏項，補齊即停 | 回傳 brief 給 planner |
+| **`brainstorming`** | 完整設計流程（提問 → 方案 → 設計 → 文件） | `writing-plans` |
+
+本流程的設計與計畫由 STAGE 0a/0b 的 planner 負責，**盤問階段不產生任何文件、不提方案、不求批准**。
 
 ## 收斂判準（五項）
 
@@ -33,7 +46,7 @@ description: 在 planner 產出規格之前盤問需求，直到問題定義、�
 | **Q4** | 範圍邊界 | 說得出**明確不做什麼**，尤其是相鄰、容易順手做掉的部分 | 完全沒有邊界，或只說「先做基本的」 |
 | **Q5** | 既有覆蓋 | **已實查 codebase**：確認要做的東西不存在、或存在但不符需求，並附證據（符號 grep 結果 / 檔案路徑 / 行號） | 只憑文件敘述或印象判斷「這個還沒做」 |
 
-**任一項缺 → 呼叫 `brainstorming` 針對該項盤問 → 回來重新判定。**
+**任一項缺 → 針對該項提問（一次一個，優先選擇題）→ 答完重新判定。**
 五項齊備 → 放行，產出 brief。
 
 ### 為什麼有 Q5（本 repo 專屬，上游沒有）

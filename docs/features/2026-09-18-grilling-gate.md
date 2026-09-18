@@ -117,7 +117,7 @@
 | AC-9 | `brainstorming/SKILL.md` **零修改** | `git diff --stat` 不含該檔 |
 | AC-10 | 既有 7 個暫停點數量與位置不變 | 比對 SKILL.md「暫停點規則」表格，仍為 7 列 |
 | AC-11 | `quick` 模式不受影響——小修正不應被強迫盤問 | SKILL.md 明文說明 grill 在 quick 模式的行為 |
-| AC-12 | 測試與靜態分析無新增問題 | `flutter test`（基線 554 tests）+ `flutter analyze lib/ test/`（基線 7 個既有 info），**引述完整輸出**並逐一指認第 8 個以後的歸屬 |
+| AC-12 | 測試與靜態分析無新增問題 | `flutter test`（基線 606 tests）+ `flutter analyze lib/ test/`（基線 7 個既有 info），**引述完整輸出**並逐一指認第 8 個以後的歸屬 |
 
 > AC-12 的「引述」要求刻意對齊 §8.2 的 A2 建議：總數對但內容換掉仍會漏，故要求貼出實際輸出而非回報判斷。本項為純文件改動，理論上不應動到任何 Dart 程式碼，測試數與 info 數應**完全不變**。
 

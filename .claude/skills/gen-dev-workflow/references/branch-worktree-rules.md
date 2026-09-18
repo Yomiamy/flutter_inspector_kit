@@ -11,6 +11,7 @@ STAGE 1 建立分支與工作區時，**不論從哪個入口進來**，最後�
 
 兩種入口在 STAGE 1 收斂為同一套步驟：
 
+0. **issue-id 路徑先跑 `gen-grill` 的 Q5（既有覆蓋實查）**：該路徑跳過 STAGE 0a/0b，因此不經過 STAGE 0·grill。Q5 只查「這個是不是已經做過了」，Q1–Q4 略過（issue 內容已含需求定義）。實查結果與 issue 敘述衝突時先回報，不逕自建分支——§D4（Issue #159）正是照 issue 字面做完才發現落點錯誤。
 1. **取得 Issue 內容**：
    - 正常路徑：`gen-gh-issue` 產出的五區段 body 直接作為 issue brief 來源，`brancher` 呼叫 `gh issue create` 建立新 Issue。
    - issue-id 路徑：`brancher` 先用 `gh issue view <id>` 取得既有 Issue 內容，依 `ticket-id-dev-prep` 的「已解析 Brief 規則」濃縮為 `zh-tw` 實作 brief（不重新調查，issue 內容本身就是真實來源）。

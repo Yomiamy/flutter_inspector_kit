@@ -42,7 +42,9 @@
 | 1 | `.claude/skills/gen-grill/SKILL.md` | 新增 | ~60 行 |
 | 2 | `.claude/skills/gen-dev-workflow/SKILL.md` | 修改 2 處（流程圖 + 暫停點表前註記） | +8 行 |
 
-**不動的檔案（AC-7/AC-9 要求）**：`scripts/wf-state.sh`、`.claude/skills/brainstorming/SKILL.md`、`.claude/agents/planner.md`、所有 `references/*.md`。
+**不動的檔案（AC-7/AC-9 要求）**：`scripts/wf-state.sh`、`.claude/skills/brainstorming/SKILL.md`、`.claude/agents/planner.md`。
+
+> **📝 PR review 後修正（2026-09-18）**：原本也列了「所有 `references/*.md`」，但 review 指出三處漏接——`command-cheatsheet.md` 的 STAGE 0a 派發模板繞過閘門、`execution-modes.md` 的 quick 流程與 quick 溢出 commit 未納入新規則、`branch-worktree-rules.md` 的 issue-id 路徑跳過 0a/0b 故不經過閘門。**閘門只寫在主流程圖而不接進實際派發路徑等於沒有閘門**，故三檔皆需修改。`wf-state.sh`、`brainstorming`、`planner.md` 三項保護不變。
 
 ---
 
@@ -164,7 +166,7 @@ quick 模式下本閘門**只跑 Q5（既有覆蓋實查）**，其餘四項略�
 本項為純文件改動，**測試數與 analyze info 數應完全不變**：
 
 ```bash
-flutter test                    # 預期：554 tests 全綠，數字與基線一致
+flutter test                    # 預期：606 tests 全綠，數字與基線一致
 flutter analyze lib/ test/      # 預期：7 個既有 info，一個不多
 wf-state.sh get <現存 state 檔>  # AC-8：既有 state 檔仍可正常讀取
 ```
