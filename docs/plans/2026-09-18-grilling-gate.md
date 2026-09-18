@@ -161,6 +161,27 @@ quick 模式下本閘門**只跑 Q5（既有覆蓋實查）**，其餘四項略�
 
 ---
 
+### Task 3 · 接進三個實際派發入口（PR review 後補）
+
+> **為何原計畫漏了這項**：Task 2 只改主 SKILL.md 的流程圖，但**流程圖不是執行路徑**。實際啟動流程的是 `references/` 下的三份操作文件，它們各自繞過閘門。閘門只宣告在流程圖而不接進派發路徑，等於沒有閘門——這正是本 PR 要解決的問題（`brainstorming` 有機制但 workflow 零引用）在本次實作中重演。
+
+**寫入**：
+
+| 檔案 | 缺口 | 修法 |
+|:---|:---|:---|
+| `references/command-cheatsheet.md` | `:9` 直接 `Task("planner", ...)`，照它啟動完全繞過閘門 | STAGE 0a 前插入 grill 步驟，措辭明確「Q1–Q4 齊備或短路，**且 Q5 已跑完**」 |
+| `references/execution-modes.md` | quick 從①建 branch 起步、不經 STAGE 0a；另 quick 溢出用裸 `git commit` + 中文訊息 | 新增 ⓪ 只跑 Q5；溢出改用 `gen-commit` 並要求英文訊息 |
+| `references/branch-worktree-rules.md` | issue-id 路徑跳過 0a/0b，不經閘門 | 新增步驟 1.5 跑 Q5，**必須排在步驟 1 取得 issue body 之後**（只有 issue ID 無從判斷既有覆蓋） |
+
+**驗收**（每條派發路徑各一項）：
+
+- `grep -c "gen-grill" references/command-cheatsheet.md` ≥ 1，且該行提及 Q5
+- `grep -c "Q5" references/execution-modes.md` ≥ 1，且 quick 溢出無裸 `git commit`
+- `references/branch-worktree-rules.md` 的 Q5 步驟編號大於「取得 Issue 內容」
+- 主 SKILL.md 流程圖與 `gen-grill/SKILL.md` 對「盤問由誰執行」的敘述一致（不得一邊說呼叫 `brainstorming`、一邊說不呼叫）
+
+---
+
 ## 5. 最終驗證（AC-12）
 
 本項為純文件改動，**測試數與 analyze info 數應完全不變**：
