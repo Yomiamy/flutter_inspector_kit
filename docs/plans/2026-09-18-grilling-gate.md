@@ -173,12 +173,29 @@ quick 模式下本閘門**只跑 Q5（既有覆蓋實查）**，其餘四項略�
 | `references/execution-modes.md` | quick 從①建 branch 起步、不經 STAGE 0a；另 quick 溢出用裸 `git commit` + 中文訊息 | 新增 ⓪ 只跑 Q5；溢出改用 `gen-commit` 並要求英文訊息 |
 | `references/branch-worktree-rules.md` | issue-id 路徑跳過 0a/0b，不經閘門 | 新增步驟 1.5 跑 Q5，**必須排在步驟 1 取得 issue body 之後**（只有 issue ID 無從判斷既有覆蓋） |
 
-**驗收**（每條派發路徑各一項）：
+**驗收**（**一律自 repo root 執行**，路徑全寫完整）：
 
-- `grep -c "gen-grill" references/command-cheatsheet.md` ≥ 1，且該行提及 Q5
-- `grep -c "Q5" references/execution-modes.md` ≥ 1，且 quick 溢出無裸 `git commit`
-- `references/branch-worktree-rules.md` 的 Q5 步驟編號大於「取得 Issue 內容」
-- 主 SKILL.md 流程圖與 `gen-grill/SKILL.md` 對「盤問由誰執行」的敘述一致（不得一邊說呼叫 `brainstorming`、一邊說不呼叫）
+```bash
+R=.claude/skills/gen-dev-workflow
+
+# ① cheatsheet：同一行需同時出現 gen-grill 與 Q5（正向）
+grep -E "gen-grill.*Q5|Q5.*gen-grill" $R/references/command-cheatsheet.md
+
+# ② execution-modes：quick 有 Q5（正向）、且無裸 git commit（負向，須無輸出）
+grep -q "Q5" $R/references/execution-modes.md && echo "Q5 ok"
+grep -nE '^\s*git (add|commit)' $R/references/execution-modes.md && echo "FAIL: 裸 commit" || echo "無裸 commit ok"
+grep -E "gen-commit" $R/references/execution-modes.md   # 溢出改用 gen-commit
+
+# ③ branch-worktree-rules：Q5 的行號需大於「取得 Issue 內容」
+a=$(grep -n "取得 Issue 內容" $R/references/branch-worktree-rules.md | cut -d: -f1)
+b=$(grep -n "Q5" $R/references/branch-worktree-rules.md | head -1 | cut -d: -f1)
+[ "$b" -gt "$a" ] && echo "順序 ok（$a → $b）" || echo "FAIL: Q5 排在取得 issue body 之前"
+
+# ④ 流程圖與 gen-grill 不得矛盾（負向，須無輸出）
+grep -rn "驅動 brainstorming\|驅動 \`brainstorming\`" .claude/skills/ && echo "FAIL: 仍說驅動" || echo "無矛盾 ok"
+```
+
+**為何不只用 `grep -c`**：計數只證明「該字串出現過」，證不出**組合條件**——cheatsheet 可能提了 `gen-grill` 卻沒提 Q5、execution-modes 可能加了 Q5 卻仍留著裸 `git commit`。故正向檢查配對出現、負向檢查（④ 與 ② 的第二條）以「須無輸出」為通過。
 
 ---
 
