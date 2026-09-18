@@ -42,7 +42,7 @@ App 內除錯檢視工具（Flutter Package）：把 log / network / navigator /
 
 ```bash
 # 測試
-flutter test                                  # 全套測試 (554 tests, ~15–20s)
+flutter test                                  # 全套測試 (606 tests, ~15–20s)
 flutter test test/ui/console_tab_test.dart    # 單檔測試
 
 # 分析與程式碼格式化

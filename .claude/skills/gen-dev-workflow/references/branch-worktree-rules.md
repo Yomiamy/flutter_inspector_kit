@@ -14,6 +14,7 @@ STAGE 1 建立分支與工作區時，**不論從哪個入口進來**，最後�
 1. **取得 Issue 內容**：
    - 正常路徑：`gen-gh-issue` 產出的五區段 body 直接作為 issue brief 來源，`brancher` 呼叫 `gh issue create` 建立新 Issue。
    - issue-id 路徑：`brancher` 先用 `gh issue view <id>` 取得既有 Issue 內容，依 `ticket-id-dev-prep` 的「已解析 Brief 規則」濃縮為 `zh-tw` 實作 brief（不重新調查，issue 內容本身就是真實來源）。
+1.5. **issue-id 路徑在此跑 `gen-grill` 的 Q5（既有覆蓋實查）**：該路徑跳過 STAGE 0a/0b，不經過 STAGE 0·grill，故在此補跑。**必須排在步驟 1 之後**——Q5 要依具體需求判斷既有覆蓋並附證據，只有 issue ID 無從判斷，需先拿到解析後的 brief。Q1–Q4 略過（issue 內容已含需求定義）。實查結果與 issue 敘述衝突時先回報，不逕自建分支——§D4（Issue #159）正是照 issue 字面做完才發現落點錯誤。
 2. **決定 branch prefix + slug**（沿用 `ticket-id-dev-prep` 的「Slug 規則」與「Branch 與 Worktree 規則」）：
    - prefix 依 issue 意圖選擇：`fix/YYYYMM`（bug/regression）、`feature/YYYYMM`（新功能）、`chore/YYYYMM`（refactor/維護）。
    - slug：2–6 個英文字的 kebab-case，具體且與實作相關，避免 `handle`/`update`/`fix-issue` 這類填充詞。

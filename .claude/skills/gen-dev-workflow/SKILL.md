@@ -34,8 +34,21 @@ description: |
            │
            ▼
     ┌─────────────────────────────────────────────────┐
+    │  STAGE 0·grill：需求盤問（planner 之前的必經步驟）│
+    │  → 呼叫 gen-grill skill                          │
+    │  → 五項判準（問題定義/觸發場景/成功標準/範圍邊界 │
+    │    /既有覆蓋實查）齊備 → 放行                     │
+    │  → 任一項缺 → 針對該項提問（一次一個）後重判      │
+    │  → 短路（已有文件背書/已 triage issue/機械性改動  │
+    │    /quick 模式）→ 跳過 Q1–Q4，但 Q5 一律要跑      │
+    │  → 產出結構化 brief，交給 planner                 │
+    │  （不動狀態機：轉移表維持 0a→0b→1→2→3→4）        │
+    └──────────────────────┬──────────────────────────┘
+                           │ 需求已收斂
+                           ▼
+    ┌─────────────────────────────────────────────────┐
     │  STAGE 0a：功能規格                             │
-    │  → 呼叫 planner agent                           │
+    │  → 呼叫 planner agent（依據 grill 產出的 brief） │
     │  → 🟢 並行 2 條（已 opt-in → 可用 Workflow）：   │
     │     A. 專案 context 收集（讀檔 / git log）       │
     │     B. 相似功能代碼調查（既有實作參考）          │
@@ -146,14 +159,24 @@ description: |
     → 【文件同步】先呼叫 gen-sync-docs-by-branchs skill，以當前處理的分支為
       目標，把該分支的實際變更回寫到 docs 下的發想／結構說明文件
       （brainstorm、architecture 等）
-    → 【提交同步結果】呼叫 gen-commit skill 將文件變更 commit 進 git
+    → 【提交同步結果】將文件變更 commit（移除 worktree 前必須完成）
     → 呼叫 worktree-close-cleanup skill 移除 STAGE 1 建立的 worktree
     → 僅移除 worktree 本身，**對應 branch 一律保留、不刪除**
 ```
 
 ---
 
+## Commit 規則
+
+🔴 **任何 stage、任何時候要 commit，一律用 `gen-commit` skill。**
+
+---
+
 ## 暫停點規則
+
+> **STAGE 0·grill 不是暫停點。** 盤問本身就是對話往返，不需要 `stage-done` 棘輪，
+> 也不改變下表的 7 個暫停點。它發生在 `wf-state.sh init` 之後、planner 派發之前，
+> 狀態機完全無感（轉移表維持 `0a→0b→1→2→3→4`）。
 
 | 暫停時機 | 你要做什麼 | 繼續條件 |
 |---------|-----------|---------|
