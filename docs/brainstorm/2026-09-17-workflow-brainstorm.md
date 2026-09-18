@@ -3,6 +3,13 @@
 > **📝 合併紀錄**：
 > 本文件整併了 `2026-07-17` 與 `2026-07-30` 的腦力激盪記錄。依據時間軸與完成度，前半部記錄歷史遺留 Bug、流程漏洞的分析與修復；後半部基於系統穩固的基礎，進行開源多 Agent 框架的深度比對，並提出 2.0 架構的具體優化提案。
 >
+> **2026-09-18 新增第六部分**：**mattpocock/skills 對齊型 Skill 體系比對**。
+> 與 §5 的差異：addyosmani 是「同構但更寬」，Pocock 是「**異構且更窄**」——
+> 幾乎不做流程強制（零 state、零 orchestrator hook），把全部賭注押在**開發啟動前的需求對齊**。
+> 核心結論：兩者互補，他賭對齊、我們賭執行；**我們最大缺口是 STAGE 0a 起就假設需求已經清楚**。
+> 最值得借鏡的 4 項：`CONTEXT.md` 領域詞彙表、`gen-dev-workflow` 改 user-invoked 省 13 行常駐
+> context、`.out-of-scope/` 拒絕決議 KB、mechanical/judgement 二分（能做成檢查就別寫成規則）。
+>
 > **2026-09-17 新增第五部分**：**addyosmani/agent-skills 開源 Skill 體系比對**。
 > Addy Osmani 的 agent-skills（25 skills、9 slash commands、跨 10+ agent 平台）
 > 與我們 gen-dev-workflow 的完整對位分析。核心結論：Addy「寬而淺」（廣度取勝），
@@ -2426,3 +2433,165 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 
 > **📌 8 項截至 2026-09-17 全部仍是提案，未動任何程式碼。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
+
+---
+
+## ⚫ 第六部分：mattpocock/skills 對齊型 Skill 體系比對 (2026-09-18)
+
+> **來源**：<https://github.com/mattpocock/skills>
+> **查證方式**：`git clone --depth 1` 至 scratchpad 後逐檔閱讀原始碼（WebFetch 只能取得目錄列表，
+> 拿不到檔案內容，故改用 clone）。本地側以 `find` 列出 `.claude/` 全樹、`wc -l` 量測
+> `wf-state.sh` 與 hooks 規模、`grep -c` 清點 die/exit 點。以下數據均為實測，非推估。
+>
+> **定位與第五部分的差異**：§5 的 addyosmani 比的是「**同構但更寬**」——同樣 SKILL.md + slash
+> command，面向通用 Web 開發、跨 10+ 平台。本部分比的是「**異構且更窄**」：Matt Pocock 的體系
+> 幾乎不做流程強制，把全部賭注押在**開發啟動前的需求對齊**上。README 開宗明義
+> "not vibe coding"，四大失效模式第一條就是「你與 agent 之間的誤解」。
+>
+> **核心結論**：兩者不是同類競品，是**互補的兩半**。他賭「對齊」（把需求磨清楚、建領域語言），
+> 我們賭「執行」（把流程釘死在腳本上）。他全 repo 只有 4 個 script（2 個是模板、1 個可選 git
+> 護欄、1 個 dev-only symlink），**零 state 持久化、零 orchestrator hook**；我們有 421 行
+> `wf-state.sh`（45 個 die/exit）+ 2 個 blocking PreToolUse hook。
+> 反過來說：**我們整條流程從 STAGE 0a 起就假設「需求已經清楚了」**，而他有整套 `grilling` /
+> `grill-with-docs` / `wait-what` 專攻「需求其實不清楚」。這是我們最大的缺口。
+
+### 1. 系統概覽
+
+**mattpocock/skills**：25 個 promoted skills（engineering 18 + productivity 7）、12 個
+`in-progress/`、4 個 `misc/`，以 Claude Code plugin 發布（`.claude-plugin/plugin.json`），
+每個 skill 並附 `agents/openai.yaml` 供 Codex 讀取。四大失效模式框架：misalignment、
+verbosity、broken code、architectural decay。
+
+**gen-dev-workflow**：61 個 skills、14 個 agent profiles、4 個 hooks、3 份 rules、
+421 行 `wf-state.sh` 狀態機（7 stages），深度整合 GitHub Issue/PR/Worktree。
+
+### 2. 機制對位矩陣
+
+| 面向 | mattpocock/skills | gen-dev-workflow | 判定 |
+|:---|:---|:---|:---|
+| **Skill 數** | 25 promoted + 12 in-progress + 4 misc | 61 skills（gen-dev-workflow 本體 1 主 + 8 references） | 平手（他組織更清楚） |
+| **Hook** | 1 個，opt-in，48 行（`block-dangerous-git.sh`） | 2 個 blocking PreToolUse（stage-check 131 行、delegate-cwd 390 行）+ 2 個 reindex | **我們大勝** |
+| **State 持久化** | **無**。零 state 檔、零 resume 概念 | `wf-state.sh` 421 行、45 個 die/exit、mode/pause_level/session 續接 | **我們大勝** |
+| **Script** | 4 個（2 模板、1 護欄、1 dev-only symlink） | wf-state.sh + prepare_issue_dev_workspace.sh + 2 reindex | **我們大勝** |
+| **CI** | changesets 自動發版 + `release.yml` | **無 CI**（CLAUDE.md 明載「本機嚴格驗證」） | **他勝** |
+| **版本管理** | `.changeset/` 逐項變更記錄 + `sync-plugin-version.mjs` | 手動 4 處版號同步（v1.6.0 已中招） | **他勝** |
+| **跨 harness** | **每個** skill 都配 `agents/openai.yaml` | 61 個 skill 中僅 5 個有，gen-dev-workflow 本體無 | **他勝** |
+| **需求對齊** | `grilling`、`grill-with-docs`、`wait-what`、`to-questionnaire`、`domain-modeling` | STAGE 0a 直接開寫規格，無結構化盤問 | **他大勝** |
+| **暫停控制** | 純 prose 約定（"should" / "must"） | `should_pause()` 腳本判定 + 3 檔 pause_level + 棘輪 | **我們大勝** |
+| **超大工作** | `wayfinder`：issue tracker 當地圖、fog of war、decision ticket | batch 模式（各自 worktree 依序跑） | **他勝** |
+| **寫作紀律** | `writing-for-agents` + `SKILL-MECHANICS`（雙預算、資訊階梯、leading words） | `writing-skills`（來自 superpowers） | **他勝** |
+| **PR 生命週期** | `pr` skill 仍在 `in-progress/`，無 review 回覆 | STAGE 4 發 PR → 5 回 review → 6 清 worktree | **我們大勝** |
+| **並行/隔離** | 無 worktree 概念 | worktree 隔離 + delegate-cwd 防護 390 行 | **我們大勝** |
+| **Model 分級** | 無 | 逐任務選 model（機械性→快／設計判斷→最強） | **我們大勝** |
+
+### 3. 他的關鍵設計（我們沒有的）
+
+#### 3.1 `grilling` 前置盤問——我們最大缺口
+
+他的四大失效模式第一條是 misalignment，解法是開發前一輪一輪盤問（`/grill-me` 非程式決策、
+`/grill-with-docs` 對齊訪談 + 建領域模型）。我們 STAGE 0a 是 planner 直接產規格，
+**誰來確保需求本身沒歪？** 目前只有暫停點給人看一眼。
+
+#### 3.2 `CONTEXT.md` 領域語言（ubiquitous language）
+
+把專案黑話寫成單一詞彙表。他舉的例：不寫「課程裡的章節中的課程被實體化時」，
+而寫 "the materialization cascade"。既省 token 又讓命名一致。
+
+**我們的材料已存在但散落**：`mergedTimeline` 歸併、緩衝型 vs 即時查詢型分流、
+`onMutate` → `revision` 唯一變更通道、鏈推斷 vs 點查詢——散在 CLAUDE.md 與
+`docs/architecture/` 三份文件裡，**沒有一份給 agent 當詞彙表的單一來源**。
+
+#### 3.3 `.out-of-scope/` 被拒絕請求知識庫
+
+每否決一個 enhancement 就寫一份獨立 md，triage 時先查是否撞到舊決議。
+
+**這正咬著我們**：已否決的「±5s 側欄」與「錯誤上下文快照」現在混在本文件 2500+ 行裡，
+下次有人再提同一點，沒有任何機制擋。
+
+#### 3.4 `retro` 環境回顧 + mechanical/judgement 二分
+
+跑完 session 後回顧「**environment** 該怎麼改」，分類極準：**mechanical 違規**
+（固定語法模式、禁用 API、import 形狀、檔案位置）一律做成 deterministic check
+（linter / pre-commit / CI），只有 **judgement call**（跨檔一致性、「符合周邊風格」）
+才寫進 `CODING_STANDARDS.md`。**預設是建檢查，不是寫規則。**
+
+附帶一條可直接用的洞見：**coding standard 應由 review agent 背，不是 implementation agent 背**
+——implementer 的 context 壓力最大（要探索、寫碼、debug），reviewer 只收 diff，壓力最小。
+
+#### 3.5 `writing-for-agents` 的雙預算模型
+
+- **context load**：常駐 context 的成本（skill description、CLAUDE.md 每一行，每輪都在燒）
+- **cognitive load**：人要記得有哪些文件存在的成本。**不是要最小化的成本**——它是人類自主權的代價
+
+以及 **negation 是失效模式**：「不要做 X」會把 X 拉進 context 反而更易觸發
+（_don't think of an elephant_），應改寫成正面目標。
+
+**我們中招**：`gen-dev-workflow/SKILL.md` 裡「**絕不**把整條 orchestrator 包成單一 Workflow」
+「**禁止**」「**不可越界**」密集出現。按此理論，現行寫法反而在強化被禁行為。
+
+#### 3.6 user-invoked vs model-invoked 二分
+
+`disable-model-invocation: true` 的 skill **description 不進 context**，零 context load，
+代價是人要記得它存在（cognitive load）。判準：**只有「agent 必須自己搆到」或「其他 skill 必須呼叫」
+才用 model-invoked**。
+
+**我們中招**：`gen-dev-workflow` 的 description 是 **13 行**（含 6 行觸發詞清單），每一輪都在燒，
+而它**本來就只可能由人觸發**。
+
+#### 3.7 `wizard` 互動式 bash 精靈
+
+給「只有人能做的步驟」（開第三方 dashboard、貼 API key、設 CI secret）產一支引導腳本：
+階段進度、確認關卡、跨平台開 URL（含 WSL）、隱藏輸入、`.env` 冪等 upsert、`gh secret` 寫入。
+模板（`template.sh`）標記線以上的 library 不得手改——一致性即是重點。
+
+#### 3.8 `wayfinder` fog of war
+
+超大需求（一個 session 裝不下）用 issue tracker 當**共享地圖**：map issue + decision tickets，
+每 ticket 一個 100K token session 可解的決策。核心概念是 **fog of war**——刻意不畫還看不見的部分；
+判準是「**現在能不能把問題講清楚**」而非「現在能不能答」。另有 **Not yet specified**（範圍內但還不夠銳利）
+vs **Out of scope**（超出目的地，永不畢業）的明確二分。
+
+### 4. 我們的關鍵優勢（他沒有的）
+
+1. **程式強制 vs 散文自律**——決定性差異。他的暫停點、流程順序全靠 prose 寫 "should"／"must"；
+   我們 `stage-done` → `advance --confirmed` 是**棘輪**，未確認就 `advance` 腳本直接拒絕，
+   `wf-guard-stage-check.sh` 用 `exit 2` 真的擋得住。**他的 agent 想跳過哪一步，沒有任何東西攔得住。**
+2. **Session 續接**——他的 `handoff` 是「寫交接文件到 /tmp」再由人工貼給下個 session；
+   我們有 state 檔 + `--mode jump` + token budget gate 自動保存切換。**他無 resume 概念。**
+3. **Worktree 隔離並行**——多 workflow 同 repo 並跑、state 天然分離。他完全沒碰。
+4. **委派紀律 + cwd 防護**——390 行專擋「派發時 prompt 沒寫目標 worktree 絕對路徑」。
+   他的多 agent 只有 wayfinder 裡「fire research subagents」一句話。
+5. **完整 PR 生命週期**——他的 `pr` skill 還在 `in-progress/`，review 回覆完全沒有。
+6. **Model 分級策略**——逐任務選 model。他無此概念。
+
+### 5. 建議借鏡（按投報比排序）
+
+| 順位 | 借鏡項 | 做法 | effort | 狀態 |
+|:---:|:---|:---|:---:|:---|
+| 1 | **C1** `CONTEXT.md` 領域詞彙表 | repo 根目錄新建一頁，收攏 `mergedTimeline`／緩衝型 vs 即時查詢型／`onMutate` 唯一變更通道／鏈推斷 等既有黑話 | 低 | 提案 |
+| 2 | **C2** `gen-dev-workflow` 改 user-invoked | frontmatter 加 `disable-model-invocation: true`，13 行 description 砍成 1 行 | 極低 | 提案 |
+| 3 | **C3** `.out-of-scope/` 拒絕決議 KB | 每個否決提案獨立一檔，STAGE 0a 先查 | 低 | 提案 |
+| 4 | **C4** STAGE 0a 前插 grilling 關卡 | 新增一問一答 skill，盤問到需求收斂才進 planner | 中 | 提案 |
+| 5 | **C5** `retro` + mechanical/judgement 二分 | 加 retro skill；規則先問「能不能做成 lint/hook」，能就別寫進文件 | 中 | 提案 |
+| 6 | **C6** coding standard 移交 reviewer | 風格規則從 implementer 派發模板移到 verifier/reviewer | 中 | 提案 |
+| 7 | **C7** negation → positive 重寫 | SKILL.md 裡「絕不 X」「禁止 X」改寫成正面目標 | 中 | 提案 |
+| 8 | **C8** 版號一致性自動檢查 | 一支 script 檢查 4 處版號（與 §8.5 的 B6 同源，可合併） | 低 | 提案 |
+| 9 | **C9** 核心 skill 補 `agents/openai.yaml` | 目前 61 個 skill 僅 5 個有（branch-diff-code-review、branch-ticket-issue-doc、branch-ticket-solution-advisor、issue-spec-prep、ticket-id-dev-prep），gen-dev-workflow 本體無 | 中 | 提案 |
+| 10 | **C10** `wayfinder` fog of war | 超大需求用 issue tracker 當地圖、decision ticket 逐一解 | 高 | 提案 |
+
+> **⚠️ C9 的命名陷阱**：`skills/<name>/agents/openai.yaml` 是**該 skill 的 Codex UI metadata**
+> （`interface.display_name`／`short_description`／`policy.allow_implicit_invocation`），
+> 與 `.claude/agents/*.md`（14 個 Claude Code **subagent** 定義：planner、implementer、reviewer…）
+> **是兩個無關的東西**，只是名字都叫 agents。補 C9 不會影響現有 subagent。
+
+### 6. 刻意不學
+
+| 上游有、我們不採用 | 理由 |
+|:---|:---|
+| prose-only 流程強制 | 我們的腳本棘輪嚴格更強，採用等於**退化** |
+| `handoff` 寫到 /tmp 靠人工轉貼 | 我們的 state 檔 + jump mode 是上位替代 |
+| 無 worktree 隔離 | 我們的並行隔離是硬需求，不可回退 |
+| issue tracker 當 wayfinder 地圖（全面採用） | 本專案單人單 repo，C10 僅在真遇到超大需求時才值得 |
+
+> **📌 C1–C10 共 10 項截至 2026-09-18 全部仍是提案，未動任何程式碼。**
+> 任一項落地後應立即回寫本表。C8 與 §8.5 的 B6 同源，實作時應合併為一項，避免重複工。
