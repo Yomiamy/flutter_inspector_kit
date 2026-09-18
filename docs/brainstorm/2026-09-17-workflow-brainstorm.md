@@ -7,6 +7,7 @@
 > 與 §5 的差異：addyosmani 是「同構但更寬」，Pocock 是「**異構且更窄**」——
 > 幾乎不做流程強制（零 state、零 orchestrator hook），把全部賭注押在**開發啟動前的需求對齊**。
 > 核心結論：兩者互補，他賭對齊、我們賭執行；**我們最大缺口是 STAGE 0a 起就假設需求已經清楚**。
+> （**2026-09-18 更新**：此缺口已由 C4／`gen-grill` 補上，見 §3.1 與 §5 建議借鏡表。）
 > 最值得借鏡的 4 項：`CONTEXT.md` 領域詞彙表、`gen-dev-workflow` 改 user-invoked 省 13 行常駐
 > context、`.out-of-scope/` 拒絕決議 KB、mechanical/judgement 二分（能做成檢查就別寫成規則）。
 >
@@ -2609,11 +2610,18 @@ verbosity、broken code、architectural decay。
 
 ### 3. 他的關鍵設計（我們沒有的）
 
-#### 3.1 `grilling` 前置盤問——我們最大缺口
+#### 3.1 `grilling` 前置盤問——我們最大缺口 ✅ 已補上（2026-09-18）
 
 他的四大失效模式第一條是 misalignment，解法是開發前一輪一輪盤問（`/grill-me` 非程式決策、
 `/grill-with-docs` 對齊訪談 + 建領域模型）。我們 STAGE 0a 是 planner 直接產規格，
 **誰來確保需求本身沒歪？** 目前只有暫停點給人看一眼。
+
+> **落地狀態**：已新增 `gen-grill` skill 與 STAGE 0·grill 關卡（PR #167）。收斂判準五項：
+> 問題定義／觸發場景／成功標準／範圍邊界／**既有覆蓋實查**。最後一項是本 repo 專屬、上游沒有的——
+> 因為本 repo 的 misalignment 主因不是「需求沒講清楚」，而是**文件與實況漂移**
+> （§D4 照文件字面做完才發現落點錯誤、§P8／§D6／§P19 三次標為待辦實查已完成）。
+> 故短路條件只跳過前四項，**既有覆蓋實查一律要跑**。
+> 此關卡不是暫停點，也不動狀態機轉移表（維持 `0a→0b→1→2→3→4`）。
 
 #### 3.2 `CONTEXT.md` 領域語言（ubiquitous language）
 
@@ -2694,7 +2702,7 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 | 1 | **C1** `CONTEXT.md` 領域詞彙表 | repo 根目錄新建一頁，收攏 `mergedTimeline`／緩衝型 vs 即時查詢型／`onMutate` 唯一變更通道／鏈推斷 等既有黑話 | 低 | 提案 |
 | 2 | **C2** `gen-dev-workflow` 改 user-invoked | frontmatter 加 `disable-model-invocation: true`，13 行 description 砍成 1 行 | 極低 | 提案 |
 | 3 | **C3** `.out-of-scope/` 拒絕決議 KB | 每個否決提案獨立一檔，STAGE 0a 先查 | 低 | 提案 |
-| 4 | **C4** STAGE 0a 前插 grilling 關卡 | 新增一問一答 skill，盤問到需求收斂才進 planner | 中 | 提案 |
+| 4 | **C4** STAGE 0a 前插 grilling 關卡 | 新增一問一答 skill，盤問到需求收斂才進 planner | 中 | ✅ 已完成（2026-09-18，PR #167）|
 | 5 | **C5** `retro` + mechanical/judgement 二分 | 加 retro skill；規則先問「能不能做成 lint/hook」，能就別寫進文件 | 中 | 提案 |
 | 6 | **C6** coding standard 移交 reviewer | 風格規則從 implementer 派發模板移到 verifier/reviewer | 中 | 提案 |
 | 7 | **C7** negation → positive 重寫 | SKILL.md 裡「絕不 X」「禁止 X」改寫成正面目標 | 中 | 提案 |
@@ -2716,5 +2724,11 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 | 無 worktree 隔離 | 我們的並行隔離是硬需求，不可回退 |
 | issue tracker 當 wayfinder 地圖（全面採用） | 本專案單人單 repo，C10 僅在真遇到超大需求時才值得 |
 
-> **📌 C1–C10 共 10 項截至 2026-09-18 全部仍是提案，未動任何程式碼。**
+> **📌 C1–C10 共 10 項，截至 2026-09-19 已完成 1 項（C4），其餘 9 項仍是提案。**
 > 任一項落地後應立即回寫本表。C8 與 §8.5 的 B6 同源，實作時應合併為一項，避免重複工。
+>
+> **C4 的落地形式與原提案有出入**：實作前實查證偽了「需缺一問一答機制」這個前提——
+> `brainstorming` 早已具備一次一問的提問紀律，真正的缺口是 `gen-dev-workflow` 對它**零引用**。
+> 故 `gen-grill` 不自帶問法、也不呼叫 `brainstorming`（後者終態是 `writing-plans`，不會回到呼叫端），
+> 只做三件事：判定五項判準是否齊備、盤問缺漏項、產出 brief。它**不產生任何文件**，
+> 唯一產出是印在對話裡的 brief。詳見 `docs/features/2026-09-18-grilling-gate.md`。
