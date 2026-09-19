@@ -22,7 +22,6 @@ class JsonNode {
     required this.depth,
     required this.kind,
     required this.valueText,
-    required this.childCount,
   });
 
   /// Structural identity: the chain of sibling ordinals, e.g. `0.3.1`.
@@ -48,8 +47,6 @@ class JsonNode {
 
   /// Rendered value: `toString()` for leaves, `{3}` / `[12]` for containers.
   final String valueText;
-
-  final int childCount;
 }
 
 /// Classifies a value into a kind plus its rendered text.
@@ -123,7 +120,6 @@ List<JsonNode> flattenJson(Object? root) {
         depth: f.depth,
         kind: kind,
         valueText: text,
-        childCount: children.length,
       ),
     );
 
