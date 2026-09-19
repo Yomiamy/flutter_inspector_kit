@@ -17,6 +17,13 @@ class _Data {
     },
   };
 
+  /// Same shape as [nested] but padded past the search-field threshold, so
+  /// the field is rendered and search behaviour can be exercised.
+  static Map<String, Object?> get searchable => {
+    ...nested,
+    'pad': {for (var i = 0; i < 20; i++) 'p$i': i},
+  };
+
   static const Map<String, Object?> collision = {
     'a.b': {'c': 1},
     'a': {
@@ -173,10 +180,11 @@ void main() {
     });
 
     testWidgets('search keeps hits and their ancestors', (tester) async {
-      await tester.pumpWidget(_host(const JsonTreeViewer(_Data.nested)));
+      await tester.pumpWidget(_host(JsonTreeViewer(_Data.searchable)));
       await tester.enterText(find.byType(TextField), 'ANN');
       await tester.pumpAndSettle();
 
+      // The hit plus its ancestor chain (root > data > users > [0] > name).
       expect(find.byType(JsonNodeRow), findsNWidgets(5));
       expect(find.widgetWithText(JsonNodeRow, 'name: ann'), findsOneWidget);
       expect(find.widgetWithText(JsonNodeRow, 'id: 1'), findsNothing);
@@ -185,7 +193,7 @@ void main() {
     testWidgets('clearing search restores the prior collapse state', (
       tester,
     ) async {
-      await tester.pumpWidget(_host(const JsonTreeViewer(_Data.nested)));
+      await tester.pumpWidget(_host(JsonTreeViewer(_Data.searchable)));
       await tester.tap(find.text('users: [1]'));
       await tester.pumpAndSettle();
       expect(find.text('[0]: {2}'), findsOneWidget);
@@ -218,7 +226,7 @@ void main() {
     });
 
     testWidgets('highlights matches only while searching', (tester) async {
-      await tester.pumpWidget(_host(const JsonTreeViewer(_Data.nested)));
+      await tester.pumpWidget(_host(JsonTreeViewer(_Data.searchable)));
       expect(find.byType(RichText), findsWidgets);
       await tester.enterText(find.byType(TextField), 'user');
       await tester.pumpAndSettle();
@@ -290,6 +298,35 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('a: 1'), findsNothing);
       expect(find.text('b: 2'), findsOneWidget);
+    });
+
+    testWidgets('hides the search field for a small tree', (tester) async {
+      await tester.pumpWidget(_host(const JsonTreeViewer(_Data.nested)));
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('users: [1]'), findsOneWidget);
+    });
+
+    testWidgets('shows the search field once the tree is large', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(JsonTreeViewer(_Data.wide(20))));
+      expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('drops a stale query when new data hides the field', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(JsonTreeViewer(_Data.wide(30))));
+      await tester.enterText(find.byType(TextField), 'key7');
+      await tester.pumpAndSettle();
+      expect(find.text('key1: value1'), findsNothing);
+
+      // Shrinking below the threshold removes the field, so the query must
+      // go with it or the tree stays filtered with no way to clear it.
+      await tester.pumpWidget(_host(const JsonTreeViewer(_Data.nested)));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('users: [1]'), findsOneWidget);
     });
   });
 }

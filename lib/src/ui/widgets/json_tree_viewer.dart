@@ -9,6 +9,10 @@ const int _kMaxDepth = 32;
 /// Containers at depth 0 and 1 start expanded.
 const int _kDefaultExpandDepth = 2;
 
+/// Below this many nodes the whole tree fits on screen, so the search field
+/// would cost more room than it saves.
+const int _kSearchMinNodes = 20;
+
 enum JsonKind { map, list, leaf }
 
 /// A single row in the flattened tree. Immutable — expansion state lives
@@ -188,6 +192,12 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
       for (final n in _all)
         if (n.depth < _kDefaultExpandDepth && n.kind != JsonKind.leaf) n.id,
     };
+    // New data may drop below the threshold and take the search field with
+    // it; a stale query would then filter the tree with no way to clear it.
+    if (_all.length < _kSearchMinNodes) {
+      _query = '';
+      _searchController.clear();
+    }
   }
 
   bool get _isEmpty {
@@ -251,17 +261,19 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        TextField(
-          controller: _searchController,
-          decoration: const InputDecoration(
-            isDense: true,
-            prefixIcon: Icon(Icons.search, size: ThemeSize.size16),
-            hintText: 'Search',
-            border: OutlineInputBorder(),
+        if (_all.length >= _kSearchMinNodes) ...[
+          TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              isDense: true,
+              prefixIcon: Icon(Icons.search, size: ThemeSize.size16),
+              hintText: 'Search',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (v) => setState(() => _query = v),
           ),
-          onChanged: (v) => setState(() => _query = v),
-        ),
-        const SizedBox(height: ThemeSize.space8),
+          const SizedBox(height: ThemeSize.space8),
+        ],
         Flexible(
           child: ListView.builder(
             shrinkWrap: true,
