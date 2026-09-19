@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import '../../../../utils/agent_prompt.dart';
 import '../../../../utils/network_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
+import '../../../widgets/json_tree_viewer.dart';
 import '../../../widgets/key_value_table.dart';
 import '../../../theme/theme.dart';
 
@@ -174,7 +177,9 @@ class NetworkDetailView extends StatelessWidget {
     String body,
     bool isJson,
   ) {
-    final rendered = isJson ? prettyJson(body) : body;
+    // Decode failure falls back to the plain-text path below, so a truncated
+    // or non-JSON body still renders instead of throwing.
+    final decoded = isJson ? _tryDecode(body) : null;
     return DetailSection(
       title: title,
       child: Container(
@@ -184,9 +189,24 @@ class NetworkDetailView extends StatelessWidget {
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(ThemeSize.radius4),
         ),
-        child: SelectableText(rendered, style: ThemeTextStyle.monospaceStyle),
+        child: decoded == null
+            ? SelectableText(
+                isJson ? prettyJson(body) : body,
+                style: ThemeTextStyle.monospaceStyle,
+              )
+            : JsonTreeViewer(decoded),
       ),
     );
+  }
+
+  /// Returns null when [body] is not valid JSON (or is the literal `null`,
+  /// which renders identically either way).
+  Object? _tryDecode(String body) {
+    try {
+      return jsonDecode(body);
+    } on FormatException {
+      return null;
+    }
   }
 
   Widget _exceptionDetailsSection(BuildContext context) {
