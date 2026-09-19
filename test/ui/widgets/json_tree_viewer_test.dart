@@ -58,8 +58,10 @@ class _Data {
   };
 }
 
+/// Mirrors how both detail views embed the viewer: inside their own
+/// scrolling [ListView], which hands children unbounded height.
 Widget _host(Widget child) => MaterialApp(
-  home: Scaffold(body: SizedBox(height: 600, child: child)),
+  home: Scaffold(body: ListView(children: [child])),
 );
 
 void main() {
@@ -285,10 +287,50 @@ void main() {
       expect(find.text('(none)'), findsOneWidget);
     });
 
-    testWidgets('builds only visible rows for a large payload', (tester) async {
-      await tester.pumpWidget(_host(JsonTreeViewer(_Data.wide(1000))));
-      expect(flattenJson(_Data.wide(1000)), hasLength(1001));
-      expect(tester.widgetList(find.byType(JsonNodeRow)).length, lessThan(200));
+    testWidgets('renders only the uncollapsed part of a large payload', (
+      tester,
+    ) async {
+      // 50 groups, each holding a container of 20 leaves. Only depths 0 and 1
+      // start expanded, so the depth-2 containers show but their leaves stay
+      // folded: 1 root + 50 groups + 50 containers = 101 rows out of 1101.
+      // Collapsing by default — not a lazy list — is what keeps the row count
+      // down now that the rows live in the detail view's own scrollable.
+      final data = {
+        for (var i = 0; i < 50; i++)
+          'group$i': {
+            'items': {for (var j = 0; j < 20; j++) 'leaf$j': j},
+          },
+      };
+      expect(flattenJson(data), hasLength(1101));
+
+      await tester.pumpWidget(_host(JsonTreeViewer(data)));
+      expect(tester.widgetList(find.byType(JsonNodeRow)).length, 101);
+    });
+
+    testWidgets('collapsing an ancestor hides expanded descendants', (
+      tester,
+    ) async {
+      const data = {
+        'a': {
+          'b': {'c': 1},
+        },
+      };
+      await tester.pumpWidget(_host(const JsonTreeViewer(data)));
+      await tester.tap(find.text('b: {1}'));
+      await tester.pumpAndSettle();
+      expect(find.text('c: 1'), findsOneWidget);
+
+      // Folding 'a' must take the whole branch with it — checking only the
+      // direct parent would leave 'c' stranded on screen.
+      await tester.tap(find.text('a: {1}'));
+      await tester.pumpAndSettle();
+      expect(find.text('b: {1}'), findsNothing);
+      expect(find.text('c: 1'), findsNothing);
+
+      // Re-expanding restores what was open underneath.
+      await tester.tap(find.text('a: {1}'));
+      await tester.pumpAndSettle();
+      expect(find.text('c: 1'), findsOneWidget);
     });
 
     testWidgets('rebuilds when data changes', (tester) async {

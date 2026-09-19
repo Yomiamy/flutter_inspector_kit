@@ -229,11 +229,27 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
     return [
       for (final n in _all)
         if (keep == null || keep.contains(n.id))
-          if (n.parentId.isEmpty ||
-              _expanded.contains(n.parentId) ||
-              (keep != null && keep.contains(n.parentId)))
-            n,
+          if (_isReachable(n, keep)) n,
     ];
+  }
+
+  /// A node shows only when every ancestor up to the root is expanded.
+  /// Checking just the parent is not enough: collapsing a grandparent would
+  /// otherwise leave an already-expanded child on screen, detached from the
+  /// branch that was folded away.
+  bool _isReachable(JsonNode node, Set<String>? keep) {
+    for (var id = node.parentId; id.isNotEmpty;) {
+      if (_expanded.contains(id)) {
+        final parent = _byId[id];
+        if (parent == null) break;
+        id = parent.parentId;
+        continue;
+      }
+      // While searching, the chain down to a hit stays forced open.
+      if (keep != null && keep.contains(id)) return true;
+      return false;
+    }
+    return true;
   }
 
   void _toggle(String id) => setState(() {
@@ -274,23 +290,20 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
           ),
           const SizedBox(height: ThemeSize.space8),
         ],
-        Flexible(
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: visible.length,
-            itemBuilder: (context, i) {
-              final node = visible[i];
-              return JsonNodeRow(
-                node,
-                isExpanded: _expanded.contains(node.id),
-                onToggle: node.kind == JsonKind.leaf
-                    ? null
-                    : () => _toggle(node.id),
-                query: _query,
-              );
-            },
+        // Both detail views place this inside their own scrolling ListView,
+        // which hands children unbounded height. A nested scrollable there
+        // would shrink-wrap and build every row anyway, so the rows are laid
+        // out directly and the outer list does the scrolling — and the
+        // collapsed-by-default tree is what keeps the row count down.
+        for (final node in visible)
+          JsonNodeRow(
+            node,
+            isExpanded: _expanded.contains(node.id),
+            onToggle: node.kind == JsonKind.leaf
+                ? null
+                : () => _toggle(node.id),
+            query: _query,
           ),
-        ),
       ],
     );
   }
