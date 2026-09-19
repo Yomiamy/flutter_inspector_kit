@@ -1,3 +1,17 @@
+## 2.6.0
+
+### Added
+* **JSON bodies and log data render as a collapsible tree**: Network request/response bodies and the structured `data` attached to a log entry were previously a wall of pretty-printed text — finding one field in a 200-line payload meant scrolling and squinting. Both now render as a tree: containers show their size inline (`{3}`, `[12]`), the first two levels start expanded so the shape is visible immediately, and tapping a row folds its branch away. Long-pressing any row copies that node as `data.users[0].id: 42` — the path, not just the value, so a field named in a bug report is unambiguous. Node identity is derived from traversal position rather than key content, so a key containing a `.` cannot collide with another node's state.
+* **Search within a large payload**: Trees of 20 nodes or more carry a search field that matches keys and values case-insensitively, tints the matched substring, and forces open the chain of ancestors down to every hit — so a match nested six levels deep is reachable without hand-expanding each level. Below that threshold the field is hidden, because a tree that already fits on screen does not need one.
+* **Raw view is always one tap away**: A **Show raw / Show tree** toggle switches to the indented plain text the tree replaced, so an arbitrary span can still be selected and copied by hand. Values that are not JSON-native (`DateTime`, custom objects) fall back to `toString()` in both views rather than breaking the render, and self-referential data — which has no raw form at all, since the encoder throws on a cycle — says so explicitly and points back at the tree, which marks the cycle and keeps going.
+
+### Changed
+* **A malformed or truncated response body no longer loses its formatting**: The network detail view decodes a body flagged as JSON before choosing how to draw it. When decoding fails — a truncated payload, or a `Content-Type` that lies — it falls back to the previous plain-text rendering instead of throwing, so the body is still readable.
+
+### Fixed
+* **A wide payload can no longer flood the detail view**: Collapsing bounds a deep tree but not a wide one — a 2000-element array sits entirely at depth 1 and would have been laid out in full inside the detail view's own scrolling list. Rendering now stops at 300 rows and reports how many were withheld, naming collapse and search as the ways to narrow it down.
+* **Collapsing a branch hides the whole branch**: A child that had been expanded before its grandparent was folded away stayed on screen, detached from the branch it belonged to. Visibility is now resolved against every ancestor up to the root, not just the immediate parent.
+
 ## 2.5.0
 
 ### Added
