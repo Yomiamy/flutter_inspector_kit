@@ -13,6 +13,12 @@ const int _kDefaultExpandDepth = 2;
 /// would cost more room than it saves.
 const int _kSearchMinNodes = 20;
 
+/// Ceiling on rows laid out at once. Collapsing bounds a deep tree, but not a
+/// wide one: a 2000-element array sits entirely at depth 1 and would other-
+/// wise be built in full. Nobody reads 2000 rows anyway — past this point the
+/// tree is a scrolling wall, so it is cut off and the count reported instead.
+const int _kMaxRows = 300;
+
 enum JsonKind { map, list, leaf }
 
 /// A single row in the flattened tree. Immutable — expansion state lives
@@ -293,9 +299,9 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
         // Both detail views place this inside their own scrolling ListView,
         // which hands children unbounded height. A nested scrollable there
         // would shrink-wrap and build every row anyway, so the rows are laid
-        // out directly and the outer list does the scrolling — and the
-        // collapsed-by-default tree is what keeps the row count down.
-        for (final node in visible)
+        // out directly and the outer list does the scrolling. Row count is
+        // bounded by _kMaxRows rather than by lazy building.
+        for (final node in visible.take(_kMaxRows))
           JsonNodeRow(
             node,
             isExpanded: _expanded.contains(node.id),
@@ -303,6 +309,18 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
                 ? null
                 : () => _toggle(node.id),
             query: _query,
+          ),
+        if (visible.length > _kMaxRows)
+          Padding(
+            padding: const EdgeInsets.only(top: ThemeSize.space4),
+            child: Text(
+              '… ${visible.length - _kMaxRows} more rows hidden — '
+              'collapse a branch or search to narrow it down',
+              style: TextStyle(
+                color: Theme.of(context).disabledColor,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
       ],
     );

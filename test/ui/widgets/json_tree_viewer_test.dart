@@ -307,6 +307,28 @@ void main() {
       expect(tester.widgetList(find.byType(JsonNodeRow)).length, 101);
     });
 
+    testWidgets('caps rows for a wide payload and says how many are hidden', (
+      tester,
+    ) async {
+      // Collapsing bounds a deep tree but not a wide one: every element of
+      // this array sits at depth 1 and would all be laid out at once.
+      final data = {
+        'items': [for (var i = 0; i < 2000; i++) 'item$i'],
+      };
+      expect(flattenJson(data), hasLength(2002));
+
+      await tester.pumpWidget(_host(JsonTreeViewer(data)));
+      expect(tester.widgetList(find.byType(JsonNodeRow)).length, 300);
+      expect(find.textContaining('1702 more rows hidden'), findsOneWidget);
+    });
+
+    testWidgets('says nothing about hidden rows when all rows fit', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(const JsonTreeViewer(_Data.nested)));
+      expect(find.textContaining('more rows hidden'), findsNothing);
+    });
+
     testWidgets('collapsing an ancestor hides expanded descendants', (
       tester,
     ) async {

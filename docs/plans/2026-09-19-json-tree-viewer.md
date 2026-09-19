@@ -290,7 +290,15 @@ final decoded = isJson ? _tryDecode(body) : null;   // null ⇒ 走純文字
     > (shrinkWrap: true)`。但兩個 detail view 都把本元件放進它們自己的
     > `ListView`，子項拿到的是**無界高度**；`shrinkWrap` 會量完每一列，
     > 巢狀滾動因此毫無收益。改為直接把列攤在 `Column` 裡，由外層
-    > `ListView` 負責滾動。**控制列數的是預設折疊，不是 lazy list。**
+    > `ListView` 負責滾動。
+    >
+    > **二次修正（同一 review 的後續意見）**：上一段說「控制列數的是預設
+    > 折疊」**只對深樹成立，對寬樹不成立**——2000 個元素的陣列全部位於
+    > depth 1，實測一次建出 2002 列。改以 `_kMaxRows = 300` 硬上限收尾，
+    > 超出時顯示「… N more rows hidden」提示（不靜默截斷）。
+    > 截斷只發生在**渲染**階段，搜尋仍可命中上限之外的節點（已實測第 1500
+    > 個元素可被搜出）。未採 sliver 虛擬化：那需改寫兩個 detail view 的
+    > 滾動結構，而這是 debug 工具、人也讀不完 300 列以上的樹。
   - `didUpdateWidget`：`widget.data` 變更時重建 `_all` 與 `_expanded`。
   - `dispose`：`_searchController.dispose()`（資源管理規則）。
 - `_JsonNodeRow`（`StatelessWidget`）：單列渲染。
