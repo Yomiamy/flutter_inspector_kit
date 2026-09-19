@@ -2,7 +2,7 @@
 
 > **狀態**：🟡 **設計中、未排程、尚未動工**（2026-09-16）
 >
-> **本文件是 [`docs/brainstorm/2026-09-12-features-brainstorm.md`](../brainstorm/2026-09-12-features-brainstorm.md)
+> **本文件是 [`docs/brainstorm/2026-09-19-features-brainstorm.md`](../brainstorm/2026-09-19-features-brainstorm.md)
 > §P27 的展開**，非已完成功能的紀錄（`docs/features/` 其餘檔案皆為落地後所寫）。
 > 發想與裁決脈絡以 brainstorm 為主，本文件保存完整推導與理由。
 >

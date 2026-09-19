@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-09-19**：**§P17 原生折疊式 JSON 樹狀檢視器完成**——PR #169 合入 main（issue #168）。落地與原提案有五處差異：**(1) 語法色彩高亮不做**（提案的 Key 紫／String 綠／Number 橘等），文字一律主題預設前景色，結構感由縮排與展開/折疊 affordance 承載，搜尋命中高亮為唯一例外——這是刻意裁決，非遺漏。**(2) 原文稱兩個 detail view 痛點相同，實查不成立**：Network 側是 JSON 字串需 decode，Log 側 `LogEntry.data` 已是 `Map` 不需 decode（`KeyValueTable` 的 `toString()` 才是它不可讀的根因）；故元件只收已解析資料，decode 與失敗 fallback 留在呼叫端。**(3) `ListView.builder` 未採用**——兩個 detail view 都把本元件放進自己的 `ListView`，子項拿到無界高度，`shrinkWrap` 會量完每一列使 lazy build 失效；改為攤進 `Column` 由外層滾動，另以 `_kMaxRows = 300` 硬上限收尾。**預設折疊只擋得住深樹，擋不住寬樹**（2000 元素陣列全在 depth 1），這點是 PR review 才發現的。**(4) 節點 `id` 與顯示 `path` 分離**：`id` 為走訪序號鏈、與 key 內容無關，否則 map key 含 `.` 時 `{'a.b':{'c':1}}` 與 `{'a':{'b':{'c':1}}}` 會撞展開狀態的 key。**(5) 另加 raw JSON 切換**（提案未含）——改成樹之後失去 `SelectableText` 拖選任意片段的能力，故補 `Show raw` / `Show tree`；raw 以 `toEncodable` 回退 `toString()` 處理非 JSON 型別，並 catch `JsonCyclicError`（該例外在 encoder 偵測到環時直接拋出，不走 `toEncodable`）。防禦：深度上限 32、循環引用以 `identical()` 偵測且離開節點即 pop（避免 DAG 誤報）。零新增相依，642 tests 綠、analyze 零新增。Tier 4 活躍待辦剩 5 項（§P4 / §P16 / §P18 / §D4 / §P9）。檔名日期前綴由 `2026-09-12` 更新至 `2026-09-19`。
 > * **2026-09-16**：**新增 §P27 Agent 分析橋接（Agent Analysis Bridge）— 設計中、未排程**——延伸 §P26，補上它沒覆蓋的兩個場景：**A. QA 在裝置上當下看到判斷**、**B. 開發者事後讓 agent 去問那台機器**。調研確認 GitHub 生態的 Flutter AI 除錯工具（marionette_mcp / mcp_flutter / flutter_agent_lens / 官方 Dart MCP）**全數依賴 Dart VM Service**，要求「開發機 + debug build + 連線」，而本套件的場景恰好相反（QA 的手機、release-ish build、開發者不在現場）——**MCP 對本套件是形狀不對，不是還沒做**。定案形狀為**雙向橋接**：kit 開三個具名查詢供 host 包成 tool schema 給 LLM，host 再把分析結論注入回 kit 顯示；方向由內而外，kit 不監聽任何連線，同時解掉開 port 資安、協定綁定、套件純淨性三個問題。三條釘死的邊界：**API key 一律 host 持有**（kit 內建網路呼叫等於替所有下游 App 決定資料能否外流）、**分析結果走獨立 tab 不進 timeline**（推測不得混入事實流）、**引用關係須來自實際 tool call 回傳值**而非 LLM 自述。三個實質問題已裁決：**懸空引用是假問題**（kit 無永久儲存 → 存活綁引用、讀取時過濾，**`RingBuffer` 零修改**，加 `onEvict` 會撞不變式 #1）、**注入介面純 append**（不可更新撤回 → 不需自身 id，但時間戳成必要；只開批次因 worst case 是一次回應多條結論）、**id 為全域遞增計數器 + 來源前綴**（**嚴禁位置相關方案**——索引重用會造成靜默的錯誤引用，比懸空更糟）。裁決後的意外收穫：**零核心修改**，唯一動到既有程式碼處是四個 model 各加 `final String id`（排除於 `==`/`hashCode`，沿用 `sourceDio` 先例）。**❌ 明確否決** MCP server、Android AppFunctions（Kotlin KSP + Android 16+ + private preview allowlist）、嵌入 on-device model（FunctionGemma 270M 即 284 MB，且模型在裝置上但 codebase 不在 → 產出有自信的錯誤原因，違反 kit 自訂的誠實邊界）。三項機械決定同日一併裁決完畢：**查詢回傳 JSON-safe Map 且不做分頁**（游標會撞上 evict，正確處理需快照而快照撞不變式 #2——與 §6.1 同源的約束在不同題目給出同樣答案；`limit` 截斷須揭露，這也正是回傳 Map 而非 List 的必然結果）、**分析 tab 全部重用既有元件**（`_oneLiner()` 需改公開、`pushInspectorRoute` 沿用 §D6 成果；🔴 tab 隱藏判準是「從未注入過」而非「目前無可顯示」，否則 tab 會在引用陸續 evict 後憑空消失）、**通知由 kit 於 `addAnalyses()` 自動發**（opt-in、自有 `AlertThrottler`、一批一則、點擊跳分析 tab——實查確認既有機制已完全支援，`onTap` closure 在建構時就綁好目標 tab，丟棄 payload 非缺陷）。**⚠️ 動工前先決條件**：新增 `NetworkNotifier.analysis()` 確實觸及條件匯出雙面（不變式 #4）而 `flutter test` 抓不到簽章漂移，須備妥最小 Web build harness。完整設計見 `docs/features/2026-09-15-agent-analysis-bridge.md`（**六題全清、無未決項，但尚未排程動工**）。檔名日期前綴維持 `2026-09-12`（§P27 尚未動工，非實質功能變更）。
 > * **2026-09-08**：**§P21 附加 ImageCache 水位案（Issue #158）實作完成後整案撤回**——原想在 memory pressure 那筆 warning 尾巴附上 `imageCache 98.2 MB/100.0 MB (212 imgs)`，賣點是「水位只有 3 MB 就能排除圖片方向」的否證能力。實作完成、584 測試全綠、analyze 零新增，但 code review 階段以 spy observer 實測發現 **`PaintingBinding.handleMemoryPressure()`（`painting/binding.dart:160`）在通知 observer 之前就 `imageCache.clear()`**，`didHaveMemoryPressure()` 內讀到的分子與張數**恆為 0**（`BEFORE: size=256 count=1` → `INSIDE observer: size=0 count=0`）。功能因此永遠輸出 `imageCache 0 B/...`，賣點反轉為**假否證**（會讓排查者排除正確方向），踩到 Anti-Feature #3「假精度比沒有資訊更糟」的判準，故 branch 重置、零程式碼留下。已查證 3.41.9 與 3.44.1 該兩段程式碼逐字相同（涵蓋整個支援範圍）、真實 OS 事件同路徑、`liveImageCount` 亦為 0。該需求改由**新增的 §P25 ImageCache 水位計**承接（主動查看時讀取，不綁 OS 事件）。同時新增「2026-09-08 記憶體觀測選項全面評估」表（RSS+Swap / LMK / bitmap 對齊 / 兩種水位讀法共五項逐一判定）與 §P21 的 `onTrimMemory` deprecation 風險註記。**本案的方法論教訓已寫入 §P21 撤回紀錄：查證「API 存在且可讀」不等於查證「在我要讀的那個時點，讀到的值有意義」。** 檔名日期前綴由 `2026-09-01` 更新至 `2026-09-08`。
 > * **2026-09-04**：**官方 `dart-lang/leak_tracker` 深度評估與架構裁決**——針對官方記憶體洩漏分析套件深入研究其運作機制（Flutter `MemoryAllocations`、`Finalizer`、`WeakReference`、`reachabilityBarrier`、`vm_service`）、執行時期代價（`forceGC` 之激進記憶體分配造成的嚴重 Jank、定時輪詢與堆疊捕獲開銷）及跨平台限制（Web/WASM 下 Retaining Path 為 null、無法建立 VM Service WebSocket、`reachabilityBarrier` 不可用）。從 Linus 模式五層分解進行裁決，確立「堅決拒絕 Direct In-App 內建整合」的鐵律，更新第 2 節矩陣評分，增補第 3 節「核心決策三：拒絕 In-App 記憶體洩漏追蹤」，並提供純記錄導向之可選適配（Adapter/Recipe）規範。
@@ -1142,6 +1143,13 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 * **重用**：Material 3 主題配色、`KeyTheme`。
 * **品味守則**：零外部相依，純 Dart 遞迴渲染，性能極致（透過 `ListView.builder` 與扁平化節點清單避免 O(N²) 重建）。
 * **Effort**：medium ｜ **排查價值**：⭐⭐⭐⭐⭐（大幅提升 API 排查可讀性）
+* **✅ 實作現況（PR #169 / Issue #168，2026-09-19）**：`lib/src/ui/widgets/json_tree_viewer.dart`，零新增相依。與原提案的落差如下：
+  - **語法色彩高亮不做**（提案的 Key 紫／String 綠／Number 橘／Bool 藍／Null 灰）——經裁決文字一律用主題預設前景色，結構感由縮排與展開/折疊 affordance 承載；搜尋命中高亮是唯一例外（屬狀態指示，非語法著色）。
+  - **兩側輸入形狀不同**（原文描述兩個 detail view 痛點相同，實查不成立）：Network 側是 **JSON 字串**需 decode，Log 側 `LogEntry.data` **已是 `Map`** 不需 decode。故元件只收已解析資料（`JsonTreeViewer(Object? data)`），decode 與失敗 fallback 留在呼叫端。
+  - **`ListView.builder` 未採用**：兩個 detail view 都把本元件放進自己的 `ListView`，子項拿到無界高度，`shrinkWrap` 會量完每一列使 lazy build 失效。改為把列攤進 `Column` 由外層滾動，另以 **`_kMaxRows = 300` 硬上限**收尾（預設折疊只擋得住深樹，擋不住寬樹——2000 元素陣列全在 depth 1），超出時顯示「… N more rows hidden」。
+  - **節點 `id` 與顯示 `path` 分離**：`id` 為走訪序號鏈，與 key 內容無關；否則 map key 含 `.` 時 `{'a.b':{'c':1}}` 與 `{'a':{'b':{'c':1}}}` 會撞展開狀態的 key。
+  - **另加 raw JSON 切換**（提案未含）：改成樹之後失去 `SelectableText` 拖選任意片段的能力，故加 `Show raw` / `Show tree` 開關；raw 以 `toEncodable` 回退 `toString()` 處理非 JSON 型別，並 catch `JsonCyclicError`。
+  - 防禦：深度上限 32、循環引用以 `identical()` 偵測。
 
 ---
 
@@ -1796,7 +1804,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | ~~**§P25** ImageCache 水位計~~ | ~~Storage tab 內常駐顯示 `currentSizeBytes`/`maximumSizeBytes`/張數，**打開時才讀不輪詢**~~ — ❌ 不排程（2026-09-10）：三項價值依賴連續觀察，與「不輪詢」守則衝突；overlay 變體與 §P20 綁定待裁決 | ~~low~~ | ❌ |
 | **§P19** StackTrace 非同步鏈正規化 | 框架噪聲折疊 (`[... N frames of framework internals]`) 與非同步中斷因果鏈還原 | low~med | ✅ |
 | **§D4** DatabaseTab 搜尋/過濾 | 搜尋 + operation FilterChip | low~med | ⬜ |
-| **§P17** 原生折疊式 JSON 樹狀檢視器 | `JsonTreeViewer` 遞迴節點展開、語法高亮、路徑複製與搜尋 | med | ⬜ |
+| ~~**§P17** 原生折疊式 JSON 樹狀檢視器~~ | `JsonTreeViewer` 節點展開/折疊、路徑複製與搜尋，接上 NetworkDetailView 與 LogDetailView — ✅ 已完成（PR #169 / Issue #168）；**語法高亮經裁決不做**（文字一律主題預設色） | med | ✅ |
 | **§P9** Diagnostic Report JSON | 結構化 JSON 匯出格式 | med | ⬜ |
 | ~~**§P15** 鍵值儲存檢視器（KV Browser）~~ | `KeyValueBrowserSource` 介面 + **獨立 Storage tab**（非併入 Database Tab）+ 讀寫操作 + README 範例 — ✅ 已完成（PR #137） | medium | ✅ |
 | ~~**§P10** Rebuild 異常偵測~~ | ~~全清單唯一需逐 widget 接線，非 app層級 flag~~ | ~~med~~ | ❌ |
@@ -1804,7 +1812,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 > **§P8 已完成**（PR #111 / Issue #110，v1.9.0 週期）——閾值改為 `FlutterInspector.slowRequestThreshold`
 > 可設定（預設 2s）並顯示於 UI，且 NetworkTab 與 ConsoleTab 混合時間軸**兩處都標**。
 >
-> **2026-08-28 生態評估新增**：納入 **§P16 生態適配器**（trivial~low）、**§P18 輕量網路統計條**（low）、**§P19 堆疊正規化**（low~med）與 **§P17 原生折疊 JSON 檢視器**（med）。四者皆為零新相依、高排查 ROI 之打磨項目。本層活躍待辦現為 6 項（§P4 / §P16 / §P18 / §D4 / §P17 / §P9）——**§P19 已於 PR #149 完成**（2026-09-01 實查確認 `log_formatters.dart:95` `normalizeStackTrace()` 與 `log_detail_view.dart:94` 的 concise/raw 切換皆已就位），故不計入。
+> **2026-08-28 生態評估新增**：納入 **§P16 生態適配器**（trivial~low）、**§P18 輕量網路統計條**（low）、**§P19 堆疊正規化**（low~med）與 **§P17 原生折疊 JSON 檢視器**（med）。四者皆為零新相依、高排查 ROI 之打磨項目。本層活躍待辦現為 5 項（§P4 / §P16 / §P18 / §D4 / §P9）——**§P19 已於 PR #149 完成**（2026-09-01 實查確認 `log_formatters.dart:95` `normalizeStackTrace()` 與 `log_detail_view.dart:94` 的 concise/raw 切換皆已就位）、**§P17 已於 PR #169 完成**（2026-09-19），故不計入。
 >
 > **📌 2026-09-11 補記（Issue #159 放棄之嘗試，教訓保留）**：§D4 曾依文件字面開發，
 > 實作完成（表名搜尋 + operation chips，610 tests 綠）後**放棄發 PR**，

@@ -1,6 +1,6 @@
 # P17 · 原生折疊式 JSON 樹狀檢視器（JsonTreeViewer）
 
-> **來源**：`docs/brainstorm/2026-09-12-features-brainstorm.md` §P17
+> **來源**：`docs/brainstorm/2026-09-19-features-brainstorm.md` §P17
 > **狀態**：功能規格（What & Why）· 2026-09-19
 > **範圍**：`NetworkDetailView` 的 Request/Response Body、`LogDetailView` 的 Data 區塊
 
@@ -102,7 +102,7 @@
 
 ## 5. 兩個接線點的形狀差異（重要）
 
-`docs/brainstorm/2026-09-12-features-brainstorm.md:1133` 把痛點描述成
+`docs/brainstorm/2026-09-19-features-brainstorm.md:1133` 把痛點描述成
 「兩個 detail view 都有 JSON 顯示問題」。**實查結果顯示這是不精確的**——
 兩側的輸入形狀根本不同，規格必須誠實反映，否則實作會做出錯的 API：
 
