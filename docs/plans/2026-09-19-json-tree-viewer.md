@@ -140,10 +140,13 @@ List<_JsonNode> _visibleNodes()
 
 單次線性掃描 `_all`，兩層篩選：
 
-1. **折疊篩選**：節點可見 ⟺ `parentId == ''`（根層）或
-   `parentId ∈ _expanded`。
-   因為前序排列，父折疊時其子孫的 `parentId` 不在 `_expanded`，
-   自然一路隱下去，不需要額外的「skip subtree」邏輯。
+1. **折疊篩選**：節點可見 ⟺ 沿 `parentId` 往上到根的**每一個祖先**都在
+   `_expanded` 裡。
+   > **修正（PR #169 review）**：原文寫「只檢查直接父節點即可，因為前序排列
+   > 會讓子孫自然隱下去」——**這是錯的**。前序排列決定的是「順序」，不是
+   > 「祖先是否仍展開」。展開 `A` 底下的 `B` 後折疊 `A`，`_toggle` 只移除
+   > `A`，`B` 仍在 `_expanded` 中，於是 `B` 的子節點繼續顯示，成為脫離折疊
+   > 分支的孤兒節點。必須走完整條祖先鏈。
    *（前提：折疊一個節點時不從 `_expanded` 移除其子孫——子孫留著也不可見，
    展開時還能還原使用者原本的展開狀態，是「免費」的好行為。）*
 2. **搜尋篩選**（`_query` 非空時）：先算出命中集合
@@ -282,7 +285,12 @@ final decoded = isJson ? _tryDecode(body) : null;   // null ⇒ 走純文字
 - `JsonTreeViewer`（`StatefulWidget`，public）
   - `_JsonTreeViewerState`：持有 `_all` / `_expanded` / `_query` /
     `_searchController`；`build()` 回傳
-    `Column[搜尋框, ListView.builder]`。
+    `Column[搜尋框, ...節點列]`。
+    > **修正（PR #169 review）**：原設計用 `Flexible + ListView.builder
+    > (shrinkWrap: true)`。但兩個 detail view 都把本元件放進它們自己的
+    > `ListView`，子項拿到的是**無界高度**；`shrinkWrap` 會量完每一列，
+    > 巢狀滾動因此毫無收益。改為直接把列攤在 `Column` 裡，由外層
+    > `ListView` 負責滾動。**控制列數的是預設折疊，不是 lazy list。**
   - `didUpdateWidget`：`widget.data` 變更時重建 `_all` 與 `_expanded`。
   - `dispose`：`_searchController.dispose()`（資源管理規則）。
 - `_JsonNodeRow`（`StatelessWidget`）：單列渲染。
@@ -379,10 +387,14 @@ final decoded = isJson ? _tryDecode(body) : null;   // null ⇒ 走純文字
 **這不違反「禁止未經要求的抽象」**——沒有多出任何型別，只是可見性調整。
 
 **大型 payload 效能（驗收條件 5）不寫效能測試**——
-`ListView.builder` 本身即 lazy build，寫一個「幾毫秒內完成」的測試在 CI
+寫一個「幾毫秒內完成」的測試在 CI
 缺席的環境下只會變成 flaky。改以**結構性斷言**代替：
-一個 1000 節點的 payload，斷言 `find.byType(_JsonNodeRow)` 的數量
-**遠小於 1000**（證明只建構可視範圍）。
+一個千餘節點的 payload，斷言實際建構的 `_JsonNodeRow` 數量
+**遠小於總節點數**。
+> **修正（PR #169 review）**：此斷言原本意在證明 `ListView.builder` 的
+> lazy build，但那是在**獨立**元件上量的；實際出貨的是嵌在 detail view
+> `ListView` 裡的版本，該情境下 `shrinkWrap` 會把每一列都建出來。
+> 移除巢狀滾動後，真正壓低列數的是**預設折疊**，測試已改為斷言這件事。
 
 ---
 
@@ -430,7 +442,7 @@ final decoded = isJson ? _tryDecode(body) : null;   // null ⇒ 走純文字
 
 | 風險 | 緩解 |
 |:--|:--|
-| `_flatten` 對極大 payload 一次性全展開（1000 節點都建 `_JsonNode`） | 節點物件很輕（6 個欄位、無 widget）；`ListView.builder` 才是渲染瓶頸的關鍵，已解。若日後遇到十萬節點再談懶展開——**現在不做**（臆測需求） |
+| `_flatten` 對極大 payload 一次性全展開（1000 節點都建 `_JsonNode`） | 節點物件很輕（無 widget）；真正控制**渲染**列數的是預設只展開 2 層（見上方 PR #169 修正）。若日後遇到十萬節點再談懶展開或把列接進外層 sliver——**現在不做**（臆測需求） |
 | `Text.rich` 高亮使既有 `find.text(...)` 斷言失效 | 只在 `_query` 非空時走 `Text.rich`；**`_query` 為空時用純 `Text`**，既有斷言行為不變。這是一行 if，值得 |
 | `analyze` 新增 info（尤其 `dynamic` 與 `!`） | `_flatten` 的走訪值型別用 `Object?` 而非 `dynamic`；不使用 `!`；所有 map iteration 用 `MapEntry<Object?, Object?>` |
 
