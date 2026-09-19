@@ -307,6 +307,51 @@ void main() {
       expect(tester.widgetList(find.byType(JsonNodeRow)).length, 101);
     });
 
+    testWidgets('toggles between the tree and selectable raw JSON', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(const JsonTreeViewer(_Data.nested)));
+      expect(find.byType(JsonNodeRow), findsWidgets);
+
+      await tester.tap(find.text('Show raw'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JsonNodeRow), findsNothing);
+      final raw = tester.widget<SelectableText>(find.byType(SelectableText));
+      expect(raw.data, contains('"users"'));
+      expect(raw.data, contains('"ann"'));
+
+      await tester.tap(find.text('Show tree'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JsonNodeRow), findsWidgets);
+      expect(find.byType(SelectableText), findsNothing);
+    });
+
+    testWidgets('raw view renders non-JSON values instead of throwing', (
+      tester,
+    ) async {
+      // LogEntry.data may hold DateTime or custom objects, which a plain
+      // JsonEncoder refuses to convert.
+      await tester.pumpWidget(_host(JsonTreeViewer(_Data.mixedTypes)));
+      await tester.tap(find.text('Show raw'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final raw = tester.widget<SelectableText>(find.byType(SelectableText));
+      expect(raw.data, contains(DateTime.utc(2020).toString()));
+      expect(raw.data, contains('FOO'));
+    });
+
+    testWidgets('search field is hidden while showing raw JSON', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(JsonTreeViewer(_Data.wide(30))));
+      expect(find.byType(TextField), findsOneWidget);
+
+      await tester.tap(find.text('Show raw'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+    });
+
     testWidgets('caps rows for a wide payload and says how many are hidden', (
       tester,
     ) async {

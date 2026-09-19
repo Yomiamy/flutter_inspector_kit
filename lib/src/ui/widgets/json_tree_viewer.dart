@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -65,6 +67,12 @@ class JsonNode {
   if (value is List) return (JsonKind.list, '[${value.length}]');
   return (JsonKind.leaf, '$value');
 }
+
+/// Re-encodes [value] as indented JSON for the raw view. Values that are not
+/// JSON-native (DateTime, custom objects) fall back to `toString()`, matching
+/// how the tree renders them as leaves.
+String _rawJson(Object? value) =>
+    JsonEncoder.withIndent('  ', (o) => o.toString()).convert(value);
 
 /// One pending traversal entry: either a value to emit, or a marker that
 /// pops the ancestor stack when its subtree is done.
@@ -172,6 +180,7 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
   late Map<String, JsonNode> _byId;
   late Set<String> _expanded;
   String _query = '';
+  bool _raw = false;
 
   @override
   void initState() {
@@ -278,12 +287,30 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
       );
     }
 
-    final visible = _visibleNodes();
+    final visible = _raw ? const <JsonNode>[] : _visibleNodes();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (_all.length >= _kSearchMinNodes) ...[
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => setState(() => _raw = !_raw),
+            icon: Icon(
+              _raw ? Icons.account_tree : Icons.notes,
+              size: ThemeSize.size16,
+            ),
+            label: Text(_raw ? 'Show tree' : 'Show raw'),
+          ),
+        ),
+        // Raw mode restores the selectable plain text the tree replaced, so
+        // an arbitrary span can still be highlighted and copied by hand.
+        if (_raw)
+          SelectableText(
+            _rawJson(widget.data),
+            style: ThemeTextStyle.monospaceStyle,
+          ),
+        if (!_raw && _all.length >= _kSearchMinNodes) ...[
           TextField(
             controller: _searchController,
             decoration: const InputDecoration(
@@ -301,16 +328,17 @@ class _JsonTreeViewerState extends State<JsonTreeViewer> {
         // would shrink-wrap and build every row anyway, so the rows are laid
         // out directly and the outer list does the scrolling. Row count is
         // bounded by _kMaxRows rather than by lazy building.
-        for (final node in visible.take(_kMaxRows))
-          JsonNodeRow(
-            node,
-            isExpanded: _expanded.contains(node.id),
-            onToggle: node.kind == JsonKind.leaf
-                ? null
-                : () => _toggle(node.id),
-            query: _query,
-          ),
-        if (visible.length > _kMaxRows)
+        if (!_raw)
+          for (final node in visible.take(_kMaxRows))
+            JsonNodeRow(
+              node,
+              isExpanded: _expanded.contains(node.id),
+              onToggle: node.kind == JsonKind.leaf
+                  ? null
+                  : () => _toggle(node.id),
+              query: _query,
+            ),
+        if (!_raw && visible.length > _kMaxRows)
           Padding(
             padding: const EdgeInsets.only(top: ThemeSize.space4),
             child: Text(

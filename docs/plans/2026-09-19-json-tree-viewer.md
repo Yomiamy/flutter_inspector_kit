@@ -221,7 +221,17 @@ final decoded = isJson ? _tryDecode(body) : null;   // null ⇒ 走純文字
 
 ### 2.2 R2 — 是否加「切回純文字」開關
 
-**定案：不做。**
+> **已推翻（使用者要求，實作於 PR #169）**：改為**要做**，開關做在
+> `JsonTreeViewer` 內部（`Show raw` / `Show tree`），非兩個 detail view。
+> 下列理由 3（Stateful 升級成本）因此不成立——元件本身已是
+> `StatefulWidget`；理由 1、2 屬「值不值得」的判斷，使用者判定值得：
+> share menu 只能「複製走」，無法在畫面上拖選任意片段，而那正是改成樹之後
+> 失去的手感（STAGE 3 審查已將此列為 R2 的已知代價）。
+> raw 文字以 `JsonEncoder.withIndent` 重新編碼，並以 `toEncodable` 回退
+> `toString()`，否則 `LogEntry.data` 內的 `DateTime`／自訂物件會拋
+> `JsonUnsupportedObjectError`（已實測並加測試）。
+
+**原定案：不做。**
 
 理由：
 1. 規格驗收條件 10 已保證 `prettyJson()` 與分享/複製全文路徑不變，
