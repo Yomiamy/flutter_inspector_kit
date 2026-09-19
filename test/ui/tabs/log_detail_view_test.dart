@@ -170,4 +170,40 @@ void main() {
       );
     });
   });
+
+  group('LogDetailView — data tree', () {
+    testWidgets('nested data expands to reveal the inner value', (
+      tester,
+    ) async {
+      final entry = LogEntry(
+        message: 'nested',
+        level: LogLevel.info,
+        data: {
+          'a': {
+            'b': {'c': 1},
+          },
+        },
+        timestamp: t,
+      );
+
+      await tester.pumpWidget(MaterialApp(home: LogDetailView(entry: entry)));
+
+      // Depth 0/1 start expanded: 'a' is visible, its grandchild is not.
+      expect(find.text('a: {1}'), findsOneWidget);
+      expect(find.text('c: 1'), findsNothing);
+
+      await tester.tap(find.text('b: {1}'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('c: 1'), findsOneWidget);
+    });
+
+    testWidgets('null data renders the empty label', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: LogDetailView(entry: minimalEntry())),
+      );
+
+      expect(find.text('(no data)'), findsOneWidget);
+    });
+  });
 }

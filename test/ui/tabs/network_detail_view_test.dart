@@ -8,6 +8,7 @@ import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
 import 'package:flutter_inspector_kit/src/ui/theme/theme.dart';
+import 'package:flutter_inspector_kit/src/ui/widgets/json_tree_viewer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------
@@ -630,6 +631,49 @@ void main() {
       await pumpView(tester, entry);
 
       expect(find.text('Exception Details'), findsNothing);
+    });
+  });
+
+  group('NetworkDetailView — JSON body rendering', () {
+    NetworkEntry entryWith(String body, {required bool asJson}) => NetworkEntry(
+      method: 'POST',
+      url: 'https://api.test/users',
+      statusCode: 200,
+      requestHeaders: {
+        'Content-Type': asJson ? 'application/json' : 'text/plain',
+      },
+      requestBody: body,
+      isComplete: true,
+      timestamp: t,
+    );
+
+    testWidgets('valid JSON body renders a JsonTreeViewer', (tester) async {
+      await pumpView(tester, entryWith('{"a":1}', asJson: true));
+
+      expect(find.byType(JsonTreeViewer), findsOneWidget);
+    });
+
+    testWidgets('truncated JSON body falls back to plain text', (tester) async {
+      await pumpView(tester, entryWith('{"a":', asJson: true));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(JsonTreeViewer), findsNothing);
+      expect(
+        find.byWidgetPredicate((w) => w is SelectableText && w.data == '{"a":'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('non-JSON body stays on the plain-text path', (tester) async {
+      await pumpView(tester, entryWith('plain body', asJson: false));
+
+      expect(find.byType(JsonTreeViewer), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is SelectableText && w.data == 'plain body',
+        ),
+        findsOneWidget,
+      );
     });
   });
 

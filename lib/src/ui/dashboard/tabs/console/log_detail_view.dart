@@ -7,7 +7,7 @@ import '../../../../utils/agent_prompt.dart';
 import '../../../../utils/log_formatters.dart';
 import '../../../../utils/share_text.dart';
 import '../../../widgets/detail_section.dart';
-import '../../../widgets/key_value_table.dart';
+import '../../../widgets/json_tree_viewer.dart';
 import '../../../theme/theme.dart';
 
 /// Actions exposed in the detail view's share menu.
@@ -139,7 +139,7 @@ class _LogDetailViewState extends State<LogDetailView> {
   Widget _dataSection(BuildContext context) {
     return DetailSection(
       title: 'Data',
-      child: KeyValueTable(data: widget.entry.data, emptyLabel: '(no data)'),
+      child: JsonTreeViewer(widget.entry.data, emptyLabel: '(no data)'),
     );
   }
 
