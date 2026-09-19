@@ -89,6 +89,7 @@
 | [`lib/src/ui/widgets/inspector_fab.dart`](../../lib/src/ui/widgets/inspector_fab.dart) | `InspectorFab` | 安全區域內可拖曳的懸浮按鈕。 |
 | [`lib/src/ui/widgets/magical_tap.dart`](../../lib/src/ui/widgets/magical_tap.dart) | `FlutterInspectorMagicalTap` | 靜默手勢防護罩，用於隱藏 FAB 時藉由快速連擊喚醒控制台。 |
 | [`lib/src/ui/widgets/key_value_table.dart`](../../lib/src/ui/widgets/key_value_table.dart) | `KeyValueTable` | 通用的緊湊二欄式鍵值表格組件。 |
+| [`lib/src/ui/widgets/json_tree_viewer.dart`](../../lib/src/ui/widgets/json_tree_viewer.dart) | `JsonTreeViewer`<br>`JsonNode`<br>`flattenJson()` | 折疊式 JSON 樹狀檢視器。接受**已解析**的資料，扁平化成一維節點清單後以折疊/搜尋篩選；含深度上限、循環偵測與 raw JSON 切換。 |
 | [`lib/src/ui/widgets/detail_section.dart`](../../lib/src/ui/widgets/detail_section.dart) | `DetailSection`<br>`DetailKeyValueRow` | 共用的詳細資訊卡片與鍵值佈局組件。 |
 | [`lib/src/ui/widgets/error_card.dart`](../../lib/src/ui/widgets/error_card.dart) | `ErrorCard` | 通用的錯誤狀態與空狀態 UI 卡片組件。 |
 
