@@ -71,8 +71,17 @@ class JsonNode {
 /// Re-encodes [value] as indented JSON for the raw view. Values that are not
 /// JSON-native (DateTime, custom objects) fall back to `toString()`, matching
 /// how the tree renders them as leaves.
-String _rawJson(Object? value) =>
-    JsonEncoder.withIndent('  ', (o) => o.toString()).convert(value);
+///
+/// Self-referential data has no raw form to show at all: the encoder throws
+/// [JsonCyclicError] rather than consulting `toEncodable`, so the tree — which
+/// marks the cycle and keeps going — stays the only way to inspect it.
+String _rawJson(Object? value) {
+  try {
+    return JsonEncoder.withIndent('  ', (o) => o.toString()).convert(value);
+  } on JsonCyclicError {
+    return '… (circular reference — switch back to the tree to inspect it)';
+  }
+}
 
 /// One pending traversal entry: either a value to emit, or a marker that
 /// pops the ancestor stack when its subtree is done.

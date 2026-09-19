@@ -341,6 +341,23 @@ void main() {
       expect(raw.data, contains('FOO'));
     });
 
+    testWidgets('raw view survives cyclic data', (tester) async {
+      // The encoder throws JsonCyclicError before toEncodable is consulted,
+      // so the toString() fallback cannot rescue this case.
+      await tester.pumpWidget(_host(JsonTreeViewer(_Data.cyclic())));
+      await tester.tap(find.text('Show raw'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final raw = tester.widget<SelectableText>(find.byType(SelectableText));
+      expect(raw.data, contains('circular reference'));
+
+      // The tree still shows it, so nothing is lost by the raw view bailing.
+      await tester.tap(find.text('Show tree'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('circular reference'), findsOneWidget);
+    });
+
     testWidgets('search field is hidden while showing raw JSON', (
       tester,
     ) async {
