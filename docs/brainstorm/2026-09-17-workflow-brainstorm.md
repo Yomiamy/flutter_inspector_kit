@@ -1832,7 +1832,7 @@ Spec Kit、Kiro Specs、Agent OS、Vibe Kanban、Claude Squad、Stately Agent (X
 
 | 照文件執行 | 結果 |
 |:---|:---|
-| `git worktree add -b <branch> <path>`（沿用 ticket-id-dev-prep 的帶 `-b` 寫法） | `fatal: a branch named '...' already exists` |
+| `git worktree add -b <branch> <path>`（沿用 gen-dev-worktree 的帶 `-b` 寫法） | `fatal: a branch named '...' already exists` |
 | `git worktree add <path> <branch>`（去掉 `-b`） | `fatal: '...' is already used by worktree at '<原 repo>'` |
 
 **兩種寫法都 fatal**——quick 模式直接在原 repo checkout 該分支，分支既存在又被佔用。
@@ -2707,7 +2707,7 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 | 6 | **C6** coding standard 移交 reviewer | 風格規則從 implementer 派發模板移到 verifier/reviewer | 中 | 提案 |
 | 7 | **C7** negation → positive 重寫 | SKILL.md 裡「絕不 X」「禁止 X」改寫成正面目標 | 中 | 提案 |
 | 8 | **C8** 版號一致性自動檢查 | 一支 script 檢查 4 處版號（與 §8.5 的 B6 同源，可合併） | 低 | 提案 |
-| 9 | **C9** 核心 skill 補 `agents/openai.yaml` | 目前 61 個 skill 僅 5 個有（branch-diff-code-review、branch-ticket-issue-doc、branch-ticket-solution-advisor、issue-spec-prep、ticket-id-dev-prep），gen-dev-workflow 本體無 | 中 | 提案 |
+| 9 | **C9** 核心 skill 補 `agents/openai.yaml` | 目前 61 個 skill 僅 5 個有（branch-diff-code-review、branch-ticket-issue-doc、branch-ticket-solution-advisor、issue-spec-prep、gen-dev-worktree），gen-dev-workflow 本體無 | 中 | 提案 |
 | 10 | **C10** `wayfinder` fog of war | 超大需求用 issue tracker 當地圖、decision ticket 逐一解 | 高 | 提案 |
 
 > **⚠️ C9 的命名陷阱**：`skills/<name>/agents/openai.yaml` 是**該 skill 的 Codex UI metadata**

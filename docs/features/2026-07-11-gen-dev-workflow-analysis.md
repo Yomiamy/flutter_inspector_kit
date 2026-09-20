@@ -62,7 +62,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 
 **執行工作：**
 1. 取得 Issue 內容（正常路徑用 gen-gh-issue 產五區段 body；issue-id 路徑用 `gh issue view <id>` 解析既有 issue）
-2. 依 `ticket-id-dev-prep` 規則決定 branch prefix + slug，草擬分支/worktree 名稱
+2. 依 `gen-dev-worktree` 規則決定 branch prefix + slug，草擬分支/worktree 名稱
 3. 暫停讓使用者確認/修改
 4. 確認後由 brancher 建立 **worktree + branch**（`git worktree add -b <branch> <worktree-path> origin/main`），主對話 `cd` 進新 worktree 繼續後續所有 stage
 

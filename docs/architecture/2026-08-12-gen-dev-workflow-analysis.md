@@ -3,7 +3,7 @@
 > **📝 更新紀錄 (Changelog)**：
 > * **2026-09-19**：同步 PR #167（Issue #166）——新增 STAGE 0·grill 需求盤問關卡與 `gen-grill` skill。(1) 「各階段詳細分析」新增 STAGE 0·grill 一節；(2) 缺點表「錯誤傳播」列標註部分緩解；(3) 總覽的 stage 敘述補上本關卡。注意此關卡**不動狀態機、不是暫停點、不產生文件**，故 state machine 轉移表與 7 個暫停點的既有敘述維持不變。
 > * **2026-09-04**：補上三處文件從未涵蓋的既有機制，並更新兩項因此失效的判斷。(1) 新增「Hook 強制層」章節——四個已註冊 hook（`wf-guard-stage-check`、`wf-guard-delegate-cwd` pre/post、`cbm-reindex-on-pr`）此前在本文件 0 次提及，其中兩個直接強制本 workflow 自身的規則；(2) 新增 batch 批次模式（此前僅 quick 模式有專節）；(3) 新增「Claude Workflow 編排」可選加速層。連帶修正：「委派後端依賴」缺點中「工作目錄靠 prompt 約束，屬文件層自律而非程式強制」一句已被 `wf-guard-delegate-cwd` 推翻，改為「pre 端已程式強制」；「最危險的假設」補上 hook 層作為第二道非自律防線。新增流程總覽圖連結。
-> * **2026-08-12**：PR review 回應階段的一致性修正（PR #126）。四處敘述本身自相矛盾，非新增功能：(1) STAGE 2 驗收責任人在 `implementer.md`、SKILL.md、本文件三處定義不一，統一為「委派 verifier 做兩階段驗收、implementer 只複核」；(2) STAGE 6 清理執行模型在本文件表格、mermaid 圖 E6/F6、SKILL.md 摘要表之間矛盾，統一為「主對話執行、不委派」；(3) `publisher.md` 唯讀派發同時宣稱「不得跨出目錄」又說明會讀全域 CLAUDE.md，改為誠實描述限制；(4) `brancher.md` 重試對帳規則原寫「找到既有資源就復用」，與 `ticket-id-dev-prep`「已存在則停止回報」衝突，收緊為「僅復用能證明屬於本次嘗試的資源」。
+> * **2026-08-12**：PR review 回應階段的一致性修正（PR #126）。四處敘述本身自相矛盾，非新增功能：(1) STAGE 2 驗收責任人在 `implementer.md`、SKILL.md、本文件三處定義不一，統一為「委派 verifier 做兩階段驗收、implementer 只複核」；(2) STAGE 6 清理執行模型在本文件表格、mermaid 圖 E6/F6、SKILL.md 摘要表之間矛盾，統一為「主對話執行、不委派」；(3) `publisher.md` 唯讀派發同時宣稱「不得跨出目錄」又說明會讀全域 CLAUDE.md，改為誠實描述限制；(4) `brancher.md` 重試對帳規則原寫「找到既有資源就復用」，與 `gen-dev-worktree`「已存在則停止回報」衝突，收緊為「僅復用能證明屬於本次嘗試的資源」。
 > * **2026-08-10**：**委派後端由 `agy -p` headless 改為 `gemini-mcp-tool`（MCP）**。底層後端不變（仍是 antigravity-cli），換掉的是傳輸層——`agy -p` 不吃 stdin、權限卡死，委派實際一律落到 fallback；MCP 路徑實測可寫檔、可跑 shell、可 `git commit`。同步更新各 stage 委派欄、Model 策略、缺點表「agy 依賴」項，新增 MCP 路徑的三條委派紀律與已知限制。
 > * **2026-08-06**：同步 SKILL.md 變更——STAGE 6 新增「文件同步」前置步驟（gen-sync-docs-by-branchs → gen-commit），確保 worktree 清理前 docs 已反映分支最終狀態。更新 STAGE 6 表格、委派規則、優缺點分析。
 > * **2026-07-30**：同步審查 SKILL.md（含 `acf4f70` 新增的 STAGE 1 規劃文件搬移步驟）。STAGE 1 新增「帶入規劃文件」步驟、補記 Bug 1.6、更新總覽與優缺點分析。
@@ -103,7 +103,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 
 **執行工作：**
 1. 取得 Issue 內容（正常路徑用 gen-gh-issue 產五區段 body；issue-id 路徑用 `gh issue view <id>` 解析既有 issue）
-2. 依 `ticket-id-dev-prep` 規則決定 branch prefix + slug，草擬分支/worktree 名稱
+2. 依 `gen-dev-worktree` 規則決定 branch prefix + slug，草擬分支/worktree 名稱
 3. 暫停讓使用者確認/修改
 4. 確認後由 brancher 建立 **worktree + branch**（`git worktree add -b <branch> <worktree-path> origin/main`），主對話 `cd` 進新 worktree 繼續後續所有 stage
 
