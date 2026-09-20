@@ -30,7 +30,7 @@
 使用者：開發 issue #54
 
 你：好，直接進 STAGE 1。（effort 依「推論等級表」明確帶入）
-    Task("brancher", "解析 issue #54 內容為實作 brief，依 ticket-id-dev-prep 規則
+    Task("brancher", "解析 issue #54 內容為實作 brief，依 gen-dev-worktree 規則
                        決定 prefix/slug，先只產出名稱草稿不要建立", effort: "high")
     → [等 brancher 完成] → 展示解析後的 brief + branch/worktree 名稱 → ⏸ 暫停確認
     → 確認後才建立 worktree + branch → cd 進新 worktree

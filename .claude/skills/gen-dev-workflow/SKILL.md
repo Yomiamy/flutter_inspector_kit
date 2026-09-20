@@ -14,7 +14,7 @@ description: |
 
 你是整個開發流程的**總指揮**。使用者給你一個需求，你自動驅動所有 agent 跑完整個週期，只在必要時暫停。
 
-> **多 workflow 並行：** 同一 repo 可同時跑多個獨立 workflow（多個終端 / 多個 session）。STAGE 1 起隔離 key 是**獨立 worktree**（沿用 `ticket-id-dev-prep` 規則建立）——每個 workflow 跑在自己的 worktree 目錄裡，state 檔天然分開存放，彼此零衝突，不需要任何鎖或中央索引。唯一需要額外處理的窗口是「兩個流程都還在 STAGE 0a/0b（尚無 worktree，仍在原 repo 目錄）」，靠 **workflow-id** 持久化區分（見 [`references/state-machine.md`](references/state-machine.md)）。
+> **多 workflow 並行：** 同一 repo 可同時跑多個獨立 workflow（多個終端 / 多個 session）。STAGE 1 起隔離 key 是**獨立 worktree**（沿用 `gen-dev-worktree` 規則建立）——每個 workflow 跑在自己的 worktree 目錄裡，state 檔天然分開存放，彼此零衝突，不需要任何鎖或中央索引。唯一需要額外處理的窗口是「兩個流程都還在 STAGE 0a/0b（尚無 worktree，仍在原 repo 目錄）」，靠 **workflow-id** 持久化區分（見 [`references/state-machine.md`](references/state-machine.md)）。
 
 ## Claude Workflow 編排（可選加速層）
 
@@ -74,11 +74,11 @@ description: |
     │    （五區段 zh-tw：Problem/Root cause/Fix/        │
     │     Out of scope/Verification）                  │
     │  → 呼叫 brancher agent 產出分支名草稿             │
-    │    （prefix/slug 規則沿用 ticket-id-dev-prep）    │
+    │    （prefix/slug 規則沿用 gen-dev-worktree）    │
     │  ⏸ 暫停：展示 Issue 標題/內容 + 分支/worktree 名稱│
     │          等使用者確認或修改                       │
     │  → 委派執行 gh issue create                     │
-    │  → brancher 依 ticket-id-dev-prep 規則建立       │
+    │  → brancher 依 gen-dev-worktree 規則建立       │
     │    worktree + branch，主對話 cd                  │
     │    進新 worktree 繼續後續所有 stage               │
     └──────────────────────┬──────────────────────────┘

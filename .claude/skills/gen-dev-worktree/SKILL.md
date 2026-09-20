@@ -1,9 +1,9 @@
 ---
-name: issue-id-dev-prep
+name: gen-dev-worktree
 description: 當使用者提供 GitHub issue id 連同已解析的 issue brief，並希望 Claude 從安全的 base 建立新的 git branch 與 worktree、沿用既有命名規則、且不依賴當前 branch 名稱即完成最小開發設定時，使用此 skill。
 ---
 
-# Issue Id Dev Prep
+# Gen Dev Worktree
 
 當使用者給出明確的 GitHub issue id（例如 `2351`）連同已解析的 issue brief，且想要的是 branch/worktree 準備、而非從頭到尾的 issue 調查時，使用此 skill。
 

@@ -1,6 +1,6 @@
 # 分支與 Worktree 建立（STAGE 1 統一規則）
 
-STAGE 1 建立分支與工作區時，**不論從哪個入口進來**，最後一步一律沿用 `ticket-id-dev-prep` skill 的 prefix/slug/worktree 規則，避免命名邏輯在兩個 skill 裡各寫一套。
+STAGE 1 建立分支與工作區時，**不論從哪個入口進來**，最後一步一律沿用 `gen-dev-worktree` skill 的 prefix/slug/worktree 規則，避免命名邏輯在兩個 skill 裡各寫一套。
 
 ## 兩種入口，同一套收斂邏輯
 
@@ -13,20 +13,20 @@ STAGE 1 建立分支與工作區時，**不論從哪個入口進來**，最後�
 
 1. **取得 Issue 內容**：
    - 正常路徑：`gen-gh-issue` 產出的五區段 body 直接作為 issue brief 來源，`brancher` 呼叫 `gh issue create` 建立新 Issue。
-   - issue-id 路徑：`brancher` 先用 `gh issue view <id>` 取得既有 Issue 內容，依 `ticket-id-dev-prep` 的「已解析 Brief 規則」濃縮為 `zh-tw` 實作 brief（不重新調查，issue 內容本身就是真實來源）。
+   - issue-id 路徑：`brancher` 先用 `gh issue view <id>` 取得既有 Issue 內容，依 `gen-dev-worktree` 的「已解析 Brief 規則」濃縮為 `zh-tw` 實作 brief（不重新調查，issue 內容本身就是真實來源）。
 1.5. **issue-id 路徑在此跑 `gen-grill` 的 Q5（既有覆蓋實查）**：該路徑跳過 STAGE 0a/0b，不經過 STAGE 0·grill，故在此補跑。**必須排在步驟 1 之後**——Q5 要依具體需求判斷既有覆蓋並附證據，只有 issue ID 無從判斷，需先拿到解析後的 brief。Q1–Q4 略過（issue 內容已含需求定義）。實查結果與 issue 敘述衝突時先回報，不逕自建分支——§D4（Issue #159）正是照 issue 字面做完才發現落點錯誤。
-2. **決定 branch prefix + slug**（沿用 `ticket-id-dev-prep` 的「Slug 規則」與「Branch 與 Worktree 規則」）：
+2. **決定 branch prefix + slug**（沿用 `gen-dev-worktree` 的「Slug 規則」與「Branch 與 Worktree 規則」）：
    - prefix 依 issue 意圖選擇：`fix/YYYYMM`（bug/regression）、`feature/YYYYMM`（新功能）、`chore/YYYYMM`（refactor/維護）。
    - slug：2–6 個英文字的 kebab-case，具體且與實作相關，避免 `handle`/`update`/`fix-issue` 這類填充詞。
    - branch 名稱：`<prefix>/<ISSUE-ID>-<slug>`，其中 `<prefix>` 已含 `YYYYMM`（例：`fix/202607/54-console-clear-not-wiping`）。
    - worktree 目錄：`.claude/worktrees/<repo-name>-<ISSUE-ID>-<slug>`，建在當前 repo 內的 `.claude/worktrees` 目錄下，除非使用者要求其他位置。
-3. **建立 worktree + branch**：優先使用 `ticket-id-dev-prep` 內附的 `scripts/prepare_issue_dev_workspace.sh`（若存在於當前專案）；否則走手動回退流程：
+3. **建立 worktree + branch**：優先使用 `gen-dev-worktree` 內附的 `scripts/prepare_issue_dev_workspace.sh`（若存在於當前專案）；否則走手動回退流程：
    ```bash
    git fetch origin main --prune
    git worktree add -b "<branch-name>" "<worktree-path>" "origin/main"
    ```
    base branch 預設 `origin/main`，除非使用者明確要求其他 base。若目標 branch 或 worktree 路徑已存在，停止並回報，不默默重用或覆蓋。
-4. **最小設定檢查**：`cd` 進新 worktree 後執行 `git branch --show-current` 與 `git status --short` 驗證，並 `flutter pub get`（依 `ticket-id-dev-prep` 的「設定完成規則」，若專案有本地限定設定檔如 `.env`、簽章檔，同步進新 worktree）。
+4. **最小設定檢查**：`cd` 進新 worktree 後執行 `git branch --show-current` 與 `git status --short` 驗證，並 `flutter pub get`（依 `gen-dev-worktree` 的「設定完成規則」，若專案有本地限定設定檔如 `.env`、簽章檔，同步進新 worktree）。
 5. **🔴 帶入 STAGE 0a/0b 產出的規劃文件**（正常路徑必做）：功能規格與實作計畫是在**原 repo 目錄**產出的未 commit 檔案，新 worktree 從 `origin/main` 拉出來時**不會有它們**。若不搬，state 檔記的 `spec`/`plan` 路徑切進 worktree 後指向不存在的檔，STAGE 2 的 implementer 讀不到計畫。
    ```bash
    # 於原 repo 執行；<repo-root> 為原 repo 路徑，<worktree-path> 為步驟 3 建立的目錄
