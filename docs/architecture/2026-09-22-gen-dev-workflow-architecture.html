@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.17.0-dev.1">
-  <title>gen-dev-workflow 執行流程 Diagram</title>
+  <title>gen-dev-workflow 編排架構 Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -4955,11 +4955,11 @@
            data-preset-badge-blueprint="BLUEPRINT / REV 01"
            data-preset-badge-editorial="EDITORIAL / FIELD NOTE">
         <div class="pulse-dot"></div>
-        <h1>gen-dev-workflow 執行流程</h1>
+        <h1>gen-dev-workflow 編排架構</h1>
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"gate-to-plan","label":"盤問到計畫","focus":["grill","spec","plan"],"note":"planner 動工前先讓需求收斂：五項判準齊備或短路放行，但 Q5 既有覆蓋實查一律要跑。"},{"id":"build-to-review","label":"實作到審查","focus":["issue_worktree","implement","review"],"note":"逐任務分級派發，verifier 兩階段驗收；審查不過直接退回 STAGE 2。"},{"id":"after-pr","label":"PR 之後","focus":["publish","pr_done","reply_review","cleanup"],"note":"STAGE 5／6 是獨立入口，須先用 wf-state.sh 推進狀態才能派發。"}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"main-path","label":"成功主路徑","focus":["grill","planner","brancher","implementer","reviewer","publisher","pr"],"note":"grill 收斂需求 → planner 規格與計畫 → brancher 建 worktree → implementer 實作 → reviewer 審查 → publisher 發布 → PR 建立。這是唯一的成功路徑。"},{"id":"inference-tier","label":"推論等級分配","focus":["planner","implementer","verifier","reviewer"],"note":"最強推論（opus · xhigh）只給 planner、reviewer、verifier；implementer 為 sonnet · max，並逐任務再分級。"},{"id":"delegation","label":"MCP 委派邊界","focus":["brancher","implementer","publisher","mcp"],"note":"純 IO 與重活委派 gemini-mcp-tool；規劃、審查、對外動作不委派。"},{"id":"guards","label":"Hook 與狀態守衛","focus":["wfstate","hook_stage","hook_cwd","hook_reindex"],"note":"wf-state.sh 棘輪擋未確認的 advance；三道 hook 由 settings.local.json 註冊，只有 exit 2 具阻擋力。"}]</script>
 
     <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"S cycles","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.story":"the guided story","viewer.owner.chapter":"the active chapter","viewer.owner.chapterPreview":"the chapter delta preview","viewer.owner.handoff":"the chapter handoff","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyShareCard":"Copy Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.period":"Clipboard image write not supported by this browser.","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.copiedShare":"Copied Share Card","viewer.export.downloadedShare":"Downloaded Share Card","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Route: {source} → {target} · {count} directed hop","viewer.export.card.routeSummary.other":"Route: {source} → {target} · {count} directed hops","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.card.defaultBadge":"ARCHIFY · {preset} · {theme}","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guided.region":"Guided diagram views","viewer.guided.previous":"Previous guided view","viewer.guided.previous.title":"Previous guided view ([)","viewer.guided.next":"Next guided view","viewer.guided.next.title":"Next guided view (])","viewer.guided.views":"Guided views","viewer.guided.explore":"Explore this system","viewer.guided.intro":"Step through curated paths without changing the source diagram.","viewer.guided.trail":"Story trail","viewer.guided.beat":"Beat","viewer.guided.nextBeat":"Next","viewer.guided.play":"Play guided story","viewer.guided.play.title":"Play guided story (P)","viewer.guided.pause":"Pause guided story","viewer.guided.pause.title":"Pause guided story (P)","viewer.guided.replay":"Replay guided story","viewer.guided.replay.title":"Replay guided story (P)","viewer.guided.playStory":"Play story","viewer.guided.pauseStory":"Pause","viewer.guided.replayStory":"Replay story","viewer.guided.motionUnavailable":"Story playback unavailable while motion is Still","viewer.guided.enableMotion":"Switch motion to Live to play the guided story","viewer.guided.selectBeatLink":"Select a Story Beat to copy its exact link","viewer.guided.copyMoment":"Copy moment","viewer.guided.momentCopied":"Moment link copied","viewer.guided.momentCopyFailed":"Could not copy story moment link","viewer.guided.copied":"Copied","viewer.guided.copyFailed":"Copy failed","viewer.guided.showAll":"Show all","viewer.guided.showAll.aria":"Show entire diagram","viewer.guided.chapters":"Story chapters","viewer.guided.storyTrail":"Story trail for {label}: {count} beats","viewer.guided.chapter.open":"Open chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.current":"Current chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.selectedNodes":"{count} selected nodes","viewer.guided.chapter.stops":"{count} stops","viewer.guided.chapter.stop.one":"{count} stop","viewer.guided.chapter.stop.other":"{count} stops","viewer.guided.chapter.current.title":"{label} — current chapter, {count} stops","viewer.guided.chapter.delta.expanded":"{stay} stay, {enter} enter, {leave} leave","viewer.guided.chapter.delta.aria":"Open chapter {index} of {total}: {label}. Chapter focus delta: {delta}","viewer.guided.chapter.delta.title":"{label} — {delta} chapter focus","viewer.guided.handoff":"{from} → {to} · via {label}","viewer.guided.share.chapter":"Chapter {index} / {total}","viewer.guided.share.initial":"Chapter 01 / 01","viewer.guided.share.default":"Guided chapter","viewer.guided.state.ready":"Ready","viewer.guided.state.playing":"Playing","viewer.guided.state.settled":"Settled","viewer.guided.state.paused":"Paused","viewer.guided.state.pinned":"Pinned","viewer.guided.state.still":"Still","viewer.guided.share.step":"Step {index} / {total} · {label}","viewer.guided.share.staticMoment":"{step} · Static moment","viewer.guided.share.complete":"{count} steps complete · {note}","viewer.guided.share.settled":"Path settled for reading.","viewer.guided.share.staticPath":"{count} steps · Static path","viewer.guided.share.ready":"{count} steps · Ready","viewer.guided.share.aria":"{state} chapter {index} of {total}: {label}. {beat}. {route}","viewer.guided.beat.start":"Beat {index} / {total} · {label} · starting point","viewer.guided.beat.forward":"Beat {index} / {total} · {from} → {to}","viewer.guided.beat.reverse":"Beat {index} / {total} · {from} → {to} · reverse authored link","viewer.guided.beat.multiple":"Beat {index} / {total} · {from} ⇄ {to} · {count} authored links","viewer.guided.beat.group":"Beat {index} / {total} · {from} · {to} · grouped · no direct link","viewer.guided.beat.aria.prefix":"Story beat {index} of {total}: {label}. ","viewer.guided.beat.aria.start":"Starting point.","viewer.guided.beat.aria.forward":"From {from} through one authored forward relationship.","viewer.guided.beat.aria.reverse":"From {from}; the authored relationship points from {to} to {from}.","viewer.guided.beat.aria.multiple":"From {from} through {count} authored relationships; shown without arbitrary motion.","viewer.guided.beat.aria.group":"Grouped from {from} with no direct authored relationship.","viewer.guided.caption.start":"Starting point","viewer.guided.caption.grouped":"Grouped transition · no direct authored link","viewer.guided.caption.more":" +{count} more","viewer.guided.caption.reverse":"Reverse authored relationship","viewer.guided.caption.relationships":"{count} authored relationships","viewer.guided.caption.relationship":"Authored relationship","viewer.guided.caption.direction":"authored direction: {from} → {to}","viewer.guided.caption.starting":"Authored starting point","viewer.guided.beatLink":"Copy link to current story moment: Beat {index} of {total}: {label}","viewer.guided.noStory":"This diagram has no authored guided story.","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.story":"Play the guided story","viewer.guide.story.hint":"Walk the authored chapters and real relationships.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.facts":"{nodes} · {relationships} · {views}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.fact.view.one":"{count} guided view","viewer.guide.fact.view.other":"{count} guided views","viewer.guide.story.available.one":"Walk {count} authored chapter and its real relationships.","viewer.guide.story.available.other":"Walk {count} authored chapters and their real relationships.","viewer.guide.story.unavailable":"No authored guided story in this diagram.","viewer.guide.open":"Open diagram guide","viewer.guide.noStory":"This diagram has no authored guided story.","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.sourceMarker":"SRC","viewer.passport.beacon.one":"{count} verified source; focus this node to inspect","viewer.passport.beacon.other":"{count} verified sources; focus this node to inspect","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Route probe","viewer.route.start":"Choose a start node","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Traced route","viewer.route.pickTwo":"Pick two semantic nodes on the diagram","viewer.route.pickOne":"Pick a semantic node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Choose the source, then the destination. Direction matters.","viewer.route.destination":"Choose a destination from {label}","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"A route needs two distinct semantic nodes.","viewer.route.unreachable":"No directed route to {label}","viewer.route.unreachable.detail":"{target} is not reachable from {source}. Pick a highlighted destination.","viewer.route.start.instructions":"Select the source. The next step will reveal only directed destinations.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest authored route","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} directed hop","viewer.route.overview.hop.other":"{count} directed hops","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} directed destination available. Pick a highlighted node.","viewer.route.destination.count.other":"{count} directed destinations available. Pick a highlighted node.","viewer.route.noOutgoing":"No outgoing route starts here. Clear and choose another source.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"PATH","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset diagram view","viewer.nav.camera.title":"{semantic}{hint} · reset view (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.map":"MAP","viewer.nav.level.read":"READ","viewer.nav.level.full":"FULL","viewer.nav.level.auto":"AUTO","viewer.nav.detail.map":"Zoom in to reveal relationship labels and node context","viewer.nav.detail.read":"Zoom in again to reveal tags and annotations","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
@@ -5004,9 +5004,9 @@
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
          data-preset-badge-editorial-plate="ARCHIFY / PLATE 04">
-      <svg viewBox="0 0 1180 700" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
-        <title id="archify-diagram-title">gen-dev-workflow 執行流程</title>
-        <desc id="archify-diagram-description">A workflow diagram generated by Archify.</desc>
+      <svg viewBox="0 0 1273 802" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
+        <title id="archify-diagram-title">gen-dev-workflow 編排架構</title>
+        <desc id="archify-diagram-description">An architecture diagram generated by Archify.</desc>
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -5029,280 +5029,348 @@
         <!-- Background Grid -->
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        <!-- Swimlanes -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="970" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / 規劃 (planner)</text>
+        <!-- Boundaries (behind everything) -->
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="主對話掌控（暫停點 · 對外動作不委派）" x="238" y="30" width="732" height="416" rx="12" class="c-region" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="178" width="970" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="200" class="t-dim" font-size="10" font-weight="600">02 / 實作與審查</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="security-group" data-composition-frame-id="1" data-composition-frame-label="最強推論 opus · xhigh" x="491" y="30" width="742" height="416" rx="8" class="c-security-group" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="304" width="970" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="326" class="t-dim" font-size="10" font-weight="600">03 / 發布</text>
+        <!-- Connection paths (before components for correct z-order) -->
+        <path data-edge-from="user" data-edge-to="grill" data-edge-label="需求進場" data-edge-key="0" data-edge-id="c1" data-composition-points="180,93;268,93" d="M 180 93 L 268 93" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="grill" data-edge-to="planner" data-edge-label="結構化 brief" data-edge-key="1" data-edge-id="c2" data-composition-points="408,93;521,93" d="M 408 93 L 521 93" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="planner" data-edge-to="brancher" data-edge-label="計畫已確認" data-edge-key="2" data-edge-id="c3" data-composition-points="671,93;770,93" d="M 671 93 L 770 93" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="brancher" data-edge-to="implementer" data-edge-label="cd 進 worktree" data-edge-key="3" data-edge-id="c4" data-composition-points="920,79;1047,79" d="M 920 79 L 1047 79" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="implementer" data-edge-to="reviewer" data-edge-label="任務全數完成" data-edge-key="4" data-edge-id="c5" data-composition-points="1047,107;993.5,107;993.5,393;940,393" d="M 1047 107 L 1001.5 107 Q 993.5 107 993.5 115 L 993.5 385 Q 993.5 393 985.5 393 L 940 393" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="reviewer" data-edge-to="publisher" data-edge-label="審查通過" data-edge-key="5" data-edge-id="c6" data-composition-points="790,393;680,393" d="M 790 393 L 680 393" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="publisher" data-edge-to="pr" data-edge-label="確認發布" data-edge-key="6" data-edge-id="c7" data-composition-points="530,386;430,386" d="M 530 386 L 430 386" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="implementer" data-edge-to="verifier" data-edge-label="兩階段驗收" data-edge-key="7" data-edge-id="c8" data-composition-points="1125,126;1125,360" d="M 1125 126 L 1125 360" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="pr" data-edge-to="responder" data-edge-label="收到 review 意見" data-edge-key="8" data-edge-id="c12" data-composition-points="362,426;362,530" d="M 362 426 L 362 530" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="pr" data-edge-to="cleanup" data-edge-label="PR 實際合併" data-edge-key="9" data-edge-id="c13" data-composition-points="430,400;480,400;480,562;530,562" d="M 430 400 L 472 400 Q 480 400 480 408 L 480 554 Q 480 562 488 562 L 530 562" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="implementer" data-edge-to="mcp" data-edge-label="✦ 代碼·測試·commit" data-edge-key="10" data-edge-id="c9" data-composition-points="1047,93;993.5,93;993.5,222;940,222" d="M 1047 93 L 1001.5 93 Q 993.5 93 993.5 101 L 993.5 214 Q 993.5 222 985.5 222 L 940 222" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="brancher" data-edge-to="mcp" data-edge-label="✦ gh · git worktree" data-edge-key="11" data-edge-id="c10" data-composition-points="845,126;845,150;871,150;871,166;855,166;855,190" d="M 845 126 L 845 142 Q 845 150 853 150 L 863 150 Q 871 150 871 158 L 871 158 Q 871 166 863 166 L 863 166 Q 855 166 855 174 L 855 190" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="wfstate" data-edge-to="planner" data-edge-label="棘輪校驗" data-edge-key="12" data-edge-id="c11" data-composition-points="596,190;596,126" d="M 596 190 L 596 126" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="hook_stage" data-edge-to="responder" data-edge-label="未 advance 即擋下" data-edge-key="13" data-edge-id="c14" data-composition-points="355,670;355,594" d="M 355 670 L 355 594" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="hook_cwd" data-edge-to="mcp" data-edge-label="攔截委派 · 校驗 cwd" data-edge-key="14" data-edge-id="c15" data-composition-points="855,290;855,254" d="M 855 290 L 855 254" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="hook_reindex" data-edge-to="pr" data-edge-label="gh pr create 後重建索引" data-edge-key="15" data-edge-id="c16" data-composition-points="128,530;128,478;348,478;348,426" d="M 128 530 L 128 486 Q 128 478 136 478 L 340 478 Q 348 478 348 470 L 348 426" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-3" x="40" y="430" width="970" height="106" rx="10" class="c-lane" stroke-width="1"/>
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="exception-lane" data-composition-frame-id="lane-3-exception" x="46" y="436" width="958" height="94" rx="8" class="c-security-group" stroke-width="1"/>
-        <text x="54" y="452" class="t-security" font-size="10" font-weight="600">EX / 獨立入口與 Hook 守衛</text>
+        <!-- Components -->
+        <g id="node-user" data-node-id="user" data-node-label="使用者需求" tabindex="0" role="button" aria-label="Focus 使用者需求, 「幫我做 X 功能」, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="「幫我做 X 功能」" data-node-context="Architecture component">
+          <title>使用者需求 · 「幫我做 X 功能」 · Architecture component</title>
+          <rect x="50" y="60" width="130" height="66" rx="6" class="c-mask"/>
+          <rect x="50" y="60" width="130" height="66" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(56 66) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="115" y="91" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">使用者需求</text>
+        <text data-detail="context" x="115" y="107" class="t-muted" font-size="9" text-anchor="middle">「幫我做 X 功能」</text>
+        </g>
 
-        <!-- Phase headers -->
-        <line x1="77" y1="35" x2="169" y2="35" class="a-emphasis" stroke-width="1.1"/>
-        <rect x="77" y="27" width="92" height="16" rx="4" class="c-mask"/>
-        <text x="123" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">收斂需求</text>
-        <line x1="263.79999999999995" y1="35" x2="513.8" y2="35" class="a-default" stroke-width="1.1"/>
-        <rect x="263.79999999999995" y="27" width="249.99999999999994" height="16" rx="4" class="c-mask"/>
-        <text x="388.79999999999995" y="39" class="t-muted" font-size="8" font-weight="600" text-anchor="middle">規格 + 計畫</text>
-        <line x1="541.8" y1="35" x2="811" y2="35" class="a-emphasis" stroke-width="1.1"/>
-        <rect x="541.8" y="27" width="269.20000000000005" height="16" rx="4" class="c-mask"/>
-        <text x="676.4" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">實作 + 審查</text>
-        <line x1="905.8" y1="35" x2="997.8" y2="35" class="a-dashed" stroke-width="1.1"/>
-        <rect x="905.8" y="27" width="92" height="16" rx="4" class="c-mask"/>
-        <text x="951.8" y="39" class="t-messagebus" font-size="8" font-weight="600" text-anchor="middle">發布 + 收尾</text>
-
-        <!-- Workflow groups -->
-
-
-        <!-- Edge paths -->
-        <path data-edge-from="grill" data-edge-to="spec" data-edge-label="brief 交 planner" data-edge-key="0" data-composition-points="169,120;263.8,120" d="M 169 120 L 263.8 120" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="implement" data-edge-to="review" data-edge-label="任務全數完成" data-edge-key="1" data-composition-points="811,239;905.8,239" d="M 811 239 L 905.8 239" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="issue_worktree" data-edge-to="implement" data-edge-label="cd 進 worktree" data-edge-key="2" data-composition-points="633.8,246;719,246" d="M 633.8 246 L 719 246" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="plan" data-edge-to="issue_worktree" data-edge-label="計畫已確認" data-edge-key="3" data-composition-points="467.8,154;467.8,246;541.8,246" d="M 467.8 154 L 467.8 246 L 541.8 246" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="pr_done" data-edge-to="cleanup" data-edge-label="PR 實際合併" data-edge-key="4" data-composition-points="772,398;772,498;905.8,498" d="M 772 398 L 772 498 L 905.8 498" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="pr_done" data-edge-to="reply_review" data-edge-label="收到 review 意見" data-edge-key="5" data-composition-points="758,398;758,491;633.8,491" d="M 758 398 L 758 491 L 633.8 491" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="publish" data-edge-to="pr_done" data-edge-label="確認發布" data-edge-key="6" data-composition-points="951.8,406;951.8,426;765,426;765,398" d="M 951.8 406 L 951.8 426 L 765 426 L 765 398" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="reply_review" data-edge-to="publish" data-edge-label="修正後更新 PR" data-edge-key="7" data-composition-points="587.8,532;587.8,552;1013.8,552;1013.8,372;997.8,372" d="M 587.8 532 L 587.8 552 L 1013.8 552 L 1013.8 372 L 997.8 372" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="review" data-edge-to="implement" data-edge-label="不通過，退回修正" data-edge-key="8" data-composition-points="951.8,280;951.8,296;765,296;765,280" d="M 951.8 280 L 951.8 296 L 765 296 L 765 280" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="review" data-edge-to="publish" data-edge-label="審查通過" data-edge-key="9" data-composition-points="997.8,246;1042.2,246;1042.2,372;997.8,372" d="M 997.8 246 L 1042.2 246 L 1042.2 372 L 997.8 372" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="spec" data-edge-to="plan" data-edge-label="規格已確認" data-edge-key="10" data-composition-points="355.8,120;421.8,120" d="M 355.8 120 L 421.8 120" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-
-        <!-- Nodes -->
-        <g id="node-grill" data-node-id="grill" data-node-label="STAGE 0·grill" tabindex="0" role="button" aria-label="Focus STAGE 0·grill, gen-grill 盤問, 規劃 (planner) › 收斂需求" aria-pressed="false" data-node-kind="security" data-node-sublabel="gen-grill 盤問" data-node-tag="Q5 必跑" data-node-context="規劃 (planner) › 收斂需求">
-          <title>STAGE 0·grill · gen-grill 盤問 · 規劃 (planner) › 收斂需求 · Q5 必跑</title>
-          <rect x="77" y="86" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="77" y="86" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(83 92) scale(0.6875)">
+        <g id="node-grill" data-node-id="grill" data-node-label="STAGE 0 · grill" tabindex="0" role="button" aria-label="Focus STAGE 0 · grill, gen-grill skill, 主對話掌控（暫停點 · 對外動作不委派）" aria-pressed="false" data-node-kind="security" data-node-sublabel="gen-grill skill" data-node-tag="Q5 必跑" data-node-context="主對話掌控（暫停點 · 對外動作不委派）">
+          <title>STAGE 0 · grill · gen-grill skill · 主對話掌控（暫停點 · 對外動作不委派） · Q5 必跑</title>
+          <rect x="268" y="60" width="140" height="66" rx="6" class="c-mask"/>
+          <rect x="268" y="60" width="140" height="66" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(274 66) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="123" y="107" class="t-primary" font-size="10.7" font-weight="600" text-anchor="middle">STAGE 0·grill</text>
-          <text data-detail="context" x="123" y="124" class="t-muted" font-size="8" text-anchor="middle">gen-grill 盤問</text>
-        <text data-detail="fine" x="123" y="142" class="t-security" font-size="7" text-anchor="middle">Q5 必跑</text>
+          <text data-node-label="" data-detail-anchor="" x="338" y="91" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 0 · grill</text>
+        <text data-detail="context" x="338" y="107" class="t-muted" font-size="9" text-anchor="middle">gen-grill skill</text>
+        <text data-detail="fine" x="338" y="118" class="t-security" font-size="7" text-anchor="middle">Q5 必跑</text>
         </g>
 
-        <g id="node-spec" data-node-id="spec" data-node-label="STAGE 0a" tabindex="0" role="button" aria-label="Focus STAGE 0a, 功能規格, 規劃 (planner) › 規格 + 計畫" aria-pressed="false" data-node-kind="backend" data-node-sublabel="功能規格" data-node-tag="⏸ 暫停" data-node-context="規劃 (planner) › 規格 + 計畫">
-          <title>STAGE 0a · 功能規格 · 規劃 (planner) › 規格 + 計畫 · ⏸ 暫停</title>
-          <rect x="263.8" y="86" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="263.8" y="86" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(269.8 92) scale(0.6875)">
+        <g id="node-planner" data-node-id="planner" data-node-label="planner" tabindex="0" role="button" aria-label="Focus planner, STAGE 0a 規格 / 0b 計畫, 最強推論 opus · xhigh" aria-pressed="false" data-node-kind="backend" data-node-sublabel="STAGE 0a 規格 / 0b 計畫" data-node-tag="opus · xhigh" data-node-context="最強推論 opus · xhigh">
+          <title>planner · STAGE 0a 規格 / 0b 計畫 · 最強推論 opus · xhigh · opus · xhigh</title>
+          <rect x="521" y="60" width="150" height="66" rx="6" class="c-mask"/>
+          <rect x="521" y="60" width="150" height="66" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(527 66) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="309.8" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 0a</text>
-          <text data-detail="context" x="309.8" y="124" class="t-muted" font-size="8" text-anchor="middle">功能規格</text>
-        <text data-detail="fine" x="309.8" y="142" class="t-backend" font-size="7" text-anchor="middle">⏸ 暫停</text>
+          <text data-node-label="" data-detail-anchor="" x="596" y="91" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">planner</text>
+        <text data-detail="context" x="596" y="107" class="t-muted" font-size="9" text-anchor="middle">STAGE 0a 規格 / 0b 計畫</text>
+        <text data-detail="fine" x="596" y="118" class="t-backend" font-size="7" text-anchor="middle">opus · xhigh</text>
         </g>
 
-        <g id="node-plan" data-node-id="plan" data-node-label="STAGE 0b" tabindex="0" role="button" aria-label="Focus STAGE 0b, 實作計畫, 規劃 (planner) › 規格 + 計畫" aria-pressed="false" data-node-kind="backend" data-node-sublabel="實作計畫" data-node-tag="⏸ 暫停" data-node-context="規劃 (planner) › 規格 + 計畫">
-          <title>STAGE 0b · 實作計畫 · 規劃 (planner) › 規格 + 計畫 · ⏸ 暫停</title>
-          <rect x="421.8" y="86" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="421.8" y="86" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(427.8 92) scale(0.6875)">
-            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="467.8" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 0b</text>
-          <text data-detail="context" x="467.8" y="124" class="t-muted" font-size="8" text-anchor="middle">實作計畫</text>
-        <text data-detail="fine" x="467.8" y="142" class="t-backend" font-size="7" text-anchor="middle">⏸ 暫停</text>
-        </g>
-
-        <g id="node-issue_worktree" data-node-id="issue_worktree" data-node-label="STAGE 1" tabindex="0" role="button" aria-label="Focus STAGE 1, Issue + Worktree, 實作與審查 › 實作 + 審查" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="Issue + Worktree" data-node-tag="⏸ 暫停" data-node-context="實作與審查 › 實作 + 審查">
-          <title>STAGE 1 · Issue + Worktree · 實作與審查 › 實作 + 審查 · ⏸ 暫停</title>
-          <rect x="541.8" y="212" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="541.8" y="212" width="92" height="68" rx="6" class="c-cloud" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(547.8 218) scale(0.6875)">
+        <g id="node-brancher" data-node-id="brancher" data-node-label="brancher" tabindex="0" role="button" aria-label="Focus brancher, STAGE 1 Issue + Worktree, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="STAGE 1 Issue + Worktree" data-node-tag="sonnet · high" data-node-context="Architecture component">
+          <title>brancher · STAGE 1 Issue + Worktree · Architecture component · sonnet · high</title>
+          <rect x="770" y="60" width="150" height="66" rx="6" class="c-mask"/>
+          <rect x="770" y="60" width="150" height="66" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(776 66) scale(0.6875)">
             <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="587.8" y="233" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 1</text>
-          <text data-detail="context" x="587.8" y="250" class="t-muted" font-size="8" text-anchor="middle">Issue + Worktree</text>
-        <text data-detail="fine" x="587.8" y="268" class="t-cloud" font-size="7" text-anchor="middle">⏸ 暫停</text>
+          <text data-node-label="" data-detail-anchor="" x="845" y="91" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">brancher</text>
+        <text data-detail="context" x="845" y="107" class="t-muted" font-size="9" text-anchor="middle">STAGE 1 Issue + Worktree</text>
+        <text data-detail="fine" x="845" y="118" class="t-cloud" font-size="7" text-anchor="middle">sonnet · high</text>
         </g>
 
-        <g id="node-implement" data-node-id="implement" data-node-label="STAGE 2" tabindex="0" role="button" aria-label="Focus STAGE 2, 逐任務實作, 實作與審查 › 實作 + 審查" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="逐任務實作" data-node-tag="⏸ 每任務" data-node-context="實作與審查 › 實作 + 審查">
-          <title>STAGE 2 · 逐任務實作 · 實作與審查 › 實作 + 審查 · ⏸ 每任務</title>
-          <rect x="719" y="212" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="719" y="212" width="92" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(725 218) scale(0.6875)">
+        <g id="node-implementer" data-node-id="implementer" data-node-label="implementer" tabindex="0" role="button" aria-label="Focus implementer, STAGE 2 逐任務實作, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="STAGE 2 逐任務實作" data-node-tag="sonnet · max" data-node-context="Architecture component">
+          <title>implementer · STAGE 2 逐任務實作 · Architecture component · sonnet · max</title>
+          <rect x="1047" y="60" width="156" height="66" rx="6" class="c-mask"/>
+          <rect x="1047" y="60" width="156" height="66" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(1053 66) scale(0.6875)">
             <rect x="2" y="3" width="12" height="10" rx="2"/>
             <path d="M2 6.5h12"/>
             <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="765" y="233" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 2</text>
-          <text data-detail="context" x="765" y="250" class="t-muted" font-size="8" text-anchor="middle">逐任務實作</text>
-        <text data-detail="fine" x="765" y="268" class="t-frontend" font-size="7" text-anchor="middle">⏸ 每任務</text>
+          <text data-node-label="" data-detail-anchor="" x="1125" y="91" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">implementer</text>
+        <text data-detail="context" x="1125" y="107" class="t-muted" font-size="9" text-anchor="middle">STAGE 2 逐任務實作</text>
+        <text data-detail="fine" x="1125" y="118" class="t-frontend" font-size="7" text-anchor="middle">sonnet · max</text>
         </g>
 
-        <g id="node-review" data-node-id="review" data-node-label="STAGE 3" tabindex="0" role="button" aria-label="Focus STAGE 3, reviewer 審查, 實作與審查 › 發布 + 收尾" aria-pressed="false" data-node-kind="security" data-node-sublabel="reviewer 審查" data-node-tag="⏸ 暫停" data-node-context="實作與審查 › 發布 + 收尾">
-          <title>STAGE 3 · reviewer 審查 · 實作與審查 › 發布 + 收尾 · ⏸ 暫停</title>
-          <rect x="905.8" y="212" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="905.8" y="212" width="92" height="68" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(911.8 218) scale(0.6875)">
+        <g id="node-reviewer" data-node-id="reviewer" data-node-label="reviewer" tabindex="0" role="button" aria-label="Focus reviewer, STAGE 3 審查 · 不委派, 最強推論 opus · xhigh › 主對話掌控（暫停點 · 對外動作不委派）" aria-pressed="false" data-node-kind="security" data-node-sublabel="STAGE 3 審查 · 不委派" data-node-tag="opus · xhigh" data-node-context="最強推論 opus · xhigh › 主對話掌控（暫停點 · 對外動作不委派）">
+          <title>reviewer · STAGE 3 審查 · 不委派 · 最強推論 opus · xhigh › 主對話掌控（暫停點 · 對外動作不委派） · opus · xhigh</title>
+          <rect x="790" y="360" width="150" height="66" rx="6" class="c-mask"/>
+          <rect x="790" y="360" width="150" height="66" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(796 366) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="951.8" y="233" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 3</text>
-          <text data-detail="context" x="951.8" y="250" class="t-muted" font-size="8" text-anchor="middle">reviewer 審查</text>
-        <text data-detail="fine" x="951.8" y="268" class="t-security" font-size="7" text-anchor="middle">⏸ 暫停</text>
+          <text data-node-label="" data-detail-anchor="" x="865" y="391" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">reviewer</text>
+        <text data-detail="context" x="865" y="407" class="t-muted" font-size="9" text-anchor="middle">STAGE 3 審查 · 不委派</text>
+        <text data-detail="fine" x="865" y="418" class="t-security" font-size="7" text-anchor="middle">opus · xhigh</text>
         </g>
 
-        <g id="node-pr_done" data-node-id="pr_done" data-node-label="PR 建立 ✦" tabindex="0" role="button" aria-label="Focus PR 建立 ✦, branch 保留, 發布 › 實作 + 審查" aria-pressed="false" data-node-kind="external" data-node-sublabel="branch 保留" data-node-context="發布 › 實作 + 審查">
-          <title>PR 建立 ✦ · branch 保留 · 發布 › 實作 + 審查</title>
-          <rect x="719" y="346" width="92" height="52" rx="6" class="c-mask"/>
-          <rect x="719" y="346" width="92" height="52" rx="6" class="c-external" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(725 352) scale(0.6875)">
+        <g id="node-publisher" data-node-id="publisher" data-node-label="publisher" tabindex="0" role="button" aria-label="Focus publisher, STAGE 4 gen-pr 產描述, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="STAGE 4 gen-pr 產描述" data-node-tag="sonnet · high" data-node-context="Architecture component">
+          <title>publisher · STAGE 4 gen-pr 產描述 · Architecture component · sonnet · high</title>
+          <rect x="530" y="360" width="150" height="66" rx="6" class="c-mask"/>
+          <rect x="530" y="360" width="150" height="66" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(536 366) scale(0.6875)">
+            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="605" y="391" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">publisher</text>
+        <text data-detail="context" x="605" y="407" class="t-muted" font-size="9" text-anchor="middle">STAGE 4 gen-pr 產描述</text>
+        <text data-detail="fine" x="605" y="418" class="t-cloud" font-size="7" text-anchor="middle">sonnet · high</text>
+        </g>
+
+        <g id="node-pr" data-node-id="pr" data-node-label="PR 建立 ✦" tabindex="0" role="button" aria-label="Focus PR 建立 ✦, branch 與 worktree 保留, 主對話掌控（暫停點 · 對外動作不委派）" aria-pressed="false" data-node-kind="external" data-node-sublabel="branch 與 worktree 保留" data-node-context="主對話掌控（暫停點 · 對外動作不委派）">
+          <title>PR 建立 ✦ · branch 與 worktree 保留 · 主對話掌控（暫停點 · 對外動作不委派）</title>
+          <rect x="280" y="360" width="150" height="66" rx="6" class="c-mask"/>
+          <rect x="280" y="360" width="150" height="66" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(286 366) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="765" y="367" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">PR 建立 ✦</text>
-          <text data-detail="context" x="765" y="384" class="t-muted" font-size="8" text-anchor="middle">branch 保留</text>
+          <text data-node-label="" data-detail-anchor="" x="355" y="391" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">PR 建立 ✦</text>
+        <text data-detail="context" x="355" y="407" class="t-muted" font-size="9" text-anchor="middle">branch 與 worktree 保留</text>
         </g>
 
-        <g id="node-publish" data-node-id="publish" data-node-label="STAGE 4" tabindex="0" role="button" aria-label="Focus STAGE 4, gen-pr 產描述, 發布 › 發布 + 收尾" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="gen-pr 產描述" data-node-tag="⏸ 暫停" data-node-context="發布 › 發布 + 收尾">
-          <title>STAGE 4 · gen-pr 產描述 · 發布 › 發布 + 收尾 · ⏸ 暫停</title>
-          <rect x="905.8" y="338" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="905.8" y="338" width="92" height="68" rx="6" class="c-cloud" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(911.8 344) scale(0.6875)">
-            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="951.8" y="359" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 4</text>
-          <text data-detail="context" x="951.8" y="376" class="t-muted" font-size="8" text-anchor="middle">gen-pr 產描述</text>
-        <text data-detail="fine" x="951.8" y="394" class="t-cloud" font-size="7" text-anchor="middle">⏸ 暫停</text>
-        </g>
-
-        <g id="node-guard_stage" data-node-id="guard_stage" data-node-label="stage-check" tabindex="0" role="button" aria-label="Focus stage-check, matcher: Agent, 獨立入口與 Hook 守衛 › 收斂需求" aria-pressed="false" data-node-kind="security" data-node-sublabel="matcher: Agent" data-node-tag="exit 2" data-node-context="獨立入口與 Hook 守衛 › 收斂需求">
-          <title>stage-check · matcher: Agent · 獨立入口與 Hook 守衛 › 收斂需求 · exit 2</title>
-          <rect x="48" y="464" width="150" height="68" rx="6" class="c-mask"/>
-          <rect x="48" y="464" width="150" height="68" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(54 470) scale(0.6875)">
+        <g id="node-verifier" data-node-id="verifier" data-node-label="verifier" tabindex="0" role="button" aria-label="Focus verifier, spec → code quality, 最強推論 opus · xhigh" aria-pressed="false" data-node-kind="security" data-node-sublabel="spec → code quality" data-node-tag="opus · xhigh" data-node-context="最強推論 opus · xhigh">
+          <title>verifier · spec → code quality · 最強推論 opus · xhigh · opus · xhigh</title>
+          <rect x="1047" y="360" width="156" height="64" rx="6" class="c-mask"/>
+          <rect x="1047" y="360" width="156" height="64" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(1053 366) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="123" y="485" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">stage-check</text>
-          <text data-detail="context" x="123" y="502" class="t-muted" font-size="8" text-anchor="middle">matcher: Agent</text>
-        <text data-detail="fine" x="123" y="520" class="t-security" font-size="7" text-anchor="middle">exit 2</text>
+          <text data-node-label="" data-detail-anchor="" x="1125" y="390" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">verifier</text>
+        <text data-detail="context" x="1125" y="406" class="t-muted" font-size="9" text-anchor="middle">spec → code quality</text>
+        <text data-detail="fine" x="1125" y="416" class="t-security" font-size="7" text-anchor="middle">opus · xhigh</text>
         </g>
 
-        <g id="node-guard_cwd" data-node-id="guard_cwd" data-node-label="delegate-cwd" tabindex="0" role="button" aria-label="Focus delegate-cwd, matcher: ask-gemini, 獨立入口與 Hook 守衛 › 規格 + 計畫" aria-pressed="false" data-node-kind="security" data-node-sublabel="matcher: ask-gemini" data-node-tag="pre+post" data-node-context="獨立入口與 Hook 守衛 › 規格 + 計畫">
-          <title>delegate-cwd · matcher: ask-gemini · 獨立入口與 Hook 守衛 › 規格 + 計畫 · pre+post</title>
-          <rect x="234.8" y="464" width="150" height="68" rx="6" class="c-mask"/>
-          <rect x="234.8" y="464" width="150" height="68" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(240.8 470) scale(0.6875)">
-            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
-            <path d="m5.8 8 1.5 1.5 3-3"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="309.8" y="485" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">delegate-cwd</text>
-          <text data-detail="context" x="309.8" y="502" class="t-muted" font-size="8" text-anchor="middle">matcher: ask-gemini</text>
-        <text data-detail="fine" x="309.8" y="520" class="t-security" font-size="7" text-anchor="middle">pre+post</text>
-        </g>
-
-        <g id="node-reply_review" data-node-id="reply_review" data-node-label="STAGE 5" tabindex="0" role="button" aria-label="Focus STAGE 5, 回覆 review, 獨立入口與 Hook 守衛 › 實作 + 審查" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="回覆 review" data-node-tag="先 advance 5" data-node-context="獨立入口與 Hook 守衛 › 實作 + 審查">
-          <title>STAGE 5 · 回覆 review · 獨立入口與 Hook 守衛 › 實作 + 審查 · 先 advance 5</title>
-          <rect x="541.8" y="464" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="541.8" y="464" width="92" height="68" rx="6" class="c-messagebus" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(547.8 470) scale(0.6875)">
+        <g id="node-mcp" data-node-id="mcp" data-node-label="gemini-mcp-tool" tabindex="0" role="button" aria-label="Focus gemini-mcp-tool, MCP 委派後端, Architecture component" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="MCP 委派後端" data-node-tag="✦ 委派點" data-node-context="Architecture component">
+          <title>gemini-mcp-tool · MCP 委派後端 · Architecture component · ✦ 委派點</title>
+          <rect x="770" y="190" width="170" height="64" rx="6" class="c-mask"/>
+          <rect x="770" y="190" width="170" height="64" rx="6" class="c-messagebus" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(776 196) scale(0.6875)">
             <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
             <circle cx="5" cy="4.5" r="1" class="sigil-fill"/>
             <circle cx="10.5" cy="8" r="1" class="sigil-fill"/>
             <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="587.8" y="485" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 5</text>
-          <text data-detail="context" x="587.8" y="502" class="t-muted" font-size="8" text-anchor="middle">回覆 review</text>
-        <text data-detail="fine" x="587.8" y="520" class="t-messagebus" font-size="7" text-anchor="middle">先 advance 5</text>
+          <text data-node-label="" data-detail-anchor="" x="855" y="220" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">gemini-mcp-tool</text>
+        <text data-detail="context" x="855" y="236" class="t-muted" font-size="9" text-anchor="middle">MCP 委派後端</text>
+        <text data-detail="fine" x="855" y="246" class="t-messagebus" font-size="7" text-anchor="middle">✦ 委派點</text>
         </g>
 
-        <g id="node-cleanup" data-node-id="cleanup" data-node-label="STAGE 6" tabindex="0" role="button" aria-label="Focus STAGE 6, 清 worktree, 獨立入口與 Hook 守衛 › 發布 + 收尾" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="清 worktree" data-node-tag="PR 合併後" data-node-context="獨立入口與 Hook 守衛 › 發布 + 收尾">
-          <title>STAGE 6 · 清 worktree · 獨立入口與 Hook 守衛 › 發布 + 收尾 · PR 合併後</title>
-          <rect x="905.8" y="464" width="92" height="68" rx="6" class="c-mask"/>
-          <rect x="905.8" y="464" width="92" height="68" rx="6" class="c-messagebus" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(911.8 470) scale(0.6875)">
+        <g id="node-wfstate" data-node-id="wfstate" data-node-label="wf-state.sh" tabindex="0" role="button" aria-label="Focus wf-state.sh, 狀態機 · 暫停點棘輪, 主對話掌控（暫停點 · 對外動作不委派）" aria-pressed="false" data-node-kind="database" data-node-sublabel="狀態機 · 暫停點棘輪" data-node-tag="未確認拒絕 advance" data-node-context="主對話掌控（暫停點 · 對外動作不委派）">
+          <title>wf-state.sh · 狀態機 · 暫停點棘輪 · 主對話掌控（暫停點 · 對外動作不委派） · 未確認拒絕 advance</title>
+          <rect x="521" y="190" width="150" height="64" rx="6" class="c-mask"/>
+          <rect x="521" y="190" width="150" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(527 196) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="596" y="220" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">wf-state.sh</text>
+        <text data-detail="context" x="596" y="236" class="t-muted" font-size="9" text-anchor="middle">狀態機 · 暫停點棘輪</text>
+        <text data-detail="fine" x="596" y="246" class="t-database" font-size="7" text-anchor="middle">未確認拒絕 advance</text>
+        </g>
+
+        <g id="node-responder" data-node-id="responder" data-node-label="STAGE 5 · responder" tabindex="0" role="button" aria-label="Focus STAGE 5 · responder, 回覆 PR review 意見, Architecture component" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="回覆 PR review 意見" data-node-tag="手動入口" data-node-context="Architecture component">
+          <title>STAGE 5 · responder · 回覆 PR review 意見 · Architecture component · 手動入口</title>
+          <rect x="280" y="530" width="150" height="64" rx="6" class="c-mask"/>
+          <rect x="280" y="530" width="150" height="64" rx="6" class="c-messagebus" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(286 536) scale(0.6875)">
             <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
             <circle cx="5" cy="4.5" r="1" class="sigil-fill"/>
             <circle cx="10.5" cy="8" r="1" class="sigil-fill"/>
             <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="951.8" y="485" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 6</text>
-          <text data-detail="context" x="951.8" y="502" class="t-muted" font-size="8" text-anchor="middle">清 worktree</text>
-        <text data-detail="fine" x="951.8" y="520" class="t-messagebus" font-size="7" text-anchor="middle">PR 合併後</text>
+          <text data-node-label="" data-detail-anchor="" x="355" y="560" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 5 · responder</text>
+        <text data-detail="context" x="355" y="576" class="t-muted" font-size="9" text-anchor="middle">回覆 PR review 意見</text>
+        <text data-detail="fine" x="355" y="586" class="t-messagebus" font-size="7" text-anchor="middle">手動入口</text>
         </g>
 
-        <!-- Edge labels -->
-        <g data-detail="context" data-edge-from="grill" data-edge-to="spec" data-edge-label="brief 交 planner" data-edge-key="0">
-          <rect x="173" y="100" width="86.8" height="14" rx="3" class="c-mask"/>
-          <text x="216.4" y="110" class="t-backend" font-size="8" text-anchor="middle">brief 交 planner</text>
+        <g id="node-cleanup" data-node-id="cleanup" data-node-label="STAGE 6 · 清理" tabindex="0" role="button" aria-label="Focus STAGE 6 · 清理, sync-docs → commit → 移除, Architecture component" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="sync-docs → commit → 移除" data-node-tag="手動入口" data-node-context="Architecture component">
+          <title>STAGE 6 · 清理 · sync-docs → commit → 移除 · Architecture component · 手動入口</title>
+          <rect x="530" y="530" width="150" height="64" rx="6" class="c-mask"/>
+          <rect x="530" y="530" width="150" height="64" rx="6" class="c-messagebus" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(536 536) scale(0.6875)">
+            <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
+            <circle cx="5" cy="4.5" r="1" class="sigil-fill"/>
+            <circle cx="10.5" cy="8" r="1" class="sigil-fill"/>
+            <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="605" y="560" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">STAGE 6 · 清理</text>
+        <text data-detail="context" x="605" y="576" class="t-muted" font-size="9" text-anchor="middle">sync-docs → commit → 移除</text>
+        <text data-detail="fine" x="605" y="586" class="t-messagebus" font-size="7" text-anchor="middle">手動入口</text>
         </g>
-        <g data-detail="context" data-edge-from="implement" data-edge-to="review" data-edge-label="任務全數完成" data-edge-key="1">
-          <rect x="824.6" y="219" width="67.6" height="14" rx="3" class="c-mask"/>
-          <text x="858.4" y="229" class="t-muted" font-size="8" text-anchor="middle">任務全數完成</text>
+
+        <g id="node-hook_stage" data-node-id="hook_stage" data-node-label="stage-check" tabindex="0" role="button" aria-label="Focus stage-check, PreToolUse(Agent), Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="PreToolUse(Agent)" data-node-tag="exit 2 才擋" data-node-context="Architecture component">
+          <title>stage-check · PreToolUse(Agent) · Architecture component · exit 2 才擋</title>
+          <rect x="280" y="670" width="150" height="64" rx="6" class="c-mask"/>
+          <rect x="280" y="670" width="150" height="64" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(286 676) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="355" y="700" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">stage-check</text>
+        <text data-detail="context" x="355" y="716" class="t-muted" font-size="9" text-anchor="middle">PreToolUse(Agent)</text>
+        <text data-detail="fine" x="355" y="726" class="t-security" font-size="7" text-anchor="middle">exit 2 才擋</text>
         </g>
-        <g data-detail="context" data-edge-from="issue_worktree" data-edge-to="implement" data-edge-label="cd 進 worktree" data-edge-key="2">
-          <rect x="637.8" y="226" width="77.2" height="14" rx="3" class="c-mask"/>
-          <text x="676.4" y="236" class="t-muted" font-size="8" text-anchor="middle">cd 進 worktree</text>
+
+        <g id="node-hook_cwd" data-node-id="hook_cwd" data-node-label="delegate-cwd" tabindex="0" role="button" aria-label="Focus delegate-cwd, Pre/PostToolUse(ask-gemini), Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="Pre/PostToolUse(ask-gemini)" data-node-tag="cwd 校驗" data-node-context="Architecture component">
+          <title>delegate-cwd · Pre/PostToolUse(ask-gemini) · Architecture component · cwd 校驗</title>
+          <rect x="770" y="290" width="170" height="60" rx="6" class="c-mask"/>
+          <rect x="770" y="290" width="170" height="60" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(776 296) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="855" y="318" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">delegate-cwd</text>
+        <text data-detail="context" x="855" y="334" class="t-muted" font-size="9" text-anchor="middle">Pre/PostToolUse(ask-gemini)</text>
+        <text data-detail="fine" x="855" y="342" class="t-security" font-size="7" text-anchor="middle">cwd 校驗</text>
         </g>
-        <g data-detail="context" data-edge-from="plan" data-edge-to="issue_worktree" data-edge-label="計畫已確認" data-edge-key="3">
-          <rect x="475.79999999999995" y="226" width="58" height="14" rx="3" class="c-mask"/>
-          <text x="504.79999999999995" y="236" class="t-backend" font-size="8" text-anchor="middle">計畫已確認</text>
+
+        <g id="node-hook_reindex" data-node-id="hook_reindex" data-node-label="cbm-reindex" tabindex="0" role="button" aria-label="Focus cbm-reindex, PostToolUse(Bash), Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="PostToolUse(Bash)" data-node-tag="PR 後索引" data-node-context="Architecture component">
+          <title>cbm-reindex · PostToolUse(Bash) · Architecture component · PR 後索引</title>
+          <rect x="50" y="530" width="156" height="64" rx="6" class="c-mask"/>
+          <rect x="50" y="530" width="156" height="64" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(56 536) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="128" y="560" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">cbm-reindex</text>
+        <text data-detail="context" x="128" y="576" class="t-muted" font-size="9" text-anchor="middle">PostToolUse(Bash)</text>
+        <text data-detail="fine" x="128" y="586" class="t-security" font-size="7" text-anchor="middle">PR 後索引</text>
         </g>
-        <g data-detail="context" data-edge-from="pr_done" data-edge-to="cleanup" data-edge-label="PR 實際合併" data-edge-key="4">
-          <rect x="807.5" y="478" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="838.9" y="488" class="t-database" font-size="8" text-anchor="middle">PR 實際合併</text>
+
+        <!-- Connection labels -->
+        <g data-detail="context" data-edge-from="user" data-edge-to="grill" data-edge-label="需求進場" data-edge-key="0" data-edge-id="c1">
+          <rect x="199.8" y="73" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="224" y="83" class="t-muted" font-size="8" text-anchor="middle">需求進場</text>
         </g>
-        <g data-detail="context" data-edge-from="pr_done" data-edge-to="reply_review" data-edge-label="收到 review 意見" data-edge-key="5">
-          <rect x="652.5" y="471" width="86.8" height="14" rx="3" class="c-mask"/>
-          <text x="695.9" y="481" class="t-database" font-size="8" text-anchor="middle">收到 review 意見</text>
+        <g data-detail="context" data-edge-from="grill" data-edge-to="planner" data-edge-label="結構化 brief" data-edge-key="1" data-edge-id="c2">
+          <rect x="430.7" y="73" width="67.6" height="14" rx="3" class="c-mask"/>
+          <text x="464.5" y="83" class="t-backend" font-size="8" text-anchor="middle">結構化 brief</text>
         </g>
-        <g data-detail="context" data-edge-from="publish" data-edge-to="pr_done" data-edge-label="確認發布" data-edge-key="6">
-          <rect x="834.1999999999999" y="406" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="858.4" y="416" class="t-muted" font-size="8" text-anchor="middle">確認發布</text>
+        <g data-detail="context" data-edge-from="planner" data-edge-to="brancher" data-edge-label="計畫已確認" data-edge-key="2" data-edge-id="c3">
+          <rect x="691.5" y="73" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="720.5" y="83" class="t-backend" font-size="8" text-anchor="middle">計畫已確認</text>
         </g>
-        <g data-detail="context" data-edge-from="reply_review" data-edge-to="publish" data-edge-label="修正後更新 PR" data-edge-key="7">
-          <rect x="764.5999999999999" y="532" width="72.4" height="14" rx="3" class="c-mask"/>
-          <text x="800.8" y="542" class="t-database" font-size="8" text-anchor="middle">修正後更新 PR</text>
+        <g data-detail="context" data-edge-from="brancher" data-edge-to="implementer" data-edge-label="cd 進 worktree" data-edge-key="3" data-edge-id="c4">
+          <rect x="944.9" y="59" width="77.2" height="14" rx="3" class="c-mask"/>
+          <text x="983.5" y="69" class="t-backend" font-size="8" text-anchor="middle">cd 進 worktree</text>
         </g>
-        <g data-detail="context" data-edge-from="review" data-edge-to="implement" data-edge-label="不通過，退回修正" data-edge-key="8">
-          <rect x="815" y="276" width="86.8" height="14" rx="3" class="c-mask"/>
-          <text x="858.4" y="286" class="t-security" font-size="8" text-anchor="middle">不通過，退回修正</text>
+        <g data-detail="context" data-edge-from="implementer" data-edge-to="reviewer" data-edge-label="任務全數完成" data-edge-key="4" data-edge-id="c5">
+          <rect x="979.7" y="230" width="67.6" height="14" rx="3" class="c-mask"/>
+          <text x="1013.5" y="240" class="t-backend" font-size="8" text-anchor="middle">任務全數完成</text>
         </g>
-        <g data-detail="context" data-edge-from="review" data-edge-to="publish" data-edge-label="審查通過" data-edge-key="9">
-          <rect x="995.8" y="226" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="1020" y="236" class="t-backend" font-size="8" text-anchor="middle">審查通過</text>
+        <g data-detail="context" data-edge-from="reviewer" data-edge-to="publisher" data-edge-label="審查通過" data-edge-key="5" data-edge-id="c6">
+          <rect x="710.8" y="373" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="735" y="383" class="t-backend" font-size="8" text-anchor="middle">審查通過</text>
         </g>
-        <g data-detail="context" data-edge-from="spec" data-edge-to="plan" data-edge-label="規格已確認" data-edge-key="10">
-          <rect x="359.8" y="100" width="58" height="14" rx="3" class="c-mask"/>
-          <text x="388.8" y="110" class="t-muted" font-size="8" text-anchor="middle">規格已確認</text>
+        <g data-detail="context" data-edge-from="publisher" data-edge-to="pr" data-edge-label="確認發布" data-edge-key="6" data-edge-id="c7">
+          <rect x="455.8" y="366" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="480" y="376" class="t-backend" font-size="8" text-anchor="middle">確認發布</text>
+        </g>
+        <g data-detail="context" data-edge-from="implementer" data-edge-to="verifier" data-edge-label="兩階段驗收" data-edge-key="7" data-edge-id="c8">
+          <rect x="1096" y="124" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="1125" y="134" class="t-messagebus" font-size="8" text-anchor="middle">兩階段驗收</text>
+        </g>
+        <g data-detail="context" data-edge-from="pr" data-edge-to="responder" data-edge-label="收到 review 意見" data-edge-key="8" data-edge-id="c12">
+          <rect x="358.6" y="424" width="86.8" height="14" rx="3" class="c-mask"/>
+          <text x="402" y="434" class="t-messagebus" font-size="8" text-anchor="middle">收到 review 意見</text>
+        </g>
+        <g data-detail="context" data-edge-from="pr" data-edge-to="cleanup" data-edge-label="PR 實際合併" data-edge-key="9" data-edge-id="c13">
+          <rect x="448.6" y="479" width="62.8" height="14" rx="3" class="c-mask"/>
+          <text x="480" y="489" class="t-messagebus" font-size="8" text-anchor="middle">PR 實際合併</text>
+        </g>
+        <g data-detail="context" data-edge-from="implementer" data-edge-to="mcp" data-edge-label="✦ 代碼·測試·commit" data-edge-key="10" data-edge-id="c9">
+          <rect x="889.3" y="137.5" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="937.5" y="147.5" class="t-messagebus" font-size="8" text-anchor="middle">✦ 代碼·測試·commit</text>
+        </g>
+        <g data-detail="context" data-edge-from="brancher" data-edge-to="mcp" data-edge-label="✦ gh · git worktree" data-edge-key="11" data-edge-id="c10">
+          <rect x="807.4" y="130" width="101.2" height="14" rx="3" class="c-mask"/>
+          <text x="858" y="140" class="t-messagebus" font-size="8" text-anchor="middle">✦ gh · git worktree</text>
+        </g>
+        <g data-detail="context" data-edge-from="wfstate" data-edge-to="planner" data-edge-label="棘輪校驗" data-edge-key="12" data-edge-id="c11">
+          <rect x="571.8" y="170" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="596" y="180" class="t-security" font-size="8" text-anchor="middle">棘輪校驗</text>
+        </g>
+        <g data-detail="context" data-edge-from="hook_stage" data-edge-to="responder" data-edge-label="未 advance 即擋下" data-edge-key="13" data-edge-id="c14">
+          <rect x="335.2" y="650" width="91.6" height="14" rx="3" class="c-mask"/>
+          <text x="381" y="660" class="t-security" font-size="8" text-anchor="middle">未 advance 即擋下</text>
+        </g>
+        <g data-detail="context" data-edge-from="hook_cwd" data-edge-to="mcp" data-edge-label="攔截委派 · 校驗 cwd" data-edge-key="14" data-edge-id="c15">
+          <rect x="804.4" y="270" width="101.2" height="14" rx="3" class="c-mask"/>
+          <text x="855" y="280" class="t-security" font-size="8" text-anchor="middle">攔截委派 · 校驗 cwd</text>
+        </g>
+        <g data-detail="context" data-edge-from="hook_reindex" data-edge-to="pr" data-edge-label="gh pr create 後重建索引" data-edge-key="15" data-edge-id="c16">
+          <rect x="147.8" y="458" width="120.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="208" y="468" class="t-security" font-size="8" text-anchor="middle">gh pr create 後重建索引</text>
+        </g>
+
+        <!-- Boundary labels (foreground masks keep routes out of titles) -->
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="主對話掌控（暫停點 · 對外動作不委派）">
+          <rect data-graph-role="structural-frame-label-mask" x="242" y="40" width="209.79999999999998" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="246" y="53" class="t-cloud" font-size="9" font-weight="600">主對話掌控（暫停點 · 對外動作不委派）</text>
+        </g>
+
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="1" data-composition-frame-kind="security-group" data-composition-frame-label="最強推論 opus · xhigh">
+          <rect data-graph-role="structural-frame-label-mask" x="495" y="40" width="123.39999999999999" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="499" y="53" class="t-security" font-size="9" font-weight="600">最強推論 opus · xhigh</text>
         </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
-          <text x="20" y="560" class="t-primary" font-size="12" font-weight="650">Legend</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="User UI" data-legend-x="20" data-legend-baseline="580" data-legend-width="74">
-            <rect x="20" y="572" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-            <text x="42" y="580" class="t-muted" font-size="7.5" font-weight="500">User UI</text>
+          <text x="40" y="766" class="t-primary" font-size="12" font-weight="650">Legend</text>
+          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="Frontend" data-legend-x="40" data-legend-baseline="786" data-legend-width="83">
+            <rect x="40" y="777" width="16" height="10" rx="2.5" class="c-frontend" stroke-width="1"/>
+            <text x="62" y="786" class="t-muted" font-size="10" font-weight="500">Frontend</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Agent logic" data-legend-x="101" data-legend-baseline="580" data-legend-width="91">
-            <rect x="101" y="572" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-            <text x="123" y="580" class="t-muted" font-size="7.5" font-weight="500">Agent logic</text>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Backend" data-legend-x="145" data-legend-baseline="786" data-legend-width="78">
+            <rect x="145" y="777" width="16" height="10" rx="2.5" class="c-backend" stroke-width="1"/>
+            <text x="167" y="786" class="t-muted" font-size="10" font-weight="500">Backend</text>
           </g>
-          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="Policy" data-legend-x="199" data-legend-baseline="580" data-legend-width="70">
-            <rect x="199" y="572" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
-            <text x="221" y="580" class="t-muted" font-size="7.5" font-weight="500">Policy</text>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Database" data-legend-x="245" data-legend-baseline="786" data-legend-width="83">
+            <rect x="245" y="777" width="16" height="10" rx="2.5" class="c-database" stroke-width="1"/>
+            <text x="267" y="786" class="t-muted" font-size="10" font-weight="500">Database</text>
           </g>
-          <g data-legend-semantic-kind="messagebus" data-legend-kind="messagebus" data-legend-label="Tool action" data-legend-x="276" data-legend-baseline="580" data-legend-width="91">
-            <rect x="276" y="572" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
-            <text x="298" y="580" class="t-muted" font-size="7.5" font-weight="500">Tool action</text>
+          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Cloud" data-legend-x="350" data-legend-baseline="786" data-legend-width="68">
+            <rect x="350" y="777" width="16" height="10" rx="2.5" class="c-cloud" stroke-width="1"/>
+            <text x="372" y="786" class="t-muted" font-size="10" font-weight="500">Cloud</text>
           </g>
-          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Cloud service" data-legend-x="374" data-legend-baseline="580" data-legend-width="100">
-            <rect x="374" y="572" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
-            <text x="396" y="580" class="t-muted" font-size="7.5" font-weight="500">Cloud service</text>
+          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="Security" data-legend-x="440" data-legend-baseline="786" data-legend-width="83">
+            <rect x="440" y="777" width="16" height="10" rx="2.5" class="c-security" stroke-width="1"/>
+            <text x="462" y="786" class="t-muted" font-size="10" font-weight="500">Security</text>
           </g>
-          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="External system" data-legend-x="481" data-legend-baseline="580" data-legend-width="109">
-            <rect x="481" y="572" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
-            <text x="503" y="580" class="t-muted" font-size="7.5" font-weight="500">External system</text>
+          <g data-legend-semantic-kind="messagebus" data-legend-kind="messagebus" data-legend-label="Message bus" data-legend-x="545" data-legend-baseline="786" data-legend-width="98">
+            <rect x="545" y="777" width="16" height="10" rx="2.5" class="c-messagebus" stroke-width="1"/>
+            <text x="567" y="786" class="t-muted" font-size="10" font-weight="500">Message bus</text>
+          </g>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="External" data-legend-x="665" data-legend-baseline="786" data-legend-width="83">
+            <rect x="665" y="777" width="16" height="10" rx="2.5" class="c-external" stroke-width="1"/>
+            <text x="687" y="786" class="t-muted" font-size="10" font-weight="500">External</text>
           </g>
         </g>
       </svg>
@@ -5494,23 +5562,34 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>閘門先於規劃</h3>
+          <h3>主路徑只有一條</h3>
         </div>
         <ul>
-          <li>&bull; STAGE 0·grill 在 planner 之前，需求沒收斂不進 0a</li>
-          <li>&bull; 短路只跳過 Q1–Q4，Q5 既有覆蓋實查一律要跑</li>
+          <li>&bull; grill → planner → brancher → implementer → reviewer → publisher → PR</li>
+          <li>&bull; STAGE 5／6 是手動入口，不接在主路徑尾端自動發生</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot amber"></div>
+          <h3>未定 / 需標明的分支</h3>
+        </div>
+        <ul>
+          <li>&bull; pause_level 啟動時才定；autonomous 會讓 gh pr create 不經確認</li>
+          <li>&bull; STAGE 2 是否並行，取決於計畫中任務的寫入路徑是否重疊</li>
+          <li>&bull; effort 已不在 frontmatter，派發不顯式帶入即落回 session 預設</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>兩層強制：腳本 + Hook</h3>
+          <h3>不委派的硬規則</h3>
         </div>
         <ul>
-          <li>&bull; 暫停點棘輪：未確認就 advance，wf-state.sh 直接拒絕</li>
-          <li>&bull; PreToolUse hook 只有 exit 2 具阻擋力，exit 1 動作照跑</li>
-          <li>&bull; 任何 stage 要 commit 一律用 gen-commit skill</li>
+          <li>&bull; commit message、單檔 &lt; 50 行小修、STAGE 3 審查報告</li>
+          <li>&bull; 對外動作（gh pr create · git push）一律主對話自己執行</li>
         </ul>
       </div>
     </div>

@@ -16,7 +16,7 @@ quick <描述或 #issue>
 ① 建 branch（不建 worktree，直接在原 repo checkout）
    - 有 #issue → gh issue view 解析 brief，branch 名 <prefix>/YYYYMM/<ID>-<slug>
    - 只有描述 → 不開 issue，branch 名 <prefix>/YYYYMM/<slug>
-   - prefix/slug 規則沿用 ticket-id-dev-prep
+   - prefix/slug 規則沿用 gen-dev-worktree
   ▼
 ② 主對話直接實作（不委派 implementer/MCP——小修正本來就在「不委派」硬規則內）
    - 不拆任務、不逐任務暫停；模糊需求仍問（≤2 個問題）

@@ -1,11 +1,11 @@
 ---
 name: branch-ticket-issue-doc
-description: 在 ticket-id-dev-prep 已選定或準備好開發工作區，且 Codex 需從 advisor 解析的 brief、GitHub issue 細節與當前工作區程式碼脈絡建立或更新 docs/issues/<issue-id>.md 時使用此 skill；只聚焦於記錄問題，不撰寫 specs 或程式碼。
+description: 在 gen-dev-worktree 已選定或準備好開發工作區，且 Codex 需從 advisor 解析的 brief、GitHub issue 細節與當前工作區程式碼脈絡建立或更新 docs/issues/<issue-id>.md 時使用此 skill；只聚焦於記錄問題，不撰寫 specs 或程式碼。
 ---
 
 # Branch Ticket Issue Doc
 
-在 `ticket-id-dev-prep` 選定的開發工作區中使用此 skill。
+在 `gen-dev-worktree` 選定的開發工作區中使用此 skill。
 
 目標：建立或更新 `docs/issues/<ticket-id>.md`，作為該 branch 的正規問題文件。
 
@@ -19,7 +19,7 @@ description: 在 ticket-id-dev-prep 已選定或準備好開發工作區，且 C
 4. 若無已解析 brief，閱讀 GitHub issue，並僅檢視足以記錄問題的程式碼脈絡。
 5. 若 `docs/issues/` 不存在則建立。
 
-若 `ticket-id-dev-prep` 選定了不同的工作區，在寫入前切換過去。若選定策略為 `current-branch` 或 `current-worktree-new-branch`，則允許在當前工作區寫入。
+若 `gen-dev-worktree` 選定了不同的工作區，在寫入前切換過去。若選定策略為 `current-branch` 或 `current-worktree-new-branch`，則允許在當前工作區寫入。
 
 ## 工作流程
 

@@ -13,7 +13,7 @@ description: 在 branch-ticket-issue-doc 已於選定的開發工作區建立 do
 
 ## 前置條件
 
-1. 確認當前目錄是 `ticket-id-dev-prep` 選定的開發工作區。
+1. 確認當前目錄是 `gen-dev-worktree` 選定的開發工作區。
 2. 從使用者輸入、branch 名稱或既有 issue docs 解析 ticket id。
 3. 先讀取 `docs/issues/<ticket-id>.md`。
 4. 若 issue doc 缺少，停止並先執行 `branch-ticket-issue-doc`。

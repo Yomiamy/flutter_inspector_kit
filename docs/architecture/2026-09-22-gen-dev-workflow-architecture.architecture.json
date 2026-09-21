@@ -1,0 +1,478 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "gen-dev-workflow 編排架構",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main-path",
+        "label": "成功主路徑",
+        "focus": [
+          "grill",
+          "planner",
+          "brancher",
+          "implementer",
+          "reviewer",
+          "publisher",
+          "pr"
+        ],
+        "note": "grill 收斂需求 → planner 規格與計畫 → brancher 建 worktree → implementer 實作 → reviewer 審查 → publisher 發布 → PR 建立。這是唯一的成功路徑。"
+      },
+      {
+        "id": "inference-tier",
+        "label": "推論等級分配",
+        "focus": [
+          "planner",
+          "implementer",
+          "verifier",
+          "reviewer"
+        ],
+        "note": "最強推論（opus · xhigh）只給 planner、reviewer、verifier；implementer 為 sonnet · max，並逐任務再分級。"
+      },
+      {
+        "id": "delegation",
+        "label": "MCP 委派邊界",
+        "focus": [
+          "brancher",
+          "implementer",
+          "publisher",
+          "mcp"
+        ],
+        "note": "純 IO 與重活委派 gemini-mcp-tool；規劃、審查、對外動作不委派。"
+      },
+      {
+        "id": "guards",
+        "label": "Hook 與狀態守衛",
+        "focus": [
+          "wfstate",
+          "hook_stage",
+          "hook_cwd",
+          "hook_reindex"
+        ],
+        "note": "wf-state.sh 棘輪擋未確認的 advance；三道 hook 由 settings.local.json 註冊，只有 exit 2 具阻擋力。"
+      }
+    ]
+  },
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "主對話掌控（暫停點 · 對外動作不委派）",
+      "wraps": [
+        "grill",
+        "reviewer",
+        "pr",
+        "wfstate"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "最強推論 opus · xhigh",
+      "wraps": [
+        "planner",
+        "reviewer",
+        "verifier"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "使用者需求",
+      "sublabel": "「幫我做 X 功能」",
+      "pos": [
+        50,
+        60
+      ],
+      "size": [
+        130,
+        66
+      ]
+    },
+    {
+      "id": "grill",
+      "type": "security",
+      "label": "STAGE 0 · grill",
+      "sublabel": "gen-grill skill",
+      "tag": "Q5 必跑",
+      "pos": [
+        268,
+        60
+      ],
+      "size": [
+        140,
+        66
+      ]
+    },
+    {
+      "id": "planner",
+      "type": "backend",
+      "label": "planner",
+      "sublabel": "STAGE 0a 規格 / 0b 計畫",
+      "tag": "opus · xhigh",
+      "pos": [
+        521,
+        60
+      ],
+      "size": [
+        150,
+        66
+      ]
+    },
+    {
+      "id": "brancher",
+      "type": "cloud",
+      "label": "brancher",
+      "sublabel": "STAGE 1 Issue + Worktree",
+      "tag": "sonnet · high",
+      "pos": [
+        770,
+        60
+      ],
+      "size": [
+        150,
+        66
+      ]
+    },
+    {
+      "id": "implementer",
+      "type": "frontend",
+      "label": "implementer",
+      "sublabel": "STAGE 2 逐任務實作",
+      "tag": "sonnet · max",
+      "pos": [
+        1047,
+        60
+      ],
+      "size": [
+        156,
+        66
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "security",
+      "label": "reviewer",
+      "sublabel": "STAGE 3 審查 · 不委派",
+      "tag": "opus · xhigh",
+      "pos": [
+        790,
+        360
+      ],
+      "size": [
+        150,
+        66
+      ]
+    },
+    {
+      "id": "publisher",
+      "type": "cloud",
+      "label": "publisher",
+      "sublabel": "STAGE 4 gen-pr 產描述",
+      "tag": "sonnet · high",
+      "pos": [
+        530,
+        360
+      ],
+      "size": [
+        150,
+        66
+      ]
+    },
+    {
+      "id": "pr",
+      "type": "external",
+      "label": "PR 建立 ✦",
+      "sublabel": "branch 與 worktree 保留",
+      "pos": [
+        280,
+        360
+      ],
+      "size": [
+        150,
+        66
+      ]
+    },
+    {
+      "id": "verifier",
+      "type": "security",
+      "label": "verifier",
+      "sublabel": "spec → code quality",
+      "tag": "opus · xhigh",
+      "pos": [
+        1047,
+        360
+      ],
+      "size": [
+        156,
+        64
+      ]
+    },
+    {
+      "id": "mcp",
+      "type": "messagebus",
+      "label": "gemini-mcp-tool",
+      "sublabel": "MCP 委派後端",
+      "tag": "✦ 委派點",
+      "pos": [
+        770,
+        190
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "wfstate",
+      "type": "database",
+      "label": "wf-state.sh",
+      "sublabel": "狀態機 · 暫停點棘輪",
+      "tag": "未確認拒絕 advance",
+      "pos": [
+        521,
+        190
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "responder",
+      "type": "messagebus",
+      "label": "STAGE 5 · responder",
+      "sublabel": "回覆 PR review 意見",
+      "tag": "手動入口",
+      "pos": [
+        280,
+        530
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "cleanup",
+      "type": "messagebus",
+      "label": "STAGE 6 · 清理",
+      "sublabel": "sync-docs → commit → 移除",
+      "tag": "手動入口",
+      "pos": [
+        530,
+        530
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "hook_stage",
+      "type": "security",
+      "label": "stage-check",
+      "sublabel": "PreToolUse(Agent)",
+      "tag": "exit 2 才擋",
+      "pos": [
+        280,
+        670
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "hook_cwd",
+      "type": "security",
+      "label": "delegate-cwd",
+      "sublabel": "Pre/PostToolUse(ask-gemini)",
+      "tag": "cwd 校驗",
+      "pos": [
+        770,
+        290
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "hook_reindex",
+      "type": "security",
+      "label": "cbm-reindex",
+      "sublabel": "PostToolUse(Bash)",
+      "tag": "PR 後索引",
+      "pos": [
+        50,
+        530
+      ],
+      "size": [
+        156,
+        64
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1",
+      "from": "user",
+      "to": "grill",
+      "label": "需求進場"
+    },
+    {
+      "id": "c2",
+      "from": "grill",
+      "to": "planner",
+      "label": "結構化 brief",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c3",
+      "from": "planner",
+      "to": "brancher",
+      "label": "計畫已確認",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c4",
+      "from": "brancher",
+      "to": "implementer",
+      "variant": "emphasis",
+      "label": "cd 進 worktree"
+    },
+    {
+      "id": "c5",
+      "from": "implementer",
+      "to": "reviewer",
+      "label": "任務全數完成",
+      "variant": "emphasis",
+      "labelDx": 20
+    },
+    {
+      "id": "c6",
+      "from": "reviewer",
+      "to": "publisher",
+      "label": "審查通過",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c7",
+      "from": "publisher",
+      "to": "pr",
+      "label": "確認發布",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c8",
+      "from": "implementer",
+      "to": "verifier",
+      "label": "兩階段驗收",
+      "variant": "dashed",
+      "labelDy": 18
+    },
+    {
+      "id": "c12",
+      "from": "pr",
+      "to": "responder",
+      "label": "收到 review 意見",
+      "variant": "dashed",
+      "labelDy": 18,
+      "labelDx": 40
+    },
+    {
+      "id": "c13",
+      "from": "pr",
+      "to": "cleanup",
+      "label": "PR 實際合併",
+      "variant": "dashed",
+      "labelDy": 18
+    },
+    {
+      "id": "c9",
+      "from": "implementer",
+      "to": "mcp",
+      "label": "✦ 代碼·測試·commit",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right",
+      "labelDx": -56
+    },
+    {
+      "id": "c10",
+      "from": "brancher",
+      "to": "mcp",
+      "label": "✦ gh · git worktree",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "c11",
+      "from": "wfstate",
+      "to": "planner",
+      "label": "棘輪校驗",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "c14",
+      "from": "hook_stage",
+      "to": "responder",
+      "label": "未 advance 即擋下",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDx": 26
+    },
+    {
+      "id": "c15",
+      "from": "hook_cwd",
+      "to": "mcp",
+      "label": "攔截委派 · 校驗 cwd",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "c16",
+      "from": "hook_reindex",
+      "to": "pr",
+      "label": "gh pr create 後重建索引",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDx": -30
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主路徑只有一條",
+      "items": [
+        "grill → planner → brancher → implementer → reviewer → publisher → PR",
+        "STAGE 5／6 是手動入口，不接在主路徑尾端自動發生"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "未定 / 需標明的分支",
+      "items": [
+        "pause_level 啟動時才定；autonomous 會讓 gh pr create 不經確認",
+        "STAGE 2 是否並行，取決於計畫中任務的寫入路徑是否重疊",
+        "effort 已不在 frontmatter，派發不顯式帶入即落回 session 預設"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "不委派的硬規則",
+      "items": [
+        "commit message、單檔 < 50 行小修、STAGE 3 審查報告",
+        "對外動作（gh pr create · git push）一律主對話自己執行"
+      ]
+    }
+  ]
+}
