@@ -3,11 +3,12 @@ name: gen-pr
 description: 當使用者想要針對合併至 origin/main 的變更撰寫、改寫、縮短或標準化 Pull Request (PR) 描述草稿時，請使用此技能。在審閱後可選擇發布 PR。此技能會產出精簡的 zh-tw Markdown，並保留必要的 en-us 技術術語。若未明確指定基準分支，預設與 origin/main 進行比較。若分支名稱開頭包含可解析的 GitHub 議題編號，則會在 Summary 中自動加上議題資訊。
 ---
 
-# PR Description Main ZH-TW
+# PR 描述產生器（zh-TW）
 
-## Input Parsing
+## 輸入解析
 
 從觸發指令中解析 branch name（選填）。
+
 - 輸入格式：`gen pr [branch-name]`
 - 範例：`gen pr fix/202604/BUG-1691-product-gift-layout-issue`
 - 若未提供 branch name，預設使用當前 HEAD 所在 branch。
@@ -15,24 +16,27 @@ description: 當使用者想要針對合併至 origin/main 的變更撰寫、改
 將解析到的 branch name 記為 `$BRANCH`。
 
 確認 branch 存在：
+
 ```bash
 git branch -a | grep "$BRANCH"
 ```
+
 若不存在，報錯並停止。
 
 ---
 
-## Overview
+## 總覽
 
-Use this skill for PR descriptions that target `origin/main`.
-This skill operates in two phases:
-- **Phase 1**: Generate or revise the PR description draft for user review.
-- **Phase 2**: After explicit user confirmation, push the branch (if needed) and create the GitHub PR using `gh pr create`.
-When repository checklist items are available, this skill should also assess checklist items `1`, `3`, `4`, and `5` from the current changeset based on repository evidence, and reflect the result directly in the checklist lines inside the PR markdown. Item `2` should be explicitly left for the user to verify locally.
+本技能用於產生以 `origin/main` 為目標的 PR 描述，分兩個階段執行：
 
-If the repository contains a PR template such as `.github/PULL_REQUEST_TEMPLATE.md`, preserve its required content at the top of the final PR body, remove placeholder prompt lines such as `Please explain the changes you made **HERE**.`, and place the generated summary content after the template heading section instead of replacing the template.
+- **階段一**：產生或修訂 PR 描述草稿，交由使用者審閱。
+- **階段二**：使用者明確確認後，推送 branch（若尚未推送）並以 `gh pr create` 建立 GitHub PR。
 
-Produce copy-ready markdown with exactly two sections in this order, wrapped in a fenced `md` code block:
+當 repository 提供 checklist 項目時，本技能應依據 repository 證據評估第 `1`、`3`、`4`、`5` 項，並直接把結果反映在 PR markdown 的 checklist 行內。第 `2` 項一律保留給使用者在本機自行驗證。
+
+若 repository 含有 PR 模板（例如 `.github/PULL_REQUEST_TEMPLATE.md`），在最終 PR 內文的最前面保留模板的必要內容，移除佔位提示行（例如 `Please explain the changes you made **HERE**.`），並把產生的摘要內容放在模板標題段落之後，而不是取代模板。
+
+輸出可直接複製的 markdown，依序恰好兩個段落，包在 `md` 圍籬程式碼區塊內：
 
 ```md
 ### Summary
@@ -47,92 +51,92 @@ Produce copy-ready markdown with exactly two sections in this order, wrapped in 
 <條列說明修正的具體方式，包含修改了哪些檔案/類別/方法、邏輯判斷的前後變化、關鍵的判斷順序或流程>
 ```
 
-Only include the issue line when a matching issue can be resolved from the branch name.
+只有在能從 branch name 解析出對應 issue 時，才加入 issue 行。
 
-## Workflow
+## 工作流程
 
-1. Treat the PR as merging into `origin/main` unless the user explicitly says otherwise.
-2. Use `$BRANCH` (resolved from input or current HEAD) as the source branch for all git operations. Default to `origin/main..$BRANCH` for commit range and `origin/main...$BRANCH` for diff summary.
-3. Read the repository PR template when it exists, for example `.github/PULL_REQUEST_TEMPLATE.md`.
-4. Preserve the template headings, checklist items, and any required instructional text at the top of the final PR body, but remove placeholder-only prompt lines that are meant to be replaced by actual content.
-5. Place the generated PR description content after the template's description heading section, unless the user explicitly asks for a different layout.
-6. Use `$BRANCH` as the branch name for issue extraction and summary context.
-7. Inspect the branch name near the start of the branch path and try to extract a resolvable GitHub issue key from one of its early path or slug segments.
-8. Do not require a fixed branch prefix or a fixed issue-key shape beyond what GitHub can actually resolve.
-9. Treat issue-key examples such as `APP-1234` or `Bug-4321` as examples only, not as restrictions.
-10. Resolve issue metadata before writing:
-   - Always parse the issue id from the branch name first when available.
-   - If the current user-provided brief already includes a trustworthy issue summary/title, use it directly and do not perform an extra issue lookup just to re-fetch the same summary.
-   - Otherwise, prefer GitHub MCP tools to retrieve `idReadable`, `summary`, and URL metadata.
-   - If MCP is unavailable or lookup fails, prefer the bundled branch issue script when it exists, for example `bash ./.codex/skills/branch-issue-solution-advisor/scripts/read_branch_issue.sh`.
-   - When using the bundled script, allow it to read `AUTH_HEADER` either from the current shell or from `[mcp_servers.github.env]` in `~/.codex/config.toml`.
-   - If script lookup also fails, fallback to any issue brief the user already provided in the current context.
-   - If lookup still fails, keep the issue id and construct the standard GitHub issue URL from that id instead of blocking the draft.
-   - Only omit the issue line entirely when no trustworthy issue id can be determined.
-11. Inspect the current diff, changed files, and relevant repository context to assess checklist items `1`, `3`, `4`, and `5` when the repository template includes them.
-12. For checklist assessment, use evidence only:
-   - `1`: whether the changes appear to follow repository conventions and do not obviously violate local patterns.
-   - `3`: whether tests were added when the change looks like a bug fix or feature.
-   - `4`: whether comments were added in hard-to-understand areas when such areas exist in the diff.
-   - `5`: whether docs were updated when the change appears to require docs.
-13. Update the template checklist lines directly:
-   - use `[x]` for items with positive evidence
-   - use `[ ]` for items that are not satisfied or must remain for user verification
-   - do not use `[v]` or `[?]`
-14. Explicitly exclude checklist item `2` from automated assessment and leave it as `[ ]` for local verification by the user.
-15. When evidence is ambiguous, leave the checklist item as `[ ]` instead of guessing.
-16. After the Checklist, write the description body using two fixed sections: `**[修正問題]**` and `**[修正方式]**`.
-17. `**[修正問題]**`: describe the original (broken) behaviour and why it needs fixing. Focus on the gap between actual and expected behaviour.
-18. `**[修正方式]**`: list the concrete fixes — which files/classes/methods were changed, how the logic changed, and any important ordering or flow changes. Be specific with class names and field names from the diff.
-19. Keep the `### Summary` issue line at the top of the description section when a issue is resolved; place `**[修正問題]**` immediately after it.
-20. Rewrite the result in `zh-tw`, keeping necessary `en-us` technical terms such as API names, branch names, package names, code identifiers, and the original GitHub issue id.
-21. Keep the output compact, polished, and directly usable in a PR body without additional editing.
-22. After presenting the draft, ask the user: **「草稿確認後，是否直接建立 PR？」**
-23. If the user confirms (e.g. "yes", "對", "建立", "發送"), proceed to Phase 2:
-   - Check if `$BRANCH` is already pushed to remote: `git ls-remote --heads origin $BRANCH`
-   - If not pushed, push it first: `git push -u origin $BRANCH`
-   - Extract the PR title from the issue line or the first sentence of `**[修正問題]**`, and ensure it is in English (translate if necessary).
-   - Run `gh pr create` with `--base main --head $BRANCH --title <title> --body <full PR body>`.
-   - Pass the PR body via HEREDOC to preserve formatting.
-   - Report the created PR URL to the user.
+1. 除非使用者另有指示，一律視為合併進 `origin/main`。
+2. 所有 git 操作以 `$BRANCH`（來自輸入或當前 HEAD）為來源 branch。commit 範圍預設 `origin/main..$BRANCH`，diff 摘要預設 `origin/main...$BRANCH`。
+3. 讀取 repository 的 PR 模板（若存在），例如 `.github/PULL_REQUEST_TEMPLATE.md`。
+4. 保留模板最上方的標題、checklist 項目與必要說明文字，但移除純佔位、本來就該被實際內容取代的提示行。
+5. 將產生的 PR 描述放在模板的描述標題段落之後，除非使用者明確要求其他排版。
+6. 以 `$BRANCH` 作為 issue 擷取與摘要脈絡的依據。
+7. 檢視 branch 路徑前段，嘗試從早期的路徑或 slug 片段中取出可解析的 GitHub issue key。
+8. 不要求固定的 branch 前綴，也不限制 issue key 的形狀——只要 GitHub 實際解析得出即可。
+9. `APP-1234`、`Bug-4321` 這類 issue key 僅為範例，不是限制。
+10. 撰寫前先解析 issue metadata：
+    - 有 branch name 時，一律先從中解析 issue id。
+    - 若使用者本次提供的 brief 已含可信的 issue 摘要／標題，直接採用，不要為了重抓同一份摘要再查一次。
+    - 否則優先使用 GitHub MCP 工具取得 `idReadable`、`summary` 與 URL metadata。
+    - MCP 不可用或查詢失敗時，改用隨附的 branch issue 腳本（若存在），例如 `bash ./.codex/skills/branch-issue-solution-advisor/scripts/read_branch_issue.sh`。
+    - 使用該腳本時，允許它從當前 shell 或 `~/.codex/config.toml` 的 `[mcp_servers.github.env]` 讀取 `AUTH_HEADER`。
+    - 腳本查詢也失敗時，退回使用者已在當前脈絡中提供的任何 issue brief。
+    - 仍然失敗時，保留 issue id 並依該 id 組出標準 GitHub issue URL，不要因此卡住草稿。
+    - 唯有在無法取得可信的 issue id 時，才完全省略 issue 行。
+11. 當 repository 模板含 checklist 時，檢視當前 diff、變更檔案與相關脈絡，評估第 `1`、`3`、`4`、`5` 項。
+12. checklist 評估一律只依證據：
+    - `1`：變更看起來是否遵循 repository 慣例，且未明顯違反既有模式。
+    - `3`：當變更屬 bug fix 或 feature 時，是否補上測試。
+    - `4`：diff 中若存在難以理解的區塊，是否加上註解。
+    - `5`：變更若需要更新文件，是否已更新。
+13. 直接更新模板的 checklist 行：
+    - 有正面證據的項目用 `[x]`
+    - 未滿足或須由使用者驗證的項目用 `[ ]`
+    - 不要使用 `[v]` 或 `[?]`
+14. 第 `2` 項明確排除在自動評估之外，保持 `[ ]` 交由使用者在本機驗證。
+15. 證據不明確時，將該項留為 `[ ]`，不要猜測。
+16. checklist 之後，以兩個固定段落撰寫描述本文：`**[修正問題]**` 與 `**[修正方式]**`。
+17. `**[修正問題]**`：描述原本（壞掉的）行為以及為何需要修正，聚焦在實際行為與預期行為之間的落差。
+18. `**[修正方式]**`：條列具體修正——改了哪些檔案／類別／方法、邏輯如何變化、以及重要的順序或流程調整。類別名稱與欄位名稱要取自 diff，寫具體。
+19. 解析出 issue 時，把 `### Summary` 的 issue 行放在描述段落最上方，`**[修正問題]**` 緊接其後。
+20. 結果以 `zh-tw` 撰寫，保留必要的 `en-us` 技術術語，例如 API 名稱、branch 名稱、套件名稱、程式碼識別字與原始 GitHub issue id。
+21. 輸出保持精簡完整，不需額外編輯就能直接貼進 PR 內文。
+22. 呈現草稿後，詢問使用者：**「草稿確認後，是否直接建立 PR？」**
+23. 使用者確認後（例如「yes」「對」「建立」「發送」），進入階段二：
+    - 檢查 `$BRANCH` 是否已推送到遠端：`git ls-remote --heads origin $BRANCH`
+    - 尚未推送則先推送：`git push -u origin $BRANCH`
+    - 從 issue 行或 `**[修正問題]**` 的第一句取出 PR 標題，並確保是英文（必要時翻譯）。
+    - 執行 `gh pr create`，帶入 `--base main --head $BRANCH --title <title> --body <full PR body>`。
+    - PR 內文以 HEREDOC 傳入以保留格式。
+    - 回報建立好的 PR URL 給使用者。
 
-## Output Rules
+## 輸出規則
 
-- Always output markdown only in Phase 1.
-- Always place the PR body draft in a fenced code block with the `md` info string so the user can copy it directly.
-- Do not create or publish a GitHub PR until the user explicitly confirms after reviewing the draft.
-- If a repository PR template exists, include it first in the final output before the generated `### Summary` section.
-- Remove placeholder-only lines from the template, for example `Please explain the changes you made **HERE**.`, before composing the final output.
-- When a repository PR template includes checklist items, return them already updated in the markdown body instead of describing checklist results in a separate prose section.
-- Always use `### Summary` as the heading for the description section.
-- If a GitHub issue id was resolved from the branch name or user brief, prepend a standalone line using this exact pattern: `[{ISSUE-ID}](issue-url) Issue title`
-- When only the issue id is known but the lookup failed, still include the issue line with the standard issue URL and use the best available title from user-provided context if one exists.
-- After the issue line (or directly under `### Summary` if no issue), write `**[修正問題]**` followed by a paragraph describing the original broken behaviour and why it needs fixing.
-- Then write `**[修正方式]**` followed by a numbered or bulleted list of concrete changes — class names, field names, logic flow changes, and important ordering.
-- Avoid file-by-file listings unless the user explicitly asks for them.
-- Avoid inventing details that are not supported by the provided diff, commits, or draft.
-- If the branch appears to contain a candidate issue key and the lookup fails, do not block the draft:
-  - reuse a user-provided issue summary when available
-  - otherwise keep the issue id with the standard issue URL and omit only the unresolved title text
-  - only drop the whole issue line when even the issue id is not trustworthy
-- Do not delete or compress required checklist items from the repository PR template unless the user explicitly asks to rewrite the template itself.
-- In template checklist lines, use `[x]` only when there is positive evidence and `[ ]` otherwise.
-- Never output an additional `Checklist 確認` section unless the user explicitly asks for explanation outside the PR markdown.
-- Do not add an extra note about item `2` outside the markdown body unless the user explicitly asks for checklist commentary.
+- 階段一一律只輸出 markdown。
+- PR 內文草稿一律放在標註 `md` 的圍籬程式碼區塊內，方便使用者直接複製。
+- 使用者審閱草稿並明確確認前，不得建立或發布 GitHub PR。
+- repository 有 PR 模板時，最終輸出中模板置於產生的 `### Summary` 段落之前。
+- 組出最終輸出前，先移除模板中的純佔位行，例如 `Please explain the changes you made **HERE**.`。
+- 模板含 checklist 項目時，直接在 markdown 內文中回傳已更新的 checklist，不要另闢散文段落說明評估結果。
+- 描述段落的標題一律使用 `### Summary`。
+- 若從 branch name 或使用者 brief 解析出 GitHub issue id，於最上方加一行獨立的：`[{ISSUE-ID}](issue-url) Issue title`
+- 只知道 issue id 而查詢失敗時，仍保留 issue 行與標準 issue URL，標題則取使用者脈絡中最合適的可用文字。
+- issue 行之後（若無 issue 則直接接在 `### Summary` 下方）寫 `**[修正問題]**`，並以一段文字描述原本壞掉的行為與修正理由。
+- 接著寫 `**[修正方式]**`，以編號或項目符號列出具體變更——類別名稱、欄位名稱、邏輯流程變化與重要順序。
+- 除非使用者明確要求，避免逐檔列舉。
+- 避免杜撰 diff、commit 或草稿無法支持的細節。
+- branch 看似含 issue key 但查詢失敗時，不要卡住草稿：
+    - 有使用者提供的 issue 摘要就沿用
+    - 否則保留 issue id 與標準 issue URL，僅省略無法解析的標題文字
+    - 唯有連 issue id 都不可信時，才整行移除
+- 除非使用者明確要求改寫模板本身，不要刪除或壓縮 repository PR 模板中的必要 checklist 項目。
+- 模板 checklist 行中，唯有正面證據時才用 `[x]`，其餘一律 `[ ]`。
+- 除非使用者明確要求在 PR markdown 之外補充說明，絕不額外輸出 `Checklist 確認` 段落。
+- 除非使用者明確要求 checklist 評註，不要在 markdown 內文之外另加第 `2` 項的說明。
 
-## Style Rules
+## 風格規則
 
-- Primary language: `zh-tw`
-- PR Title: MUST be in `en-us` (English)
-- Allowed exceptions: necessary `en-us` proper nouns and technical terms
-- Preferred tone: concise, neutral, readable, ready to paste
-- `**[修正問題]**` should describe the original broken behaviour and the expected behaviour in plain language — avoid vague phrases like "there was an issue".
-- `**[修正方式]**` should be specific: use class names, field names, and describe the logic change precisely. Include key ordering or flow when relevant.
-- When a issue line is present, keep it as a standalone line before the problem/fix sections.
-- If the user asks for a shorter version, compress wording but keep the `**[修正問題]**` / `**[修正方式]**` structure.
-- If the user provides a draft, prefer reformatting and compressing it over fully rewriting from scratch.
+- 主要語言：`zh-tw`
+- PR 標題：必須為 `en-us`（英文）
+- 允許例外：必要的 `en-us` 專有名詞與技術術語
+- 偏好語氣：精簡、中性、易讀、可直接貼上
+- `**[修正問題]**` 應以白話描述原本壞掉的行為與預期行為，避免「有問題」這類含糊說法。
+- `**[修正方式]**` 要具體：使用類別名稱、欄位名稱，精確描述邏輯變化，必要時納入關鍵順序或流程。
+- 有 issue 行時，維持其為問題／修正段落之前的獨立一行。
+- 使用者要求更短的版本時，壓縮用字但保留 `**[修正問題]**` / `**[修正方式]**` 結構。
+- 使用者已提供草稿時，優先重新排版與壓縮，而非整份重寫。
 
-## Example
+## 範例
 
 ```md
 ## 👾 Checklist before requesting a review
@@ -159,12 +163,12 @@ Only include the issue line when a matching issue can be resolved from the branc
 3. 更新 `placeholder_image.svg` 為新版設計，簡化 SVG 結構。
 ```
 
-## Defaults
+## 預設值
 
-- Base branch defaults to `origin/main`.
-- Source branch (`$BRANCH`) defaults to current HEAD when not provided in input.
-- Do not ask to confirm the base branch unless the user explicitly provides a conflicting branch.
-- If information is incomplete, summarize only what can be supported from the available context.
-- Branch issue detection is based on whether an early branch segment appears to be a trustworthy GitHub issue key, not on a fixed prefix list or a fixed example pattern.
-- Issue lookup failure must not block PR draft generation when the issue id is already trustworthy from branch or user context.
-- PR publication is a separate phase and requires an explicit user request after the draft is reviewed.
+- 基準 branch 預設為 `origin/main`。
+- 來源 branch（`$BRANCH`）在輸入未提供時預設為當前 HEAD。
+- 除非使用者明確給出衝突的 branch，不要再詢問確認基準 branch。
+- 資訊不完整時，只摘要現有脈絡能支持的部分。
+- branch 的 issue 偵測依據是「前段片段看起來是否為可信的 GitHub issue key」，而非固定前綴清單或固定範例格式。
+- 當 issue id 已可由 branch 或使用者脈絡判定為可信時，issue 查詢失敗不得阻擋 PR 草稿產生。
+- 發布 PR 屬獨立階段，必須在草稿審閱後由使用者明確要求才執行。
