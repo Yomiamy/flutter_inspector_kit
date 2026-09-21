@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>gen-dev-workflow 編排矩陣</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-soft:    #7a8399;
+      --color-accent:  #eb6c36;
+      --color-link:    #2e5aa8;
+      --font-sans:     'Geist', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif TC', 'Noto Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1600px; width: 100%; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 0.4rem;
+    }
+    .subtitle {
+      font-size: 0.82rem;
+      color: var(--color-muted);
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+      max-width: 72ch;
+    }
+    svg { width: 100%; min-width: 1100px; display: block; }
+    .colophon {
+      margin-top: 1.5rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid rgba(45,49,66,0.12);
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      color: var(--color-soft);
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Swimlane · Stage framework</p>
+    <h1>gen-dev-workflow 編排矩陣</h1>
+    <p class="subtitle">
+      八個 stage 橫向推進，四條標註泳道縱向對齊：每個 stage 用哪個 model、帶什麼 effort、是否委派 MCP、由哪道 hook 把關。
+      焦點落在主線的兩個「最強推論」關卡——planner 與 reviewer。STAGE 5／6 為 PR 建立後的手動入口，以虛線欄位區隔。
+    </p>
+
+    <svg viewBox="0 0 1600 812" xmlns="http://www.w3.org/2000/svg" role="img"
+         aria-labelledby="wf-orchestration-title wf-orchestration-desc">
+      <title id="wf-orchestration-title">gen-dev-workflow 編排矩陣</title>
+      <desc id="wf-orchestration-desc">泳道圖，八個開發階段由需求盤問推進到 PR 發布，再延伸至回覆審查意見與清理 worktree 兩個手動入口；四條泳道分別標註每階段使用的推論等級、effort 參數、是否委派 MCP，以及攔截違規的 guard hook。規劃與審查兩個主線階段以焦點色標示為最強推論關卡。</desc>
+
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+        </marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+        </marker>
+        <marker id="arrow-soft" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#7a8399"/>
+        </marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+      <!-- ============ Manual-entry zone tint (painted first, behind everything) ============ -->
+      <rect x="1200" y="96" width="368" height="556" rx="8"
+            fill="rgba(122,131,153,0.045)" stroke="rgba(122,131,153,0.32)"
+            stroke-width="1" stroke-dasharray="6,4"/>
+      <text x="1384" y="116" fill="#7a8399" font-size="7.5" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.16em">手動入口 · 不在 PR 主線</text>
+
+      <!-- ============ Lane dividers ============ -->
+      <line x1="40" y1="144" x2="1560" y2="144" stroke="rgba(45,49,66,0.16)" stroke-width="1"/>
+      <line x1="40" y1="292" x2="1560" y2="292" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <line x1="40" y1="404" x2="1560" y2="404" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <line x1="40" y1="516" x2="1560" y2="516" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <line x1="40" y1="652" x2="1560" y2="652" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+
+      <!-- Lane label column separator -->
+      <line x1="184" y1="96" x2="184" y2="652" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+
+      <!-- ============ Lane labels ============ -->
+      <text x="40" y="216" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">STAGE / AGENT</text>
+      <text x="40" y="346" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">MODEL</text>
+      <text x="40" y="458" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">EFFORT</text>
+      <text x="40" y="570" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">MCP 委派</text>
+      <text x="40" y="590" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace"
+            letter-spacing="0.10em">DELEGATION</text>
+
+      <!-- ============ Phase header row ============ -->
+      <text x="204"  y="92" fill="#7a8399" font-size="7.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.16em">PHASE 0 — 收斂</text>
+      <text x="552"  y="92" fill="#7a8399" font-size="7.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.16em">PHASE 1 — 建置</text>
+      <text x="1052" y="92" fill="#7a8399" font-size="7.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.16em">PHASE 2 — 交付</text>
+      <text x="1224" y="92" fill="#7a8399" font-size="7.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.16em">PHASE 3 — 收尾</text>
+
+      <line x1="204"  y1="100" x2="508"  y2="100" stroke="rgba(45,49,66,0.18)" stroke-width="0.8"/>
+      <line x1="552"  y1="100" x2="1008" y2="100" stroke="rgba(45,49,66,0.18)" stroke-width="0.8"/>
+      <line x1="1052" y1="100" x2="1180" y2="100" stroke="rgba(45,49,66,0.18)" stroke-width="0.8"/>
+      <line x1="1224" y1="100" x2="1556" y2="100" stroke="rgba(122,131,153,0.40)" stroke-width="0.8" stroke-dasharray="4,3"/>
+
+      <!-- ============ Flow arrows (before boxes) ============ -->
+      <line x1="316"  y1="216" x2="352"  y2="216" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <line x1="508"  y1="216" x2="552"  y2="216" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+      <line x1="680"  y1="216" x2="716"  y2="216" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <line x1="844"  y1="216" x2="880"  y2="216" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <line x1="1008" y1="216" x2="1052" y2="216" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+
+      <!-- PR 建立完成 → 流程結束（主線終點標記） -->
+      <line x1="1180" y1="216" x2="1224" y2="216" stroke="#7a8399" stroke-width="1.1"
+            stroke-dasharray="5,4" marker-end="url(#arrow-soft)"/>
+      <rect x="1182" y="196" width="40" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="1202" y="205" fill="#7a8399" font-size="7.5" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.02em">PR 合併後</text>
+
+      <!-- STAGE 5 → STAGE 6 -->
+      <line x1="1372" y1="216" x2="1408" y2="216" stroke="#7a8399" stroke-width="1.1"
+            stroke-dasharray="5,4" marker-end="url(#arrow-soft)"/>
+
+      <!-- STAGE 3 fail → back to STAGE 2 -->
+      <path d="M 944 252 L 944 270 Q 944 278 936 278 L 788 278 Q 780 278 780 270 L 780 252"
+            fill="none" stroke="#4f5d75" stroke-width="1.1" stroke-dasharray="5,4"
+            marker-end="url(#arrow)"/>
+      <rect x="824" y="258" width="76" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="862" y="267" fill="#7a8399" font-size="7.5" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.06em">審查未過 · 退回</text>
+
+      <!-- ============ LANE 1 : Stage / agent ============ -->
+
+      <!-- STAGE 0 grill -->
+      <rect x="204" y="176" width="112" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="204" y="176" width="112" height="76" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+      <rect x="212" y="183" width="42" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,0.45)" stroke-width="0.8"/>
+      <text x="233" y="192" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">SKILL</text>
+      <text x="260" y="217" fill="#2d3142" font-size="11.5" font-weight="600"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">STAGE 0 · grill</text>
+      <text x="260" y="236" fill="#4f5d75" font-size="9"
+            font-family="'Geist Mono', monospace" text-anchor="middle">gen-grill</text>
+
+      <!-- STAGE 0a/0b planner — FOCAL 1 -->
+      <rect x="352" y="176" width="156" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="352" y="176" width="156" height="76" rx="6" fill="rgba(235,108,54,0.10)" stroke="#eb6c36" stroke-width="1.2"/>
+      <rect x="360" y="183" width="46" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.45)" stroke-width="0.8"/>
+      <text x="383" y="192" fill="#c9561f" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">AGENT</text>
+      <text x="430" y="217" fill="#2d3142" font-size="11.5" font-weight="600"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">STAGE 0a / 0b · 規劃</text>
+      <text x="430" y="236" fill="#4f5d75" font-size="9"
+            font-family="'Geist Mono', monospace" text-anchor="middle">planner</text>
+
+      <!-- STAGE 1 brancher -->
+      <rect x="552" y="176" width="128" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="552" y="176" width="128" height="76" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="560" y="183" width="46" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+      <text x="583" y="192" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">AGENT</text>
+      <text x="616" y="217" fill="#2d3142" font-size="11.5" font-weight="600"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">STAGE 1 · Issue</text>
+      <text x="616" y="236" fill="#4f5d75" font-size="9"
+            font-family="'Geist Mono', monospace" text-anchor="middle">brancher</text>
+
+      <!-- STAGE 2 implementer -->
+      <rect x="716" y="176" width="128" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="716" y="176" width="128" height="76" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="724" y="183" width="46" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+      <text x="747" y="192" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">AGENT</text>
+      <text x="780" y="217" fill="#2d3142" font-size="11.5" font-weight="600"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">STAGE 2 · 實作</text>
+      <text x="780" y="236" fill="#4f5d75" font-size="9"
+            font-family="'Geist Mono', monospace" text-anchor="middle">implementer</text>
+
+      <!-- STAGE 3 reviewer — FOCAL 2 -->
+      <rect x="880" y="176" width="128" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="880" y="176" width="128" height="76" rx="6" fill="rgba(235,108,54,0.10)" stroke="#eb6c36" stroke-width="1.2"/>
+      <rect x="888" y="183" width="46" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.45)" stroke-width="0.8"/>
+      <text x="911" y="192" fill="#c9561f" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">AGENT</text>
+      <text x="944" y="217" fill="#2d3142" font-size="11.5" font-weight="600"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">STAGE 3 · 審查</text>
+      <text x="944" y="236" fill="#4f5d75" font-size="9"
+            font-family="'Geist Mono', monospace" text-anchor="middle">reviewer</text>
+
+      <!-- STAGE 4 publisher -->
+      <rect x="1052" y="176" width="128" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="1052" y="176" width="128" height="76" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="1060" y="183" width="46" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+      <text x="1083" y="192" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">AGENT</text>
+      <text x="1116" y="217" fill="#2d3142" font-size="11.5" font-weight="600"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">STAGE 4 · 發布</text>
+      <text x="1116" y="236" fill="#4f5d75" font-size="9"
+            font-family="'Geist Mono', monospace" text-anchor="middle">publisher</text>
+
+      <!-- STAGE 5 responder chain -->
+      <rect x="1224" y="176" width="148" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="1224" y="176" width="148" height="76" rx="6" fill="#ffffff" stroke="#7a8399" stroke-width="1" stroke-dasharray="5,3"/>
+      <rect x="1232" y="183" width="46" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,0.45)" stroke-width="0.8"/>
+      <text x="1255" y="192" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">AGENT</text>
+      <text x="1298" y="217" fill="#2d3142" font-size="11.5" font-weight="600"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">STAGE 5 · 回覆 Review</text>
+      <text x="1298" y="236" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist Mono', monospace" text-anchor="middle">responder → reviewer → publisher</text>
+
+      <!-- STAGE 6 cleanup -->
+      <rect x="1408" y="176" width="148" height="76" rx="6" fill="#f5f5f5"/>
+      <rect x="1408" y="176" width="148" height="76" rx="6" fill="rgba(79,93,117,0.08)" stroke="#7a8399" stroke-width="1" stroke-dasharray="5,3"/>
+      <rect x="1416" y="183" width="42" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,0.45)" stroke-width="0.8"/>
+      <text x="1437" y="192" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">SKILL</text>
+      <text x="1482" y="217" fill="#2d3142" font-size="11.5" font-weight="600"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">STAGE 6 · 清理 Worktree</text>
+      <text x="1482" y="236" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist Mono', monospace" text-anchor="middle">sync-docs → commit → cleanup</text>
+
+      <!-- ============ LANE 2 : Model ============ -->
+      <text x="260" y="334" fill="#7a8399" font-size="10"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">（主對話）</text>
+
+      <rect x="374" y="320" width="112" height="22" rx="4" fill="rgba(235,108,54,0.10)" stroke="rgba(235,108,54,0.50)" stroke-width="0.9"/>
+      <text x="430" y="335" fill="#c9561f" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">opus</text>
+
+      <rect x="566" y="320" width="100" height="22" rx="4" fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.28)" stroke-width="0.9"/>
+      <text x="616" y="335" fill="#2d3142" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">sonnet</text>
+
+      <rect x="730" y="320" width="100" height="22" rx="4" fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.28)" stroke-width="0.9"/>
+      <text x="780" y="335" fill="#2d3142" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">sonnet</text>
+
+      <rect x="894" y="320" width="100" height="22" rx="4" fill="rgba(235,108,54,0.10)" stroke="rgba(235,108,54,0.50)" stroke-width="0.9"/>
+      <text x="944" y="335" fill="#c9561f" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">opus</text>
+
+      <rect x="1066" y="320" width="100" height="22" rx="4" fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.28)" stroke-width="0.9"/>
+      <text x="1116" y="335" fill="#2d3142" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">sonnet</text>
+
+      <!-- STAGE 5 : three-agent chain, middle one stays opus -->
+      <rect x="1232" y="320" width="132" height="22" rx="4" fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.28)" stroke-width="0.9"/>
+      <text x="1298" y="335" fill="#2d3142" font-size="9" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">sonnet · opus · sonnet</text>
+
+      <text x="1482" y="334" fill="#7a8399" font-size="10"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">（主對話跑 skill）</text>
+
+      <text x="780" y="362" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">逐任務再分級：機械→快／整合→標準／設計→最強</text>
+      <text x="944" y="362" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">不委派 · 親自判斷</text>
+      <text x="1298" y="362" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">中間 reviewer 是交叉驗證點 · 不降級</text>
+
+      <!-- ============ LANE 3 : Effort ============ -->
+      <text x="260" y="448" fill="#7a8399" font-size="10"
+            font-family="'Geist Mono', monospace" text-anchor="middle">—</text>
+
+      <rect x="378" y="434" width="104" height="22" rx="4" fill="rgba(235,108,54,0.10)" stroke="rgba(235,108,54,0.50)" stroke-width="0.9"/>
+      <text x="430" y="449" fill="#c9561f" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">xhigh</text>
+
+      <rect x="572" y="434" width="88" height="22" rx="4" fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.28)" stroke-width="0.9"/>
+      <text x="616" y="449" fill="#2d3142" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">high</text>
+
+      <rect x="736" y="434" width="88" height="22" rx="4" fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.28)" stroke-width="0.9"/>
+      <text x="780" y="449" fill="#2d3142" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">max</text>
+
+      <rect x="900" y="434" width="88" height="22" rx="4" fill="rgba(235,108,54,0.10)" stroke="rgba(235,108,54,0.50)" stroke-width="0.9"/>
+      <text x="944" y="449" fill="#c9561f" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">xhigh</text>
+
+      <rect x="1072" y="434" width="88" height="22" rx="4" fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.28)" stroke-width="0.9"/>
+      <text x="1116" y="449" fill="#2d3142" font-size="10" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">high</text>
+
+      <rect x="1232" y="434" width="132" height="22" rx="4" fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.28)" stroke-width="0.9"/>
+      <text x="1298" y="449" fill="#2d3142" font-size="9" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">high · xhigh · high</text>
+
+      <text x="1482" y="448" fill="#7a8399" font-size="10"
+            font-family="'Geist Mono', monospace" text-anchor="middle">—</text>
+
+      <!-- Effort caveat band -->
+      <rect x="352" y="468" width="1012" height="30" rx="4" fill="rgba(235,108,54,0.05)" stroke="rgba(235,108,54,0.35)" stroke-width="0.9" stroke-dasharray="4,4"/>
+      <text x="858" y="487" fill="#c9561f" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">effort 不在 frontmatter（a6fcd29 已移除）— 派發時不顯式帶入，全部落回 session 預設，上列差異化失效</text>
+
+      <!-- ============ LANE 4 : MCP delegation ============ -->
+      <text x="260" y="560" fill="#7a8399" font-size="10"
+            font-family="'Geist Mono', monospace" text-anchor="middle">—</text>
+
+      <text x="430" y="554" fill="#7a8399" font-size="10"
+            font-family="'Geist Mono', monospace" text-anchor="middle">—</text>
+      <text x="430" y="572" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">最高槓桿推論</text>
+
+      <rect x="550" y="542" width="132" height="24" rx="4" fill="rgba(46,90,168,0.06)" stroke="rgba(46,90,168,0.40)" stroke-width="0.9"/>
+      <text x="616" y="558" fill="#2e5aa8" font-size="8.5"
+            font-family="'Geist Mono', monospace" text-anchor="middle">✦ gh · git worktree</text>
+      <text x="616" y="580" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">純 IO</text>
+
+      <rect x="714" y="542" width="132" height="24" rx="4" fill="rgba(46,90,168,0.06)" stroke="rgba(46,90,168,0.40)" stroke-width="0.9"/>
+      <text x="780" y="558" fill="#2e5aa8" font-size="8.5"
+            font-family="'Geist Mono', monospace" text-anchor="middle">✦ 代碼 · 測試 · commit</text>
+      <text x="780" y="580" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">驗收另派 verifier（opus · xhigh）</text>
+
+      <text x="944" y="554" fill="#7a8399" font-size="10"
+            font-family="'Geist Mono', monospace" text-anchor="middle">—</text>
+      <text x="944" y="572" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">不讓同源 model 自審</text>
+
+      <rect x="1050" y="542" width="132" height="24" rx="4" fill="rgba(46,90,168,0.06)" stroke="rgba(46,90,168,0.40)" stroke-width="0.9"/>
+      <text x="1116" y="558" fill="#2e5aa8" font-size="8.5"
+            font-family="'Geist Mono', monospace" text-anchor="middle">✦ Diff → PR 草稿</text>
+      <text x="1116" y="580" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">gh pr create 自己執行</text>
+
+      <text x="1298" y="554" fill="#7a8399" font-size="10"
+            font-family="'Geist Mono', monospace" text-anchor="middle">—</text>
+      <text x="1298" y="572" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">逐條意見判斷</text>
+
+      <text x="1482" y="554" fill="#7a8399" font-size="10"
+            font-family="'Geist Mono', monospace" text-anchor="middle">—</text>
+      <text x="1482" y="572" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">worktree remove 親自執行</text>
+
+      <!-- Hard rule band -->
+      <rect x="204" y="600" width="1160" height="28" rx="4" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.20)" stroke-width="0.9"/>
+      <text x="784" y="618" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">不委派硬規則：commit message ｜ 單檔 &lt; 50 行小修 ｜ STAGE 3 審查報告 ｜ 對外動作（gh pr create · git push）</text>
+
+      <!-- ============ HOOK BAND ============ -->
+      <text x="40" y="692" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">HOOK 把關</text>
+
+      <rect x="204" y="674" width="348" height="34" rx="4" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="0.9" stroke-dasharray="4,3"/>
+      <text x="378" y="688" fill="#2d3142" font-size="8.5" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">Pre/PostToolUse(ask-gemini)</text>
+      <text x="378" y="701" fill="#4f5d75" font-size="8"
+            font-family="'Geist Mono', monospace" text-anchor="middle">wf-guard-delegate-cwd.sh</text>
+
+      <rect x="592" y="674" width="348" height="34" rx="4" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="0.9" stroke-dasharray="4,3"/>
+      <text x="766" y="688" fill="#2d3142" font-size="8.5" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">PostToolUse(Bash)</text>
+      <text x="766" y="701" fill="#4f5d75" font-size="8"
+            font-family="'Geist Mono', monospace" text-anchor="middle">cbm-reindex-on-pr.sh</text>
+
+      <rect x="1208" y="674" width="348" height="34" rx="4" fill="rgba(235,108,54,0.05)" stroke="rgba(235,108,54,0.45)" stroke-width="0.9" stroke-dasharray="4,3"/>
+      <text x="1382" y="688" fill="#c9561f" font-size="8.5" font-weight="600"
+            font-family="'Geist Mono', monospace" text-anchor="middle">PreToolUse(Agent)</text>
+      <text x="1382" y="701" fill="#4f5d75" font-size="8"
+            font-family="'Geist Mono', monospace" text-anchor="middle">wf-guard-stage-check.sh</text>
+
+      <text x="378" y="724" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">委派 cwd 寫死校驗（跨 worktree 防呆）</text>
+      <text x="766" y="724" fill="#7a8399" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">PR 後重建 codebase 索引</text>
+      <text x="1382" y="724" fill="#c9561f" font-size="8"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif" text-anchor="middle">未推進 state 就派 responder → 擋下</text>
+
+      <!-- ============ Legend strip ============ -->
+      <line x1="40" y1="746" x2="1560" y2="746" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="766" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LEGEND</text>
+
+      <rect x="124" y="757" width="14" height="11" rx="2" fill="rgba(235,108,54,0.10)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="146" y="766" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif">最強推論關卡</text>
+
+      <rect x="264" y="757" width="14" height="11" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="286" y="766" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif">標準／輕量</text>
+
+      <rect x="396" y="757" width="14" height="11" rx="2" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+      <text x="418" y="766" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif">主對話 skill（不派 agent）</text>
+
+      <rect x="600" y="757" width="14" height="11" rx="2" fill="#ffffff" stroke="#7a8399" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="622" y="766" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif">手動入口（PR 建立後）</text>
+
+      <text x="800" y="766" fill="#2e5aa8" font-size="9"
+            font-family="'Geist Mono', monospace">✦</text>
+      <text x="816" y="766" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif">MCP 委派點</text>
+
+      <line x1="924" y1="762" x2="954" y2="762" stroke="#4f5d75" stroke-width="1.1" stroke-dasharray="5,4"/>
+      <text x="962" y="766" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif">退回／續接路徑</text>
+
+      <rect x="1080" y="757" width="14" height="11" rx="2" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="0.9" stroke-dasharray="3,2"/>
+      <text x="1102" y="766" fill="#4f5d75" font-size="8.5"
+            font-family="'Geist', 'Noto Sans TC', 'PingFang TC', sans-serif">hook 攔截點</text>
+
+      <!-- ============ Editorial aside ============ -->
+      <text x="40" y="794" fill="#4f5d75" font-size="13" font-style="italic"
+            font-family="'Instrument Serif', 'Noto Serif TC', serif">七個暫停點不靠自律，靠 wf-state.sh 的棘輪擋——未確認就 advance 會被腳本直接拒絕。</text>
+    </svg>
+
+    <div class="colophon">
+      <span>SOURCE · .claude/skills/gen-dev-workflow/{SKILL.md, references/delegation-and-parallel.md}</span>
+      <span>2026-09-21 · 1600×812 · SWIMLANE</span>
+    </div>
+  </div>
+</body>
+</html>
