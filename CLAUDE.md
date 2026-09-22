@@ -70,6 +70,6 @@ make fix                                      # dart fix --apply
 
 - **`CLAUDE.md`**（本檔）：AI Agent 開發與對話之主要上下文，專注於專案架構不變式、踩坑防護與指令集。
 - **`best_practices.md`**：專供 CodeRabbit / Qodo Merge 等 PR Review Bot 讀取之審查標準，**請勿與本檔合併或去重**。
-- **`.agents/rules/`（或 `.claude/rules/`）**：細部程式碼風格（`flutter-styles.md`）、專家原則（`expert-rules.md`）與 RTK 規範。
+- **`.agents/rules/`（或 `.claude/rules/`）**：細部程式碼風格（`flutter-styles.md`）、專家原則（`expert-rules.md`）、工具選擇（`tool-rules.md`）與 RTK 規範（`rtk-rules.md`）。後兩者依賴個人環境安裝的 MCP／CLI，未安裝時規則自動失效。
 - **開發流程**：標準開發與 Feature 推進請遵循 `.claude/skills/gen-dev-workflow`。
 
