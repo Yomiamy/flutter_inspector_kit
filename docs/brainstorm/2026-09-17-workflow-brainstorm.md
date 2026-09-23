@@ -2448,13 +2448,14 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 
 #### 8.2 建議項目（B4 已由使用者判定不需處理，此處保留編號以利追溯）
 
-##### 🔴 B6. release 四處版號：skill 少一處，且已出過事（P0）
+##### ✅ B6. release 四處版號：skill 少一處，且已出過事（P0）（已完成，2026-09-24，PR #173）
 
 - **現況（已核實）**：`gen-update-publish-info/SKILL.md` grep `version.dart` = **0 命中**，但 `CLAUDE.md` §4 要求四處同步。
 - **已發生**：v1.6.0 發布時 `lib/src/version.dart` 停在 `1.5.0`，`FlutterInspector.version` 輸出錯誤版號，事後以 commit `0bd3b7e` 補修。memory `project-release-version-dart-gap.md` 記有「修 skill」TODO，**尚未執行**。
 - **現狀**：四處皆 2.4.0，無活 bug，但**成因原封不動**。
 - **改法**：(1) SKILL.md 補第四處（表格加列、「三處都要改」→「四處」）；(2) `test/version_test.dart` 加兩行 expect（README `^$version`、CHANGELOG 首行 `## $version`）。
 - **關鍵**：無 CI，**測試套件是唯一能真正擋住的地方**。
+- **落地狀況（2026-09-24，PR #173）**：(1) `SKILL.md` 已補正為四處版號清單與 `git add` 完整檔案清單；(2) `test/version_test.dart` 擴充為四處版號全面驗證（pubspec SemVer 嚴格錨定、`packageVersion`、README 依賴完整版號比對、CHANGELOG 首章標題比對），CI 缺失下由測試套件嚴密守護。
 
 ##### 🔴 B1. Bug 1.6 workaround 正在腐蝕 `--confirmed`（P0）
 
@@ -2546,7 +2547,7 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 
 | 順位 | 項目 | 理由 | effort | 狀態 |
 |:---:|:-----|:-----|:---:|:---|
-| 1 | **B6** release 四處版號 | 已實際出過事（v1.6.0），成因原封不動 | 低 | 提案 |
+| 1 | **B6** release 四處版號 | 已實際出過事（v1.6.0），成因原封不動 | 低 | ✅ 已完成（2026-09-24，PR #173） |
 | 2 | **B1** promote 推進 stage | 唯一硬強制的人機閘門正被自家文件磨掉 | 極低（改1刪6） | 提案 |
 | 3 | **B3** 專案層 settings.json | 守衛在 clone 後靜默失效 | 極低 | 提案 |
 | 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | 提案 |
@@ -2555,7 +2556,7 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 | 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | 提案 |
 | 8 | A3 lens 規模判準 | 省錢兼防 context 爆炸，不修 bug | 極低 | 提案 |
 
-> **📌 8 項截至 2026-09-17 全部仍是提案，未動任何程式碼。**
+> **📌 8 項截至 2026-09-24 已完成 1 項（B6），其餘 7 項仍是提案。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
 ---
@@ -2706,7 +2707,7 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 | 5 | **C5** `retro` + mechanical/judgement 二分 | 加 retro skill；規則先問「能不能做成 lint/hook」，能就別寫進文件 | 中 | 提案 |
 | 6 | **C6** coding standard 移交 reviewer | 風格規則從 implementer 派發模板移到 verifier/reviewer | 中 | 提案 |
 | 7 | **C7** negation → positive 重寫 | SKILL.md 裡「絕不 X」「禁止 X」改寫成正面目標 | 中 | 提案 |
-| 8 | **C8** 版號一致性自動檢查 | 一支 script 檢查 4 處版號（與 §8.5 的 B6 同源，可合併） | 低 | 提案 |
+| 8 | **C8** 版號一致性自動檢查 | 一支 script 檢查 4 處版號（與 §8.5 的 B6 同源，已於 B6 完成） | 低 | ✅ 已完成（2026-09-24，PR #173）|
 | 9 | **C9** 核心 skill 補 `agents/openai.yaml` | 目前 61 個 skill 僅 5 個有（branch-diff-code-review、branch-ticket-issue-doc、branch-ticket-solution-advisor、issue-spec-prep、gen-dev-worktree），gen-dev-workflow 本體無 | 中 | 提案 |
 | 10 | **C10** `wayfinder` fog of war | 超大需求用 issue tracker 當地圖、decision ticket 逐一解 | 高 | 提案 |
 
@@ -2724,8 +2725,8 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 | 無 worktree 隔離 | 我們的並行隔離是硬需求，不可回退 |
 | issue tracker 當 wayfinder 地圖（全面採用） | 本專案單人單 repo，C10 僅在真遇到超大需求時才值得 |
 
-> **📌 C1–C10 共 10 項，截至 2026-09-19 已完成 1 項（C4），其餘 9 項仍是提案。**
-> 任一項落地後應立即回寫本表。C8 與 §8.5 的 B6 同源，實作時應合併為一項，避免重複工。
+> **📌 C1–C10 共 10 項，截至 2026-09-24 已完成 2 項（C4, C8/B6），其餘 8 項仍是提案。**
+> 任一項落地後應立即回寫本表。C8 與 §8.5 的 B6 同源，已於 2026-09-24 透過 PR #173 合併落地完成。
 >
 > **C4 的落地形式與原提案有出入**：實作前實查證偽了「需缺一問一答機制」這個前提——
 > `brainstorming` 早已具備一次一問的提問紀律，真正的缺口是 `gen-dev-workflow` 對它**零引用**。
