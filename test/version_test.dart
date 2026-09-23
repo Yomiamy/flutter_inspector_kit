@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Release version consistency across all four canonical files', () {
-    late String pubspecVersion;
+    String? pubspecVersion;
 
     setUpAll(() {
       final lines = File('pubspec.yaml').readAsLinesSync();
@@ -20,11 +20,21 @@ void main() {
     test('pubspec.yaml specifies a valid semantic version', () {
       expect(
         pubspecVersion,
+        isNotNull,
+        reason: 'pubspec.yaml must define a "version:" entry',
+      );
+      expect(
+        pubspecVersion,
         isNotEmpty,
         reason: 'pubspec.yaml must define a non-empty version',
       );
+      final semverPattern = RegExp(
+        r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)'
+        r'(?:-((?:0|[1-9]\d*|[0-9a-zA-Z-]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|[0-9a-zA-Z-]*[a-zA-Z-][0-9a-zA-Z-]*))*))?'
+        r'(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$',
+      );
       expect(
-        RegExp(r'^\d+\.\d+\.\d+').hasMatch(pubspecVersion),
+        semverPattern.hasMatch(pubspecVersion!),
         isTrue,
         reason: 'pubspec.yaml version "$pubspecVersion" must follow semver',
       );
@@ -44,13 +54,22 @@ void main() {
       'README.md dependency installation example matches pubspec.yaml version',
       () {
         final readme = File('README.md').readAsStringSync();
-        final expectedDep = 'flutter_inspector_kit: ^$pubspecVersion';
+        final match = RegExp(
+          r'flutter_inspector_kit:\s*\^([^\s\n]+)',
+        ).firstMatch(readme);
         expect(
-          readme.contains(expectedDep),
-          isTrue,
+          match,
+          isNotNull,
           reason:
-              'README.md installation example must contain "$expectedDep" '
-              'to match pubspec.yaml version ("$pubspecVersion")',
+              'README.md must specify flutter_inspector_kit dependency installation',
+        );
+        final readmeVersion = match!.group(1);
+        expect(
+          readmeVersion,
+          pubspecVersion,
+          reason:
+              'README.md dependency installation version ("$readmeVersion") '
+              'must match pubspec.yaml version ("$pubspecVersion")',
         );
       },
     );
