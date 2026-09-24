@@ -2501,7 +2501,7 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 
 ##### 🟢 A1. skill frontmatter linter（P2）
 
-- **現況（已核實）**：`gen-rn-br/SKILL.md` **完全沒有 YAML frontmatter**（開頭直接是 `#` 標題），無 `name` / `description` → Claude 無法靠描述路由到它，**靜默失效、無任何訊號**。58 個 skill 無任何結構檢查。
+- **現況（2026-09-25 校正）**：`gen-rn-br/SKILL.md` 的 frontmatter 缺失**已於 2026-09-11 修復**（commit `f585027`，補上 `name` / `description`），個案不再中招。但此修復為手動一次性補正，**專案仍無系統性結構檢查**——58 個 skill 中若有其他缺漏仍會靜默失效、無任何訊號。本提案的價值由「修單檔」轉為「常態防線」。
 - **改法**：約 40 行 shell，只查三件事：SKILL.md 存在、frontmatter 可解析且 `name`/`description` 俱在、`name` 與目錄名相符。掛進 Makefile（已有 `analyze_lint` / `format` / `fix`）。
 - **不抄**：上游 275 行版本的 required-sections（Overview/When to Use/Rationalizations/Red Flags/Verification）與豁免清單。我們沒有統一段落模板，為餵飽 linter 去發明一個再回改 58 個檔是本末倒置。
 
