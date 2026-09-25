@@ -59,6 +59,14 @@ Subagent (general-purpose):
     would strengthen my report" — that review is already scheduled.
     Report instead.
 
+    ## Style & Formatting
+
+    Do not burn context trying to memorize or perfectly execute all project coding
+    standards. Your focus is strictly on correctness and fulfilling the spec.
+    The downstream reviewer and verifier will enforce the coding standard (e.g.,
+    `.agents/rules/flutter-styles.md`) and will push back on style issues.
+    Offload that burden to them.
+
     ## Code Organization
 
     You reason best about code you can hold in context at once, and your edits are more

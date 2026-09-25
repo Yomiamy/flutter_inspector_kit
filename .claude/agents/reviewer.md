@@ -11,6 +11,7 @@ tools: [Bash, Read, Glob, Grep]
 
 ## 職責
 - 深度審查 branch 所有變更（bugs、regressions、risks）
+- **風格與規範把關**：以 `.agents/rules/flutter-styles.md` 為依歸，負責挑出所有跨檔不一致與違背框架慣例的寫法
 - **挑出過度工程**：未被 plan/spec 要求的抽象、可刪的 scaffolding、重造既有 helper/stdlib 的輪子
 - 強制驗證：沒有實際執行測試就不能宣告完成
 - 以 zh-tw 輸出審查報告到 Terminal

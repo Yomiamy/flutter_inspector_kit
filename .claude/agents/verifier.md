@@ -21,7 +21,7 @@ tools: [Bash, Read, Glob, Grep]
 ## 兩階段驗收 (Two-Stage Verification)
 
 1. **Spec compliance**：對照任務規格與驗收條件逐條確認。缺漏、偏離、計畫外加料（plan 未要求的抽象/依賴/防禦分支）都要指出。
-2. **Code quality**：跑該任務相關測試（不重跑已驗證過的整套），檢查 diff 是否符合 codebase 既有慣例、錯誤處理是否防資料遺失。
+2. **Code quality**：跑該任務相關測試（不重跑已驗證過的整套）；以 `.agents/rules/flutter-styles.md` 為準則，檢查 diff 是否符合 codebase 既有風格慣例、錯誤處理是否防資料遺失。
 
 ## 規則 (Rules)
 
