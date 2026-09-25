@@ -1798,7 +1798,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | 項目 | 內容 | Effort | 狀態 |
 |------|------|:---:|:---:|
 | ~~**§P8** 慢請求標記~~ | NetworkTab 的 duration 閾值 + 🐢 標記 — ✅ 已完成（PR #111） | trivial | ✅ |
-| **§P4** 快速複製 Diagnostic Snippet | NetworkDetailView 一鍵 cURL + error payload | trivial~low | ⬜ |
+| ~~**§P4** 快速複製 Diagnostic Snippet~~ | NetworkDetailView 一鍵 Agent Prompt (原構想 cURL + error payload) — ✅ 已完成（`eef782b` / Issue #160） | trivial~low | ✅ |
 | **§P16** 生態日誌適配器 | `logger` (LogOutput) / `talker` (Observer) / `logging` 純介面轉譯適配器與 README 接線食譜 | trivial~low | ⬜ |
 | **§P18** 輕量網路效能統計條 | NetworkTab 頂部純計算 Stats Bar (Total / Fail / Avg Latency / Bytes) | low | ⬜ |
 | ~~**§P25** ImageCache 水位計~~ | ~~Storage tab 內常駐顯示 `currentSizeBytes`/`maximumSizeBytes`/張數，**打開時才讀不輪詢**~~ — ❌ 不排程（2026-09-10）：三項價值依賴連續觀察，與「不輪詢」守則衝突；overlay 變體與 §P20 綁定待裁決 | ~~low~~ | ❌ |
@@ -1825,10 +1825,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 > 「標為待辦、實際已完成」，屬**狀態欄過期**；這次是**提案內容本身寫錯**
 > （落點與資料模型對不上、且遺漏核心需求），照字面實作會產出一半的功能。
 > 因此實查紀律擴充一條：**不只核對「做了沒」，還要核對「提案描述的落點與資料模型是否對得上」**。
->
-> **§P4 的 effort 下修為 trivial~low**（2026-08-06 實查）：`buildCurl` / `buildPlainText` / `shareText`
-> 皆已存在且已接 redaction 旗標，`PopupMenuButton<_ShareAction>` 選單也已在 detail view 就位——
-> 本項實為「既有選單多加一個 enum 值 + 一個組裝 formatter」，非從零新建 UI。
+> **§P4 已完成**（`eef782b` / Issue #160，2026-09-12）：實作形式由原構想的「一鍵 cURL + error payload」升級為 `_ShareAction.agentPrompt`，除了 cURL 與 error payload 外，更納入了同路由歷史與環境狀態，精準對位原需求且已完全整合於 detail view 選單。
 >
 > **本層排序已依 effort 升序編排**。各項寫入路徑互不重疊，可任意挑選或並行。
 
