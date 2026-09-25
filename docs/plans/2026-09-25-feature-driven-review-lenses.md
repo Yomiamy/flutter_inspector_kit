@@ -69,7 +69,7 @@
      - 基線：`correctness` + `過度工程` 永遠啟用。
      - `security`：更動網路、Dio/HTTP、認證 Token、序列化、敏感資料時啟用。
      - `回歸風險`：更動全域狀態、生命週期、核心緩衝區（`RingBuffer` / `mergedTimeline`）時啟用。
-     - `測試覆蓋`：新增邏輯或分支時啟用；純文檔/樣式微調跳過。
+     - `測試覆蓋`：新增邏輯或分支、重構核心路徑或修復特定 Bug 時啟用；純文檔/樣式微調跳過。
   4. 提供 JavaScript 動態過濾與派發之範例代碼。
 
 ### Task 2: 更新 `.claude/agents/reviewer.md` 職責與兜底契約

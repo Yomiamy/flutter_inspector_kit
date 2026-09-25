@@ -67,10 +67,19 @@ const results = await pipeline(
 
 ```js
 // 依據 diff 觸及檔案與特徵動態建構專門 lens
+// 若主對話已逼近 100K Token 警戒，收斂為空（只派發基線 2 個，其餘主審速審）
 const activeSpecialLenses = []
-if (diffTouchesNetworkOrAuthOrSerialization) activeSpecialLenses.push('security')
-if (diffTouchesCoreBufferOrLifecycleOrState) activeSpecialLenses.push('回歸風險')
-if (diffAddsLogicOrBranching) activeSpecialLenses.push('測試覆蓋')
+if (!isNearTokenBudgetLimit) {
+  if (diffTouchesNetworkOrAuthOrSerialization || diffTouchesSensitiveDataMasking) {
+    activeSpecialLenses.push('security')
+  }
+  if (diffTouchesCoreBufferOrLifecycleOrState) {
+    activeSpecialLenses.push('回歸風險')
+  }
+  if (diffAddsLogicOrBranching || diffRefactorsCorePath || diffFixesSpecificBug) {
+    activeSpecialLenses.push('測試覆蓋')
+  }
+}
 
 // 每個 lens effort 對齊 STAGE 3 最強推論——不是任意選填
 const findings = (await parallel([
