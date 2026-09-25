@@ -2519,14 +2519,22 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **關鍵是「引述」**：要求貼出實際輸出而非回報判斷。光有數字不夠——總數對但內容換掉（原 7 個改掉 2 個、新增 2 個）仍會漏。
 - **不抄**：上游 Rationalizations / Red Flags 三件套。Linus 模式與 Ponytail 已佔住「反駁藉口」這個位置。
 
-##### 🟢 A3. STAGE 3 依 diff 大小決定開幾個 lens（P2）
+##### 🟢 A3. STAGE 3 依變更特徵驅動決定開幾個專門 lens（P2）— ✅ 已完成（2026-09-26，Issue #175）
 
-- **現況（已核實）**：`workflow-parallel.md` 適用點 3 固定開 5 個 lens（correctness / security / 回歸風險 / 測試覆蓋 / 過度工程），每個 `effort: 'xhigh'`。既有規則管的是「跑完怎麼收斂」與**安全性**（路徑衝突、暫停點位置），**缺的是「這次該開幾個」的規模判準**。
-- **上游 Pattern 3 四問句**：能同時跑無排序問題？各 lens 產出是不同**種類**的 finding？merge 裝得進剩餘 context？等待時間長到讓並行有感？任一 no 即退回單 persona。
-- **命中的痛點**：小 diff 上 correctness / 回歸風險 / 測試覆蓋極可能回傳**同一組 finding 換三種說法**——付 3 倍 xhigh 買 1 份情報，reviewer 還要多花力氣去重；5 份報告全進主對話，逼近 150k gate 時會炸。
-- **改法**（約 8 行文件、零程式碼）：`diff < 200 行` → 只開 correctness + 過度工程；`≥ 200 行` → 全 5 個。額外收斂：未觸及 network / 條件匯出 / 序列化 → 去掉 security；未觸及 RingBuffer / mergedTimeline / listener 註銷 → 去掉回歸風險；已逼近 100k 警戒 → 一律 2 個。
-- **為何保留這兩個**：correctness 永不可省；過度工程 lens 找「不該存在的東西」，與其他四個（找缺陷）**天然不重疊**，小 diff 上性價比最高。
-- **值得做的理由**：三個適用點中只有這個是**固定成本**（另兩個 fan-out 寬度由任務數決定），故只有它會在小改動上穩定浪費。
+- **現況（已核實）**：`workflow-parallel.md` 適用點 3 原固定開 5 個 lens（correctness / security / 回歸風險 / 測試覆蓋 / 過度工程），每個 `effort: 'xhigh'`。既有規則管的是「跑完怎麼收斂」與**安全性**（路徑衝突、暫停點位置），**缺的是「這次該開幾個」的規模判準**。
+- **痛點**：小 diff 上 correctness / 回歸風險 / 測試覆蓋極可能回傳**同一組 finding 換三種說法**——付 3 倍 xhigh 買 1 份情報，reviewer 還要多花力氣去重；5 份報告全進主對話，逼近 150k gate 時會炸。
+- **🔴 實查批判：廢除「diff < 200 行一刀切」的偷懶設計**：
+  原提案曾建議「小於 200 行就只開 2 個」，**經實查被證偽為壞品味與偽安全**——LOC 是低語意指標，3 行代碼足以改壞 auth 鑑權或全域快取單例。以行數為由省略 Security 或回歸審查，會直接造成安全盲區。
+- **好品味改法（特徵驅動衛語句 Feature-driven Guard Clause）**：
+  **省略專門 Lens 的正當理由，不是「行數少」，而是「改動在物理上不具備產生該類缺陷的條件」。**
+  1. **核心基線永遠必開**：`correctness`（邏輯底線）+ `過度工程`（Ponytail，找不該存在的東西，性價比最高）。
+  2. **特徵驅動專門 Lens**：
+     - `security`：涉及網路、Dio/HTTP 攔截、Token、認證、序列化、敏感資料時才派發。
+     - `回歸風險`：涉及全域緩衝區（`RingBuffer` / `mergedTimeline`）、生命週期（observer / dispose / 註銷）、全域狀態時才派發。
+     - `測試覆蓋`：新增業務邏輯或分支條件時才派發。
+  3. **主審兜底契約（Guard Clause Record）**：未派發專門 Lens 不等於放棄該維度。主 Reviewer（Opus）親自覆核兜底，並於最終審查報告明載前置免除理由。
+  4. **Context 防衛**：逼近 100K 警戒時收斂為 2 個（`correctness` + `過度工程`），其餘主審速審。
+- **落地產物**：`docs/features/2026-09-25-feature-driven-review-lenses.md`、`references/workflow-parallel.md:48-93`、`.claude/agents/reviewer.md:14,27,34`。
 
 #### 8.3 明確不建議抄
 
@@ -2554,9 +2562,9 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 | 5 | **B5** effort 分層表 | 可能從未生效且無訊號 | 低 | 提案 |
 | 6 | A1 skill linter | 已知 1 檔中招，寫一次永久擋住 | 低 | 提案 |
 | 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | 提案 |
-| 8 | A3 lens 規模判準 | 省錢兼防 context 爆炸，不修 bug | 極低 | 提案 |
+| 8 | **A3** lens 特徵判準 | 廢除純行數一刀切，特徵驅動衛語句 + 主審兜底 | 極低 | ✅ 已完成（2026-09-26，Issue #175） |
 
-> **📌 8 項截至 2026-09-24 已完成 1 項（B6），其餘 7 項仍是提案。**
+> **📌 8 項截至 2026-09-26 已完成 2 項（B6, A3），其餘 6 項仍是提案。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
 ---
