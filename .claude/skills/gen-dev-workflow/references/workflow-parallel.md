@@ -70,10 +70,13 @@ const results = await pipeline(
 // 若主對話已逼近 100K Token 警戒，收斂為空（只派發基線 2 個，其餘主審速審）
 const activeSpecialLenses = []
 if (!isNearTokenBudgetLimit) {
-  if (diffTouchesNetworkOrAuthOrSerialization || diffTouchesSensitiveDataMasking) {
+  if (diffTouchesNetworkOrAuthOrSerialization ||
+      diffTouchesSensitiveDataMasking ||
+      diffTouchesConditionalExports) {
     activeSpecialLenses.push('security')
   }
-  if (diffTouchesCoreBufferOrLifecycleOrState) {
+  if (diffTouchesCoreBufferOrLifecycleOrState ||
+      diffTouchesPublicApiSignature) {
     activeSpecialLenses.push('回歸風險')
   }
   if (diffAddsLogicOrBranching || diffRefactorsCorePath || diffFixesSpecificBug) {
