@@ -2733,3 +2733,96 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 > 故 `gen-grill` 不自帶問法、也不呼叫 `brainstorming`（後者終態是 `writing-plans`，不會回到呼叫端），
 > 只做三件事：判定五項判準是否齊備、盤問缺漏項、產出 brief。它**不產生任何文件**，
 > 唯一產出是印在對話裡的 brief。詳見 `docs/features/2026-09-18-grilling-gate.md`。
+
+---
+
+## ⚪ 第七部分：Nanako0129/pilotfish 微觀派發策略體系比對 (2026-09-26)
+
+> **來源**：<https://github.com/Nanako0129/pilotfish>
+> **查證方式**：檢索 GitHub 原始碼樹、讀取 `plugin/hooks/hooks.json`、`plugin/agents/*.md`、
+> `plugin/policy/sessionstart.txt` 與 `benchmarks/`（涵蓋 `dispatch-brake/` 與 `spontaneous-dispatch/`）。
+>
+> **定位與前幾部分的差異**：
+> §5 的 addyosmani 比的是「廣度與標準化 Tooling」、§6 的 mattpocock 比的是「前端需求對齊與心理學預算」。
+> 本部分比的是「**微觀模型經濟學與派發控制 (Micro-Economics & Dispatch Control)**」——
+> 如何在單一 Session 內部壓低算力成本、消除 LLM 主對話的懶惰化無謂派發，以及瓦解人類對 Plan 審查的橡皮圖章盲審。
+>
+> **核心結論**：兩者解決不同層級問題。
+> 他是純 Prompt 策略層 + 輕量 SessionStart Hook，**零狀態持久化、零 Worktree 隔離、零 PreToolUse 系統級阻斷**；
+> 我們有完整的宏觀 SDLC 狀態機、Git Worktree 實體命名空間、以及作業系統級 Git 差集監控 Sensor。
+> 但他在**「計畫機器對抗初審」**、**「派發煞車」**與**「驗收三值契約」**上具備極佳的工程品味，
+> 能直接補足我們在細粒度調度上的盲點。
+
+### 1. 系統概覽
+
+**Nanako0129/pilotfish**：基於 Claude Code 生態的多模型協同調度策略（源自 `@miyago9267/pilotfish-codex`）。
+核心哲學是 "Frontier plans, cheaper models execute, fresh context verifies"。定義了 8 個專門角色
+（Haiku scout、Sonnet mech-executor、Sonnet executor、Opus plan-verifier、Opus verifier、Opus security 等），
+透過 `SessionStart` Hook 注入全域策略，並內建 Dispatch Brake 與基準測試套件。
+
+**gen-dev-workflow**：全週期確定性開發作業系統。狀態機 `wf-state.sh`（421 行原子寫入）、
+Git Worktree 實體目錄隔離、PreToolUse/PostToolUse 阻斷與差集 Sensor、五視角審查矩陣、
+以及完整的 Issue → Worktree → PR → Review 回覆 → Worktree 清理閉環。
+
+### 2. 機制對位矩陣
+
+| 面向 | Nanako0129/pilotfish | gen-dev-workflow | 判定 |
+|:---|:---|:---|:---|
+| **核心定位** | 單一 Session 內的微觀任務路由、模型經濟學與派發煞車 | 宏觀全生命週期 SDLC 開發作業系統 | 互補層次 |
+| **State 持久化** | **無**。零狀態檔，依賴 Session 上下文與 SessionStart 重新注入 | `wf-state.sh` 421 行原子寫入、Schema 校驗、棘輪狀態檔 | **我們完勝** |
+| **工作區隔離** | **無**。單一預設目錄，多任務/多終端並行必定互踩代碼 | 物理 Git Worktree 隔離 + 獨立 state 檔，零衝突 | **我們完勝** |
+| **系統攔截防護** | 純 Prompt 政策軟約束（無 PreToolUse 阻斷腳本） | 實體 `Pre/PostToolUse` Bash 攔截（Git 差集 Sensor + Stage Check） | **我們完勝** |
+| **計畫前置審查** | `plan-verifier` (Opus) 對抗式審查，強制輸出 `READY` / `REVISE` | Stage 0b 產出計畫後直接暫停等人肉批准（易流於橡皮圖章） | **他大勝** |
+| **微任務派發控制** | 內建 `Dispatch Brake`，有 benchmark 量化防範主模型神經質派發 | 依賴自然語言約定，微小改動容易盲目開子進程 | **他勝** |
+| **驗收契約設計** | 獨立 Context + 強制三態 (`CONFIRMED / REFUTED / INCONCLUSIVE`) | Stage 2 Verifier + Stage 3 多 Angle 審查（自然語言報告收斂） | **他勝**（格式更乾脆） |
+| **模型分級光譜** | 8 角色極精細分級（Haiku scout 到 Opus verifier） | 逐任務動態分級（排斥 Haiku，基於首端可信度考量） | 各有取捨（見刻意不學） |
+| **PR 生命週期** | 無完整 PR 發布、Review 回覆與清理閉環 | STAGE 4 發 PR → 5 回覆 Review → 6 同步文件與清理 Worktree | **我們完勝** |
+
+### 3. 他的關鍵設計（我們沒有的）
+
+#### 3.1 `plan-verifier` (Opus) 機器對抗初審——破除人類橡皮圖章
+在 STAGE 0b Plan 產出之後，通常由人類開發者檢閱確認。實務上開發者常因心智疲勞或信任慣性，
+未細究邊界條件與資料結構就直接按 Enter 放行，將架構缺陷放行到 STAGE 2。
+pilotfish 的 `plan-verifier` 以**全新上下文的獨立 Opus** 扮演挑刺者：
+檢驗資料結構是否最小化、邊界情況是否已消滅、異動範圍是否過度發散、是否具備回滾措施，
+並強制輸出 `READY`（放行給人類）或 `REVISE`（打回給 planner 重改）。
+
+#### 3.2 `Dispatch Brake` (派發煞車)——消滅微任務的調度延遲
+LLM 在具備 Subagent 能力後常出現「懶惰化派發」現象：連讀取單一檔案或改動 2 行代碼，
+都下意識啟動子進程，導致浪費數萬 Token 與數十秒的冷啟動延遲。
+pilotfish 在決策層嵌入「派發煞車」，規範未達複雜度閾值的微小任務**必須留在主進程直接執行**，
+並以 `benchmarks/dispatch-brake/` 套件進行回歸測試。
+
+#### 3.3 驗收三值契約 (`CONFIRMED / REFUTED / INCONCLUSIVE`)
+現行 Verifier 報告常以長篇 Markdown 呈現，結論隱含在文字中，容易使主指揮產生誤判。
+pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代碼**（只做反駁與測試驗證），
+杜絕「球員兼裁判」與結論模糊。
+
+### 4. 我們的關鍵優勢（他沒有的）
+
+1. **以實體 Worktree 消滅並行複雜度**：不搞複雜的分散式鎖，直接利用 Git 核心機制進行物理目錄隔離，
+   多個 workflow 或終端同時跑彼此零衝突。
+2. **終結「幻覺聲明」的 Sensor 防線**：`wf-guard-delegate-cwd.sh` 透過前後 Git 快照差集比對，
+   能在作業系統層直接抓出子進程「宣稱在 Worktree 寫檔、實際動了主 Repo」的真實越權。
+3. **確定性狀態機 (`wf-state.sh`)**：Bash + `jq` 原子寫入與棘輪機制，
+   保證流程進度不會因 Session compact 或網路當機而遺失，具備完備的 `--mode jump` 續接能力。
+4. **全生命週期閉環**：涵蓋需求盤問（Grill）、任務拆分、TDD 實作、五視角審查、PR 產出、
+   PR Review 意見自動回覆（Stage 5）與合併後 Worktree 清理與文件回寫（Stage 6）。
+
+### 5. 建議借鏡（待優化項目，D1–D3）
+
+| 順位 | 借鏡項 | 做法 | effort | 狀態 |
+|:---:|:---|:---|:---:|:---|
+| 1 | **D1** STAGE 0b Plan 機器對抗初審 (`plan-verifier`) | Plan 產出後、問人確認前，自動起獨立 Opus 審查資料結構與回滾邊界，輸出 `READY`/`REVISE` | 中 | 提案 |
+| 2 | **D2** STAGE 2 引入「派發煞車」硬門檻 (`Dispatch Brake`) | 明定單檔 ≤ 20 行且無公共 API 變更之微任務強制主進程原地修改，不派發 subagent | 低 | 提案 |
+| 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | 提案 |
+
+### 6. 刻意不學（保持 Good Taste 的底線）
+
+| 上游有、我們不採用 | 理由 |
+|:---|:---|
+| **STAGE 0a 解除 Haiku 封印（`scout` 偵察兵）** | **實用主義否決「偽效益 (False Economy)」**。STAGE 0a 是整條流水線的根（Root），Haiku 錯誤自我修正差、缺乏深層語意邊界推斷能力，需要極度繁複的 fallback prompt「伺候」。首端一旦漏查依賴或誤判型別契約，送入有缺陷的事實，下游 Planner（即便用 Opus）也會產出錯誤計畫，導致 STAGE 2/3 頻繁退回重做。「在首端省錢，是全系統最貴的省錢方式」，堅守 Sonnet/Opus 高可信度。 |
+| 放棄 Worktree 走向單一工作目錄 | 多任務並行與 PR Review 迭代時，實體 Worktree 是防止代碼污染的唯一正解。 |
+| 放棄狀態機走向純 Prompt 軟約束 | Prompt 的道德勸說在生產環境終會破防，作業系統級的 Exit 2 阻斷與磁碟原子狀態才是真防線。 |
+
+> **📌 D1–D3 共 3 項待優化提案，任一項落地後應即時回寫本表。**
