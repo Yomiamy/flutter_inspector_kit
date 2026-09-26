@@ -237,7 +237,7 @@ case "$cmd" in
     f="$dest/$(slugify "$branch").json"
     claim_new "$f"
     trap 'rm -f "$f"' EXIT   # 同 init：失敗不留 0-byte 佔位檔
-    jq --arg b "$branch" '.branch = $b' "$src" | atomic_write "$f"
+    jq --arg b "$branch" '.branch = $b | .stage = "1"' "$src" | atomic_write "$f"
     trap - EXIT
     rm "$src"
     echo "$f"
