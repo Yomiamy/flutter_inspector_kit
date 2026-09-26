@@ -61,13 +61,14 @@ const results = await pipeline(
 | **`回歸風險`** | • 涉及核心緩衝區（`RingBuffer`、`mergedTimeline`）<br>• 涉及生命週期（observer、dispose、listener 註銷）<br>• 涉及全域狀態、公共 API 簽章更動 | • 獨立新檔案且無現有呼叫端<br>• 純局部無狀態 Helper/Extension<br>• 純樣式或純展示 UI 微調 |
 | **`測試覆蓋`** | • 新增業務邏輯、分支條件、演算法<br>• 重構核心路徑或修復特定 Bug | • 純文字/註解更新、純樣式微調<br>• 僅修改 workflow 規範文件或輔助腳本 |
 
-> ⚠️ **Context 警戒收斂**：若主對話已逼近 100K Token 警戒線，為防中斷，一律收斂為僅派發 `correctness` + `過度工程`，其餘維度改由主 Reviewer 親自速審。
+> ⚠️ **Context 警戒收斂**：若 `100k ≤ context ≤ 150k`（依 Token Budget Gate 警戒區間；`context > 150k` 則強制切 session），為防中斷，一律收斂為僅派發 `correctness` + `過度工程`，其餘維度改由主 Reviewer 親自速審。
 
 ### 2. 動態派發腳本範例
 
 ```js
 // 依據 diff 觸及檔案與特徵動態建構專門 lens
-// 若主對話已逼近 100K Token 警戒，收斂為空（只派發基線 2 個，其餘主審速審）
+// （各 diffTouches* 特徵布林值由 Agent 於 STAGE 3 檢驗 git diff 時，依據上方「Lens 派發判準矩陣」對照判定）
+// 若 context 處於 100k ~ 150k 警戒區間，收斂為空（只派發基線 2 個，其餘主審速審）
 const activeSpecialLenses = []
 if (!isNearTokenBudgetLimit) {
   if (diffTouchesNetworkOrAuthOrSerialization ||

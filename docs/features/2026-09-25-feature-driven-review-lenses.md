@@ -89,7 +89,7 @@ STAGE 3 的 Lens 派發依據以下兩層規則決定：
 
 ## 5. 驗收條件（Acceptance Criteria）
 
-* [ ] `workflow-parallel.md` 清楚定義特徵驅動的 Lens 派發判準，刪除純 LOC 一刀切敘述。
-* [ ] `workflow-parallel.md` 提供完整示例，展示如何依據改動檔案特徵過濾 `LENSES` 陣列。
-* [ ] `reviewer.md` 增補「未派發專門 Lens 時之兜底與免除記錄」職責段落。
-* [ ] `docs/brainstorm/2026-09-17-workflow-brainstorm.md` 的 A3 段落同步修訂，狀態保持連貫。
+* [x] `workflow-parallel.md` 清楚定義特徵驅動的 Lens 派發判準，刪除純 LOC 一刀切敘述。
+* [x] `workflow-parallel.md` 提供完整示例，展示如何依據改動檔案特徵過濾 `LENSES` 陣列。
+* [x] `reviewer.md` 增補「未派發專門 Lens 時之兜底與免除記錄」職責段落。
+* [x] `docs/brainstorm/2026-09-17-workflow-brainstorm.md` 的 A3 段落同步修訂，狀態保持連貫。
