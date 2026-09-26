@@ -64,6 +64,9 @@ description: |
     │  → 呼叫 planner agent（依據已確認的功能規格）    │
     │  → 產出 docs/plans/YYYY-MM-DD-<feature>.md      │
     │    （How：資料結構、檔案異動、任務拆分）          │
+    │  → 呼叫 plan-verifier agent（獨立 Opus 對抗初審） │
+    │     • REVISE → 退回 planner 修正（最多 2 次）   │
+    │     • READY  → 展示計畫與初審摘要               │
     │  ⏸ 暫停：展示實作計畫，等使用者確認              │
     └──────────────────────┬──────────────────────────┘
                            │ 使用者確認
@@ -181,14 +184,14 @@ description: |
 | 暫停時機 | 你要做什麼 | 繼續條件 |
 |---------|-----------|---------|
 | 功能規格完成後 | 展示功能規格（使用者故事、驗收條件、範圍），問「確認嗎？」 | 使用者確認 |
-| 實作計畫完成後 | 展示實作計畫（任務清單、檔案異動），問「確認開始實作嗎？」 | 使用者確認 |
+| 實作計畫完成後 | 展示實作計畫（任務清單、檔案異動）與 plan-verifier 初審摘要，問「確認開始實作嗎？」 | 使用者確認 |
 | Issue + 分支建立前 | 展示 Issue 標題、描述內容、分支名稱，問「確認建立嗎？」 | 使用者確認或修改後確認 |
 | 每個實作任務完成後 | 展示變更檔案清單 + 測試結果，問「確認繼續下一個任務嗎？」 | 使用者確認 |
 | 審查報告完成後 | 展示完整審查報告，問「確認繼續發布嗎？或需要修正？」 | 使用者確認 → STAGE 4，或退回 STAGE 2 |
 | 遇到模糊需求 | 問最小必要問題（≤ 2 個），不要問多 | 使用者回答後自動繼續 |
 | PR 草稿完成後 | 展示草稿，問「確認發布嗎？」 | 使用者確認 |
 
-**不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見 [`references/delegation-and-parallel.md`](references/delegation-and-parallel.md)）。
+**不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 0b plan-verifier 初審打回（REVISE）自動重修（最多 2 次）、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見 [`references/delegation-and-parallel.md`](references/delegation-and-parallel.md)）。
 
 **主動中斷（非暫停）：** context > 150k 時依 Token Budget Gate 主動保存並切 session，這**不是暫停點，是保護性中斷**——續接時不問「繼續還是開新流程」，直接接回原 stage（見 [`references/token-budget-gate.md`](references/token-budget-gate.md)）。
 
