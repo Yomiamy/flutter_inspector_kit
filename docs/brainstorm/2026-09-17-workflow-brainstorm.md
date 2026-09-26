@@ -2506,19 +2506,20 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **改法**：約 40 行 shell，只查三件事：SKILL.md 存在、frontmatter 可解析且 `name`/`description` 俱在、`name` 與目錄名相符。掛進 Makefile（已有 `analyze_lint` / `format` / `fix`）。
 - **不抄**：上游 275 行版本的 required-sections（Overview/When to Use/Rationalizations/Red Flags/Verification）與豁免清單。我們沒有統一段落模板，為餵飽 linter 去發明一個再回改 58 個檔是本末倒置。
 
-##### 🟢 A2. verifier 加「證據形狀」（P2）
+##### 🟢 A2. verifier 加「證據形狀」（P2）— ✅ 已完成（2026-09-27，Issue #179）
 
 - **概念**：驗收項不寫**結論**，寫**必須交出什麼證物才算數**。上游寫法對比：
   - ❌ `Tests pass` → ✅ `The full suite, run with the repository's own test command`
   - ❌ `Bug is fixed` → ✅ `A reproduction test that failed before the fix and passes after`
-- **為何有效**：「tests pass」不可證偽——跑 1 個檔和跑 554 個檔這句話都成立。指定動作與工具後，做沒做一眼可辨。
+- **為何有效**：「tests pass」不可證偽——跑 1 個檔和跑 606 個檔這句話都成立。指定動作與工具後，做沒做一眼可辨。
 - **本地缺口**：`verifier.md` 已有好態度（「測試失敗一律 FAIL、不以環境問題帶過」「不准『大致還行』」），但**沒給數字**。最危險情境：analyze 吐 9 個 info，verifier 判斷「都是既有雜訊」而放行——`CLAUDE.md` §3 的 7-info 基線不在它的驗收契約裡。
 - **改法**（約 4 行，加進 code quality 階段）：
-  - 以 `flutter test` 跑完整套，**引述**實際通過數（基線 554 tests）
+  - 以 `flutter test` 跑完整套，**引述**實際通過數（基準 606 tests）
   - 以 `flutter analyze lib/ test/` 檢查，**引述**完整輸出
   - 對照 §3 的 7 個既有 info，**逐一指認**第 8 個以後的歸屬；數量若 ≤ 7 須說明是哪 7 個
 - **關鍵是「引述」**：要求貼出實際輸出而非回報判斷。光有數字不夠——總數對但內容換掉（原 7 個改掉 2 個、新增 2 個）仍會漏。
 - **不抄**：上游 Rationalizations / Red Flags 三件套。Linus 模式與 Ponytail 已佔住「反駁藉口」這個位置。
+- **落地產物**：`docs/features/2026-09-27-verifier-evidence-shape.md`、`docs/plans/2026-09-27-verifier-evidence-shape.md`、`.claude/agents/verifier.md`、`.agents/agents/verifier.yaml`、`.claude/agents/implementer.md`。
 
 ##### 🟢 A3. STAGE 3 依變更特徵驅動決定開幾個專門 lens（P2）— ✅ 已完成（2026-09-26，Issue #175）
 
@@ -2562,10 +2563,10 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 | 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | 提案 |
 | 5 | **B5** effort 分層表 | 可能從未生效且無訊號 | 低 | 提案 |
 | 6 | A1 skill linter | 已知 1 檔中招，寫一次永久擋住 | 低 | 提案 |
-| 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | 提案 |
+| 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | ✅ 已完成（2026-09-27，Issue #179） |
 | 8 | **A3** lens 特徵判準 | 廢除純行數一刀切，特徵驅動衛語句 + 主審兜底 | 極低 | ✅ 已完成（2026-09-26，Issue #175） |
 
-> **📌 8 項截至 2026-09-28 已完成 3 項（B6, A3, B1），其餘 5 項仍是提案。**
+> **📌 8 項截至 2026-09-28 已完成 4 項（B6, A3, A2, B1），其餘 4 項仍是提案。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
 ---
