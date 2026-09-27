@@ -47,7 +47,7 @@
    - 必須完整引述終端輸出。
    - 必須對照 `CLAUDE.md` §3 的 7 個既有 info 基準：
      - 若 info 數 > 7：多出的項目一律視為新增回歸，直接判定 FAIL。
-     - 若 info 數 ≤ 7：必須逐一核對是否均為已知的 7 個項目（6 個 `deprecated_member_use` + 1 個 `share_text_web.dart:15`）。若有舊 info 消失但出現新 warning/info，必須指認並判定 FAIL。
+     - 若 info 數 ≤ 7：必須逐一核對是否均為已知的 7 個項目（6 個 `deprecated_member_use` + 1 個 `share_text_web.dart:15`）。任何新增 warning 或 error，以及 `flutter analyze lib/ test/` 的非零退出狀態，均直接判定 FAIL。
 3. **拒絕無效證物**：
    - 禁止僅回傳「測試通過，analyze 無異常」等抽象摘要。
    - 未附帶命令完整輸出與數字比對者，視為未滿足驗收契約。

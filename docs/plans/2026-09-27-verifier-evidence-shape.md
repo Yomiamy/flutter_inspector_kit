@@ -72,8 +72,8 @@
   - `.agents/agents/verifier.yaml`
 - **實作內容**：
   1. 在 `## 兩階段驗收 (Two-Stage Verification)` 的第 2 點 `Code quality` 增訂具體證物交付規範：
-     - **測試證據**：以 `flutter test` 跑完整套，引述實際通過數（基準 606 tests）與新測資結果。
-     - **靜態分析證據**：以 `flutter analyze lib/ test/` 檢查並引述完整終端輸出；嚴格對照 `CLAUDE.md` §3 的 7 個既有 info，多於 7 個直接判 FAIL，≤ 7 個需指認完全符合既有清單。
+     - **測試證據**：必須以 `flutter test` 跑完整套，引述實際通過數（基準 606 tests）與耗時；若有特定任務新增測試檔案，亦須一併引述該測試檔案的執行結果與通過數量。
+     - **靜態分析證據**：以 `flutter analyze lib/ test/` 檢查並引述完整終端輸出；嚴格對照 `CLAUDE.md` §3 的 7 個既有 info，多於 7 個直接判 FAIL，≤ 7 個需指認完全符合既有清單，任何新增 warning/error 或非零 exit status 均直接判 FAIL。
   2. 在 `## 規則 (Rules)` 增補：
      - 報告中必須附帶命令之實際輸出引述，未附帶證物或僅給予抽象總結者一律視為無效驗收。
 
