@@ -234,6 +234,11 @@ case "$cmd" in
     done
     [ -n "$branch" ] || die "promote 需要 --branch"
     validate "$src"
+    src_mode="$(jq -r '.mode' "$src")"
+    src_stage="$(jq -r '.stage' "$src")"
+    if [ "$src_mode" != "sequence" ] || { [ "$src_stage" != "0a" ] && [ "$src_stage" != "0b" ] && [ "$src_stage" != "1" ]; }; then
+      die "promote 僅支援 sequence 模式之 STAGE 0a/0b/1 pending 狀態（目前模式：$src_mode，階段：$src_stage）"
+    fi
     f="$dest/$(slugify "$branch").json"
     claim_new "$f"
     trap 'rm -f "$f"' EXIT   # 同 init：失敗不留 0-byte 佔位檔

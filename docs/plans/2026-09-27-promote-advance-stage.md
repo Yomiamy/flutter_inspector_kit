@@ -32,11 +32,7 @@
 ### Task 1: 修正 `wf-state.sh` 的 `promote` 指令
 - **檔案**：`.claude/skills/gen-dev-workflow/scripts/wf-state.sh:240`
 - **操作**：
-  將：
-  ```bash
-  jq --arg b "$branch" '.branch = $b' "$src" | atomic_write "$f"
-  ```
-  改為：
+  在 `claim_new` 前加入來源狀態檢查，確認來源模式為 `sequence` 且階段為 `0a`、`0b` 或 `1`，否則 `die` 拒絕執行；於 jq 管道加入 `.stage = "1"`：
   ```bash
   jq --arg b "$branch" '.branch = $b | .stage = "1"' "$src" | atomic_write "$f"
   ```
@@ -54,8 +50,9 @@
   1. 建立測試 pending 狀態檔：`wf-state.sh init`。
   2. 執行 `wf-state.sh promote`：驗證輸出狀態檔之 `.stage` 為 `"1"`，`.branch` 正確寫入。
   3. 執行 `wf-state.sh stage-done <檔> 1`：確認順利成功（退出碼 0），無任何 guard 報錯。
-  4. 驗證 `advance 2 --confirmed` 正常推進至 STAGE 2。
-  5. 清理測試產物。
+  4. 驗證推進至 STAGE 2：若處於等待確認狀態（如 strict 模式）帶 `--confirmed` 執行 `advance 2 --confirmed`；若為 `balanced` 模式則直接執行 `advance 2`。
+  5. 驗證非合規狀態阻擋：針對 `jump` 模式或非 `0a/0b/1` 階段執行 `promote`，確認拋錯中止且原檔未被修改或刪除。
+  6. 清理測試產物。
 
 ---
 
