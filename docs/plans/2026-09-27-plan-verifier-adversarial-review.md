@@ -76,7 +76,7 @@
      - 定義對抗初審角色、四大審查維度（資料結構、邊界消滅、任務拆分/YAGNI、破壞性/回滾）。
      - 定義結論輸出格式（開頭或結尾必須明確為 `READY` 或 `REVISE`）。
   2. 建立 `.agents/agents/plan-verifier.yaml`：
-     - 同步更新屬性（`enable_write_tools: false`, `enable_mcp_tools: true`），`system_prompt` 完整對齊 Markdown 定義。
+     - 同步更新屬性（`enable_write_tools: false`, `enable_mcp_tools: false`），`system_prompt` 完整對齊 Markdown 定義。
 
 ### Task 2: 整合 `gen-dev-workflow` 主流程與推論契約
 - **目標檔案**：

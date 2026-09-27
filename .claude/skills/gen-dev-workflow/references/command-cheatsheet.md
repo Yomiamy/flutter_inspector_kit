@@ -14,7 +14,8 @@
     → Task("planner", "依已確認的規格產出實作計畫", effort: "xhigh")
     → 產出 docs/plans/YYYY-MM-DD-<feature>.md
     → Task("plan-verifier", "初審實作計畫", effort: "xhigh")
-    → [若 REVISE] 退回 planner 修正（最多 2 次；第 2 次仍為 REVISE 則停止由使用者決策）
+    → 初審不計入修正次數；若 REVISE，退回 planner 修正並重新調用 plan-verifier（最多 2 次修正）
+    → 第 2 次修正後的複審仍為 REVISE 時，停止自動處理並交由使用者決策
     → [若 READY] 展示實作計畫 + 初審摘要 → ⏸ 暫停確認
     # STAGE 1：先展示命名，確認後才建立
     → Skill("gen-gh-issue") 依計畫產出 Issue body（五區段 zh-tw）
