@@ -64,8 +64,10 @@ description: |
     │  → 呼叫 planner agent（依據已確認的功能規格）    │
     │  → 產出 docs/plans/YYYY-MM-DD-<feature>.md      │
     │    （How：資料結構、檔案異動、任務拆分）          │
-    │  → 呼叫 plan-verifier agent（獨立 Opus 對抗初審） │
+    │  → 呼叫 plan-verifier agent（獨立 Opus，effort: "xhigh"） │
     │     • REVISE → 退回 planner 修正（最多 2 次）   │
+    │       第 2 次仍為 REVISE → 停止自動推進，展示   │
+    │       未解決問題並交由使用者決策                │
     │     • READY  → 展示計畫與初審摘要               │
     │  ⏸ 暫停：展示實作計畫，等使用者確認              │
     └──────────────────────┬──────────────────────────┘
@@ -191,7 +193,7 @@ description: |
 | 遇到模糊需求 | 問最小必要問題（≤ 2 個），不要問多 | 使用者回答後自動繼續 |
 | PR 草稿完成後 | 展示草稿，問「確認發布嗎？」 | 使用者確認 |
 
-**不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 0b plan-verifier 初審打回（REVISE）自動重修（最多 2 次）、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見 [`references/delegation-and-parallel.md`](references/delegation-and-parallel.md)）。
+**不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 0b plan-verifier 初審打回（REVISE）自動重修（最多 2 次；第 2 次仍為 REVISE 則停止並等待使用者決策，不再自動處理）、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見 [`references/delegation-and-parallel.md`](references/delegation-and-parallel.md)）。
 
 **主動中斷（非暫停）：** context > 150k 時依 Token Budget Gate 主動保存並切 session，這**不是暫停點，是保護性中斷**——續接時不問「繼續還是開新流程」，直接接回原 stage（見 [`references/token-budget-gate.md`](references/token-budget-gate.md)）。
 
