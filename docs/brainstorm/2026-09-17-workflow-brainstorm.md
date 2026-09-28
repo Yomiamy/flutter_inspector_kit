@@ -2457,7 +2457,7 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **關鍵**：無 CI，**測試套件是唯一能真正擋住的地方**。
 - **落地狀況（2026-09-24，PR #173）**：(1) `SKILL.md` 已補正為四處版號清單與 `git add` 完整檔案清單；(2) `test/version_test.dart` 擴充為四處版號全面驗證（pubspec SemVer 嚴格錨定、`packageVersion`、README 依賴完整版號比對、CHANGELOG 首章標題比對），CI 缺失下由測試套件嚴密守護。
 
-##### 🔴 B1. Bug 1.6 workaround 正在腐蝕 `--confirmed`（P0）
+##### 🔴 B1. Bug 1.6 workaround 正在腐蝕 `--confirmed`（P0）— ✅ 已完成（2026-09-28，Issue #177 / PR #178）
 
 - **現況（已核實）**：`references/state-machine.md:96` 教模型在 STAGE 1 收尾連下兩個 `advance --confirmed`，而該旗標唯一語義是「使用者在對話中確認過」——**當下沒有使用者**。
 - **根因（已核實）**：`wf-state.sh:240` 的 `promote` 只寫 `.branch`、不動 `.stage`，卡在 `0a`，後續 `stage-done 1` 必被擋。**繞道是腳本逼出來的，非模型偷懶**。
@@ -2465,6 +2465,7 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **改法**：`promote` 的 jq 改 `.branch = $b | .stage = "1"`，刪掉 `state-machine.md:96` 整塊 workaround。**改 1 行、刪 6 行**。
 - **✅ 無人值守不受影響（已核實）**：`wf-state.sh:313` 的 `--confirmed` 檢查前綴是 `[ "$awaiting" = "true" ]`；autonomous 下 `should_pause()` 回 `false`（L148）、`stage-done` 寫入 `awaiting_confirmation=false`（L267），整句短路，**`--confirmed` 根本不會被要求**。B1 反而讓 autonomous 更乾淨（省下兩次多餘 advance）。
 - **兩者分工**：`pause_level` 管「這條流程要不要問」；`--confirmed` 管「這一次停下來後使用者答了沒」。要無人值守就設 autonomous，那是正門；B1 是把後門關上。
+- **落地狀況（2026-09-28，PR #178）**：(1) `wf-state.sh:240` 的 `promote` 於 jq 管道寫入 `.branch = $b | .stage = "1"`，並加入來源狀態檢查，確保僅支援 sequence 模式之 STAGE 0a/0b/1 晉升；(2) `state-machine.md` 徹底移除 Bug 1.6 Workaround 與假報 `--confirmed` 之操作指示，STAGE 1 晉升後直截了當呼叫 `stage-done 1`。
 
 ##### 🟡 B3. guard 在 clone 後全失效（P1）
 
@@ -2556,7 +2557,7 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 | 順位 | 項目 | 理由 | effort | 狀態 |
 |:---:|:-----|:-----|:---:|:---|
 | 1 | **B6** release 四處版號 | 已實際出過事（v1.6.0），成因原封不動 | 低 | ✅ 已完成（2026-09-24，PR #173） |
-| 2 | **B1** promote 推進 stage | 唯一硬強制的人機閘門正被自家文件磨掉 | 極低（改1刪6） | 提案 |
+| 2 | **B1** promote 推進 stage | 唯一硬強制的人機閘門正被自家文件磨掉 | 極低（改1刪6） | ✅ 已完成（2026-09-28，PR #178） |
 | 3 | **B3** 專案層 settings.json | 守衛在 clone 後靜默失效 | 極低 | 提案 |
 | 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | 提案 |
 | 5 | **B5** effort 分層表 | 可能從未生效且無訊號 | 低 | 提案 |
@@ -2564,7 +2565,7 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 | 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | 提案 |
 | 8 | **A3** lens 特徵判準 | 廢除純行數一刀切，特徵驅動衛語句 + 主審兜底 | 極低 | ✅ 已完成（2026-09-26，Issue #175） |
 
-> **📌 8 項截至 2026-09-26 已完成 2 項（B6, A3），其餘 6 項仍是提案。**
+> **📌 8 項截至 2026-09-28 已完成 3 項（B6, A3, B1），其餘 5 項仍是提案。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
 ---
