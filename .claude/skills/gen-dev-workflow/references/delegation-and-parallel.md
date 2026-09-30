@@ -13,7 +13,7 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），主�
 
 | 等級 | model（frontmatter 綁定，未變） | effort（呼叫時明確帶入，取代已移除的 frontmatter 綁定） | 綁定的 agent |
 |------|-----------------|-------------|-------------|
-| 最強推論 | `model: opus` | `effort: xhigh` | planner、reviewer、verifier |
+| 最強推論 | `model: opus` | `effort: xhigh` | planner、reviewer、verifier、plan-verifier |
 | 標準 | `model: sonnet` | `effort: max` | implementer |
 | 輕量 | `model: sonnet` | `effort: high` | brancher、responder、publisher |
 | 快/便宜 | 委派後端內部 fast model（不在 Claude 側綁定） | — | STAGE 2 機械性任務 |
@@ -41,7 +41,7 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），主�
 
 | Stage | Agent | 推論等級 | MCP 委派 | 不委派的原因 |
 |-------|-------|-----------|------------|------------|
-| 0a/0b 規劃 | planner | 最強推論 | — | 設計與計畫拆解是最高槓桿推論，錯了後面全錯 |
+| 0a/0b 規劃與初審 | planner、plan-verifier | 最強推論 | — | 設計與計畫拆解是最高槓桿推論；plan-verifier 以全新獨立 Opus 扮演對抗挑刺初審，輸出 READY/REVISE 二值契約，瓦解盲審 |
 | 1 建立 Issue + Worktree | gen-gh-issue skill + brancher | 輕量 | ✦ gh issue create/view, git worktree add, flutter pub get | Issue body 由 gen-gh-issue 產（五區段 zh-tw，或 issue-id 路徑由 brancher 解析既有 issue），brancher 依 gen-dev-worktree 規則建立 worktree + branch，皆純 IO |
 | 2 實作 | implementer | 標準（逐任務再分級，**見下方分級**） | ✦ 代碼+測試+commit（驗收委派 verifier：最強推論）| — |
 | 3 審查 | reviewer | 最強推論 | — | 根因判斷需最強推論，且不該讓產出代碼的同源 model 自審 |

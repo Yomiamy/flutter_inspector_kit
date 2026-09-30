@@ -2790,7 +2790,7 @@ Git Worktree 實體目錄隔離、PreToolUse/PostToolUse 阻斷與差集 Sensor�
 
 ### 3. 他的關鍵設計（我們沒有的）
 
-#### 3.1 `plan-verifier` (Opus) 機器對抗初審——破除人類橡皮圖章
+#### 3.1 `plan-verifier` (Opus) 機器對抗初審——破除人類橡皮圖章 — ✅ 已完成（2026-09-27 · Issue #181）
 在 STAGE 0b Plan 產出之後，通常由人類開發者檢閱確認。實務上開發者常因心智疲勞或信任慣性，
 未細究邊界條件與資料結構就直接按 Enter 放行，將架構缺陷放行到 STAGE 2。
 pilotfish 的 `plan-verifier` 以**全新上下文的獨立 Opus** 扮演挑刺者：
@@ -2823,7 +2823,7 @@ pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代
 
 | 順位 | 借鏡項 | 做法 | effort | 狀態 |
 |:---:|:---|:---|:---:|:---|
-| 1 | **D1** STAGE 0b Plan 機器對抗初審 (`plan-verifier`) | Plan 產出後、問人確認前，自動起獨立 Opus 審查資料結構與回滾邊界，輸出 `READY`/`REVISE` | 中 | 提案 |
+| 1 | **D1** STAGE 0b Plan 機器對抗初審 (`plan-verifier`) | Plan 產出後、問人確認前，自動起獨立 Opus 審查資料結構與回滾邊界，輸出 `READY`/`REVISE` | 中 | ✅ 已完成（2026-09-27 · Issue #181） |
 | 2 | **D2** STAGE 2 引入「派發煞車」硬門檻 (`Dispatch Brake`) | 明定單檔 ≤ 20 行且無公共 API 變更之微任務強制主進程原地修改，不派發 subagent | 低 | 提案 |
 | 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | 提案 |
 
@@ -2835,4 +2835,4 @@ pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代
 | 放棄 Worktree 走向單一工作目錄 | 多任務並行與 PR Review 迭代時，實體 Worktree 是防止代碼污染的唯一正解。 |
 | 放棄狀態機走向純 Prompt 軟約束 | Prompt 的道德勸說在生產環境終會破防，作業系統級的 Exit 2 阻斷與磁碟原子狀態才是真防線。 |
 
-> **📌 D1–D3 共 3 項待優化提案，任一項落地後應即時回寫本表。**
+> **📌 D2–D3 共 2 項待優化提案（D1 已於 2026-09-27 落地），任一項落地後應即時回寫本表。**
