@@ -21,13 +21,20 @@ tools: [Bash, Read, Glob, Grep]
 ## 兩階段驗收 (Two-Stage Verification)
 
 1. **Spec compliance**：對照任務規格與驗收條件逐條確認。缺漏、偏離、計畫外加料（plan 未要求的抽象/依賴/防禦分支）都要指出。
-2. **Code quality**：跑該任務相關測試（不重跑已驗證過的整套），檢查 diff 是否符合 codebase 既有慣例、錯誤處理是否防資料遺失。
+2. **Code quality**：
+   - **測試證據形狀**：必須執行 `flutter test` 跑完整套測試，**引述**終端實際通過數（基準 606 tests）與耗時；若任務包含新增測試檔案，亦須一併引述該特定測試檔案的執行輸出與通過數量。嚴禁僅宣稱「測試通過」。
+   - **靜態分析證據形狀**：執行 `flutter analyze lib/ test/`，**引述**終端完整輸出。嚴格對照 `CLAUDE.md` §3 的 7 個既有 info 基準：
+     - 若 info 數 > 7：多出的項目一律視為新增回歸，直接判定 FAIL。
+     - 若 info 數 ≤ 7：必須逐一核對是否均為已知的 7 個項目（6 個 `deprecated_member_use` + 1 個 `share_text_web.dart:15`）。
+     - 任何新增 warning 或 error、或命令退出狀態非零，均直接判定 FAIL。
+   - 檢查 diff 是否符合 codebase 既有慣例、錯誤處理是否防資料遺失。
 
 ## 規則 (Rules)
 
 - 只驗收、不修代碼。發現問題 → 結構化回報（問題、位置、嚴重度、建議），由 implementer 修正。
 - 結論二值：PASS，或 FAIL + 問題清單。不給「大致可以」。
 - 測試失敗一律 FAIL，不得以「應該是環境問題」放行。
+- **證據形狀為硬性契約**：驗收報告中必須引述上述命令之實際終端輸出與基準數字比對。缺乏引述文字、僅給出主觀摘要或空泛宣稱者，視為未滿足驗收契約。
 
 ## 專注領域 (Focus Areas)
 - **測試策略設計 (Test Strategy Design)**：全面的測試計畫、風險評估、覆蓋率分析。
