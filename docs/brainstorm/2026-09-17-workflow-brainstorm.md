@@ -2484,14 +2484,15 @@ Ponytail hook 在每次 write/edit 後被動檢查。
   第 3 條是 codebase-memory 重建索引、非守衛，且依賴 cbm MCP server 存在；留在 local 可讓 `settings.json` 語意乾淨（只放「本 repo 的流程守衛」）。
 - **⚠️ 是「搬」不是「複製」**：兩邊都註冊同一支 hook 會雙掛載、每次觸發跑兩次。權限清單與 skillOverrides 留在 local 不動。
 
-##### 🟡 B2. STAGE 3 完成度閘門是死的（P1）
+##### 🔴 B2. STAGE 3 完成度閘門是死的（P1）— ✅ 已完成（2026-10-01，Issue #183）
 
 - **現況（已核實）**：`wf-state.sh:320` 的「任務沒做完不准進審查」被 `[ "$total" != "null" ]` 守著；`init`（L217）寫入 `total_tasks:null`；全 repo 中 `total_tasks` 僅出現在 `wf-state.sh` 自身與 `state-machine.md:117`/`:140`，**而那兩處是 JSON schema 範例、非操作指示**。
 - **結論**：`set` 白名單雖含 `total_tasks`（L175，技術上可設），但**沒有任何地方教人設**，故實務上永遠是 null，**閘門從未觸發過**。
 - **擋哪裡**：只擋 `advance <檔> 3`（STAGE 2→3）。其餘階段不受影響（該段 code 僅在 `[ "$next" = "3" ]` 時進入）。
 - **真正危害**：不是「少一道保護」（漏做任務 reviewer 本來就會抓），而是**假保護**——`state-machine.md:117` 範例寫著 `"total_tasks": 5`，讀者會以為機制是活的。
-- **改法**：二選一，**別留半殘**。(a) SKILL.md 的 STAGE 1→2 交接加一步 `wf-state.sh set <檔> total_tasks=<N>`；(b) 連同 schema 欄位一併刪除。
+- **改法**：採方案 (a) 活化閘門：在 `SKILL.md`、`state-machine.md`、`command-cheatsheet.md` 明確加入 STAGE 2 起手由實作計畫解析總任務數 $N$，並執行 `wf-state.sh set <檔> total_tasks=<N>`。
 - **不改變操作手感**：正常做完所有任務時 `completed_tasks == total_tasks`，閘門靜默放行，只在異常時出聲。
+- **落地狀況（2026-10-01，Issue #183）**：(1) `SKILL.md` 的 STAGE 2 流程圖加入解析任務數並設定 `total_tasks` 的操作指示；(2) `state-machine.md` 與 `command-cheatsheet.md` 補齊設定步驟；(3) 建立 `tests/test_wf_state_total_tasks.sh` 自動化驗證完成度閘門阻斷與放行。
 
 ##### 🟡 B5. effort 分層表可能從未生效（P1）
 
@@ -2560,13 +2561,13 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 | 1 | **B6** release 四處版號 | 已實際出過事（v1.6.0），成因原封不動 | 低 | ✅ 已完成（2026-09-24，PR #173） |
 | 2 | **B1** promote 推進 stage | 唯一硬強制的人機閘門正被自家文件磨掉 | 極低（改1刪6） | ✅ 已完成（2026-09-28，PR #178） |
 | 3 | **B3** 專案層 settings.json | 守衛在 clone 後靜默失效 | 極低 | 提案 |
-| 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | 提案 |
+| 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | ✅ 已完成（2026-10-01，Issue #183） |
 | 5 | **B5** effort 分層表 | 可能從未生效且無訊號 | 低 | 提案 |
 | 6 | A1 skill linter | 已知 1 檔中招，寫一次永久擋住 | 低 | 提案 |
 | 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | ✅ 已完成（2026-09-27，Issue #179） |
 | 8 | **A3** lens 特徵判準 | 廢除純行數一刀切，特徵驅動衛語句 + 主審兜底 | 極低 | ✅ 已完成（2026-09-26，Issue #175） |
 
-> **📌 8 項截至 2026-09-28 已完成 4 項（B6, A3, A2, B1），其餘 4 項仍是提案。**
+> **📌 8 項截至 2026-10-01 已完成 5 項（B6, A3, A2, B1, B2），其餘 3 項仍是提案。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
 ---
