@@ -24,15 +24,15 @@
 
 ## 2. 異動檔案清單 (File Changes)
 
-1. [`.claude/skills/gen-dev-workflow/SKILL.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/.claude/skills/gen-dev-workflow/SKILL.md)
+1. [`.claude/skills/gen-dev-workflow/SKILL.md`](../../.claude/skills/gen-dev-workflow/SKILL.md)
    - STAGE 2 實作段落加入解析計畫任務總數並呼叫 `wf-state.sh set <檔> total_tasks=<N>` 的明確指示。
-2. [`.claude/skills/gen-dev-workflow/references/state-machine.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/.claude/skills/gen-dev-workflow/references/state-machine.md)
+2. [`.claude/skills/gen-dev-workflow/references/state-machine.md`](../../.claude/skills/gen-dev-workflow/references/state-machine.md)
    - 生命週期表加入 STAGE 2 起手設定 `total_tasks` 的指示與範例說明。
-3. [`.claude/skills/gen-dev-workflow/references/command-cheatsheet.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/.claude/skills/gen-dev-workflow/references/command-cheatsheet.md)
+3. [`.claude/skills/gen-dev-workflow/references/command-cheatsheet.md`](../../.claude/skills/gen-dev-workflow/references/command-cheatsheet.md)
    - 典型 Sequence 流程中補上 `wf-state.sh set <檔> total_tasks=<N>`。
-4. [`tests/test_wf_state_total_tasks.sh`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/tests/test_wf_state_total_tasks.sh) (新建立驗證腳本)
+4. [`tests/test_wf_state_total_tasks.sh`](../../tests/test_wf_state_total_tasks.sh) (新建立驗證腳本)
    - 包含正向（全數完成放行）、負向（未完成阻擋）、null 兼容（Quick/Jump 模式無任務時不阻擋）的自動化驗證。
-5. [`docs/brainstorm/2026-09-17-workflow-brainstorm.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/docs/brainstorm/2026-09-17-workflow-brainstorm.md)
+5. [`docs/brainstorm/2026-09-17-workflow-brainstorm.md`](../brainstorm/2026-09-17-workflow-brainstorm.md)
    - 回寫 §8.2 B2 與 §8.5 表格，將 B2 標記為 ✅ 已完成。
 
 ---

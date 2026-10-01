@@ -12,15 +12,15 @@
 在 `gen-dev-workflow` 狀態機實作中，[`scripts/wf-state.sh:325`](../../.claude/skills/gen-dev-workflow/scripts/wf-state.sh#L325) 內建了進入 STAGE 3（審查階段）的完成度檢查邏輯：
 
 ```bash
-3)
-  # STAGE 2→3：任務完成度校驗
+if [ "$next" = "3" ] && [ "$mode" = "sequence" ]; then
   total="$(jq -r '.total_tasks' "$f")"
   if [ "$total" != "null" ]; then
     completed_count="$(jq -r '.completed_tasks | length' "$f")"
     if [ "$completed_count" -lt "$total" ]; then
-      die "尚有未完成任務（已完成 $completed_count / 應完成 $total），禁止進入 STAGE 3 審查"
+      die "實作尚未全部完成（已完成 $completed_count / 共 $total 任務），拒絕推進至 STAGE 3"
     fi
   fi
+fi
 ```
 
 ### 現存缺陷
@@ -62,7 +62,7 @@
 1. **AC-1 指令設定生效**：
    - 執行 `wf-state.sh set <檔> total_tasks=3` 後，`wf-state.sh get <檔>` 輸出的 `.total_tasks` 必須為數值 `3`。
 2. **AC-2 提前推進阻斷**：
-   - 當 `total_tasks=3`，但 `completed_tasks` 僅有 `[1, 2]` 時，執行 `wf-state.sh advance <檔> 3 --confirmed` 必須 exit 1，並輸出 `尚有未完成任務（已完成 2 / 應完成 3），禁止進入 STAGE 3 審查`。
+   - 當 `total_tasks=3`，但 `completed_tasks` 僅有 `[1, 2]` 時，執行 `wf-state.sh advance <檔> 3 --confirmed` 必須 exit 1，並輸出 `實作尚未全部完成（已完成 2 / 共 3 任務），拒絕推進至 STAGE 3`。
 3. **AC-3 全數完成放行**：
    - 當 `completed_tasks` 達到 `[1, 2, 3]` 時，執行 `wf-state.sh advance <檔> 3 --confirmed` 必須成功 exit 0，且狀態變更為 `stage: "3"`。
 4. **AC-4 文件鏈路閉環**：
