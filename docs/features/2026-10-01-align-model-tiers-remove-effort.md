@@ -19,7 +19,7 @@
 |---|---|---|
 | **分層維度** | 宣稱為「Model + effort 二維分層」（表列 xhigh / max / high / —） | **純 Model 一維分層**：最強推論 (`model: opus`)、標準/輕量 (`model: sonnet`)、快/便宜 (fast model) |
 | **Effort 生效方式** | 文件宣稱「呼叫時必須明確帶入」，但實務上除了單一範例或註解外從未帶入，STAGE 2/3 的差異化未曾自動發生 | **Session 自然繼承**：effort 是執行階段由使用者/環境設定的思考強度，子 Agent 天然繼承主對話 session，不在架構層偽裝分層 |
-| **防禦與例外噪音** | 文件充斥 40 行關於 `effort: 'xhigh'` / `'max'` 撞 400 錯誤、thinking 被關閉時排查、版本歷史的繁複警告 | **消滅邊界情況**：既然流程派發不再指定 `effort` 參數，不相容的組合與 400 邊界直接在流程層消失，大幅減少認知負擔 |
+| **防禦與例外噪音** | 文件充斥 40 行關於 `effort: 'xhigh'` / `'max'` 撞 400 錯誤、thinking 被關閉時排查、版本歷史的繁複警告 | **降低調度風險**：流程派發不再主動指定 `effort` 參數，避免主動引入不相容組合（模型與 thinking 本身相容性由 session 統一掌控） |
 | **文件真實度** | 文件所寫（推論等級表）與 codebase 實況（`.claude/agents/*.md` 只有 `model` 綁定）存在認知脫節 | **程式碼 > 文件**：文件精確描述真實運作的機制，符合「premature catalog entries become aspirational documentation」的去假原則 |
 
 ### 根因分析
@@ -50,6 +50,7 @@
 ### AC-2：清理殘留的虛假 effort 參數與噪音
 - [ ] 移除 `delegation-and-parallel.md` 中關於 `effort: 'xhigh'` / `'max'` 撞 400 的長篇歷史背景說明，若保留提示，僅留 1 行極簡說明。
 - [ ] `.claude/skills/gen-dev-workflow/references/workflow-parallel.md` 範例代碼中清理多餘的 `effort:` 覆蓋參數，註解同步校正。
+- [ ] 清理 `references/command-cheatsheet.md` 與 `references/execution-modes.md` 中殘留的 `effort` 參數。
 - [ ] `SKILL.md` 中 STAGE 0b 呼叫說明去除 `effort: "xhigh"`，回歸單純的「獨立 Opus」。
 
 ### AC-3：Brainstorm 文件狀態核實回寫
@@ -63,6 +64,8 @@
 - **In Scope**：
   - 更新 `references/delegation-and-parallel.md`。
   - 更新 `references/workflow-parallel.md`。
+  - 更新 `references/command-cheatsheet.md`。
+  - 更新 `references/execution-modes.md`。
   - 更新 `SKILL.md`。
   - 更新 `docs/brainstorm/2026-09-17-workflow-brainstorm.md`。
 - **Out of Scope**：

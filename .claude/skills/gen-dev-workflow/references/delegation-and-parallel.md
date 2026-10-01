@@ -23,7 +23,7 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），主�
 - effort **由主對話 session 統一繼承**：子 agent 自動跟隨 session 的思考強度（low / medium / high / xhigh），派發時無需顯式指定 `effort` 參數。
 - 要調整某角色的等級 → 改該 agent 檔的 `model` 一行即可，無需在呼叫端散落硬編碼。
 
-> 註：在未啟用 thinking 的環境下若底層嘗試使用不相容的 effort 曾有 400 報錯前例；由主對話 session 統一繼承 effort 可避免因子 agent 寫死或指定不支援的參數而撞 API 約束。
+> 註：在未啟用 thinking 的環境下，底層使用不相容的 effort 可能返回 400；由主對話 session 統一繼承 effort 能避免子 agent 自行寫死或指定參數造成衝突。繼承的 effort 與 thinking 設定仍需與目標 model 相容。
 
 ### Stage 層級的基準分配
 

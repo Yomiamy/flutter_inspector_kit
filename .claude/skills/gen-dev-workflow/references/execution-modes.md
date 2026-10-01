@@ -23,7 +23,7 @@ quick <描述或 #issue>
    - 改完跑相關測試（不重跑整套）
   ▼
 ③ Task("reviewer", "快掃 <branch> diff，單 lens：correctness")
-   - 保住「不讓同源 model 自審」原則（reviewer frontmatter 綁定 `model: opus` 最強推論）；發現問題 → 主對話修正後重掃
+   - 保住「不讓實作模型自審」原則（reviewer frontmatter 綁定 `model: opus` 最強推論，確保獨立交叉審查強度）；發現問題 → 主對話修正後重掃
    - quick 模式無 verifier 兩階段驗收，這是唯一的品質關卡
   ▼
 ④ 呼叫 gen-commit skill 執行 commit → 用 gen-pr skill 產 PR 草稿
