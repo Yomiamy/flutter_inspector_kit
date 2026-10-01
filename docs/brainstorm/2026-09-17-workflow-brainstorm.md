@@ -2499,12 +2499,13 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **不改變操作手感**：正常做完所有任務時 `completed_tasks == total_tasks`，閘門靜默放行，只在異常時出聲。
 - **落地狀況（2026-10-01，Issue #183）**：(1) `SKILL.md` 的 STAGE 2 流程圖加入解析任務數並設定 `total_tasks` 的操作指示；(2) `state-machine.md` 與 `command-cheatsheet.md` 補齊設定步驟；(3) 建立 `tests/test_wf_state_total_tasks.sh` 自動化驗證完成度閘門阻斷與放行。
 
-##### 🟡 B5. effort 分層表可能從未生效（P1）
+##### 🟡 B5. effort 分層表可能從未生效（P1）— ✅ 已完成（2026-10-01，Issue #185）
 
 - **現況**：`delegation-and-parallel.md:10` 自承 commit `a6fcd29` 移除 agent frontmatter 的 `effort:` 後，STAGE 2 便宜 / STAGE 3 最強的分層**只有每次手動帶參數才會發生**，漏帶無任何訊號。
 - **附帶風險**：文件自記 `effort: xhigh` 在 thinking 未開啟時曾撞 `400`，代表該路徑實際被走過且會靜默降級。
-- **改法**：二選一——放回 frontmatter，或砍掉分層表只留 `model` 欄（那個有真綁定）。**別留著說謊**。
+- **改法**：採二選一之「砍掉分層表只留 `model` 欄（那個有真綁定），回歸 session 全域繼承」。消滅假分層與派發時必須顯式帶參的虛假要求，精簡 400 報錯排查為極簡註記，全面對齊單一事實。
 - **原則來源**：上游 `orchestration-patterns.md` 規定 pattern 須實際用過兩次並有具名產物才准入冊——「premature catalog entries become aspirational documentation」。
+- **落地產物**：`docs/features/2026-10-01-align-model-tiers-remove-effort.md`、`docs/plans/2026-10-01-align-model-tiers-remove-effort.md`、`.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`、`.claude/skills/gen-dev-workflow/references/workflow-parallel.md`、`.claude/skills/gen-dev-workflow/SKILL.md`。
 
 > 📌 **事實在案補記（2026-10-03 · 詳見 [`docs/orchestration-model-effort-analysis.md`](../architecture/orchestration-model-effort-analysis.md)）**：
 > 1. **上游實況查證**：經查證 Claude Code 官方文檔，Subagent YAML Frontmatter 支援 `effort`（可覆蓋主對話 session 值）；當前 CLI 工具派發介面未支援執行期 `effort` 參數傳遞。
@@ -2572,12 +2573,12 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 | 2 | **B1** promote 推進 stage | 唯一硬強制的人機閘門正被自家文件磨掉 | 極低（改1刪6） | ✅ 已完成（2026-09-28，PR #178） |
 | 3 | **B3** 專案層 settings.json | 守衛在 clone 後靜默失效 | 極低 | 提案 |
 | 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | ✅ 已完成（2026-10-01，Issue #183） |
-| 5 | **B5** effort 分層表 | 可能從未生效且無訊號 | 低 | 提案 |
+| 5 | **B5** effort 分層表 | 砍掉說謊的 effort 欄位，回歸純 Model 等級與 session 繼承 | 低 | ✅ 已完成（2026-10-01，Issue #185） |
 | 6 | A1 skill linter | 已知 1 檔中招，寫一次永久擋住 | 低 | 提案 |
 | 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | ✅ 已完成（2026-09-27，Issue #179） |
 | 8 | **A3** lens 特徵判準 | 廢除純行數一刀切，特徵驅動衛語句 + 主審兜底 | 極低 | ✅ 已完成（2026-09-26，Issue #175） |
 
-> **📌 8 項截至 2026-10-01 已完成 5 項（B6, A3, A2, B1, B2），其餘 3 項仍是提案。**
+> **📌 8 項截至 2026-10-01 已完成 6 項（B6, A3, A2, B1, B2, B5），其餘 2 項仍是提案。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
 ---
