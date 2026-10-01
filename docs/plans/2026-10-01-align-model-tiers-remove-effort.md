@@ -26,6 +26,8 @@
 |---|---|---|
 | `.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md` | 修改 | 推論等級表砍掉 effort 欄位，改為純 Model 等級表；精簡 400 說明為極簡註記；驗收說明移除 explicit effort 要求 |
 | `.claude/skills/gen-dev-workflow/references/workflow-parallel.md` | 修改 | 清理範例程式碼中多餘的 `effort:` 覆蓋參數 |
+| `.claude/skills/gen-dev-workflow/references/command-cheatsheet.md` | 修改 | 清理快速參考中的殘留 effort 參數 |
+| `.claude/skills/gen-dev-workflow/references/execution-modes.md` | 修改 | 修正 quick 模式 reviewer 獨立性描述，避免同源模型自審 |
 | `.claude/skills/gen-dev-workflow/SKILL.md` | 修改 | STAGE 0b 呼叫 `plan-verifier` 移除冗餘的 `effort: "xhigh"` |
 | `docs/brainstorm/2026-09-17-workflow-brainstorm.md` | 修改 | 更新 B5 條目與 §8.5 表格，標記為已完成 |
 
@@ -46,13 +48,16 @@
   4. 更新 STAGE 2 驗收與 Stage 層級分配等章節，刪除「需明確帶入 `effort: xhigh`」之描述。
 - **驗收**：檔案內不再宣稱「派發時必須顯式帶入 effort」，表格真實反映 frontmatter 與 session 繼承關係。
 
-### Task 2: 清理 `workflow-parallel.md` 與 `SKILL.md` 的殘留參數
+### Task 2: 清理 `workflow-parallel.md`、`command-cheatsheet.md`、`execution-modes.md` 與 `SKILL.md` 的殘留參數
 - **檔案**：
   - `.claude/skills/gen-dev-workflow/references/workflow-parallel.md`
+  - `.claude/skills/gen-dev-workflow/references/command-cheatsheet.md`
+  - `.claude/skills/gen-dev-workflow/references/execution-modes.md`
   - `.claude/skills/gen-dev-workflow/SKILL.md`
 - **操作**：
   1. 在 `workflow-parallel.md` 範例代碼中，移除 `effort: 'high'`、`effort: task.effort`、`effort: 'xhigh'`。註解同步說明「effort 繼承 session」。
-  2. 在 `SKILL.md` 第 67 行，將 `呼叫 plan-verifier agent（獨立 Opus，effort: "xhigh"）` 簡化為 `呼叫 plan-verifier agent（獨立 Opus）`。
+  2. 在 `command-cheatsheet.md` 與 `execution-modes.md` 中清理殘留的 effort 參數，並調整 quick 模式 reviewer 獨立性說明。
+  3. 在 `SKILL.md` 第 67 行，將 `呼叫 plan-verifier agent（獨立 Opus，effort: "xhigh"）` 簡化為 `呼叫 plan-verifier agent（獨立 Opus）`。
 - **驗收**：`git diff` 確認範例代碼與流程描述一致。
 
 ### Task 3: 更新 Brainstorm 文件追蹤狀態
@@ -74,5 +79,5 @@
 - **向後相容性（Never break userspace）**：
   - 各 Agent frontmatter 的 `model:` 綁定維持不變，執行時所使用的模型不變。
   - Subagent 繼承 session effort 是 Claude Code 目前的既定行為，此改動只是將文件與實況對齊，不改變任何執行時期行為。
-- **消滅邊界情況**：
-  - 停止在文件要求模型顯式傳遞 `effort: xhigh`，從根本上避免了在 thinking 未開啟時撞 400 錯誤的潛在風險。
+- **消滅邊界情況 / 降低調度風險**：
+  - 流程派發不再主動指定 `effort` 參數，避免主動引入不相容參數組合；模型與 thinking 本身相容性由 session 統一掌控。

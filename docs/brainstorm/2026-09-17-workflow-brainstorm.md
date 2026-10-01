@@ -2505,7 +2505,7 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **附帶風險**：文件自記 `effort: xhigh` 在 thinking 未開啟時曾撞 `400`，代表該路徑實際被走過且會靜默降級。
 - **改法**：採二選一之「砍掉分層表只留 `model` 欄（那個有真綁定），回歸 session 全域繼承」。消滅假分層與派發時必須顯式帶參的虛假要求，精簡 400 報錯排查為極簡註記，全面對齊單一事實。
 - **原則來源**：上游 `orchestration-patterns.md` 規定 pattern 須實際用過兩次並有具名產物才准入冊——「premature catalog entries become aspirational documentation」。
-- **落地產物**：`docs/features/2026-10-01-align-model-tiers-remove-effort.md`、`docs/plans/2026-10-01-align-model-tiers-remove-effort.md`、`.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`、`.claude/skills/gen-dev-workflow/references/workflow-parallel.md`、`.claude/skills/gen-dev-workflow/SKILL.md`。
+- **落地產物**：`docs/features/2026-10-01-align-model-tiers-remove-effort.md`、`docs/plans/2026-10-01-align-model-tiers-remove-effort.md`、`.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`、`.claude/skills/gen-dev-workflow/references/workflow-parallel.md`、`.claude/skills/gen-dev-workflow/references/command-cheatsheet.md`、`.claude/skills/gen-dev-workflow/references/execution-modes.md`、`.claude/skills/gen-dev-workflow/SKILL.md`。
 
 > 📌 **事實在案補記（2026-10-03 · 詳見 [`docs/orchestration-model-effort-analysis.md`](../architecture/orchestration-model-effort-analysis.md)）**：
 > 1. **上游實況查證**：經查證 Claude Code 官方文檔，Subagent YAML Frontmatter 支援 `effort`（可覆蓋主對話 session 值）；當前 CLI 工具派發介面未支援執行期 `effort` 參數傳遞。
