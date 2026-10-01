@@ -64,7 +64,7 @@ description: |
     │  → 呼叫 planner agent（依據已確認的功能規格）    │
     │  → 產出 docs/plans/YYYY-MM-DD-<feature>.md      │
     │    （How：資料結構、檔案異動、任務拆分）          │
-    │  → 呼叫 plan-verifier agent（獨立 Opus，effort: "xhigh"） │
+    │  → 呼叫 plan-verifier agent（獨立 Opus）         │
     │     • 初審不計入修正次數；若 REVISE，退回 planner 修正   │
     │       並重新初審（最多 2 次修正；第 2 次修正後的複審仍為 │
     │       REVISE 時停止自動推進，交由使用者決策）           │
