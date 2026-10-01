@@ -22,9 +22,13 @@
     → Task("brancher", "產出分支/worktree 名稱草稿，先不要建立", effort: "high")
     → 展示 Issue 標題/內容 + 分支/worktree 名稱 → ⏸ 暫停確認
     → 確認後才執行 gh issue create 與 worktree/branch 建立
-    → Task("implementer", "執行 <plan 路徑>", effort: "max")
+    # STAGE 2：實作（先過「派發煞車」門檻）
+    → 逐任務檢查：單檔 ≤ 20 行且無公共 API 變更 → 🛑 原地修改 + 原地跑測試（不派發 subagent）
+    → 其餘任務 → Task("implementer", "執行 <plan 路徑>", effort: "max")
+    # STAGE 3：審查
     → Task("reviewer", "審查 <branch-name>", effort: "xhigh")
     → [若不通過] Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
+    # STAGE 4：發布
     → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>", effort: "high")
     → 暫停確認 → 完成
 ```
@@ -38,7 +42,8 @@
                        決定 prefix/slug，先只產出名稱草稿不要建立", effort: "high")
     → [等 brancher 完成] → 展示解析後的 brief + branch/worktree 名稱 → ⏸ 暫停確認
     → 確認後才建立 worktree + branch → cd 進新 worktree
-    → Task("implementer", "依 issue brief 執行實作", effort: "max")
+    # STAGE 2：實作（先過「派發煞車」門檻）
+    → 微任務原地修改跑測；其餘任務 → Task("implementer", "依 issue brief 執行實作", effort: "max")
     → Task("reviewer", "審查 <branch-name>", effort: "xhigh")
     → [若不通過] Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
     → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>", effort: "high")
@@ -56,6 +61,7 @@
 | `繼續` ／ `繼續上次` | 接續本 session 或當前 branch 的未完成流程 |
 | `繼續批次` | `/clear` 後於新 session 接續批次的下一項 |
 | `停止批次` | 中止批次（只刪佇列檔，branch/PR/worktree 保留） |
+| **STAGE 2 派發煞車 (Dispatch Brake)** | 單檔 ≤ 20 行且無公共 API 變更強制主進程原地修改，不派發 subagent |
 | **quick 做到一半發現超出範圍** | **沒有指令**——由 Claude 判斷後停下提議，或你直接說「這超出範圍了，走完整流程」。作法是收工重來，不是接續升級（見 [`execution-modes.md`](execution-modes.md) 的「超出範圍時」） |
 | `PR #<id> 合併了，清理 worktree` | STAGE 6：**先推進狀態**（見下方「狀態前置步驟」）→ 同步文件 → commit → 移除 worktree（branch 保留） |
 
