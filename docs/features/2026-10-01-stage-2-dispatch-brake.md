@@ -43,16 +43,16 @@
 
 ### AC-1：STAGE 2 流程引入 Dispatch Brake 判斷
 - [ ] `.claude/skills/gen-dev-workflow/SKILL.md` 的 STAGE 2 流程步驟加入「派發煞車 (Dispatch Brake)」門檻。
-- [ ] 明定微任務（單檔 ≤ 20 行且無公共 API 變更）原地修改，不派發 implementer。
+- [ ] 明定微任務（單檔 ≤ 20 行且無公共 API 變更）原地修改，不派發 implementer，且並行模式僅限未命中煞車之非微任務。
 
 ### AC-2：標準化 Dispatch Brake 硬門檻與分級表
 - [ ] `.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md` 的「STAGE 2 implementer 內部的 model 分級」表加入首優先行：
   - 微任務（單檔 ≤ 20 行且無公共 API 變更）→ 原地修改（派發煞車，禁止派發 subagent）。
 - [ ] 重構「不委派的硬規則」章節，將「派發煞車 (Dispatch Brake)」列為核心硬門檻並闡明設計動機（消除調度延遲與 context 開銷）。
-- [ ] 明確微任務驗收方式：主進程原地執行測試，不需派發獨立 verifier subagent。
+- [ ] 明確微任務驗收方式：主進程原地執行測試，不需派發獨立 verifier subagent；並行契約同步排除微任務。
 
 ### AC-3：速查指引同步更新
-- [ ] `.claude/skills/gen-dev-workflow/references/command-cheatsheet.md` 在 STAGE 2 相關章節補充 Dispatch Brake 的判準與原地執行原則。
+- [ ] `.claude/skills/gen-dev-workflow/references/command-cheatsheet.md` 在 STAGE 2 與 STAGE 3 審查不通過修正流程中，補充 Dispatch Brake 的判準與原地執行原則。
 
 ### AC-4：Brainstorm 狀態回寫
 - [ ] `docs/brainstorm/2026-09-17-workflow-brainstorm.md` §3.2 補充 D2 落地說明。

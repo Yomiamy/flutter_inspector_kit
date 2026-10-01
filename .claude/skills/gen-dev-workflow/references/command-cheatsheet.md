@@ -27,7 +27,7 @@
     → 其餘任務 → Task("implementer", "執行 <plan 路徑>", effort: "max")
     # STAGE 3：審查
     → Task("reviewer", "審查 <branch-name>", effort: "xhigh")
-    → [若不通過] Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
+    → [若不通過] 退回 STAGE 2；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
     # STAGE 4：發布
     → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>", effort: "high")
     → 暫停確認 → 完成
@@ -45,7 +45,7 @@
     # STAGE 2：實作（先過「派發煞車」門檻）
     → 微任務原地修改跑測；其餘任務 → Task("implementer", "依 issue brief 執行實作", effort: "max")
     → Task("reviewer", "審查 <branch-name>", effort: "xhigh")
-    → [若不通過] Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
+    → [若不通過] 退回 STAGE 2；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
     → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>", effort: "high")
     → 暫停確認 → 完成
 ```

@@ -38,8 +38,8 @@
 - **操作**：
   - 在 STAGE 2 的 ASCII 流程圖中，明確加入「派發煞車 (Dispatch Brake)」前置衛語句：
     - 微任務（單檔 ≤ 20 行且無公共 API 變更）→ 🛑 煞車：主進程原地修改，不派發 subagent，原地跑測試。
-    - 其餘任務 → 逐任務動態分級委派 implementer（≥2 個獨立任務可並行）。
-- **驗收**：STAGE 2 流程步驟清楚呈現煞車分支，避免無條件呼叫 implementer。
+    - 其餘任務 → 判斷並行模式（≥2 個獨立非微任務可並行）並委派實作。
+- **驗收**：STAGE 2 流程步驟清楚呈現煞車分支，避免無條件呼叫 implementer，且並行限制在非微任務。
 
 ### Task 2: 重構 `delegation-and-parallel.md` 的 model 分級與不委派硬規則
 - **檔案**：`.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`
@@ -50,13 +50,14 @@
      - 定義 Dispatch Brake 三要素：單一檔案、變更 ≤ 20 行、無公共 API 變更。
      - 闡述核心哲學：消除調度延遲與 context 膨脹。
      - 明定驗收規則：微任務由主進程直接執行相關測試（如 `flutter test`），不派發 verifier subagent。
-- **驗收**：分級表與文字規則完全吻合，定義精準無歧義。
+  3. 更新「並行執行契約」，明確指出並行條件僅適用於未命中派發煞車之獨立非微任務。
+- **驗收**：分級表、不委派規則與並行契約完全吻合，定義精準無歧義。
 
 ### Task 3: 更新 `command-cheatsheet.md` 的 STAGE 2 速查指引
 - **檔案**：`.claude/skills/gen-dev-workflow/references/command-cheatsheet.md`
 - **操作**：
-  - 在 STAGE 2 常用指令與操作指引中，補充 Dispatch Brake 的判斷速查：
-    - 提醒編排者遇單檔 ≤ 20 行微任務直接在主對話編輯與跑測試，不派發子 agent。
+  - 在 STAGE 2 與 STAGE 3 審查不通過退回修正流程中，補充 Dispatch Brake 的判斷速查：
+    - 提醒編排者遇單檔 ≤ 20 行微任務直接在主對話編輯與跑測試，不派發子 agent；審查修正亦同。
 - **驗收**：速查手冊與核心規範保持一致。
 
 ### Task 4: 更新 Brainstorm 文件狀態追蹤
