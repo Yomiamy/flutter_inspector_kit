@@ -2797,11 +2797,10 @@ pilotfish 的 `plan-verifier` 以**全新上下文的獨立 Opus** 扮演挑刺�
 檢驗資料結構是否最小化、邊界情況是否已消滅、異動範圍是否過度發散、是否具備回滾措施，
 並強制輸出 `READY`（放行給人類）或 `REVISE`（打回給 planner 重改）。
 
-#### 3.2 `Dispatch Brake` (派發煞車)——消滅微任務的調度延遲
+#### 3.2 `Dispatch Brake` (派發煞車)——消滅微任務的調度延遲 — ✅ 已完成（2026-10-01 · Issue #187）
 LLM 在具備 Subagent 能力後常出現「懶惰化派發」現象：連讀取單一檔案或改動 2 行代碼，
 都下意識啟動子進程，導致浪費數萬 Token 與數十秒的冷啟動延遲。
-pilotfish 在決策層嵌入「派發煞車」，規範未達複雜度閾值的微小任務**必須留在主進程直接執行**，
-並以 `benchmarks/dispatch-brake/` 套件進行回歸測試。
+現已於 `SKILL.md` 與 `delegation-and-parallel.md` 嵌入「派發煞車」硬門檻：規範單檔 ≤ 20 行且無公共 API 變更之微任務**必須留在主進程原地修改與跑測**，嚴禁派發子進程。
 
 #### 3.3 驗收三值契約 (`CONFIRMED / REFUTED / INCONCLUSIVE`)
 現行 Verifier 報告常以長篇 Markdown 呈現，結論隱含在文字中，容易使主指揮產生誤判。
@@ -2824,7 +2823,7 @@ pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代
 | 順位 | 借鏡項 | 做法 | effort | 狀態 |
 |:---:|:---|:---|:---:|:---|
 | 1 | **D1** STAGE 0b Plan 機器對抗初審 (`plan-verifier`) | Plan 產出後、問人確認前，自動起獨立 Opus 審查資料結構與回滾邊界，輸出 `READY`/`REVISE` | 中 | ✅ 已完成（2026-09-27 · Issue #181） |
-| 2 | **D2** STAGE 2 引入「派發煞車」硬門檻 (`Dispatch Brake`) | 明定單檔 ≤ 20 行且無公共 API 變更之微任務強制主進程原地修改，不派發 subagent | 低 | 提案 |
+| 2 | **D2** STAGE 2 引入「派發煞車」硬門檻 (`Dispatch Brake`) | 明定單檔 ≤ 20 行且無公共 API 變更之微任務強制主進程原地修改，不派發 subagent | 低 | ✅ 已完成（2026-10-01 · Issue #187） |
 | 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | 提案 |
 
 ### 6. 刻意不學（保持 Good Taste 的底線）
@@ -2835,4 +2834,4 @@ pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代
 | 放棄 Worktree 走向單一工作目錄 | 多任務並行與 PR Review 迭代時，實體 Worktree 是防止代碼污染的唯一正解。 |
 | 放棄狀態機走向純 Prompt 軟約束 | Prompt 的道德勸說在生產環境終會破防，作業系統級的 Exit 2 阻斷與磁碟原子狀態才是真防線。 |
 
-> **📌 D2–D3 共 2 項待優化提案（D1 已於 2026-09-27 落地），任一項落地後應即時回寫本表。**
+> **📌 D3 剩 1 項待優化提案（D1 於 2026-09-27、D2 於 2026-10-01 落地），落地後應即時回寫本表。**

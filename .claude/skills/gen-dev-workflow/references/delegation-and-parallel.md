@@ -1,7 +1,7 @@
 # Model 委派與並行契約（gen-dev-workflow 參考）
 
 > 本檔是 `gen-dev-workflow` 主 skill 的委派與並行參考。主檔（`../SKILL.md`）在派發子 agent、決定並行、或處理失敗 retry 時指向這裡。
-> 本檔收錄「推論等級表」（唯一定義處）、完整綁定原則、風險註記、Stage 分配、implementer 分級、不委派硬規則，以及並行契約全文。
+> 本檔收錄「推論等級表」（唯一定義處）、完整綁定原則、風險註記、Stage 分配、implementer 分級、派發煞車 (Dispatch Brake) 與不委派硬規則，以及並行契約全文。
 
 ## Model 與委派策略
 
@@ -49,17 +49,18 @@ Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），主�
 | 5 回覆 PR Review | responder（→ reviewer → publisher） | responder: 輕量；reviewer: 最強推論；publisher: 輕量 | — | responder 逐條意見判斷用輕量即可；中間 reviewer 是交叉驗證的把關點，吃重推論不降級 |
 | 6 清理 Worktree | gen-sync-docs-by-branchs → gen-commit → worktree-close-cleanup skill | —（skill 於主對話執行） | — | 先同步文件再 commit，確保 docs 反映分支最終狀態；之後由主對話親自執行 `git worktree remove`（不委派 MCP），事後驗證 `git worktree list` / `git branch --list` |
 
-### STAGE 2 implementer 內部的 model 分級
+### STAGE 2 任務分級與「派發煞車 (Dispatch Brake)」
 
-implementer 不該對所有任務一律用同一 model。讀取實作計畫後，**逐任務依複雜度分級**（對齊 `subagent-driven-development` 的 Model Selection）：
+實作任務不該盲目派發子進程。讀取實作計畫後，**逐任務先過「派發煞車」門檻，其餘依複雜度分級**（對齊 `subagent-driven-development` 的 Model Selection）：
 
 | 任務複雜度信號 | 委派等級 | 範例 |
 |---|---|---|
+| **單檔 ≤ 20 行且無公共 API 變更（微任務）** | **🛑 原地修改（派發煞車，禁止派發 subagent）** | 改常數、修 typo、補單行防禦/assert、修文件註解 |
 | 觸及 1–2 檔、規格完整、機械性 | 快/便宜 | 新增一個 DTO 欄位、補一個 util function |
 | 觸及多檔、需整合協調 | 標準 | 跨 service 串接、改既有流程 |
 | 需設計判斷或廣泛 codebase 理解 | 最強推論 | 重構狀態機、新增跨層架構 |
 
-planner 在實作計畫中**應為每個任務標註複雜度等級**，implementer 直接據此分派；未標註時 implementer 自行依上表判定。
+planner 在實作計畫中**應為每個任務標註複雜度等級**，若為微任務則標記 `[原地修改]`，編排者直接據此分派；未標註時編排者自行依上表判定。
 
 ### STAGE 2 驗收的 model（與實作 model 分離）
 
@@ -69,19 +70,28 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
 
 > 落地方式：`Task("verifier", ..., effort: "xhigh")` 或 Workflow 的 `agent('驗收任務...', {agentType: 'verifier', effort: 'xhigh', ...})` 執行（見 `references/workflow-parallel.md` 適用點 2 的 verify 階段）。這是 STAGE 2 唯一會脫離「主對話 model」的環節；`effort: 'xhigh'` 不可省略，省略會落回 session 當前 effort。
 
-### 不委派的硬規則
+> **微任務驗收例外（派發煞車配套）**：命中派發煞車之微任務（單檔 ≤ 20 行且無公共 API 變更），由主進程在原地執行相關測試（如 `flutter test`），**不派發獨立 verifier subagent**，避免 5 行改動卻付出獨立 Opus 驗收的來回延遲；非微任務之一般實作任務仍嚴格維持上述 verifier 獨立驗收契約。
 
-以下情況即使 MCP 委派可用也**不委派**（短文直生反而更省一次 context 來回）：
-- commit message 生成（實作 model 依 diff 直生）
-- 單一檔案 < 50 行的小修正
-- STAGE 3 審查報告（reviewer 親自判斷，不可委派。註：可選的「多 angle 對抗式審查」用 Claude Workflow 的 verifier 平行找 bug 作為輸入，reviewer 仍親自收斂判斷並產出報告，兩者不衝突——見 `references/workflow-parallel.md` 適用點 3）
-- **對外動作一律自己執行**：`gh pr create`、`git push` 不委派子進程動手，且須先通過對應暫停點
+### STAGE 2 派發煞車 (Dispatch Brake) 與不委派硬規則
+
+以下情況即使 MCP 或 Subagent 可用也**不委派**（短文直生與原地修改反而更省一次 context 來回與冷啟動延遲）：
+
+1. **STAGE 2 派發煞車 (Dispatch Brake) 硬門檻**：
+   - **條件（三要素缺一不可）**：
+     1. 僅觸及單一檔案。
+     2. 預期變更行數 ≤ 20 行。
+     3. 無任何公共 API（公開 class / method / signature / export）變更。
+   - **行為**：主進程原地修改代碼，並在原地執行測試。**嚴禁派發 implementer subagent**。
+   - **動機**：啟動子 Agent 需複製 context、初始化工具鏈與進程 IPC，耗時 30–60 秒與數萬 token。微任務原地完成可消滅神經質派發與不必要的調度延遲。
+2. **commit message 生成**（實作 model 依 diff 直生）。
+3. **STAGE 3 審查報告**（reviewer 親自判斷，不可委派。註：可選的「多 angle 對抗式審查」用 Claude Workflow 的 verifier 平行找 bug 作為輸入，reviewer 仍親自收斂判斷並產出報告，兩者不衝突——見 `references/workflow-parallel.md` 適用點 3）。
+4. **對外動作一律自己執行**：`gh pr create`、`git push` 不委派子進程動手，且須先通過對應暫停點
 
 ---
 
 ## 並行執行契約
 
-並行的固定發生處有兩個：**STAGE 0a 的 context 收集（雙線）** 與 **STAGE 2 的獨立任務並行**。另有第三處**僅在使用者 opt-in 多 agent 編排時**成立：**STAGE 3 的多 angle 對抗式審查**（平行 verifier 只是輸入，reviewer 仍親自收斂判斷並產出報告——定義見 [`workflow-parallel.md`](workflow-parallel.md)，該檔為唯一來源）。
+並行的固定發生處有兩個：**STAGE 0a 的 context 收集（雙線）** 與 **STAGE 2 中未命中派發煞車的獨立任務並行**。另有第三處**僅在使用者 opt-in 多 agent 編排時**成立：**STAGE 3 的多 angle 對抗式審查**（平行 verifier 只是輸入，reviewer 仍親自收斂判斷並產出報告——定義見 [`workflow-parallel.md`](workflow-parallel.md)，該檔為唯一來源）。
 
 宣告並行的地方都必須遵守以下契約——光標 🟢 不算數，沒有契約的並行會在衝突時靜默壞掉。
 
@@ -91,7 +101,7 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，implemen
                   待處理工作
                        │
           ┌────────────┴────────────┐
-          │ ≥2 個工作單元，且彼此    │
+          │ ≥2 個非微任務，且彼此    │
           │ 無資料依賴、寫入路徑     │
           │ 互不重疊？               │
           └────────────┬────────────┘
