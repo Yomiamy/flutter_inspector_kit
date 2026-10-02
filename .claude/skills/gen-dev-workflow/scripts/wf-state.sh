@@ -323,9 +323,13 @@ case "$cmd" in
     fi
     if [ "$next" = "3" ] && [ "$mode" = "sequence" ]; then
       total="$(jq -r '.total_tasks' "$f")"
-      completed_count="$(jq -r '.completed_tasks | length' "$f")"
-      if [ "$total" != "null" ] && [ "$completed_count" -lt "$total" ]; then
-        die "實作尚未全部完成（已完成 $completed_count / 共 $total 任務），拒絕推進至 STAGE 3"
+      if [ "$total" != "null" ]; then
+        completed_count="$(jq -r '.completed_tasks | length' "$f")"
+        if [ "$completed_count" -lt "$total" ]; then
+          die "實作尚未全部完成（已完成 $completed_count / 共 $total 任務），拒絕推進至 STAGE 3"
+        elif [ "$completed_count" -gt "$total" ]; then
+          die "任務狀態異常：已完成數 ($completed_count) 超出宣告總數 ($total)。若實作中追加了任務，請先更新計畫並執行 wf-state.sh set <檔> total_tasks=<N>"
+        fi
       fi
     fi
     jq --arg s "$next" '.stage = $s | .awaiting_confirmation = false | .interrupted_by = null' \

@@ -23,6 +23,7 @@
     → 展示 Issue 標題/內容 + 分支/worktree 名稱 → ⏸ 暫停確認
     → 確認後才執行 gh issue create 與 worktree/branch 建立
     # STAGE 2：實作（先過「派發煞車」門檻）
+    → cd 進新 worktree，解析計畫任務總數 N，執行 wf-state.sh set <檔> total_tasks=<N>
     → 逐任務檢查：單檔 ≤ 20 行且無公共 API 變更 → 🛑 原地修改 + 原地跑測試（不派發 subagent）
     → 其餘任務 → Task("implementer", "執行 <plan 路徑>", effort: "max")
     # STAGE 3：審查
@@ -43,6 +44,7 @@
     → [等 brancher 完成] → 展示解析後的 brief + branch/worktree 名稱 → ⏸ 暫停確認
     → 確認後才建立 worktree + branch → cd 進新 worktree
     # STAGE 2：實作（先過「派發煞車」門檻）
+    → 解析任務總數 N，執行 wf-state.sh set <檔> total_tasks=<N>
     → 微任務原地修改跑測；其餘任務 → Task("implementer", "依 issue brief 執行實作", effort: "max")
     → Task("reviewer", "審查 <branch-name>", effort: "xhigh")
     → [若不通過] 退回 STAGE 2；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
