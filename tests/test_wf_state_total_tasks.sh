@@ -82,4 +82,36 @@ if [ "$CUR_STAGE2" != "3" ]; then
 fi
 echo "PASS: null total_tasks passes backward-compatibly"
 
+echo "=== Test 5: advance to 3 blocked when completed_tasks > total_tasks ==="
+TEMP_DIR3="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR" "$TEMP_DIR2" "$TEMP_DIR3"' EXIT
+export STATE_DIR="$TEMP_DIR3"
+
+INIT_OUTPUT3="$("$WF_STATE" init --mode sequence --stage 0a)"
+"$WF_STATE" advance "$INIT_OUTPUT3" 0b --confirmed
+"$WF_STATE" advance "$INIT_OUTPUT3" 1 --confirmed
+STATE_FILE3="$("$WF_STATE" promote "$INIT_OUTPUT3" --branch "test/test-overflow" --dest "$TEMP_DIR3")"
+"$WF_STATE" advance "$STATE_FILE3" 2 --confirmed
+
+"$WF_STATE" set "$STATE_FILE3" total_tasks=2
+"$WF_STATE" task-done "$STATE_FILE3" 1
+"$WF_STATE" task-done "$STATE_FILE3" 2
+"$WF_STATE" task-done "$STATE_FILE3" 3
+
+set +e
+ERR_OUTPUT3="$("$WF_STATE" advance "$STATE_FILE3" 3 --confirmed 2>&1)"
+STATUS3=$?
+set -e
+
+if [ $STATUS3 -eq 0 ]; then
+  echo "FAIL: Expected advance 3 to fail when completed > total, but it succeeded!" >&2
+  exit 1
+fi
+
+if [[ "$ERR_OUTPUT3" != *"任務狀態異常：已完成數 (3) 超出宣告總數 (2)"* ]]; then
+  echo "FAIL: Unexpected error message: $ERR_OUTPUT3" >&2
+  exit 1
+fi
+echo "PASS: Blocked with expected message: $ERR_OUTPUT3"
+
 echo "ALL TESTS PASSED!"

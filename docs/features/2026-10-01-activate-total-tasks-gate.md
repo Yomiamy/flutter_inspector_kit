@@ -67,3 +67,6 @@ fi
    - 當 `completed_tasks` 達到 `[1, 2, 3]` 時，執行 `wf-state.sh advance <檔> 3 --confirmed` 必須成功 exit 0，且狀態變更為 `stage: "3"`。
 4. **AC-4 文件鏈路閉環**：
    - `gen-dev-workflow/SKILL.md`、`state-machine.md`、`command-cheatsheet.md` 皆已正確標註設定步驟與範例。
+5. **AC-5 狀態失真阻斷（超額完成）**：
+   - 當 `total_tasks=2`，但 `completed_tasks` 達到 `[1, 2, 3]` 時，執行 `wf-state.sh advance <檔> 3 --confirmed` 必須 exit 1，並輸出 `任務狀態異常：已完成數 (3) 超出宣告總數 (2)...`。
+
