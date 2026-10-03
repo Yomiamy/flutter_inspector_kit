@@ -16,7 +16,7 @@
 兩條唯讀調查（A. 專案 context 讀檔/git log｜B. 相似功能代碼調查），無依賴、不寫檔 → 天然安全的 `parallel()` barrier，收斂後才交給 planner 撰寫規格。
 
 ```js
-// meta 省略；agentType 用 Explore（唯讀搜尋）但指定 model 覆蓋（effort 繼承主對話 session）
+// meta 省略；agentType 用 Explore（唯讀搜尋）但指定 model 覆蓋（effort 將依 agent frontmatter 設定覆蓋 session）
 const [projCtx, similarCode] = await parallel([
   () => agent('收集專案 context：讀 README / pubspec / 近期 git log，回報架構與慣例', {agentType: 'Explore', model: 'sonnet', schema: CTX_SCHEMA}),
   () => agent('調查與「<需求>」相似的既有實作，回報可參考的檔案與模式', {agentType: 'Explore', model: 'sonnet', schema: CTX_SCHEMA}),
@@ -26,11 +26,11 @@ const [projCtx, similarCode] = await parallel([
 
 ## 適用點 2：STAGE 2 同批獨立任務
 
-planner 已在計畫中標好各任務的**寫入檔案 scope** 與**複雜度等級**。同一批內「寫入路徑不重疊」的任務 → `pipeline()` 並行，**每個任務沿用原本的逐任務 model 分級**（`opts.model` 帶入計畫標註的等級；effort 統一由主對話 session 繼承）。
+planner 已在計畫中標好各任務的**寫入檔案 scope** 與**複雜度等級**。同一批內「寫入路徑不重疊」的任務 → `pipeline()` 並行，**每個任務沿用原本的逐任務 model 分級**（`opts.model` 帶入計畫標註的等級；effort 將自動套用各 agent frontmatter 的設定以覆蓋 session）。
 
 ```js
 // batch = 當前批次中路徑不重疊的任務；model 來自計畫的複雜度標註（等級 → 綁定見 delegation-and-parallel.md 的「Model 等級表」）
-// 驗收固定走 verifier agent（frontmatter 綁定 model: opus；effort 繼承主對話 session）
+// 驗收固定走 verifier agent（frontmatter 綁定 model: opus 與最高 effort，直接生效）
 const results = await pipeline(
   batch,
   task => agent(task.prompt, {label: task.id, agentType: 'implementer', model: task.model, isolation: 'worktree', schema: TASK_SCHEMA}),
@@ -85,7 +85,7 @@ if (!isNearTokenBudgetLimit) {
   }
 }
 
-// 每個 lens 對齊 verifier 綁定（model: opus；effort 繼承主對話 session）
+// 每個 lens 對齊 verifier 綁定（model: opus；effort 依 frontmatter 設定覆蓋 session）
 const findings = (await parallel([
   // 1. 核心基線：correctness 必開
   () => agent('以 correctness 視角審查 <branch> 的 diff，盡力挑出真實問題',

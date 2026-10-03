@@ -5,25 +5,25 @@
 
 ## Model 與委派策略
 
-Model 別名綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），主文件只寫**角色名**與**推論等級名**——這是降低 model 換代維護成本的核心，換代時只動 agent 檔一行（甚至因為用別名而完全免改）。
+Model 別名與 Effort 等級綁在各 agent 檔的 frontmatter（`.claude/agents/*.md`），主文件只寫**角色名**與**推論等級名**——這是降低換代與維護成本的核心，調整時只動 agent 檔即可。
 
-> **effort 由 Session 全域掌握與繼承。** 各 agent 的 frontmatter 僅綁定 `model`；子 agent 預設完全繼承主對話 session 目前的 effort 與 thinking 設定。不逐 agent 或逐 stage 人工指派 effort，消滅虛假分層與派發時必須顯式帶參的維護負擔。
+> **effort 由 Agent Frontmatter 明確配置並覆蓋 Session。** 各 agent 的 frontmatter 根據角色需求綁定 `model` 與 `effort`（如 `xhigh` 或 `max`）；這會自動覆蓋主對話 session 當前的 effort 設定。藉由這種機制，我們確保核心規劃與審查角色（如 planner、reviewer）必定具備最高推論預算，而不依賴使用者手動調高 session 設定。
 
 ### Model 等級表（等級 → 綁定，全文唯一定義處）
 
-| 等級 | model（frontmatter 綁定） | 綁定的 agent |
+| 等級 | frontmatter 綁定 | 綁定的 agent |
 |------|-----------------|-------------|
-| 最強推論 | `model: opus` | planner、reviewer、verifier、plan-verifier |
-| 標準 | `model: sonnet` | implementer |
-| 輕量 | `model: sonnet` | brancher、responder、publisher |
+| 最強推論 | `model: opus`<br>`effort: max` / `xhigh` | planner、reviewer、verifier、plan-verifier |
+| 標準 | `model: sonnet`<br>`effort: high` / 未指定 | implementer |
+| 輕量 | `model: sonnet`<br>未指定 effort | brancher、responder、publisher |
 | 快/便宜 | 委派後端內部 fast model（不在 Claude 側綁定） | STAGE 2 機械性任務 |
 
 **綁定原則：**
 - model 一律用**別名**（`opus`/`sonnet`），不綁版本 ID——CLI 自動解析到當代 model。
-- effort **由主對話 session 統一繼承**：子 agent 自動跟隨 session 的思考強度（low / medium / high / xhigh），派發時無需顯式指定 `effort` 參數。
-- 要調整某角色的等級 → 改該 agent 檔的 `model` 一行即可，無需在呼叫端散落硬編碼。
+- effort **由各 Agent Frontmatter 覆蓋**：子 agent 啟動時會優先採用 frontmatter 內定義的 `effort`，這取代了單純依賴 session 繼承的做法，確保關鍵任務有足夠推論深度。
+- 要調整某角色的等級 → 改該 agent 檔的 `model` 或 `effort` 即可，無需在呼叫端散落硬編碼。
 
-> 註：在未啟用 thinking 的環境下，底層使用不相容的 effort 可能返回 400；由主對話 session 統一繼承 effort 能避免子 agent 自行寫死或指定參數造成衝突。繼承的 effort 與 thinking 設定仍需與目標 model 相容。
+> 註：配置了高 effort（如 `xhigh` 或 `max`）的 Agent 必須在支援 thinking 的環境下執行。Frontmatter 統一掌控能確保這些組合正確配置。
 
 ### Stage 層級的基準分配
 
