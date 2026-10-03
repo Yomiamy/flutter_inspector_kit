@@ -2146,7 +2146,7 @@ fs 層限制候選（上表三個 ❌ 項技術上同樣做得到，差別在採
 > 跨 session 怎麼接」，複雜度超過已知問題的嚴重度。待真的發生「莫名升級到最強仍失敗
 > 且事後查不出升級過幾次」才是動工時機。
 
-> 📌 **事實在案補記（2026-10-03 · 詳見 [`docs/orchestration-model-effort-analysis.md`](../orchestration-model-effort-analysis.md)）**：
+> 📌 **事實在案補記（2026-10-03 · 詳見 [`docs/orchestration-model-effort-analysis.md`](../architecture/orchestration-model-effort-analysis.md)）**：
 > 1. **API 400 根因已由官方規範證實**：Anthropic Messages API 對 **Claude Opus 5 及更晚世代** 施加世代性組合約束（Combination Constraint），當 `output_config.effort` 為 `xhigh` 或 `max` 時嚴格要求 thinking 必須啟用；若在該模型上傳送 `thinking: {type: "disabled"}`，API 必然回傳 `400 output_config.effort 'xhigh' is not supported when thinking is disabled on this model`。
 > 2. **上游 Claude Code 追蹤狀態**：Issue [#79798](https://github.com/anthropics/claude-code/issues/79798)（WebSearch 內部請求因 hardcoded thinking disabled 碰撞 session effort 致 400）已於 **v2.1.221 修復 (Fixed)**；而 Issue [#76689](https://github.com/anthropics/claude-code/issues/76689)（使用者手動關閉 thinking 或組織策略停用 extended thinking 時帶 effort xhigh 致 400）**目前仍為 OPEN 狀態**。
 > 3. **Subagent Frontmatter 支援度澄清**：上游 Claude Code 官方文件明確支援在 subagent frontmatter 中宣告 `effort:`（`low`/`medium`/`high`/`xhigh`/`max`）。此前 commit `a6fcd29` 移除 subagent frontmatter 的 `effort:` 實為對 400 錯誤根因的**誤診與誤殺 (misattribution)**，誤將 API 組合約束當成 frontmatter 語法缺陷；且因 Claude Code CLI `Agent` tool 並無 `effort` 參數，frontmatter 實為目前唯一可行的宣告式分級途徑。
@@ -2506,7 +2506,7 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **改法**：二選一——放回 frontmatter，或砍掉分層表只留 `model` 欄（那個有真綁定）。**別留著說謊**。
 - **原則來源**：上游 `orchestration-patterns.md` 規定 pattern 須實際用過兩次並有具名產物才准入冊——「premature catalog entries become aspirational documentation」。
 
-> 📌 **事實在案補記（2026-10-03 · 詳見 [`docs/orchestration-model-effort-analysis.md`](../orchestration-model-effort-analysis.md)）**：
+> 📌 **事實在案補記（2026-10-03 · 詳見 [`docs/orchestration-model-effort-analysis.md`](../architecture/orchestration-model-effort-analysis.md)）**：
 > 1. **上游實況查證**：經查證 Claude Code 官方文檔，Subagent YAML Frontmatter 支援 `effort`（可覆蓋主對話 session 值）；當前 CLI 工具派發介面未支援執行期 `effort` 參數傳遞。
 > 2. **重構建議**：應修復 `a6fcd29` 的誤殺，重新將 `effort: xhigh` 與 `effort: max` 宣告回 `.claude/agents/*.md` frontmatter；同時於 PreToolUse Hook（`wf-guard-stage-check.sh`）建立計算式 Sensor，當偵測環境停用 thinking 時主動降級，根治 400 風險。
 
