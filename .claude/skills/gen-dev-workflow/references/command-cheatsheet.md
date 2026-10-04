@@ -4,7 +4,7 @@
 ```text
 使用者：幫我做 <需求描述>
 
-你：好，開始執行開發流程。（effort 依「推論等級表」明確帶入，`xhigh` 的 400 風險註記見 `references/delegation-and-parallel.md`）
+你：好，開始執行開發流程。
     # STAGE 0·grill：需求盤問（planner 之前的必經步驟）
     呼叫 gen-grill skill → Q1–Q4 齊備（或符合短路條件）且 Q5 已跑完 → 產出 brief
     # STAGE 0a：功能規格（What & Why）
@@ -38,7 +38,7 @@
 ```text
 使用者：開發 issue #54
 
-你：好，直接進 STAGE 1。（effort 依「推論等級表」明確帶入）
+你：好，直接進 STAGE 1。
     Task("brancher", "解析 issue #54 內容為實作 brief，依 gen-dev-worktree 規則
                        決定 prefix/slug，先只產出名稱草稿不要建立")
     → [等 brancher 完成] → 展示解析後的 brief + branch/worktree 名稱 → ⏸ 暫停確認
@@ -69,7 +69,7 @@
 
 ## 跳入特定階段 (`mode: jump`)
 
-所有跳入指令都以 `mode: "jump"` 寫入狀態檔。每條呼叫都須依「推論等級表」明確帶 `effort` 參數。
+所有跳入指令都以 `mode: "jump"` 寫入狀態檔。
 
 🔴 **每條跳入指令的第一步都是推進狀態，不可跳過。** 本表只列觸發語與動作；動手前先跑下方「狀態前置步驟」的對應指令，否則該次執行不會留在狀態機的軌跡上。
 
