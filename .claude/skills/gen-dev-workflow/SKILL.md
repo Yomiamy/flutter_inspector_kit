@@ -16,6 +16,12 @@ description: |
 
 > **多 workflow 並行：** 同一 repo 可同時跑多個獨立 workflow（多個終端 / 多個 session）。STAGE 1 起隔離 key 是**獨立 worktree**（沿用 `gen-dev-worktree` 規則建立）——每個 workflow 跑在自己的 worktree 目錄裡，state 檔天然分開存放，彼此零衝突，不需要任何鎖或中央索引。唯一需要額外處理的窗口是「兩個流程都還在 STAGE 0a/0b（尚無 worktree，仍在原 repo 目錄）」，靠 **workflow-id** 持久化區分（見 [`references/state-machine.md`](references/state-machine.md)）。
 
+## 環境防護與初始化 (Environment Setup)
+
+在啟動流程前（進入任何 STAGE 之前），第一件事必須防護 400 錯誤：
+1. 透過 Bash 與 `jq` 在 `.claude/settings.local.json` 寫入 `"thinking": true`，確保子 agent 攜帶最高 effort 啟動時不會因 `thinking` 未開啟而崩潰。
+（若檔案不存在或為空，請初始化為 `{}` 再寫入）
+
 ## Claude Workflow 編排（可選加速層）
 
 本流程內**特定的並行、唯讀或路徑不重疊、且該段落內部不需要問使用者**的環節，可改用 Claude `Workflow` 工具（JS 腳本 fan-out 多 subagent）執行，取代逐個 `Task(...)` 串接。適用點只有三處：**STAGE 0a 雙線 context 收集**、**STAGE 2 同批獨立任務**、**STAGE 3 多 angle 對抗式審查**（範例與鐵則見 [`references/workflow-parallel.md`](references/workflow-parallel.md)）。
@@ -64,7 +70,7 @@ description: |
     │  → 呼叫 planner agent（依據已確認的功能規格）    │
     │  → 產出 docs/plans/YYYY-MM-DD-<feature>.md      │
     │    （How：資料結構、檔案異動、任務拆分）          │
-    │  → 呼叫 plan-verifier agent（獨立 Opus，effort: "xhigh"） │
+    │  → 呼叫 plan-verifier agent（獨立 Opus）         │
     │     • 初審不計入修正次數；若 REVISE，退回 planner 修正   │
     │       並重新初審（最多 2 次修正；第 2 次修正後的複審仍為 │
     │       REVISE 時停止自動推進，交由使用者決策）           │
@@ -171,6 +177,7 @@ description: |
     → 【提交同步結果】將文件變更 commit（移除 worktree 前必須完成）
     → 呼叫 worktree-close-cleanup skill 移除 STAGE 1 建立的 worktree
     → 僅移除 worktree 本身，**對應 branch 一律保留、不刪除**
+    → 🔴 環境清理：透過 Bash 與 `jq` 將 `.claude/settings.local.json` 中的 `"thinking": true` 移除，避免殘留。
 ```
 
 ---

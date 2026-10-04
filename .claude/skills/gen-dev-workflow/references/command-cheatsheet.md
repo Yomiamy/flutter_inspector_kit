@@ -4,33 +4,33 @@
 ```text
 使用者：幫我做 <需求描述>
 
-你：好，開始執行開發流程。（effort 依「推論等級表」明確帶入，`xhigh` 的 400 風險註記見 `references/delegation-and-parallel.md`）
+你：好，開始執行開發流程。
     # STAGE 0·grill：需求盤問（planner 之前的必經步驟）
     呼叫 gen-grill skill → Q1–Q4 齊備（或符合短路條件）且 Q5 已跑完 → 產出 brief
     # STAGE 0a：功能規格（What & Why）
-    Task("planner", "依 grill brief 為 <需求描述> 撰寫功能規格", effort: "xhigh")
+    Task("planner", "依 grill brief 為 <需求描述> 撰寫功能規格")
     → 產出 docs/features/YYYY-MM-DD-<feature>.md → 展示 → ⏸ 暫停確認
     # STAGE 0b：實作計畫（How）——兩階段不可合併，0a 未確認不得進 0b
-    → Task("planner", "依已確認的規格產出實作計畫", effort: "xhigh")
+    → Task("planner", "依已確認的規格產出實作計畫")
     → 產出 docs/plans/YYYY-MM-DD-<feature>.md
-    → Task("plan-verifier", "初審實作計畫", effort: "xhigh")
+    → Task("plan-verifier", "初審實作計畫")
     → 初審不計入修正次數；若 REVISE，退回 planner 修正並重新調用 plan-verifier（最多 2 次修正）
     → 第 2 次修正後的複審仍為 REVISE 時，停止自動處理並交由使用者決策
     → [若 READY] 展示實作計畫 + 初審摘要 → ⏸ 暫停確認
     # STAGE 1：先展示命名，確認後才建立
     → Skill("gen-gh-issue") 依計畫產出 Issue body（五區段 zh-tw）
-    → Task("brancher", "產出分支/worktree 名稱草稿，先不要建立", effort: "high")
+    → Task("brancher", "產出分支/worktree 名稱草稿，先不要建立")
     → 展示 Issue 標題/內容 + 分支/worktree 名稱 → ⏸ 暫停確認
     → 確認後才執行 gh issue create 與 worktree/branch 建立
     # STAGE 2：實作（先過「派發煞車」門檻）
     → cd 進新 worktree，解析計畫任務總數 N，執行 wf-state.sh set <檔> total_tasks=<N>
     → 逐任務檢查：單檔 ≤ 20 行且無公共 API 變更 → 🛑 原地修改 + 原地跑測試（不派發 subagent）
-    → 其餘任務 → Task("implementer", "執行 <plan 路徑>", effort: "max")
+    → 其餘任務 → Task("implementer", "執行 <plan 路徑>")
     # STAGE 3：審查
-    → Task("reviewer", "審查 <branch-name>", effort: "xhigh")
-    → [若不通過] 退回 STAGE 2；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
+    → Task("reviewer", "審查 <branch-name>")
+    → [若不通過] 退回 STAGE 2；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>")
     # STAGE 4：發布
-    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>", effort: "high")
+    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>")
     → 暫停確認 → 完成
 ```
 
@@ -38,17 +38,17 @@
 ```text
 使用者：開發 issue #54
 
-你：好，直接進 STAGE 1。（effort 依「推論等級表」明確帶入）
+你：好，直接進 STAGE 1。
     Task("brancher", "解析 issue #54 內容為實作 brief，依 gen-dev-worktree 規則
-                       決定 prefix/slug，先只產出名稱草稿不要建立", effort: "high")
+                       決定 prefix/slug，先只產出名稱草稿不要建立")
     → [等 brancher 完成] → 展示解析後的 brief + branch/worktree 名稱 → ⏸ 暫停確認
     → 確認後才建立 worktree + branch → cd 進新 worktree
     # STAGE 2：實作（先過「派發煞車」門檻）
     → 解析任務總數 N，執行 wf-state.sh set <檔> total_tasks=<N>
-    → 微任務原地修改跑測；其餘任務 → Task("implementer", "依 issue brief 執行實作", effort: "max")
-    → Task("reviewer", "審查 <branch-name>", effort: "xhigh")
-    → [若不通過] 退回 STAGE 2；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>", effort: "max")
-    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>", effort: "high")
+    → 微任務原地修改跑測；其餘任務 → Task("implementer", "依 issue brief 執行實作")
+    → Task("reviewer", "審查 <branch-name>")
+    → [若不通過] 退回 STAGE 2；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>")
+    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>")
     → 暫停確認 → 完成
 ```
 
@@ -69,7 +69,7 @@
 
 ## 跳入特定階段 (`mode: jump`)
 
-所有跳入指令都以 `mode: "jump"` 寫入狀態檔。每條呼叫都須依「推論等級表」明確帶 `effort` 參數。
+所有跳入指令都以 `mode: "jump"` 寫入狀態檔。
 
 🔴 **每條跳入指令的第一步都是推進狀態，不可跳過。** 本表只列觸發語與動作；動手前先跑下方「狀態前置步驟」的對應指令，否則該次執行不會留在狀態機的軌跡上。
 

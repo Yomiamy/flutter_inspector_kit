@@ -3,6 +3,7 @@ name: plan-verifier
 description: STAGE 0b 實作計畫產出後的獨立對抗初審 subagent。以全新上下文對抗審查資料結構、邊界消滅、任務拆分與破壞性，輸出 READY 或 REVISE 二值結論。
 category: quality
 model: opus
+effort: xhigh
 tools: [Read, Glob, Grep]
 ---
 

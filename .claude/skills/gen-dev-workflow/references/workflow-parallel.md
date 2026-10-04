@@ -16,25 +16,25 @@
 兩條唯讀調查（A. 專案 context 讀檔/git log｜B. 相似功能代碼調查），無依賴、不寫檔 → 天然安全的 `parallel()` barrier，收斂後才交給 planner 撰寫規格。
 
 ```js
-// meta 省略；agentType 用 Explore（唯讀搜尋）但強制指定 model 與 effort 覆蓋
+// meta 省略；agentType 用 Explore（唯讀搜尋）但指定 model 覆蓋（effort 將依 agent frontmatter 設定覆蓋 session）
 const [projCtx, similarCode] = await parallel([
-  () => agent('收集專案 context：讀 README / pubspec / 近期 git log，回報架構與慣例', {agentType: 'Explore', model: 'sonnet', effort: 'high', schema: CTX_SCHEMA}),
-  () => agent('調查與「<需求>」相似的既有實作，回報可參考的檔案與模式', {agentType: 'Explore', model: 'sonnet', effort: 'high', schema: CTX_SCHEMA}),
+  () => agent('收集專案 context：讀 README / pubspec / 近期 git log，回報架構與慣例', {agentType: 'Explore', model: 'sonnet', schema: CTX_SCHEMA}),
+  () => agent('調查與「<需求>」相似的既有實作，回報可參考的檔案與模式', {agentType: 'Explore', model: 'sonnet', schema: CTX_SCHEMA}),
 ])
 // 回到主對話：planner 收斂 projCtx + similarCode → 撰寫 docs/features/...md → 暫停確認（不在 Workflow 內）
 ```
 
 ## 適用點 2：STAGE 2 同批獨立任務
 
-planner 已在計畫中標好各任務的**寫入檔案 scope** 與**複雜度等級**。同一批內「寫入路徑不重疊」的任務 → `pipeline()` 並行，**每個任務沿用原本的逐任務 model 分級**（`opts.model` 帶入計畫標註的等級）；**effort 需另外依推論等級表帶入**（`opts.model` 只管 model，不會連帶設定 effort）。
+planner 已在計畫中標好各任務的**寫入檔案 scope** 與**複雜度等級**。同一批內「寫入路徑不重疊」的任務 → `pipeline()` 並行，**每個任務沿用原本的逐任務 model 分級**（`opts.model` 帶入計畫標註的等級；effort 將自動套用各 agent frontmatter 的設定以覆蓋 session）。
 
 ```js
-// batch = 當前批次中路徑不重疊的任務；model/effort 來自計畫的複雜度標註（等級 → 綁定見 delegation-and-parallel.md 的「推論等級表」）
-// 驗收固定走 verifier agent + effort: 'xhigh'（frontmatter 只綁 model，effort 不隨實作任務浮動，需顯式帶）
+// batch = 當前批次中路徑不重疊的任務；model 來自計畫的複雜度標註（等級 → 綁定見 delegation-and-parallel.md 的「Model 等級表」）
+// 驗收固定走 verifier agent（frontmatter 綁定 model: opus 與最高 effort，直接生效）
 const results = await pipeline(
   batch,
-  task => agent(task.prompt, {label: task.id, agentType: 'implementer', model: task.model, effort: task.effort, isolation: 'worktree', schema: TASK_SCHEMA}),
-  (impl, task) => agent(`驗收任務 ${task.id}：跑測試、檢查 diff`, {label: `verify:${task.id}`, agentType: 'verifier', effort: 'xhigh', schema: VERIFY_SCHEMA}),
+  task => agent(task.prompt, {label: task.id, agentType: 'implementer', model: task.model, isolation: 'worktree', schema: TASK_SCHEMA}),
+  (impl, task) => agent(`驗收任務 ${task.id}：跑測試、檢查 diff`, {label: `verify:${task.id}`, agentType: 'verifier', schema: VERIFY_SCHEMA}),
 )
 // 回到主對話：聚合 results → 寫 state（completed_tasks）→ 在「每批完成」暫停點展示 → 問使用者確認下一批
 ```
@@ -85,20 +85,20 @@ if (!isNearTokenBudgetLimit) {
   }
 }
 
-// 每個 lens effort 對齊 STAGE 3 最強推論——不是任意選填
+// 每個 lens 對齊 verifier 綁定（model: opus；effort 依 frontmatter 設定覆蓋 session）
 const findings = (await parallel([
   // 1. 核心基線：correctness 必開
   () => agent('以 correctness 視角審查 <branch> 的 diff，盡力挑出真實問題',
-    {label: 'review:correctness', agentType: 'verifier', effort: 'xhigh', schema: FINDING_SCHEMA}),
+    {label: 'review:correctness', agentType: 'verifier', schema: FINDING_SCHEMA}),
   
   // 2. 特徵驅動的專門 lens
   ...activeSpecialLenses.map(lens => () =>
     agent(`以 ${lens} 視角審查 <branch> 的 diff，盡力挑出真實問題`,
-      {label: `review:${lens}`, agentType: 'verifier', effort: 'xhigh', schema: FINDING_SCHEMA})),
+      {label: `review:${lens}`, agentType: 'verifier', schema: FINDING_SCHEMA})),
 
   // 3. 核心基線：過度工程（Ponytail）必開。verifier 子進程看不到 ponytail hook，判準必須明文內嵌。
   () => agent(`以「過度工程/可簡化」視角審查 <branch> 的 diff 對照已確認的 plan：挑出計畫沒要求卻新增的抽象（單一實作的 interface、單一產品的 factory、永不變的 config、留給未來的 scaffolding、可用既有 helper/stdlib 取代的自製輪子）。每條 finding 必附刪除方案（刪哪些行、刪後 diff 是否更小、既有測試是否仍過）。絕不把信任邊界輸入驗證、防資料遺失、security、a11y 列為可簡化項。`,
-    {label: 'review:過度工程', agentType: 'verifier', effort: 'xhigh', schema: FINDING_SCHEMA}),
+    {label: 'review:過度工程', agentType: 'verifier', schema: FINDING_SCHEMA}),
 ])).filter(Boolean).flatMap(r => r.findings)
 
 // 回到主對話：reviewer 親自收斂 findings、去重、判定真偽 → 寫審查報告 → 暫停展示（不委派）
