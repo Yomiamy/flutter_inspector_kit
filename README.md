@@ -544,7 +544,7 @@ Logger.root.onRecord.listen((r) => forwardLogRecord(inspector, r));
 ```
 
 - `Logger.root` defaults to `Level.INFO`, so `CONFIG`, `FINE`, `FINER` and `FINEST` records are never emitted until you lower it (`Logger.root.level = Level.ALL;`).
-- With `hierarchicalLoggingEnabled` at its default (`false`), the root receives every named logger's records, including those from third-party packages that log through `logging`.
+- With `hierarchicalLoggingEnabled` at its default (`false`), the root receives every named logger's records, including those from third-party packages that log through `logging`. If you enable it, records still propagate up to the root, but each logger's own `level` becomes the gate instead of `Logger.root.level`.
 
 #### Notes for all three
 
