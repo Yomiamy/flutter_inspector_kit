@@ -690,7 +690,7 @@ final talker = Talker(observer: InspectorTalkerObserver(inspector));
 ```
 
 - talker exports its own `LogLevel`, which clashes with this package's. That's why the import above uses `as kit`.
-- talker's log level (`TalkerLoggerSettings.level`) only governs console output and history. It is applied *after* observers run, so it does **not** keep records off the timeline. To exclude levels, filter by key before observers, e.g. `Talker(filter: TalkerFilter(disabledKeys: [TalkerKey.verbose, TalkerKey.debug]))`, or check `data.logLevel` in your own observer before calling `forwardTalkerData`.
+- talker's log level (`TalkerLoggerSettings.level`) only governs console output and history. It is applied *after* observers run, so it does **not** keep records off the timeline. To exclude levels, filter by key before observers, e.g. `Talker(observer: InspectorTalkerObserver(inspector), filter: TalkerFilter(disabledKeys: [TalkerKey.verbose, TalkerKey.debug]))`. A `TalkerFilter` also removes those levels from talker's own console output and history. To keep them there, check `data.logLevel` in your own observer before calling `forwardTalkerData` instead.
 - talker has a single observer slot (`Talker(observer:)` / `talker.configure(observer:)`). If you already use one (to report to Crashlytics, say), keep it and call `forwardTalkerData(inspector, data)` from its `onLog`, `onError` and `onException`.
 - Don't bridge through `talker.stream`: it delivers on a later microtask, after other timeline events have already been stamped, so entries would land out of order.
 
