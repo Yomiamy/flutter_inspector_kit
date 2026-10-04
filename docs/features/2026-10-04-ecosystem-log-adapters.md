@@ -225,7 +225,7 @@ level:, stackTrace:)` 一次呼叫即可。交付物是 README 三段可直接�
   建構子在 `error is StackTrace` 或 level 為 `all` / `off` / `nothing` 時拋 `ArgumentError`。
 - `enum Level { all(0), verbose†(999), trace(1000), debug(2000), info(3000), warning(4000), error(5000), wtf†(5999), fatal(6000), nothing†(9999), off(10000) }`，
   帶 `final int value`；`< <= > >=` 運算子自 2.6.0 起提供；`trace` / `fatal` 自 2.0.0 起提供。
-- `static void addOutputListener(OutputCallback)` / `static bool removeOutputListener(…)`，
+- `static void addOutputListener(OutputCallback)` / `static void removeOutputListener(…)`，
   其中 `typedef OutputCallback = void Function(OutputEvent)`。觸發點在
   `filter.shouldLog` 與 `printer.log` 之後，並與 `_output.output` 包在**同一個
   try-catch** 裡（例外只會被 `print`，不會傳回宿主），只在 printer 輸出非空時觸發。
