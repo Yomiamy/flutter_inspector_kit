@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:logger/logger.dart' show Logger;
+import 'package:logging/logging.dart' as logging;
+import 'package:talker/talker.dart' show Talker;
 
+import 'bridges/logger_bridge.dart';
+import 'bridges/logging_bridge.dart';
+import 'bridges/talker_bridge.dart';
 import 'demos/inappwebview_demo.dart';
+import 'demos/log_bridges_demo.dart';
 import 'demos/network_demo.dart';
 import 'demos/objectbox_demo.dart';
 import 'demos/shared_prefs_demo.dart';
@@ -13,6 +20,7 @@ import 'demos/webview_demo.dart';
 // POST_NOTIFICATIONS permission; on iOS/macOS the user is prompted on init.
 late final FlutterInspector inspector;
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+late final Talker talker;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +46,15 @@ void main() {
     // was in the foreground and which page it was on.
     captureLifecycleEvents: true,
   );
+  // Bridge existing loggers into the Console timeline (README: "Bridge
+  // existing loggers"). Every hook is synchronous, so a bridged record keeps
+  // its place among network / navigation / database events. Wire them once.
+  Logger.addOutputListener((event) => forwardLoggerEvent(inspector, event));
+  talker = Talker(observer: InspectorTalkerObserver(inspector));
+  // logging's root defaults to INFO, which drops CONFIG and below; lowered so
+  // every demo level reaches the timeline. Whatever the host mutes stays muted.
+  logging.Logger.root.level = logging.Level.ALL;
+  logging.Logger.root.onRecord.listen((r) => forwardLogRecord(inspector, r));
   runApp(const MyApp());
 }
 
@@ -89,6 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late final SharedPrefsDemo _sharedPrefsDemo;
   late final WebViewDemo _webViewDemo;
   late final InAppWebViewDemo _inAppWebViewDemo;
+  late final LogBridgesDemo _logBridgesDemo;
 
   @override
   void initState() {
@@ -99,6 +117,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _sharedPrefsDemo = SharedPrefsDemo(inspector);
     _webViewDemo = WebViewDemo(inspector);
     _inAppWebViewDemo = InAppWebViewDemo(inspector);
+    _logBridgesDemo = LogBridgesDemo(talker);
 
     // Show FAB after frame builds
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -232,6 +251,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                 },
                 child: const Text('Trigger Widget Build Error'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                // One record per level through logger, talker and logging,
+                // plus one stack-traced error each, all via the bridges wired
+                // in main(). Check colours, red rows and ⚡ Errors only.
+                onPressed: _logBridgesDemo.emitAll,
+                child: const Text('Emit Bridged Logs'),
               ),
             ],
           ),
