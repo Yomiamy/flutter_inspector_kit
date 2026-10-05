@@ -51,9 +51,9 @@ void main() {
   // its place among network / navigation / database events. Wire them once.
   Logger.addOutputListener((event) => forwardLoggerEvent(inspector, event));
   talker = Talker(observer: InspectorTalkerObserver(inspector));
-  // logging's root defaults to INFO, which drops CONFIG and below; lowered so
-  // every demo level reaches the timeline. The bridge respects whatever level
-  // the host sets.
+  // DEMO ONLY, do not copy: logging's root defaults to INFO, which drops
+  // CONFIG and below; lowered so every demo level reaches the timeline. The
+  // bridge never touches the level, so your own threshold still applies.
   logging.Logger.root.level = logging.Level.ALL;
   logging.Logger.root.onRecord.listen((r) => forwardLogRecord(inspector, r));
   runApp(const MyApp());
