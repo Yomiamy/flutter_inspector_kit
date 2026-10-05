@@ -1,6 +1,6 @@
 # P16 · 生態日誌適配器（logger / talker / logging）
 
-> **來源**：`docs/brainstorm/2026-09-19-features-brainstorm.md` §P16（第 1090–1130 行）
+> **來源**：`docs/brainstorm/2026-10-05-features-brainstorm.md` §P16（第 1090–1130 行）
 > **狀態**：功能規格（What & Why）· 2026-10-04
 > **範圍**：`README.md` 接線食譜 + `example/` 實際接線；`lib/` 零改動
 > **Effort**：trivial～low ｜ **排查價值**：⭐⭐⭐⭐
