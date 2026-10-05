@@ -446,7 +446,7 @@ Logger.addOutputListener((event) => forwardLoggerEvent(inspector, event));
 - The listener runs after your filter and printer. The default `DevelopmentFilter` drops everything in release builds, so nothing is forwarded there either.
 - One event, one entry: the text comes from the structured `LogEvent`, not the printer's output lines, so ANSI colours and box borders never reach the Console. Extras a custom printer adds (prefixes, class names) are not forwarded.
 - The listener list is static and process-wide, so register it once. Registering it twice forwards every record twice.
-- A `Function` message is evaluated twice (once by the printer, once by the bridge), so keep lazy messages free of side effects. If the second evaluation throws, `logger` skips the rest of that event's output.
+- A `Function` message is evaluated by the bridge as well as by the printer (`PrettyPrinter`, the default, and `SimplePrinter` both call it), so it can run twice per event: keep lazy messages free of side effects. If the bridge's call throws, `logger` catches it and skips the rest of that event's output.
 
 #### `package:talker`
 
