@@ -398,6 +398,170 @@ inspector.log(
 
 Available levels: `verbose`, `debug`, `info`, `warning`, `error`.
 
+### Bridge existing loggers
+
+Already logging through [`logger`](https://pub.dev/packages/logger), [`talker`](https://pub.dev/packages/talker) or [`logging`](https://pub.dev/packages/logging)? Leave every call site alone. Wire one synchronous hook in `main()`, right after building the inspector, and each record becomes exactly **one** entry on the Console timeline, interleaved with network, navigation and database events.
+
+Nothing is added to this package: the forwarding code lives in your app, so `flutter_inspector_kit` never depends on these libraries. Each recipe below is a file to copy as is, plus one wiring line. The same files are compiled and tested in [`example/lib/bridges/`](example/lib/bridges/) (verified with logger 2.8.0, talker 5.1.20 and logging 1.3.0).
+
+Each hook sits after that library's own gate, so records it drops never reach the timeline: `Logger.level` or your `LogFilter` for logger, the `TalkerFilter` and the `enabled` flag for talker, `Logger.root.level` for logging. talker's log *level* is the exception (see its notes below).
+
+#### `package:logger`
+
+```dart
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:logger/logger.dart';
+
+/// Forwards one `logger` event to [inspector] as exactly one log entry.
+///
+/// Reads the structured [OutputEvent.origin] rather than the printer's
+/// `lines`, so no ANSI colours or box borders reach the Console and the
+/// stack trace lands in its own tappable field.
+void forwardLoggerEvent(FlutterInspector inspector, OutputEvent event) {
+  final origin = event.origin;
+  final raw = origin.message;
+  final message = '${raw is Function ? raw() : raw}';
+  inspector.log(
+    [message, origin.error].nonNulls.join('\n'),
+    level: _toInspectorLevel(origin.level),
+    stackTrace: origin.stackTrace?.toString(),
+  );
+}
+
+// Thresholds, not a switch: deprecated levels (verbose, wtf) fall into the
+// right band without being named, which would trip deprecated_member_use.
+LogLevel _toInspectorLevel(Level level) {
+  if (level >= Level.error) return LogLevel.error;
+  if (level >= Level.warning) return LogLevel.warning;
+  if (level >= Level.info) return LogLevel.info;
+  if (level >= Level.debug) return LogLevel.debug;
+  return LogLevel.verbose;
+}
+```
+
+```dart
+Logger.addOutputListener((event) => forwardLoggerEvent(inspector, event));
+```
+
+- The listener runs after your filter and printer. The default `DevelopmentFilter` drops everything in release builds, so nothing is forwarded there either.
+- One event, one entry: the text comes from the structured `LogEvent`, not the printer's output lines, so ANSI colours and box borders never reach the Console. Extras a custom printer adds (prefixes, class names) are not forwarded.
+- The listener list is static and process-wide, so register it once. Registering it twice forwards every record twice.
+- A `Function` message is evaluated by the bridge as well as by the printer (`PrettyPrinter`, the default, and `SimplePrinter` both call it), so it can run twice per event: keep lazy messages free of side effects. If the bridge's call throws, `logger` catches it and skips the rest of that event's output.
+
+#### `package:talker`
+
+```dart
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart' as kit;
+import 'package:talker/talker.dart';
+
+/// Forwards one talker record to [inspector] as exactly one log entry.
+///
+/// Shared by all three [TalkerObserver] callbacks: [TalkerError] and
+/// [TalkerException] are [TalkerData] too, and carry their own level.
+void forwardTalkerData(kit.FlutterInspector inspector, TalkerData data) {
+  final message = [
+    data.message,
+    data.exception,
+    data.error,
+  ].nonNulls.where((p) => '$p'.isNotEmpty).join('\n');
+  inspector.log(
+    message,
+    level: _toInspectorLevel(data.logLevel),
+    stackTrace: data.stackTrace?.toString(),
+  );
+}
+
+// Exhaustive switch: a level talker adds later fails to compile here instead
+// of being filed silently. A record without a level is debug, as in talker.
+kit.LogLevel _toInspectorLevel(LogLevel? level) => switch (level) {
+  LogLevel.error || LogLevel.critical => kit.LogLevel.error,
+  LogLevel.warning => kit.LogLevel.warning,
+  LogLevel.info => kit.LogLevel.info,
+  LogLevel.debug || null => kit.LogLevel.debug,
+  LogLevel.verbose => kit.LogLevel.verbose,
+};
+
+/// Routes every talker callback into [forwardTalkerData].
+///
+/// talker has a single observer slot: if you already use one, call
+/// [forwardTalkerData] from it instead of replacing it.
+class InspectorTalkerObserver extends TalkerObserver {
+  const InspectorTalkerObserver(this._inspector);
+
+  final kit.FlutterInspector _inspector;
+
+  @override
+  void onLog(TalkerData log) => forwardTalkerData(_inspector, log);
+
+  @override
+  void onError(TalkerError err) => forwardTalkerData(_inspector, err);
+
+  @override
+  void onException(TalkerException err) => forwardTalkerData(_inspector, err);
+}
+```
+
+```dart
+final talker = Talker(observer: InspectorTalkerObserver(inspector));
+```
+
+- talker exports its own `LogLevel`, which clashes with this package's. That's why the import above uses `as kit`.
+- talker's log level (`TalkerLoggerSettings.level`) only governs console output and history. It is applied *after* observers run, so it does **not** keep records off the timeline. To exclude levels, filter by key before observers, e.g. `Talker(observer: InspectorTalkerObserver(inspector), filter: TalkerFilter(disabledKeys: [TalkerKey.verbose, TalkerKey.debug]))`. A `TalkerFilter` also removes those levels from talker's own console output and history. To keep them there, check `data.logLevel` in your own observer before calling `forwardTalkerData` instead.
+- talker has a single observer slot (`Talker(observer:)` / `talker.configure(observer:)`). If you already use one (to report to Crashlytics, say), keep it and call `forwardTalkerData(inspector, data)` from its `onLog`, `onError` and `onException`.
+- Don't bridge through `talker.stream`: it delivers on a later microtask, after other timeline events have already been stamped, so entries would land out of order.
+
+#### `package:logging`
+
+```dart
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+import 'package:logging/logging.dart';
+
+/// Forwards one `logging` record to [inspector] as exactly one log entry,
+/// prefixed with the logger name (`[Auth] token expired`) so the source
+/// module is visible and searchable on the timeline row.
+void forwardLogRecord(FlutterInspector inspector, LogRecord record) {
+  final name = record.loggerName;
+  final message = name.isEmpty ? record.message : '[$name] ${record.message}';
+  inspector.log(
+    [message, record.error].nonNulls.join('\n'),
+    level: _toInspectorLevel(record.level),
+    stackTrace: record.stackTrace?.toString(),
+  );
+}
+
+// Thresholds: Level is an open class (hosts may define their own), so only a
+// range check covers every possible value.
+LogLevel _toInspectorLevel(Level level) {
+  if (level >= Level.SEVERE) return LogLevel.error;
+  if (level >= Level.WARNING) return LogLevel.warning;
+  if (level >= Level.INFO) return LogLevel.info;
+  if (level >= Level.FINE) return LogLevel.debug;
+  return LogLevel.verbose;
+}
+```
+
+```dart
+Logger.root.onRecord.listen((r) => forwardLogRecord(inspector, r));
+```
+
+- `Logger.root` defaults to `Level.INFO`, so `CONFIG`, `FINE`, `FINER` and `FINEST` records are never emitted until you lower it (`Logger.root.level = Level.ALL;`).
+- With `hierarchicalLoggingEnabled` at its default (`false`), the root receives every named logger's records, including those from third-party packages that log through `logging`. If you enable it, records still propagate up to the root, but each logger's own `level` becomes the gate instead of `Logger.root.level`.
+
+#### Notes for all three
+
+| Inspector | `logger` | `talker` | `logging` |
+|---|---|---|---|
+| `error` | `error`, `fatal` | `error`, `critical` | `SEVERE`, `SHOUT` |
+| `warning` | `warning` | `warning` | `WARNING` |
+| `info` | `info` | `info` | `INFO` |
+| `debug` | `debug` | `debug`, no level | `FINE`, `CONFIG` |
+| `verbose` | `trace` | `verbose` | `FINER`, `FINEST` |
+
+- `fatal`, `critical` and `SHOUT` fold into `error`, the top level here. They still get a red row and still match `⚡ Errors only`.
+- `logger` and `logging` both export `Logger` and `Level`. In a file that imports both, prefix one (`import 'package:logging/logging.dart' as logging;`), as [`example/lib/main.dart`](example/lib/main.dart) does.
+- Bridged records share the 500-entry log buffer with your other logs. Leaving `trace` or `FINEST` on can push older context out, so keep your app's level at what you actually need (for talker, use the filter above).
+- With `captureUncaughtErrors: true`, an error that your own `FlutterError.onError` also passes to `talker.handle()` or `logger.e()` is recorded twice. Route it through one or the other.
+
 ### Read the merged timeline
 
 The **Console** tab already interleaves logs, network, navigation, and database events on a single timeline (newest first), with a filter chip per source. Error-level logs and failed network calls are given a faint red row background so they're spottable while scrolling a long timeline — warnings keep their orange text but stay un-tinted, so a warning-heavy app doesn't wash the whole list out.
