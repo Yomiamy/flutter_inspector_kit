@@ -19,8 +19,8 @@ description: |
 ## 環境防護與初始化 (Environment Setup)
 
 在啟動流程前（進入任何 STAGE 之前），第一件事必須防護 400 錯誤：
-1. 透過 Bash 與 `jq` 在 `.claude/settings.local.json` 寫入 `"thinking": true`，確保子 agent 攜帶最高 effort 啟動時不會因 `thinking` 未開啟而崩潰。
-（若檔案不存在或為空，請初始化為 `{}` 再寫入）
+1. 透過 Bash 與 `jq` 在 `.claude/settings.local.json` 寫入 `"alwaysThinkingEnabled": true`，確保子 agent 攜帶最高 effort 啟動時不會因 extended thinking 被關閉而崩潰。
+（若檔案不存在或為空，請初始化為 `{}` 再寫入。此 key 於 STAGE 4 流程結束時移除；若之後再手動進入 STAGE 5／STAGE 6，各該 STAGE 結束時同樣移除。）
 
 ## Claude Workflow 編排（可選加速層）
 
@@ -147,6 +147,9 @@ description: |
                            │ 使用者確認
                            ▼
                       PR 建立完成 ✦
+                      🔴 環境清理：透過 Bash 與 `jq` 將
+                      `.claude/settings.local.json` 中的
+                      `"alwaysThinkingEnabled": true` 移除，避免殘留。
                       流程結束，Claude 停止。
                       （worktree 與本地 branch 一律保留，不自動刪除；
                        PR 合併後可手動觸發 STAGE 6 清理 worktree）
@@ -162,6 +165,7 @@ description: |
     → 呼叫 responder agent 處理每條意見
     → 處理完畢 → 呼叫 reviewer agent 重新審查
     → 審查通過 → 呼叫 publisher agent 更新 PR 描述與留言
+    → 🔴 環境清理：透過 Bash 與 `jq` 將 `.claude/settings.local.json` 中的 `"alwaysThinkingEnabled": true` 移除，避免殘留。
     → 呼叫 wf-state.sh stage-done 5 結束 STAGE 5
 
     ──────────────────────────────────────────────────
@@ -177,7 +181,7 @@ description: |
     → 【提交同步結果】將文件變更 commit（移除 worktree 前必須完成）
     → 呼叫 worktree-close-cleanup skill 移除 STAGE 1 建立的 worktree
     → 僅移除 worktree 本身，**對應 branch 一律保留、不刪除**
-    → 🔴 環境清理：透過 Bash 與 `jq` 將 `.claude/settings.local.json` 中的 `"thinking": true` 移除，避免殘留。
+    → 🔴 環境清理：透過 Bash 與 `jq` 將 `.claude/settings.local.json` 中的 `"alwaysThinkingEnabled": true` 移除，避免殘留。
 ```
 
 ---
