@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-09**：**新增三項輕量級排查新提案（§P28、§P29、§P30）**——基於 Linus Torvalds 哲學提出「視覺化排版邊界切換」、「RenderFlex 錯誤視覺化解析」及「路由參數擷取」三項高價值功能。著重於零新模型、復用既有基建，為 Timeline 帶來全新上下文維度。檔名日期前綴由 `2026-10-05` 更新至 `2026-10-09`。
 > * **2026-10-05**：**§P16 生態日誌適配器完成**——PR #191 合入 main（issue #190）。交付形態為 example 端 bridge 加 README 食譜，`lib/` 與根 `pubspec.yaml` 零改動。與原提案三處差異：**(1) logger 改用 `Logger.addOutputListener`**，不用 `LogOutput` 子類別；**(2) 草稿有三處無法編譯或會掉資料**（`StackTrace` 傳給 `String?`、null `message` 傳給 `String`、talker `LogLevel` 撞名），已修正；**(3) talker 的 log level 擋不住 observer**，README 改建議 `TalkerFilter`。Tier 4 活躍待辦剩 §P18 / §D4 / §P9。檔名日期前綴由 `2026-09-19` 更新至 `2026-10-05`。
 > * **2026-09-19**：**§P17 原生折疊式 JSON 樹狀檢視器完成**——PR #169 合入 main（issue #168）。落地與原提案有五處差異：**(1) 語法色彩高亮不做**（提案的 Key 紫／String 綠／Number 橘等），文字一律主題預設前景色，結構感由縮排與展開/折疊 affordance 承載，搜尋命中高亮為唯一例外——這是刻意裁決，非遺漏。**(2) 原文稱兩個 detail view 痛點相同，實查不成立**：Network 側是 JSON 字串需 decode，Log 側 `LogEntry.data` 已是 `Map` 不需 decode（`KeyValueTable` 的 `toString()` 才是它不可讀的根因）；故元件只收已解析資料，decode 與失敗 fallback 留在呼叫端。**(3) `ListView.builder` 未採用**——兩個 detail view 都把本元件放進自己的 `ListView`，子項拿到無界高度，`shrinkWrap` 會量完每一列使 lazy build 失效；改為攤進 `Column` 由外層滾動，另以 `_kMaxRows = 300` 硬上限收尾。**預設折疊只擋得住深樹，擋不住寬樹**（2000 元素陣列全在 depth 1），這點是 PR review 才發現的。**(4) 節點 `id` 與顯示 `path` 分離**：`id` 為走訪序號鏈、與 key 內容無關，否則 map key 含 `.` 時 `{'a.b':{'c':1}}` 與 `{'a':{'b':{'c':1}}}` 會撞展開狀態的 key。**(5) 另加 raw JSON 切換**（提案未含）——改成樹之後失去 `SelectableText` 拖選任意片段的能力，故補 `Show raw` / `Show tree`；raw 以 `toEncodable` 回退 `toString()` 處理非 JSON 型別，並 catch `JsonCyclicError`（該例外在 encoder 偵測到環時直接拋出，不走 `toEncodable`）。防禦：深度上限 32、循環引用以 `identical()` 偵測且離開節點即 pop（避免 DAG 誤報）。零新增相依，642 tests 綠、analyze 零新增。Tier 4 活躍待辦剩 5 項（§P4 / §P16 / §P18 / §D4 / §P9）。檔名日期前綴由 `2026-09-12` 更新至 `2026-09-19`。
 > * **2026-09-16**：**新增 §P27 Agent 分析橋接（Agent Analysis Bridge）— 設計中、未排程**——延伸 §P26，補上它沒覆蓋的兩個場景：**A. QA 在裝置上當下看到判斷**、**B. 開發者事後讓 agent 去問那台機器**。調研確認 GitHub 生態的 Flutter AI 除錯工具（marionette_mcp / mcp_flutter / flutter_agent_lens / 官方 Dart MCP）**全數依賴 Dart VM Service**，要求「開發機 + debug build + 連線」，而本套件的場景恰好相反（QA 的手機、release-ish build、開發者不在現場）——**MCP 對本套件是形狀不對，不是還沒做**。定案形狀為**雙向橋接**：kit 開三個具名查詢供 host 包成 tool schema 給 LLM，host 再把分析結論注入回 kit 顯示；方向由內而外，kit 不監聽任何連線，同時解掉開 port 資安、協定綁定、套件純淨性三個問題。三條釘死的邊界：**API key 一律 host 持有**（kit 內建網路呼叫等於替所有下游 App 決定資料能否外流）、**分析結果走獨立 tab 不進 timeline**（推測不得混入事實流）、**引用關係須來自實際 tool call 回傳值**而非 LLM 自述。三個實質問題已裁決：**懸空引用是假問題**（kit 無永久儲存 → 存活綁引用、讀取時過濾，**`RingBuffer` 零修改**，加 `onEvict` 會撞不變式 #1）、**注入介面純 append**（不可更新撤回 → 不需自身 id，但時間戳成必要；只開批次因 worst case 是一次回應多條結論）、**id 為全域遞增計數器 + 來源前綴**（**嚴禁位置相關方案**——索引重用會造成靜默的錯誤引用，比懸空更糟）。裁決後的意外收穫：**零核心修改**，唯一動到既有程式碼處是四個 model 各加 `final String id`（排除於 `==`/`hashCode`，沿用 `sourceDio` 先例）。**❌ 明確否決** MCP server、Android AppFunctions（Kotlin KSP + Android 16+ + private preview allowlist）、嵌入 on-device model（FunctionGemma 270M 即 284 MB，且模型在裝置上但 codebase 不在 → 產出有自信的錯誤原因，違反 kit 自訂的誠實邊界）。三項機械決定同日一併裁決完畢：**查詢回傳 JSON-safe Map 且不做分頁**（游標會撞上 evict，正確處理需快照而快照撞不變式 #2——與 §6.1 同源的約束在不同題目給出同樣答案；`limit` 截斷須揭露，這也正是回傳 Map 而非 List 的必然結果）、**分析 tab 全部重用既有元件**（`_oneLiner()` 需改公開、`pushInspectorRoute` 沿用 §D6 成果；🔴 tab 隱藏判準是「從未注入過」而非「目前無可顯示」，否則 tab 會在引用陸續 evict 後憑空消失）、**通知由 kit 於 `addAnalyses()` 自動發**（opt-in、自有 `AlertThrottler`、一批一則、點擊跳分析 tab——實查確認既有機制已完全支援，`onTap` closure 在建構時就綁好目標 tab，丟棄 payload 非缺陷）。**⚠️ 動工前先決條件**：新增 `NetworkNotifier.analysis()` 確實觸及條件匯出雙面（不變式 #4）而 `flutter test` 抓不到簽章漂移，須備妥最小 Web build harness。完整設計見 `docs/features/2026-09-15-agent-analysis-bridge.md`（**六題全清、無未決項，但尚未排程動工**）。檔名日期前綴維持 `2026-09-12`（§P27 尚未動工，非實質功能變更）。
@@ -1886,3 +1887,50 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 > opt-in per-widget 的接線成本（每個可疑 widget 手動加 mixin + 呼叫 `guardRebuild()`）與收益
 > 不成比例。**Tier 4 由 4 項降為 3 項後，因 §P15（KV Browser）新增又回到 4 項（§P4 / §P15 / §D4 / §P9）**。
 > **2026-08-22 更新**：§P15 已於 PR #137 完成（實作為獨立 Storage tab），本層剩 3 項（§P4 / §D4 / §P9）。
+
+### §P28 視覺化排版邊界切換 (UI Layout Boundary Overlay Toggle) — 🆕 新提案
+> **痛點**：QA 在實機測試時發現 UI 跑版、重疊或切邊，但無法具體指出是哪個 Widget 尺寸不對。目前只能截圖報 bug，開發者再接線連 DevTools 才能打開排版邊界 (Debug Paint) 來排查，溝通與重現成本高。
+
+* **好品味設計（核心洞察）**：
+  > Flutter 原生就內建了 `debugPaintSizeEnabled` 等全域開關。我們不需要重頭畫邊界，只需要在 Dashboard 給一個觸發它的切換按鈕。
+  - 在 Dashboard 加上一個開關（Toggle），直接操作 `rendering` 函式庫的 `debugPaintSizeEnabled` 與 `debugPaintBaselinesEnabled`。
+  - **零新模型、零狀態負擔**，這只是底層原生除錯旗標的 UI 暴露。
+* **Linus 模式五層評估**：
+  - **資料結構**：無。純粹操作全域布林值。
+  - **特殊情況 (Edge cases)**：這些旗標在 Release 模式下不存在或無作用。必須以 `kDebugMode` 或 `kProfileMode` 作為防禦，在 Release 模式下隱藏此按鈕，消滅無效操作。
+  - **複雜度**：極低。一個 Switch widget 綁定全域變數，並呼叫 `RendererBinding.instance.reassembleApplication()` 強制重繪。
+  - **破壞性**：零。不干擾現有 timeline，不寫入日誌，不影響生產環境。
+  - **實用性**：極高。實機直接看排版邊界，QA 截圖的價值瞬間翻倍。
+* **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐⭐
+
+### §P29 RenderFlex 錯誤視覺化解析 (RenderFlex Error Context Visualizer) — 🆕 新提案
+> **痛點**：Flutter 最常見的 UI 錯誤就是 "A RenderFlex overflowed by X pixels"。但在 Console 裡，這會產生一大坨文字 log，排查者很難一眼看出是哪個 Widget 在哪個方向超出了多少像素。
+
+* **好品味設計（核心洞察）**：
+  > 不要為了 RenderFlex 發明新的錯誤類別，它本質上就是 `FlutterError`。我們只需要在攔截時，針對這類特定錯誤進行輕量的字串解析，把關鍵資訊（超出像素、方向）塞進既有的 `LogEntry.data`。
+  - 擴充既有的 `UncaughtErrorHandler`，當攔截到的錯誤訊息包含 "RenderFlex overflowed" 時，用正則表達式擷取溢出像素與方向。
+  - 將解析結果（如 `{'overflow_pixels': 24, 'axis': 'bottom'}`）附加到 `LogEntry.data` 中。
+  - ConsoleTab / LogDetailView 讀取到這些特定的 data keys 時，給予特別的 UI 高亮小標籤（Badge）。
+* **Linus 模式五層評估**：
+  - **資料結構**：重用現有的 `LogEntry.data`（Map），完全不改動 schema。
+  - **特殊情況 (Edge cases)**：Flutter 的錯誤訊息格式可能會隨版本變更。解法：解析失敗時靜默回退（fallback）到原本的純文字錯誤日誌，絕對不拋出解析例外。
+  - **複雜度**：低。幾行正則表達式，加在現有的 error logger 流程中。
+  - **破壞性**：零。不影響既有日誌的完整性，只是多加了一些幫助視覺化的 metadata。
+  - **實用性**：高。把最常見的噪音日誌轉化為一目了然的排查證據。
+* **Effort**：Low ｜ **排查價值**：⭐⭐⭐⭐
+
+### §P30 路由參數擷取與深層連結追蹤 (Routing Parameter Capture) — 🆕 新提案
+> **痛點**：深層連結 (Deep Link) 導航失敗或帶錯參數導致 crash，是常見且難查的問題。目前的 `NavigatorObserver` 為了避免 PII 與記憶體外洩，刻意移除了 `arguments` 的記錄（見 §P13），導致我們只知道「去了哪裡」，不知道「帶了什麼參數」。
+
+* **好品味設計（核心洞察）**：
+  > 不要記錄完整的 `arguments` 物件（這會引發環狀參照和龐大記憶體佔用），只記錄「字串化後安全的純量值 (Primitives)」或 Uri 的 Query Parameters。
+  - 在 `NavigatorEntry` 新增一個限制長度的 `Map<String, String>? routingParams` 欄位。
+  - 當 push 發生時，檢查 `arguments`。如果是 `Map`，只提取值為 `String`、`int`、`bool` 等基本型別的鍵值對。如果是深層連結跳轉，提取 URL query 參數。
+  - 對結果字串長度做嚴格截斷（例如超過 100 字元即截斷），防止濫用。
+* **Linus 模式五層評估**：
+  - **資料結構**：新增一個嚴格限制型別與大小的 Map 欄位，維持不可變性 (`@immutable`)。
+  - **特殊情況 (Edge cases)**：開發者傳遞了巨大的自訂 Model 作為參數。解法：只接受基本型別，其他一律丟棄（記錄為 `<Complex Object>`），不嘗試遞迴序列化，消滅潛在的效能與記憶體災難。
+  - **複雜度**：中。需要一個白名單過濾器來處理參數。
+  - **破壞性**：低。但需注意 PII 問題，需串接既有的 `redactSensitiveData` 管線來遮蔽可能的敏感參數。
+  - **實用性**：極高。對於排查從外部（如推播、網頁跳轉）進入 App 時的狀態異常至關重要。
+* **Effort**：Medium ｜ **排查價值**：⭐⭐⭐⭐
