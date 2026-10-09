@@ -62,12 +62,13 @@ class _NavigatorTabState extends State<NavigatorTab> {
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
                     final entry = entries[index];
+                    final paramsLine = _formatParamsLine(entry.routingParams);
                     return ListTile(
                       title: Text(
                         '${entry.action.name.toUpperCase()} ${entry.displayName}',
                       ),
                       subtitle: Text(
-                        '${entry.timestamp.toIso8601String()}\nArgs: ${entry.arguments ?? "None"}',
+                        '${entry.timestamp.toIso8601String()}$paramsLine\nArgs: ${entry.arguments ?? "None"}',
                       ),
                     );
                   },
@@ -77,6 +78,12 @@ class _NavigatorTabState extends State<NavigatorTab> {
       ],
     );
   }
+}
+
+String _formatParamsLine(Map<String, String>? params) {
+  if (params == null || params.isEmpty) return '';
+  final formatted = params.entries.map((e) => '${e.key}=${e.value}').join(', ');
+  return '\nParams: $formatted';
 }
 
 class _ActiveStackView extends StatelessWidget {
@@ -94,6 +101,8 @@ class _ActiveStackView extends StatelessWidget {
       itemCount: stack.length,
       itemBuilder: (context, index) {
         final entry = stack[index];
+        final baseRoute = entry.routeName ?? '(no route name)';
+        final paramsLine = _formatParamsLine(entry.routingParams);
         return Card(
           margin: ThemePadding.paddingH16V8,
           child: ListTile(
@@ -101,7 +110,7 @@ class _ActiveStackView extends StatelessWidget {
                 ? const Icon(Icons.visibility, color: ThemeColor.color2196F3)
                 : null,
             title: Text(entry.displayName),
-            subtitle: Text(entry.routeName ?? '(no route name)'),
+            subtitle: Text('$baseRoute$paramsLine'),
             trailing: index == 0 ? const _CurrentBadge() : null,
           ),
         );

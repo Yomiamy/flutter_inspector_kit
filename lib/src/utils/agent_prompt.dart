@@ -270,6 +270,9 @@ String _describeAnchor(TimestampedEntry entry, {required bool redact}) {
       }
     case final NavigatorEntry e:
       b.writeln(_oneLiner(e));
+      if (e.routingParams != null && e.routingParams!.isNotEmpty) {
+        b.writeln('Routing Parameters: ${e.routingParams}');
+      }
       if (e.arguments != null) b.writeln('Arguments: ${e.arguments}');
     default:
       b.writeln('[${entry.displayTime}] $entry');

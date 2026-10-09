@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../core/flutter_inspector.dart';
 import '../models/navigator_action.dart';
 import '../models/navigator_entry.dart';
+import '../utils/routing_param_extractor.dart';
 import 'inspector_route_names.dart';
 
 /// An observer that records navigation events into the inspector.
@@ -56,12 +57,18 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
   void _record(NavigatorAction action, Route<dynamic> route) {
     final routeName = route.settings.name;
     final widgetType = _resolveWidgetType(route);
+    final routingParams = extractRoutingParams(
+      routeName: routeName,
+      arguments: route.settings.arguments,
+      redact: _inspector.redactSensitiveData,
+    );
     _inspector.navigatorInspector.add(
       NavigatorEntry(
         action: action,
         routeName: routeName,
         widgetType: widgetType,
         arguments: route.settings.arguments,
+        routingParams: routingParams,
       ),
     );
   }
