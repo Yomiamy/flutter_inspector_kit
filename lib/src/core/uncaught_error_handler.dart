@@ -90,6 +90,7 @@ class UncaughtErrorHandler {
     if (identical(details, _lastLoggedDetails)) return;
     _lastLoggedDetails = details;
 
+    final message = details.exceptionAsString();
     final data = <String, dynamic>{
       'source': source,
       'exceptionType': details.exception.runtimeType.toString(),
@@ -99,11 +100,40 @@ class UncaughtErrorHandler {
     final context = details.context;
     if (context != null) data['context'] = context.toString();
 
+    final overflowInfo = parseRenderFlexOverflow(message) ??
+        parseRenderFlexOverflow(details.exception.toString());
+    if (overflowInfo != null) {
+      data.addAll(overflowInfo);
+    }
+
     onLog(
-      details.exceptionAsString(),
+      message,
       level: LogLevel.error,
       stackTrace: details.stack?.toString(),
       data: data,
     );
   }
+}
+
+final _renderFlexOverflowPattern = RegExp(
+  r'A RenderFlex overflowed by (\d+(?:\.\d+)?) pixels on the (\w+)',
+  caseSensitive: false,
+);
+
+/// Attempts to parse RenderFlex overflow details from an error [message].
+/// Returns a map with `isRenderFlexOverflow`, `overflowPixels`, and
+/// `overflowDirection` if matched, or null otherwise.
+Map<String, dynamic>? parseRenderFlexOverflow(String message) {
+  final match = _renderFlexOverflowPattern.firstMatch(message);
+  if (match == null) return null;
+  final pixelsStr = match.group(1);
+  final direction = match.group(2)?.toLowerCase();
+  if (pixelsStr == null || direction == null) return null;
+  final pixels = double.tryParse(pixelsStr);
+  if (pixels == null) return null;
+  return {
+    'isRenderFlexOverflow': true,
+    'overflowPixels': pixels,
+    'overflowDirection': direction,
+  };
 }
