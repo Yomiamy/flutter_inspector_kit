@@ -6,7 +6,7 @@
    - *缺點*: 需透過 RenderTree 遍歷與手動計算 Global Position 繪製自訂邊框，代碼量巨大且容易發生座標偏移、效能不佳、維護成本極高。
 2. **方案 B：直接操作 Flutter 內建 `debugPaintSizeEnabled`（選定方案）**
    - *優點*: 零新模型、零自訂繪圖邏輯。完全復用 Flutter 官方引擎自帶的排版輔助線機制。切換時調用 `WidgetsBinding.instance.reassembleApplication()` 即刻全域重繪。
-   - *缺點*: 依賴 Flutter Framework 除錯旗標，在 Release 模式下無法運作。但本套件本就定位為開發/測試除錯工具，且我們以 `!kReleaseMode` 作為守衛，在 Release 模式下乾淨隱藏。
+   - *缺點*: 依賴 Flutter Framework 除錯旗標，在 Release 模式下無法運作。但本套件本就定位為開發/測試除錯工具，且我們以 `kDebugMode` 作為守衛，在 Release 與 Profile 模式下乾淨隱藏。
 
 **最終選擇**: 採用方案 B。遵循 Linus 模式「好品味」原則——不重新發明輪子，直接操作既有原生旗標。
 
