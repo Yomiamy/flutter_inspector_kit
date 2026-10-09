@@ -59,7 +59,7 @@ class DashboardModal extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
           ),
           actions: [
-            if (!kReleaseMode) const _LayoutBoundaryToggleAction(),
+            if (kDebugMode) const _LayoutBoundaryToggleAction(),
             IconButton(
               icon: const Icon(Icons.ios_share),
               tooltip: 'Export diagnostic report',
@@ -212,17 +212,6 @@ class _LayoutBoundaryToggleAction extends StatefulWidget {
 
 class _LayoutBoundaryToggleActionState
     extends State<_LayoutBoundaryToggleAction> {
-  void _forceRepaint() {
-    void visitor(RenderObject child) {
-      child.markNeedsPaint();
-      child.visitChildren(visitor);
-    }
-
-    for (final renderView in RendererBinding.instance.renderViews) {
-      renderView.visitChildren(visitor);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isEnabled = debugPaintSizeEnabled;
@@ -238,7 +227,9 @@ class _LayoutBoundaryToggleActionState
         setState(() {
           debugPaintSizeEnabled = !debugPaintSizeEnabled;
         });
-        _forceRepaint();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          RendererBinding.instance.reassembleApplication();
+        });
       },
     );
   }

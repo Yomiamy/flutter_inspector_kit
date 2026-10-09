@@ -4,6 +4,18 @@ import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/dashboard_modal.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+class _PaintCounter extends CustomPainter {
+  int paintCount = 0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    paintCount++;
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 void main() {
   group('Layout Boundary Overlay Toggle', () {
     late FlutterInspector inspector;
@@ -22,11 +34,24 @@ void main() {
     testWidgets(
       'renders toggle button in DashboardModal and toggles debugPaintSizeEnabled on tap',
       (tester) async {
+        final paintCounter = _PaintCounter();
+
         await tester.pumpWidget(
           MaterialApp(
-            home: DashboardModal(inspector: inspector),
+            home: Stack(
+              children: [
+                DashboardModal(inspector: inspector),
+                RepaintBoundary(
+                  child: CustomPaint(
+                    painter: paintCounter,
+                    size: const Size(1, 1),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
+        final initialPaintCount = paintCounter.paintCount;
 
         // Initially disabled
         expect(debugPaintSizeEnabled, isFalse);
@@ -39,6 +64,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(debugPaintSizeEnabled, isTrue);
+        expect(paintCounter.paintCount, greaterThan(initialPaintCount));
         final disableButton = find.byTooltip('Disable layout boundaries');
         expect(disableButton, findsOneWidget);
         expect(find.byIcon(Icons.grid_on), findsOneWidget);
