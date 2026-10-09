@@ -425,6 +425,11 @@ class _LogEntryRow extends StatelessWidget {
         (entry.stackTrace?.isNotEmpty ?? false) ||
         (entry.data?.isNotEmpty ?? false);
     final isBookmarked = inspector.isBookmarked(entry);
+    final data = entry.data;
+    final isOverflow = data?['isRenderFlexOverflow'] == true;
+    final overflowPixels = data?['overflowPixels'];
+    final overflowDirection = data?['overflowDirection'];
+
     return ListTile(
       tileColor: entry.level == LogLevel.error ? _kErrorRowTint : null,
       title: Row(
@@ -434,6 +439,17 @@ class _LogEntryRow extends StatelessWidget {
               Icons.push_pin,
               size: ThemeSize.size18,
               color: ThemeColor.colorFF9800,
+            ),
+            const SizedBox(width: ThemeSize.space4),
+          ],
+          if (isOverflow && overflowDirection != null) ...[
+            Flexible(
+              child: _RenderFlexOverflowBadge(
+                pixels: (overflowPixels is num)
+                    ? overflowPixels.toDouble()
+                    : null,
+                direction: overflowDirection.toString(),
+              ),
             ),
             const SizedBox(width: ThemeSize.space4),
           ],
@@ -457,6 +473,71 @@ class _LogEntryRow extends StatelessWidget {
             )
           : null,
       onLongPress: onToggleBookmark,
+    );
+  }
+}
+
+class _RenderFlexOverflowBadge extends StatelessWidget {
+  const _RenderFlexOverflowBadge({
+    required this.pixels,
+    required this.direction,
+  });
+
+  final double? pixels;
+  final String direction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    String formatPixels(double px) {
+      if (px == px.roundToDouble()) {
+        return px.toInt().toString();
+      }
+      if (px >= 10.0) {
+        return px.toStringAsFixed(0);
+      }
+      if (px >= 1.0) {
+        final s = px.toStringAsFixed(1);
+        return s.endsWith('.0') ? px.toInt().toString() : s;
+      }
+      final s = px.toStringAsPrecision(2);
+      final expIndex = s.indexOf(RegExp(r'[eE]'));
+      if (expIndex != -1) {
+        var mantissa = s.substring(0, expIndex);
+        final exponent = s.substring(expIndex);
+        if (mantissa.contains('.')) {
+          mantissa = mantissa
+              .replaceAll(RegExp(r'0+$'), '')
+              .replaceAll(RegExp(r'\.$'), '');
+        }
+        return '$mantissa$exponent';
+      }
+      return s.contains('.')
+          ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')
+          : s;
+    }
+    final text = pixels != null
+        ? 'Overflow: ${formatPixels(pixels!)}px $direction'
+        : 'Overflow: $direction';
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: ThemeSize.space4,
+        vertical: ThemeSize.space2,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(ThemeSize.radius4),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: theme.colorScheme.onErrorContainer,
+        ),
+      ),
     );
   }
 }
