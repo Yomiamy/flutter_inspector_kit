@@ -152,6 +152,47 @@ void main() {
 
       expect(inspector.logEntries, isEmpty);
     });
+
+    test('captures routingParams from routeName query and Map arguments', () {
+      final route = MaterialPageRoute(
+        settings: const RouteSettings(
+          name: '/order?source=push',
+          arguments: {'orderId': 12345, 'status': 'shipped'},
+        ),
+        builder: (_) => const SizedBox(),
+      );
+      observer.didPush(route, null);
+
+      expect(inspector.navigatorInspector.entries.length, 1);
+      final entry = inspector.navigatorInspector.entries.first;
+      expect(entry.routingParams, {
+        'source': 'push',
+        'orderId': '12345',
+        'status': 'shipped',
+      });
+    });
+
+    test('respects inspector redactSensitiveData flag for captured routingParams', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+      final secureObserver = secureInspector.navigatorObserver;
+
+      final route = MaterialPageRoute(
+        settings: const RouteSettings(
+          name: '/login?token=abc12345',
+          arguments: {'password': 'pass', 'user': 'bob'},
+        ),
+        builder: (_) => const SizedBox(),
+      );
+      secureObserver.didPush(route, null);
+
+      final entry = secureInspector.navigatorInspector.entries.first;
+      expect(entry.routingParams?['user'], 'bob');
+      expect(entry.routingParams?['token'], '••••');
+      expect(entry.routingParams?['password'], '••••');
+    });
   });
 }
 
