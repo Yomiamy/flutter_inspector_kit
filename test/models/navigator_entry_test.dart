@@ -68,5 +68,17 @@ void main() {
       expect(entryA.hashCode, equals(entryB.hashCode));
       expect(entryA, isNot(equals(entryC)));
     });
+
+    test('routingParams cannot be modified externally', () {
+      final map = {'id': '42'};
+      final entry = NavigatorEntry(
+        action: NavigatorAction.push,
+        routeName: '/home',
+        routingParams: map,
+      );
+      map['id'] = '99';
+      expect(entry.routingParams?['id'], '42');
+      expect(() => entry.routingParams?['id'] = '100', throwsUnsupportedError);
+    });
   });
 }

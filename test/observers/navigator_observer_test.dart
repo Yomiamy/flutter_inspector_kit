@@ -192,6 +192,8 @@ void main() {
       expect(entry.routingParams?['user'], 'bob');
       expect(entry.routingParams?['token'], '••••');
       expect(entry.routingParams?['password'], '••••');
+      expect(entry.routeName, '/login');
+      expect((entry.arguments as Map)['password'], '••••');
     });
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../core/flutter_inspector.dart';
 import '../models/navigator_action.dart';
 import '../models/navigator_entry.dart';
+import '../utils/redaction.dart';
 import '../utils/routing_param_extractor.dart';
 import 'inspector_route_names.dart';
 
@@ -55,22 +56,47 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
 
   /// Buffers [route] as a navigation event into the navigator inspector.
   void _record(NavigatorAction action, Route<dynamic> route) {
-    final routeName = route.settings.name;
+    final rawRouteName = route.settings.name;
+    final redact = _inspector.redactSensitiveData;
+    final routeName = _displayRouteName(rawRouteName, redact: redact);
     final widgetType = _resolveWidgetType(route);
     final routingParams = extractRoutingParams(
-      routeName: routeName,
+      routeName: rawRouteName,
       arguments: route.settings.arguments,
-      redact: _inspector.redactSensitiveData,
+      redact: redact,
+    );
+    final sanitizedArgs = _sanitizeArguments(
+      route.settings.arguments,
+      redact: redact,
     );
     _inspector.navigatorInspector.add(
       NavigatorEntry(
         action: action,
         routeName: routeName,
         widgetType: widgetType,
-        arguments: route.settings.arguments,
+        arguments: sanitizedArgs,
         routingParams: routingParams,
       ),
     );
+  }
+
+  String? _displayRouteName(String? routeName, {required bool redact}) {
+    if (!redact || routeName == null) return routeName;
+    final queryStart = routeName.indexOf('?');
+    return queryStart < 0 ? routeName : routeName.substring(0, queryStart);
+  }
+
+  Object? _sanitizeArguments(Object? arguments, {required bool redact}) {
+    if (!redact || arguments == null) return arguments;
+    if (arguments is Map) {
+      return arguments.map((k, v) {
+        if (k is String && isSensitiveRoutingKey(k)) {
+          return MapEntry(k, kRedactedValue);
+        }
+        return MapEntry(k, v);
+      });
+    }
+    return arguments;
   }
 
   @override
