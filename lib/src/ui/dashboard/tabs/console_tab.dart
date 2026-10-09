@@ -443,11 +443,13 @@ class _LogEntryRow extends StatelessWidget {
             const SizedBox(width: ThemeSize.space4),
           ],
           if (isOverflow && overflowDirection != null) ...[
-            _RenderFlexOverflowBadge(
-              pixels: (overflowPixels is num)
-                  ? overflowPixels.toDouble()
-                  : null,
-              direction: overflowDirection.toString(),
+            Flexible(
+              child: _RenderFlexOverflowBadge(
+                pixels: (overflowPixels is num)
+                    ? overflowPixels.toDouble()
+                    : null,
+                direction: overflowDirection.toString(),
+              ),
             ),
             const SizedBox(width: ThemeSize.space4),
           ],
@@ -487,8 +489,22 @@ class _RenderFlexOverflowBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    String formatPixels(double px) {
+      if (px == px.roundToDouble()) {
+        return px.toInt().toString();
+      }
+      if (px >= 10.0) {
+        return px.toStringAsFixed(0);
+      }
+      if (px >= 1.0) {
+        final s = px.toStringAsFixed(1);
+        return s.endsWith('.0') ? px.toInt().toString() : s;
+      }
+      final s = px.toStringAsPrecision(2);
+      return s.contains('.') ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : s;
+    }
     final text = pixels != null
-        ? 'Overflow: ${pixels!.toStringAsFixed(0)}px $direction'
+        ? 'Overflow: ${formatPixels(pixels!)}px $direction'
         : 'Overflow: $direction';
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -501,6 +517,8 @@ class _RenderFlexOverflowBadge extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.bold,

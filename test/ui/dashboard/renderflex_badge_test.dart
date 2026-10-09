@@ -37,6 +37,63 @@ void main() {
       expect(find.text('Overflow: 24px bottom'), findsOneWidget);
     });
 
+    testWidgets('formats small decimal overflow without displaying zero', (tester) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+
+      inspector.log(
+        'A RenderFlex overflowed by 0.4 pixels on the bottom.',
+        level: LogLevel.error,
+        data: {
+          'isRenderFlexOverflow': true,
+          'overflowPixels': 0.4,
+          'overflowDirection': 'bottom',
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Overflow: 0.4px bottom'), findsOneWidget);
+    });
+
+    testWidgets('renders safely in narrow layout without overflow', (tester) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+
+      inspector.log(
+        'A RenderFlex overflowed by 123.4 pixels on the right.',
+        level: LogLevel.error,
+        data: {
+          'isRenderFlexOverflow': true,
+          'overflowPixels': 123.4,
+          'overflowDirection': 'right',
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 150,
+                child: ConsoleTab(inspector: inspector),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('does not display overflow badge for ordinary error log', (tester) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
