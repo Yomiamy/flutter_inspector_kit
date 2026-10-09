@@ -17,15 +17,16 @@
   - 根據 `debugPaintSizeEnabled` 顯示對應的 `Icon`（開：`Icons.grid_on` 搭配 primary 色彩高亮；關：`Icons.grid_off_outlined`）。
   - 點擊時反轉 `debugPaintSizeEnabled` 並呼叫 `WidgetsBinding.instance.reassembleApplication()`。
 - **守衛條件**:
-  - `if (!kReleaseMode)` 條件式加入 `DashboardModal` 的 `AppBar.actions`。
+  - `if (kDebugMode)` 條件式加入 `DashboardModal` 的 `AppBar.actions`。
 
 ## 檔案異動清單
 1. `lib/src/ui/dashboard/dashboard_modal.dart`:
    - 引入 `package:flutter/foundation.dart` 與 `package:flutter/rendering.dart`。
-   - 在 `DashboardModal.build` 的 `AppBar.actions` 列表加入 `if (!kReleaseMode) const _LayoutBoundaryToggleAction()`。
+   - 在 `DashboardModal.build` 的 `AppBar.actions` 列表加入 `if (kDebugMode) const _LayoutBoundaryToggleAction()`。
    - 新增 `_LayoutBoundaryToggleAction` 獨立類別元件。
 2. `test/ui/dashboard/layout_boundary_toggle_test.dart` (新增):
    - 測試 `_LayoutBoundaryToggleAction` 在未開啟時點擊能啟用 `debugPaintSizeEnabled`。
+   - 驗證切換時觸發 `RendererBinding.instance.reassembleApplication()` 刷新重繪。
    - 測試再次點擊能停用 `debugPaintSizeEnabled`。
    - 測試 Tooltip 與 Icon 狀態隨旗標即時更新。
    - 確保 `tearDown` 重置 `debugPaintSizeEnabled = false` 不污染環境。
@@ -35,7 +36,7 @@
    - 檔案: `lib/src/ui/dashboard/dashboard_modal.dart`
    - 動作:
      - 匯入 `package:flutter/foundation.dart` 與 `package:flutter/rendering.dart`。
-     - 在 `DashboardModal` 的 `AppBar.actions` 中加入 `if (!kReleaseMode) const _LayoutBoundaryToggleAction()`。
+     - 在 `DashboardModal` 的 `AppBar.actions` 中加入 `if (kDebugMode) const _LayoutBoundaryToggleAction()`。
      - 宣告獨立的 `_LayoutBoundaryToggleAction` `StatefulWidget`，處理點擊切換、`debugPaintSizeEnabled` 操作、`WidgetsBinding.instance.reassembleApplication()` 刷新，以及高亮 Icon 與 Tooltip 提示。
 2. **任務 2：撰寫 Widget 與功能單元測試**
    - 檔案: `test/ui/dashboard/layout_boundary_toggle_test.dart`
