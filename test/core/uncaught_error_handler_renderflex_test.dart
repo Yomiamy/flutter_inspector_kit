@@ -43,6 +43,17 @@ void main() {
       expect(result['overflowDirection'], 'top');
     });
 
+    test('extracts scientific notation overflow pixels correctly', () {
+      const message =
+          'A RenderFlex overflowed by 1.00e-7 pixels on the bottom.';
+      final result = parseRenderFlexOverflow(message);
+
+      expect(result, isNotNull);
+      expect(result!['isRenderFlexOverflow'], isTrue);
+      expect(result['overflowPixels'], 1.00e-7);
+      expect(result['overflowDirection'], 'bottom');
+    });
+
     test('returns null for unrelated errors', () {
       expect(parseRenderFlexOverflow('FormatException: Unexpected character'), isNull);
       expect(parseRenderFlexOverflow('RangeError (index): Invalid value'), isNull);

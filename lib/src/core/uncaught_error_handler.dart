@@ -116,7 +116,7 @@ class UncaughtErrorHandler {
 }
 
 final _renderFlexOverflowPattern = RegExp(
-  r'A RenderFlex overflowed by (\d+(?:\.\d+)?) pixels on the (\w+)',
+  r'A RenderFlex overflowed by (\d+(?:\.\d+)?(?:e[+-]?\d+)?) pixels on the (\w+)',
   caseSensitive: false,
 );
 
