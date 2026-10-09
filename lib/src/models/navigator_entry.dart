@@ -12,9 +12,12 @@ class NavigatorEntry implements TimestampedEntry {
     this.routeName,
     this.widgetType,
     this.arguments,
-    this.routingParams,
+    Map<String, String>? routingParams,
     DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
+  })  : routingParams = routingParams == null
+            ? null
+            : Map<String, String>.unmodifiable(routingParams),
+        timestamp = timestamp ?? DateTime.now();
 
   /// When the navigation event occurred.
   @override
