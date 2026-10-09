@@ -201,7 +201,7 @@ class _BadgeTabLabel extends StatelessWidget {
 }
 
 /// An action button that toggles Flutter's layout boundary overlay
-/// ([debugPaintSizeEnabled]) and triggers an application reassemble to repaint.
+/// ([debugPaintSizeEnabled]) and marks the render tree for repainting.
 class _LayoutBoundaryToggleAction extends StatefulWidget {
   const _LayoutBoundaryToggleAction();
 
