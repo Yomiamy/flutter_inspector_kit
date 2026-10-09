@@ -111,6 +111,11 @@ void main() {
         'secret': 'mySecret',
         'access_token': 'bearer_token',
         'userPin': '1234',
+        'key': 'my_raw_key',
+        'apiKey': 'abc1234',
+        'shipping': 'fedex',
+        'spinner': 'loading',
+        'keyboard': 'mechanical',
       };
       final params = extractRoutingParams(arguments: map, redact: true);
       expect(params?['username'], 'john_doe');
@@ -120,6 +125,11 @@ void main() {
       expect(params?['secret'], kRedactedValue);
       expect(params?['access_token'], kRedactedValue);
       expect(params?['userPin'], kRedactedValue);
+      expect(params?['key'], kRedactedValue);
+      expect(params?['apiKey'], kRedactedValue);
+      expect(params?['shipping'], 'fedex');
+      expect(params?['spinner'], 'loading');
+      expect(params?['keyboard'], 'mechanical');
     });
 
     test('does not redact sensitive keys when redact is false', () {
@@ -136,7 +146,7 @@ void main() {
       // Uri with malformed percent-encoding
       final params = extractRoutingParams(routeName: '/path?bad=%E0%A4');
       // Should not throw, may be empty or null
-      expect(params == null || params.isEmpty, isTrue);
+      expect(params, isNull);
     });
 
     test('returned map is unmodifiable', () {

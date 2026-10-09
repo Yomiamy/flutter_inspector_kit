@@ -8,7 +8,7 @@ const int kDefaultMaxRoutingParamEntries = 20;
 
 /// Substrings that identify a routing parameter key as potentially sensitive.
 /// Compared case-insensitively.
-const Set<String> _kSensitiveParamPatterns = {
+const Set<String> _kSensitiveSubstrings = {
   'password',
   'token',
   'secret',
@@ -17,15 +17,34 @@ const Set<String> _kSensitiveParamPatterns = {
   'auth',
   'credential',
   'access_token',
-  'pin',
   'privkey',
   'private_key',
 };
 
-bool _isSensitiveKey(String key) {
+const Set<String> _kSensitiveWords = {
+  'pin',
+  'key',
+};
+
+/// Returns true if [key] is recognized as containing sensitive data.
+bool isSensitiveRoutingKey(String key) {
   final lower = key.toLowerCase();
-  for (final pattern in _kSensitiveParamPatterns) {
+  for (final pattern in _kSensitiveSubstrings) {
     if (lower.contains(pattern)) return true;
+  }
+  for (final word in _kSensitiveWords) {
+    if (lower == word ||
+        lower.endsWith('_$word') ||
+        lower.startsWith('${word}_') ||
+        lower.contains('_${word}_') ||
+        lower.endsWith('-$word') ||
+        lower.startsWith('$word-') ||
+        lower.contains('-$word-')) {
+      return true;
+    }
+  }
+  if (key.endsWith('Pin') || key.endsWith('Key')) {
+    return true;
   }
   return false;
 }
@@ -113,7 +132,7 @@ Map<String, String>? extractRoutingParams({
     final key = entry.key;
     var value = entry.value;
 
-    if (redact && _isSensitiveKey(key)) {
+    if (redact && isSensitiveRoutingKey(key)) {
       value = kRedactedValue;
     } else if (value.length > maxStringLength) {
       value = '${value.substring(0, maxStringLength)}...';
@@ -125,3 +144,26 @@ Map<String, String>? extractRoutingParams({
   if (sanitized.isEmpty) return null;
   return Map<String, String>.unmodifiable(sanitized);
 }
+
+/// Strips query parameters from [routeName] when [redact] is true.
+String? redactRouteQuery(String? routeName, {required bool redact}) {
+  if (!redact || routeName == null) return routeName;
+  final queryStart = routeName.indexOf('?');
+  return queryStart < 0 ? routeName : routeName.substring(0, queryStart);
+}
+
+/// Redacts sensitive entries from route arguments if [arguments] is a Map.
+/// When [redact] is false or arguments is not a Map, returns [arguments] as-is.
+Object? redactRoutingArguments(Object? arguments, {required bool redact}) {
+  if (!redact || arguments == null) return arguments;
+  if (arguments is Map) {
+    return {
+      for (final entry in arguments.entries)
+        entry.key: (entry.key != null && isSensitiveRoutingKey(entry.key.toString()))
+            ? kRedactedValue
+            : entry.value,
+    };
+  }
+  return arguments;
+}
+
