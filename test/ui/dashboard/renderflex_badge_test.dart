@@ -62,6 +62,31 @@ void main() {
       expect(find.text('Overflow: 0.4px bottom'), findsOneWidget);
     });
 
+    testWidgets('formats scientific notation overflow without truncating exponent zeros', (tester) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+
+      inspector.log(
+        'A RenderFlex overflowed by 1e-10 pixels on the bottom.',
+        level: LogLevel.error,
+        data: {
+          'isRenderFlexOverflow': true,
+          'overflowPixels': 1e-10,
+          'overflowDirection': 'bottom',
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Overflow: 1e-10px bottom'), findsOneWidget);
+    });
+
     testWidgets('renders safely in narrow layout without overflow', (tester) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
