@@ -387,7 +387,58 @@ void main() {
         '/items?tag=x&tag=y&key=%E2%80%A2%E2%80%A2%E2%80%A2%E2%80%A2&key=%E2%80%A2%E2%80%A2%E2%80%A2%E2%80%A2',
       );
     });
+
+    test('redacts Set elements and non-String Map keys in redact mode', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+      final secureObserver = secureInspector.navigatorObserver;
+
+      // 1. Set containing nested Map with sensitive data
+      final setArg = {
+        'public_tag',
+        {'token': 'secret123', 'user': 'bob'},
+      };
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/set-route', arguments: setArg),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final setEntry = secureInspector.navigatorInspector.entries.first;
+      final setResults = (setEntry.arguments as Set).toList();
+      expect(setResults[0], 'public_tag');
+      final nestedMap = setResults[1] as Map;
+      expect(nestedMap['token'], '••••');
+      expect(nestedMap['user'], 'bob');
+
+      // 2. Map with non-String key whose toString() matches sensitive pattern
+      final nonStringKeyMap = {
+        const _CustomTestKey('password'): 'plainPassword123',
+        const _CustomTestKey('regular'): 'normalValue',
+      };
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/non-string-key', arguments: nonStringKeyMap),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final mapEntry = secureInspector.navigatorInspector.entries.first;
+      final mapResults = mapEntry.arguments as Map;
+      expect(mapResults.values.first, '••••');
+      expect(mapResults.values.last, 'normalValue');
+    });
   });
+}
+
+class _CustomTestKey {
+  const _CustomTestKey(this.key);
+  final String key;
+  @override
+  String toString() => key;
 }
 
 class _SamplePage extends StatelessWidget {
