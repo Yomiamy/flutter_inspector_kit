@@ -116,5 +116,51 @@ void main() {
         expect(find.text('PUSH /switch'), findsNothing);
       },
     );
+
+    testWidgets('displays routingParams in eventHistory mode', (tester) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/details',
+          routingParams: {'id': '42', 'tab': 'overview'},
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      expect(find.text('PUSH /details'), findsOneWidget);
+      expect(find.textContaining('Params: id=42, tab=overview'), findsOneWidget);
+    });
+
+    testWidgets('displays routingParams in activeStack mode', (tester) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/profile',
+          routingParams: {'user': 'alice'},
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      await tester.tap(find.text('Active Stack'));
+      await tester.pump();
+
+      expect(find.textContaining('Params: user=alice'), findsOneWidget);
+    });
   });
 }

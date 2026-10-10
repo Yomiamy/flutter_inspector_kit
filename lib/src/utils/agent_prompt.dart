@@ -8,6 +8,7 @@ import '../version.dart';
 import 'log_formatters.dart';
 import 'network_formatters.dart';
 import 'redaction.dart';
+import 'routing_param_extractor.dart';
 
 /// The honesty boundary every prompt opens with.
 ///
@@ -270,7 +271,18 @@ String _describeAnchor(TimestampedEntry entry, {required bool redact}) {
       }
     case final NavigatorEntry e:
       b.writeln(_oneLiner(e));
-      if (e.arguments != null) b.writeln('Arguments: ${e.arguments}');
+      if (e.routingParams != null && e.routingParams!.isNotEmpty) {
+        final params = redact
+            ? e.routingParams!.map(
+                (k, v) =>
+                    MapEntry(k, isSensitiveRoutingKey(k) ? kRedactedValue : v),
+              )
+            : e.routingParams!;
+        b.writeln('Routing Parameters: $params');
+      }
+      if (e.arguments != null && !redact) {
+        b.writeln('Arguments: ${e.arguments}');
+      }
     default:
       b.writeln('[${entry.displayTime}] $entry');
   }

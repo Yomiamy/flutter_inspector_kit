@@ -12,8 +12,12 @@ class NavigatorEntry implements TimestampedEntry {
     this.routeName,
     this.widgetType,
     this.arguments,
+    Map<String, String>? routingParams,
     DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
+  })  : routingParams = routingParams == null
+            ? null
+            : Map<String, String>.unmodifiable(routingParams),
+        timestamp = timestamp ?? DateTime.now();
 
   /// When the navigation event occurred.
   @override
@@ -33,6 +37,10 @@ class NavigatorEntry implements TimestampedEntry {
 
   /// The arguments passed to the route, if any.
   final Object? arguments;
+
+  /// Safe, bounded scalar routing parameters and query parameters extracted
+  /// from the navigation event, if any.
+  final Map<String, String>? routingParams;
 
   /// A human-readable label for the affected destination.
   ///
@@ -68,6 +76,7 @@ class NavigatorEntry implements TimestampedEntry {
     String? routeName,
     Type? widgetType,
     Object? arguments,
+    Map<String, String>? routingParams,
   }) {
     return NavigatorEntry(
       timestamp: timestamp ?? this.timestamp,
@@ -75,6 +84,7 @@ class NavigatorEntry implements TimestampedEntry {
       routeName: routeName ?? this.routeName,
       widgetType: widgetType ?? this.widgetType,
       arguments: arguments ?? this.arguments,
+      routingParams: routingParams ?? this.routingParams,
     );
   }
 
@@ -85,12 +95,19 @@ class NavigatorEntry implements TimestampedEntry {
         other.action == action &&
         other.routeName == routeName &&
         other.widgetType == widgetType &&
-        other.arguments == arguments;
+        other.arguments == arguments &&
+        mapEquals(other.routingParams, routingParams);
   }
 
   @override
-  int get hashCode =>
-      Object.hash(timestamp, action, routeName, widgetType, arguments);
+  int get hashCode => Object.hash(
+        timestamp,
+        action,
+        routeName,
+        widgetType,
+        arguments,
+        routingParams?.length,
+      );
 
   @override
   String toString() =>

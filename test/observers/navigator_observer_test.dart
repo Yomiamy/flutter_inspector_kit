@@ -152,7 +152,293 @@ void main() {
 
       expect(inspector.logEntries, isEmpty);
     });
+
+    test('captures routingParams from routeName query and Map arguments', () {
+      final route = MaterialPageRoute(
+        settings: const RouteSettings(
+          name: '/order?source=push',
+          arguments: {'orderId': 12345, 'status': 'shipped'},
+        ),
+        builder: (_) => const SizedBox(),
+      );
+      observer.didPush(route, null);
+
+      expect(inspector.navigatorInspector.entries.length, 1);
+      final entry = inspector.navigatorInspector.entries.first;
+      expect(entry.routingParams, {
+        'source': 'push',
+        'orderId': '12345',
+        'status': 'shipped',
+      });
+    });
+
+    test(
+      'respects inspector redactSensitiveData flag for captured routingParams',
+      () {
+        final secureInspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          redactSensitiveData: true,
+        );
+        final secureObserver = secureInspector.navigatorObserver;
+
+        final route = MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/login?token=abc12345',
+            arguments: {'password': 'pass', 'user': 'bob'},
+          ),
+          builder: (_) => const SizedBox(),
+        );
+        secureObserver.didPush(route, null);
+
+        final entry = secureInspector.navigatorInspector.entries.first;
+        expect(entry.routingParams?['user'], 'bob');
+        expect(entry.routingParams?['token'], '••••');
+        expect(entry.routingParams?['password'], '••••');
+        expect(entry.routeName, '/login');
+        expect((entry.arguments as Map)['password'], '••••');
+      },
+    );
+
+    test('sanitizes nested maps and non-Map arguments in redact mode', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+      final secureObserver = secureInspector.navigatorObserver;
+
+      // 1. Nested Map
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/profile',
+            arguments: {
+              'meta': {'pinCode': '1234', 'name': 'Alice'},
+            },
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final nestedEntry = secureInspector.navigatorInspector.entries.first;
+      final nestedArgs = nestedEntry.arguments as Map;
+      expect((nestedArgs['meta'] as Map)['pinCode'], '••••');
+      expect((nestedArgs['meta'] as Map)['name'], 'Alice');
+
+      // 2. Uri argument with sensitive query parameter
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(
+            name: '/redirect',
+            arguments: Uri.parse(
+              'https://example.com/login?token=secret123&user=sam',
+            ),
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final uriEntry = secureInspector.navigatorInspector.entries.first;
+      final uriArgs = uriEntry.arguments as Uri;
+      expect(uriArgs.queryParameters['token'], '••••');
+      expect(uriArgs.queryParameters['user'], 'sam');
+
+      // 3. String argument with sensitive query parameter
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/link',
+            arguments: '/auth?apiKey=mySecretKey&flag=1',
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final strEntry = secureInspector.navigatorInspector.entries.first;
+      expect(
+        strEntry.arguments as String,
+        '/auth?apiKey=%E2%80%A2%E2%80%A2%E2%80%A2%E2%80%A2&flag=1',
+      );
+
+      // 4. String argument with malformed query
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/bad',
+            arguments: '/auth?malformed=%E0%A4',
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final badEntry = secureInspector.navigatorInspector.entries.first;
+      expect(badEntry.arguments as String, '/auth');
+    });
+
+    test('handles circular Map and List arguments without stack overflow in redact mode', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+      final secureObserver = secureInspector.navigatorObserver;
+
+      // 1. Circular Map
+      final circularMap = <String, dynamic>{'foo': 'bar'};
+      circularMap['self'] = circularMap;
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/circ-map', arguments: circularMap),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final mapEntry = secureInspector.navigatorInspector.entries.first;
+      final mapArgs = mapEntry.arguments as Map;
+      expect(mapArgs['foo'], 'bar');
+      expect(mapArgs['self'], '<circular>');
+
+      // 2. Circular List
+      final circularList = <dynamic>['item1'];
+      circularList.add(circularList);
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/circ-list', arguments: circularList),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final listEntry = secureInspector.navigatorInspector.entries.first;
+      final listArgs = listEntry.arguments as List;
+      expect(listArgs[0], 'item1');
+      expect(listArgs[1], '<circular>');
+
+      // 3. Deeply nested Map exceeding maxDepth = 8
+      Map<String, dynamic> buildNested(int depth) {
+        if (depth <= 0) return {'leaf': 'value'};
+        return {'child': buildNested(depth - 1)};
+      }
+      final deepMap = buildNested(10);
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/deep', arguments: deepMap),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final deepEntry = secureInspector.navigatorInspector.entries.first;
+      var current = deepEntry.arguments;
+      for (var i = 0; i < 8; i++) {
+        expect(current, isA<Map>());
+        current = (current as Map)['child'];
+      }
+      expect(current, '<deep>');
+
+      // 4. DAG shared reference is not falsely flagged as circular
+      final sharedChild = {'data': 'safe'};
+      final dagMap = {'a': sharedChild, 'b': sharedChild};
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/dag', arguments: dagMap),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final dagEntry = secureInspector.navigatorInspector.entries.first;
+      final dagArgs = dagEntry.arguments as Map;
+      expect((dagArgs['a'] as Map)['data'], 'safe');
+      expect((dagArgs['b'] as Map)['data'], 'safe');
+    });
+
+    test('preserves duplicate query parameters in Uri and String arguments in redact mode', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+      final secureObserver = secureInspector.navigatorObserver;
+
+      // 1. Uri with duplicate non-sensitive and sensitive parameters
+      final uri = Uri.parse('https://example.com/search?tag=a&tag=b&token=secret1&token=secret2');
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/dup-uri', arguments: uri),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final uriEntry = secureInspector.navigatorInspector.entries.first;
+      final uriArgs = uriEntry.arguments as Uri;
+      expect(uriArgs.queryParametersAll['tag'], ['a', 'b']);
+      expect(uriArgs.queryParametersAll['token'], ['••••', '••••']);
+
+      // 2. String with duplicate parameters
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/dup-str',
+            arguments: '/items?tag=x&tag=y&key=k1&key=k2',
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final strEntry = secureInspector.navigatorInspector.entries.first;
+      final strArgs = strEntry.arguments as String;
+      expect(
+        strArgs,
+        '/items?tag=x&tag=y&key=%E2%80%A2%E2%80%A2%E2%80%A2%E2%80%A2&key=%E2%80%A2%E2%80%A2%E2%80%A2%E2%80%A2',
+      );
+    });
+
+    test('redacts Set elements and non-String Map keys in redact mode', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+      final secureObserver = secureInspector.navigatorObserver;
+
+      // 1. Set containing nested Map with sensitive data
+      final setArg = {
+        'public_tag',
+        {'token': 'secret123', 'user': 'bob'},
+      };
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/set-route', arguments: setArg),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final setEntry = secureInspector.navigatorInspector.entries.first;
+      final setResults = (setEntry.arguments as Set).toList();
+      expect(setResults[0], 'public_tag');
+      final nestedMap = setResults[1] as Map;
+      expect(nestedMap['token'], '••••');
+      expect(nestedMap['user'], 'bob');
+
+      // 2. Map with non-String key whose toString() matches sensitive pattern
+      final nonStringKeyMap = {
+        const _CustomTestKey('password'): 'plainPassword123',
+        const _CustomTestKey('regular'): 'normalValue',
+      };
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/non-string-key', arguments: nonStringKeyMap),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final mapEntry = secureInspector.navigatorInspector.entries.first;
+      final mapResults = mapEntry.arguments as Map;
+      expect(mapResults.values.first, '••••');
+      expect(mapResults.values.last, 'normalValue');
+    });
   });
+}
+
+class _CustomTestKey {
+  const _CustomTestKey(this.key);
+  final String key;
+  @override
+  String toString() => key;
 }
 
 class _SamplePage extends StatelessWidget {
