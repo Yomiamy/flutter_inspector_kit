@@ -272,9 +272,16 @@ String _describeAnchor(TimestampedEntry entry, {required bool redact}) {
     case final NavigatorEntry e:
       b.writeln(_oneLiner(e));
       if (e.routingParams != null && e.routingParams!.isNotEmpty) {
-        b.writeln('Routing Parameters: ${e.routingParams}');
+        final params = redact
+            ? e.routingParams!.map(
+                (k, v) =>
+                    MapEntry(k, isSensitiveRoutingKey(k) ? kRedactedValue : v),
+              )
+            : e.routingParams!;
+        b.writeln('Routing Parameters: $params');
       }
-      if (e.arguments != null && !redact) b.writeln('Arguments: ${e.arguments}');
+      if (e.arguments != null && !redact)
+        b.writeln('Arguments: ${e.arguments}');
     default:
       b.writeln('[${entry.displayTime}] $entry');
   }
