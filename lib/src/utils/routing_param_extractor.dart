@@ -23,6 +23,10 @@ const Set<String> _kSensitiveSubstrings = {
 
 const Set<String> _kSensitiveWords = {'pin', 'key'};
 
+final RegExp _kSensitiveCamelBoundary = RegExp(
+  r'[a-z](Pin|PIN|Key|KEY)[A-Z]',
+);
+
 /// Returns true if [key] is recognized as containing sensitive data.
 bool isSensitiveRoutingKey(String key) {
   final lower = key.toLowerCase();
@@ -46,10 +50,13 @@ bool isSensitiveRoutingKey(String key) {
       return true;
     }
   }
-  if (key.endsWith('Pin') || key.endsWith('Key')) {
+  if (key.endsWith('Pin') ||
+      key.endsWith('Key') ||
+      key.endsWith('PIN') ||
+      key.endsWith('KEY')) {
     return true;
   }
-  if (key.contains(RegExp(r'[a-z](Pin|Key)[A-Z]'))) {
+  if (key.contains(_kSensitiveCamelBoundary)) {
     return true;
   }
   return false;

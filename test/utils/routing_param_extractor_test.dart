@@ -153,6 +153,31 @@ void main() {
       expect(params?['shippingAddress'], '123 Main St');
     });
 
+    test('redacts uppercase PIN and KEY acronyms and camelCase boundaries', () {
+      final map = {
+        'userPIN': '1234',
+        'userKEY': 'authKey',
+        'userPINCode': '5678',
+        'userKEYAuth': 'tokenVal',
+        'shipping': 'fedex',
+        'donkey': 'kong',
+      };
+      final params = extractRoutingParams(arguments: map, redact: true);
+      expect(params?['userPIN'], kRedactedValue);
+      expect(params?['userKEY'], kRedactedValue);
+      expect(params?['userPINCode'], kRedactedValue);
+      expect(params?['userKEYAuth'], kRedactedValue);
+      expect(params?['shipping'], 'fedex');
+      expect(params?['donkey'], 'kong');
+
+      expect(isSensitiveRoutingKey('userPIN'), isTrue);
+      expect(isSensitiveRoutingKey('userKEY'), isTrue);
+      expect(isSensitiveRoutingKey('userPINCode'), isTrue);
+      expect(isSensitiveRoutingKey('userKEYAuth'), isTrue);
+      expect(isSensitiveRoutingKey('shipping'), isFalse);
+      expect(isSensitiveRoutingKey('donkey'), isFalse);
+    });
+
     test('does not redact sensitive keys when redact is false', () {
       final map = {'password': 'plainPassword', 'token': 'plainToken'};
       final params = extractRoutingParams(arguments: map, redact: false);

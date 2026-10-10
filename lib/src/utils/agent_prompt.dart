@@ -280,8 +280,9 @@ String _describeAnchor(TimestampedEntry entry, {required bool redact}) {
             : e.routingParams!;
         b.writeln('Routing Parameters: $params');
       }
-      if (e.arguments != null && !redact)
+      if (e.arguments != null && !redact) {
         b.writeln('Arguments: ${e.arguments}');
+      }
     default:
       b.writeln('[${entry.displayTime}] $entry');
   }
