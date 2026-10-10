@@ -101,18 +101,23 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
     if (value == null) return null;
     if (depth >= _kMaxRedactionDepth) return '<deep>';
 
-    if (value is Map || value is List) {
+    if (value is Map || value is List || value is Set) {
       if (visited != null && visited.contains(value)) return '<circular>';
       final activeVisited = visited ?? Set<Object>.identity();
       activeVisited.add(value);
       try {
         if (value is Map) {
           return value.map((k, v) {
-            if (k is String && isSensitiveRoutingKey(k)) {
+            final keyStr = k?.toString() ?? '';
+            if (isSensitiveRoutingKey(keyStr)) {
               return MapEntry(k, kRedactedValue);
             }
             return MapEntry(k, _redactArgument(v, activeVisited, depth + 1));
           });
+        } else if (value is Set) {
+          return (value as Set)
+              .map((item) => _redactArgument(item, activeVisited, depth + 1))
+              .toSet();
         } else {
           return (value as List)
               .map((item) => _redactArgument(item, activeVisited, depth + 1))
