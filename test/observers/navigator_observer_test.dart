@@ -172,28 +172,106 @@ void main() {
       });
     });
 
-    test('respects inspector redactSensitiveData flag for captured routingParams', () {
+    test(
+      'respects inspector redactSensitiveData flag for captured routingParams',
+      () {
+        final secureInspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          redactSensitiveData: true,
+        );
+        final secureObserver = secureInspector.navigatorObserver;
+
+        final route = MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/login?token=abc12345',
+            arguments: {'password': 'pass', 'user': 'bob'},
+          ),
+          builder: (_) => const SizedBox(),
+        );
+        secureObserver.didPush(route, null);
+
+        final entry = secureInspector.navigatorInspector.entries.first;
+        expect(entry.routingParams?['user'], 'bob');
+        expect(entry.routingParams?['token'], '••••');
+        expect(entry.routingParams?['password'], '••••');
+        expect(entry.routeName, '/login');
+        expect((entry.arguments as Map)['password'], '••••');
+      },
+    );
+
+    test('sanitizes nested maps and non-Map arguments in redact mode', () {
       final secureInspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
         redactSensitiveData: true,
       );
       final secureObserver = secureInspector.navigatorObserver;
 
-      final route = MaterialPageRoute(
-        settings: const RouteSettings(
-          name: '/login?token=abc12345',
-          arguments: {'password': 'pass', 'user': 'bob'},
+      // 1. Nested Map
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/profile',
+            arguments: {
+              'meta': {'pinCode': '1234', 'name': 'Alice'},
+            },
+          ),
+          builder: (_) => const SizedBox(),
         ),
-        builder: (_) => const SizedBox(),
+        null,
       );
-      secureObserver.didPush(route, null);
+      final nestedEntry = secureInspector.navigatorInspector.entries.first;
+      final nestedArgs = nestedEntry.arguments as Map;
+      expect((nestedArgs['meta'] as Map)['pinCode'], '••••');
+      expect((nestedArgs['meta'] as Map)['name'], 'Alice');
 
-      final entry = secureInspector.navigatorInspector.entries.first;
-      expect(entry.routingParams?['user'], 'bob');
-      expect(entry.routingParams?['token'], '••••');
-      expect(entry.routingParams?['password'], '••••');
-      expect(entry.routeName, '/login');
-      expect((entry.arguments as Map)['password'], '••••');
+      // 2. Uri argument with sensitive query parameter
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(
+            name: '/redirect',
+            arguments: Uri.parse(
+              'https://example.com/login?token=secret123&user=sam',
+            ),
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final uriEntry = secureInspector.navigatorInspector.entries.first;
+      final uriArgs = uriEntry.arguments as Uri;
+      expect(uriArgs.queryParameters['token'], '••••');
+      expect(uriArgs.queryParameters['user'], 'sam');
+
+      // 3. String argument with sensitive query parameter
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/link',
+            arguments: '/auth?apiKey=mySecretKey&flag=1',
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final strEntry = secureInspector.navigatorInspector.entries.first;
+      expect(
+        strEntry.arguments as String,
+        '/auth?apiKey=%E2%80%A2%E2%80%A2%E2%80%A2%E2%80%A2&flag=1',
+      );
+
+      // 4. String argument with malformed query
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/bad',
+            arguments: '/auth?malformed=%E0%A4',
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final badEntry = secureInspector.navigatorInspector.entries.first;
+      expect(badEntry.arguments as String, '/auth');
     });
   });
 }

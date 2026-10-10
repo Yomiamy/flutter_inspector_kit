@@ -4,39 +4,49 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('extractRoutingParams', () {
-    test('returns null when routeName has no query and arguments is null or empty', () {
-      expect(extractRoutingParams(routeName: '/home', arguments: null), isNull);
-      expect(extractRoutingParams(routeName: null, arguments: null), isNull);
-      expect(extractRoutingParams(routeName: '/order', arguments: <String, dynamic>{}), isNull);
-    });
+    test(
+      'returns null when routeName has no query and arguments is null or empty',
+      () {
+        expect(
+          extractRoutingParams(routeName: '/home', arguments: null),
+          isNull,
+        );
+        expect(extractRoutingParams(routeName: null, arguments: null), isNull);
+        expect(
+          extractRoutingParams(
+            routeName: '/order',
+            arguments: <String, dynamic>{},
+          ),
+          isNull,
+        );
+      },
+    );
 
     test('extracts query parameters from routeName', () {
       final params = extractRoutingParams(
         routeName: '/search?keyword=flutter&category=tools',
       );
       expect(params, isNotNull);
-      expect(params, {
-        'keyword': 'flutter',
-        'category': 'tools',
-      });
+      expect(params, {'keyword': 'flutter', 'category': 'tools'});
     });
 
     test('extracts query parameters from Uri arguments', () {
-      final uri = Uri.parse('https://example.com/details?id=123&from=notification');
+      final uri = Uri.parse(
+        'https://example.com/details?id=123&from=notification',
+      );
       final params = extractRoutingParams(arguments: uri);
-      expect(params, {
-        'id': '123',
-        'from': 'notification',
-      });
+      expect(params, {'id': '123', 'from': 'notification'});
     });
 
-    test('extracts query parameters from String arguments with query string', () {
-      final params = extractRoutingParams(arguments: '/detail?item=book&page=2');
-      expect(params, {
-        'item': 'book',
-        'page': '2',
-      });
-    });
+    test(
+      'extracts query parameters from String arguments with query string',
+      () {
+        final params = extractRoutingParams(
+          arguments: '/detail?item=book&page=2',
+        );
+        expect(params, {'item': 'book', 'page': '2'});
+      },
+    );
 
     test('extracts scalar primitive types from Map arguments', () {
       final map = {
@@ -95,9 +105,7 @@ void main() {
     });
 
     test('caps total entries to maxEntries', () {
-      final map = {
-        for (var i = 0; i < 30; i++) 'key$i': 'val$i',
-      };
+      final map = {for (var i = 0; i < 30; i++) 'key$i': 'val$i'};
       final params = extractRoutingParams(arguments: map, maxEntries: 10);
       expect(params?.length, 10);
     });
@@ -111,6 +119,8 @@ void main() {
         'secret': 'mySecret',
         'access_token': 'bearer_token',
         'userPin': '1234',
+        'pinCode': '9876',
+        'keyCode': 'secKey1',
         'key': 'my_raw_key',
         'apiKey': 'abc1234',
         'shipping': 'fedex',
@@ -125,6 +135,8 @@ void main() {
       expect(params?['secret'], kRedactedValue);
       expect(params?['access_token'], kRedactedValue);
       expect(params?['userPin'], kRedactedValue);
+      expect(params?['pinCode'], kRedactedValue);
+      expect(params?['keyCode'], kRedactedValue);
       expect(params?['key'], kRedactedValue);
       expect(params?['apiKey'], kRedactedValue);
       expect(params?['shipping'], 'fedex');
@@ -132,11 +144,17 @@ void main() {
       expect(params?['keyboard'], 'mechanical');
     });
 
+    test('redacts camelCase pinCode parameter specifically', () {
+      final params = extractRoutingParams(
+        arguments: {'pinCode': '1234', 'shippingAddress': '123 Main St'},
+        redact: true,
+      );
+      expect(params?['pinCode'], kRedactedValue);
+      expect(params?['shippingAddress'], '123 Main St');
+    });
+
     test('does not redact sensitive keys when redact is false', () {
-      final map = {
-        'password': 'plainPassword',
-        'token': 'plainToken',
-      };
+      final map = {'password': 'plainPassword', 'token': 'plainToken'};
       final params = extractRoutingParams(arguments: map, redact: false);
       expect(params?['password'], 'plainPassword');
       expect(params?['token'], 'plainToken');
@@ -150,9 +168,7 @@ void main() {
     });
 
     test('returned map is unmodifiable', () {
-      final params = extractRoutingParams(
-        routeName: '/page?id=1',
-      );
+      final params = extractRoutingParams(routeName: '/page?id=1');
       expect(params, isNotNull);
       expect(() => params!['id'] = '2', throwsUnsupportedError);
     });

@@ -21,10 +21,7 @@ const Set<String> _kSensitiveSubstrings = {
   'private_key',
 };
 
-const Set<String> _kSensitiveWords = {
-  'pin',
-  'key',
-};
+const Set<String> _kSensitiveWords = {'pin', 'key'};
 
 /// Returns true if [key] is recognized as containing sensitive data.
 bool isSensitiveRoutingKey(String key) {
@@ -42,11 +39,25 @@ bool isSensitiveRoutingKey(String key) {
         lower.contains('-$word-')) {
       return true;
     }
+    // Match camelCase prefix (e.g. pinCode, keyCode)
+    if (lower.startsWith(word) &&
+        key.length > word.length &&
+        _isAsciiUpper(key[word.length])) {
+      return true;
+    }
   }
   if (key.endsWith('Pin') || key.endsWith('Key')) {
     return true;
   }
+  if (key.contains(RegExp(r'[a-z](Pin|Key)[A-Z]'))) {
+    return true;
+  }
   return false;
+}
+
+bool _isAsciiUpper(String ch) {
+  final code = ch.codeUnitAt(0);
+  return code >= 65 && code <= 90;
 }
 
 /// Extracts a sanitized, bounded map of scalar routing parameters from
@@ -159,11 +170,11 @@ Object? redactRoutingArguments(Object? arguments, {required bool redact}) {
   if (arguments is Map) {
     return {
       for (final entry in arguments.entries)
-        entry.key: (entry.key != null && isSensitiveRoutingKey(entry.key.toString()))
+        entry.key:
+            (entry.key != null && isSensitiveRoutingKey(entry.key.toString()))
             ? kRedactedValue
             : entry.value,
     };
   }
   return arguments;
 }
-

@@ -88,15 +88,53 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
 
   Object? _sanitizeArguments(Object? arguments, {required bool redact}) {
     if (!redact || arguments == null) return arguments;
-    if (arguments is Map) {
-      return arguments.map((k, v) {
+    return _redactArgument(arguments);
+  }
+
+  static Object? _redactArgument(Object? value) {
+    if (value == null) return null;
+    if (value is Map) {
+      return value.map((k, v) {
         if (k is String && isSensitiveRoutingKey(k)) {
           return MapEntry(k, kRedactedValue);
         }
-        return MapEntry(k, v);
+        return MapEntry(k, _redactArgument(v));
       });
     }
-    return arguments;
+    if (value is List) {
+      return value.map(_redactArgument).toList();
+    }
+    if (value is Uri) {
+      try {
+        if (!value.hasQuery) return value;
+        final sanitizedParams = value.queryParameters.map((k, v) {
+          return MapEntry(k, isSensitiveRoutingKey(k) ? kRedactedValue : v);
+        });
+        return value.replace(queryParameters: sanitizedParams);
+      } catch (_) {
+        return value.replace(query: '');
+      }
+    }
+    if (value is String) {
+      if (value.contains('?')) {
+        try {
+          final uri = Uri.tryParse(value);
+          if (uri != null && uri.hasQuery) {
+            final sanitizedParams = uri.queryParameters.map((k, v) {
+              return MapEntry(k, isSensitiveRoutingKey(k) ? kRedactedValue : v);
+            });
+            return uri.replace(queryParameters: sanitizedParams).toString();
+          }
+        } catch (_) {
+          final idx = value.indexOf('?');
+          return value.substring(0, idx);
+        }
+        final idx = value.indexOf('?');
+        return value.substring(0, idx);
+      }
+      return value;
+    }
+    return value;
   }
 
   @override
