@@ -273,6 +273,120 @@ void main() {
       final badEntry = secureInspector.navigatorInspector.entries.first;
       expect(badEntry.arguments as String, '/auth');
     });
+
+    test('handles circular Map and List arguments without stack overflow in redact mode', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+      final secureObserver = secureInspector.navigatorObserver;
+
+      // 1. Circular Map
+      final circularMap = <String, dynamic>{'foo': 'bar'};
+      circularMap['self'] = circularMap;
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/circ-map', arguments: circularMap),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final mapEntry = secureInspector.navigatorInspector.entries.first;
+      final mapArgs = mapEntry.arguments as Map;
+      expect(mapArgs['foo'], 'bar');
+      expect(mapArgs['self'], '<circular>');
+
+      // 2. Circular List
+      final circularList = <dynamic>['item1'];
+      circularList.add(circularList);
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/circ-list', arguments: circularList),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final listEntry = secureInspector.navigatorInspector.entries.first;
+      final listArgs = listEntry.arguments as List;
+      expect(listArgs[0], 'item1');
+      expect(listArgs[1], '<circular>');
+
+      // 3. Deeply nested Map exceeding maxDepth = 8
+      Map<String, dynamic> buildNested(int depth) {
+        if (depth <= 0) return {'leaf': 'value'};
+        return {'child': buildNested(depth - 1)};
+      }
+      final deepMap = buildNested(10);
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/deep', arguments: deepMap),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final deepEntry = secureInspector.navigatorInspector.entries.first;
+      var current = deepEntry.arguments;
+      for (var i = 0; i < 8; i++) {
+        expect(current, isA<Map>());
+        current = (current as Map)['child'];
+      }
+      expect(current, '<deep>');
+
+      // 4. DAG shared reference is not falsely flagged as circular
+      final sharedChild = {'data': 'safe'};
+      final dagMap = {'a': sharedChild, 'b': sharedChild};
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/dag', arguments: dagMap),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final dagEntry = secureInspector.navigatorInspector.entries.first;
+      final dagArgs = dagEntry.arguments as Map;
+      expect((dagArgs['a'] as Map)['data'], 'safe');
+      expect((dagArgs['b'] as Map)['data'], 'safe');
+    });
+
+    test('preserves duplicate query parameters in Uri and String arguments in redact mode', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+      final secureObserver = secureInspector.navigatorObserver;
+
+      // 1. Uri with duplicate non-sensitive and sensitive parameters
+      final uri = Uri.parse('https://example.com/search?tag=a&tag=b&token=secret1&token=secret2');
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(name: '/dup-uri', arguments: uri),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final uriEntry = secureInspector.navigatorInspector.entries.first;
+      final uriArgs = uriEntry.arguments as Uri;
+      expect(uriArgs.queryParametersAll['tag'], ['a', 'b']);
+      expect(uriArgs.queryParametersAll['token'], ['••••', '••••']);
+
+      // 2. String with duplicate parameters
+      secureObserver.didPush(
+        MaterialPageRoute(
+          settings: const RouteSettings(
+            name: '/dup-str',
+            arguments: '/items?tag=x&tag=y&key=k1&key=k2',
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      final strEntry = secureInspector.navigatorInspector.entries.first;
+      final strArgs = strEntry.arguments as String;
+      expect(
+        strArgs,
+        '/items?tag=x&tag=y&key=%E2%80%A2%E2%80%A2%E2%80%A2%E2%80%A2&key=%E2%80%A2%E2%80%A2%E2%80%A2%E2%80%A2',
+      );
+    });
   });
 }
 

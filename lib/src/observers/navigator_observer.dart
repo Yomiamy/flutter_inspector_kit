@@ -91,25 +91,41 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
     return _redactArgument(arguments);
   }
 
-  static Object? _redactArgument(Object? value) {
+  static const int _kMaxRedactionDepth = 8;
+
+  static Object? _redactArgument(
+    Object? value, [
+    Set<Object>? visited,
+    int depth = 0,
+  ]) {
     if (value == null) return null;
-    if (value is Map) {
-      return value.map((k, v) {
-        if (k is String && isSensitiveRoutingKey(k)) {
-          return MapEntry(k, kRedactedValue);
+    if (depth >= _kMaxRedactionDepth) return '<deep>';
+
+    if (value is Map || value is List) {
+      if (visited != null && visited.contains(value)) return '<circular>';
+      final activeVisited = visited ?? Set<Object>.identity();
+      activeVisited.add(value);
+      try {
+        if (value is Map) {
+          return value.map((k, v) {
+            if (k is String && isSensitiveRoutingKey(k)) {
+              return MapEntry(k, kRedactedValue);
+            }
+            return MapEntry(k, _redactArgument(v, activeVisited, depth + 1));
+          });
+        } else {
+          return (value as List)
+              .map((item) => _redactArgument(item, activeVisited, depth + 1))
+              .toList();
         }
-        return MapEntry(k, _redactArgument(v));
-      });
-    }
-    if (value is List) {
-      return value.map(_redactArgument).toList();
+      } finally {
+        activeVisited.remove(value);
+      }
     }
     if (value is Uri) {
       try {
         if (!value.hasQuery) return value;
-        final sanitizedParams = value.queryParameters.map((k, v) {
-          return MapEntry(k, isSensitiveRoutingKey(k) ? kRedactedValue : v);
-        });
+        final sanitizedParams = _sanitizeQueryParams(value.queryParametersAll);
         return value.replace(queryParameters: sanitizedParams);
       } catch (_) {
         return value.replace(query: '');
@@ -120,9 +136,9 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
         try {
           final uri = Uri.tryParse(value);
           if (uri != null && uri.hasQuery) {
-            final sanitizedParams = uri.queryParameters.map((k, v) {
-              return MapEntry(k, isSensitiveRoutingKey(k) ? kRedactedValue : v);
-            });
+            final sanitizedParams = _sanitizeQueryParams(
+              uri.queryParametersAll,
+            );
             return uri.replace(queryParameters: sanitizedParams).toString();
           }
         } catch (_) {
@@ -135,6 +151,18 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
       return value;
     }
     return value;
+  }
+
+  static Map<String, List<String>> _sanitizeQueryParams(
+    Map<String, List<String>> params,
+  ) {
+    return params.map((k, v) {
+      final isSensitive = isSensitiveRoutingKey(k);
+      return MapEntry(
+        k,
+        isSensitive ? v.map((_) => kRedactedValue).toList() : v,
+      );
+    });
   }
 
   @override
