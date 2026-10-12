@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../core/flutter_inspector.dart';
 import '../../models/log_level.dart';
@@ -57,6 +59,7 @@ class DashboardModal extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
           ),
           actions: [
+            if (kDebugMode) const _LayoutBoundaryToggleAction(),
             IconButton(
               icon: const Icon(Icons.ios_share),
               tooltip: 'Export diagnostic report',
@@ -193,6 +196,41 @@ class _BadgeTabLabel extends StatelessWidget {
       isLabelVisible: count > 0,
       label: Text('$count'),
       child: Text(label),
+    );
+  }
+}
+
+/// An action button that toggles Flutter's layout boundary overlay
+/// ([debugPaintSizeEnabled]) and marks the render tree for repainting.
+class _LayoutBoundaryToggleAction extends StatefulWidget {
+  const _LayoutBoundaryToggleAction();
+
+  @override
+  State<_LayoutBoundaryToggleAction> createState() =>
+      _LayoutBoundaryToggleActionState();
+}
+
+class _LayoutBoundaryToggleActionState
+    extends State<_LayoutBoundaryToggleAction> {
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = debugPaintSizeEnabled;
+    return IconButton(
+      icon: Icon(
+        isEnabled ? Icons.grid_on : Icons.grid_off_outlined,
+        color: isEnabled ? Theme.of(context).colorScheme.primary : null,
+      ),
+      tooltip: isEnabled
+          ? 'Disable layout boundaries'
+          : 'Enable layout boundaries',
+      onPressed: () {
+        setState(() {
+          debugPaintSizeEnabled = !debugPaintSizeEnabled;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          RendererBinding.instance.reassembleApplication();
+        });
+      },
     );
   }
 }
