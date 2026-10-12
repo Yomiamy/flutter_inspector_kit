@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-13**：**§P28 視覺化排版邊界切換完成**——PR #195 合入 main（issue #194）。Dashboard AppBar 新增僅 `kDebugMode` 顯示的排版邊界切換按鈕。與原提案有三處差異：只切 `debugPaintSizeEnabled`（不含 baselines）、用圖示按鈕而非 Switch、Profile 模式不顯示。詳見 §P28 實作現況。檔名日期前綴由 `2026-10-09` 更新至 `2026-10-13`。
 > * **2026-10-09**：**新增三項輕量級排查新提案（§P28、§P29、§P30）**——基於 Linus Torvalds 哲學提出「視覺化排版邊界切換」、「RenderFlex 錯誤視覺化解析」及「路由參數擷取」三項高價值功能。著重於零新模型、復用既有基建，為 Timeline 帶來全新上下文維度。檔名日期前綴由 `2026-10-05` 更新至 `2026-10-09`。
 > * **2026-10-05**：**§P16 生態日誌適配器完成**——PR #191 合入 main（issue #190）。交付形態為 example 端 bridge 加 README 食譜，`lib/` 與根 `pubspec.yaml` 零改動。與原提案三處差異：**(1) logger 改用 `Logger.addOutputListener`**，不用 `LogOutput` 子類別；**(2) 草稿有三處無法編譯或會掉資料**（`StackTrace` 傳給 `String?`、null `message` 傳給 `String`、talker `LogLevel` 撞名），已修正；**(3) talker 的 log level 擋不住 observer**，README 改建議 `TalkerFilter`。Tier 4 活躍待辦剩 §P18 / §D4 / §P9。檔名日期前綴由 `2026-09-19` 更新至 `2026-10-05`。
 > * **2026-09-19**：**§P17 原生折疊式 JSON 樹狀檢視器完成**——PR #169 合入 main（issue #168）。落地與原提案有五處差異：**(1) 語法色彩高亮不做**（提案的 Key 紫／String 綠／Number 橘等），文字一律主題預設前景色，結構感由縮排與展開/折疊 affordance 承載，搜尋命中高亮為唯一例外——這是刻意裁決，非遺漏。**(2) 原文稱兩個 detail view 痛點相同，實查不成立**：Network 側是 JSON 字串需 decode，Log 側 `LogEntry.data` 已是 `Map` 不需 decode（`KeyValueTable` 的 `toString()` 才是它不可讀的根因）；故元件只收已解析資料，decode 與失敗 fallback 留在呼叫端。**(3) `ListView.builder` 未採用**——兩個 detail view 都把本元件放進自己的 `ListView`，子項拿到無界高度，`shrinkWrap` 會量完每一列使 lazy build 失效；改為攤進 `Column` 由外層滾動，另以 `_kMaxRows = 300` 硬上限收尾。**預設折疊只擋得住深樹，擋不住寬樹**（2000 元素陣列全在 depth 1），這點是 PR review 才發現的。**(4) 節點 `id` 與顯示 `path` 分離**：`id` 為走訪序號鏈、與 key 內容無關，否則 map key 含 `.` 時 `{'a.b':{'c':1}}` 與 `{'a':{'b':{'c':1}}}` 會撞展開狀態的 key。**(5) 另加 raw JSON 切換**（提案未含）——改成樹之後失去 `SelectableText` 拖選任意片段的能力，故補 `Show raw` / `Show tree`；raw 以 `toEncodable` 回退 `toString()` 處理非 JSON 型別，並 catch `JsonCyclicError`（該例外在 encoder 偵測到環時直接拋出，不走 `toEncodable`）。防禦：深度上限 32、循環引用以 `identical()` 偵測且離開節點即 pop（避免 DAG 誤報）。零新增相依，642 tests 綠、analyze 零新增。Tier 4 活躍待辦剩 5 項（§P4 / §P16 / §P18 / §D4 / §P9）。檔名日期前綴由 `2026-09-12` 更新至 `2026-09-19`。
@@ -1888,7 +1889,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 > 不成比例。**Tier 4 由 4 項降為 3 項後，因 §P15（KV Browser）新增又回到 4 項（§P4 / §P15 / §D4 / §P9）**。
 > **2026-08-22 更新**：§P15 已於 PR #137 完成（實作為獨立 Storage tab），本層剩 3 項（§P4 / §D4 / §P9）。
 
-### §P28 視覺化排版邊界切換 (UI Layout Boundary Overlay Toggle) — 🆕 新提案
+### §P28 視覺化排版邊界切換 (UI Layout Boundary Overlay Toggle) — ✅ 已完成（PR #195）
 > **痛點**：QA 在實機測試時發現 UI 跑版、重疊或切邊，但無法具體指出是哪個 Widget 尺寸不對。目前只能截圖報 bug，開發者再接線連 DevTools 才能打開排版邊界 (Debug Paint) 來排查，溝通與重現成本高。
 
 * **好品味設計（核心洞察）**：
@@ -1902,6 +1903,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   - **破壞性**：零。不干擾現有 timeline，不寫入日誌，不影響生產環境。
   - **實用性**：極高。實機直接看排版邊界，QA 截圖的價值瞬間翻倍。
 * **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐⭐
+* **✅ 實作現況（PR #195 · 2026-10-12 合入 main，issue #194）**：`DashboardModal` AppBar actions 新增私有 `_LayoutBoundaryToggleAction`（`IconButton`，`grid_on`/`grid_off_outlined` 圖示切換），僅 `kDebugMode` 下渲染。與提案的差異：**(1) 只切 `debugPaintSizeEnabled`**，未動 `debugPaintBaselinesEnabled`；**(2) 用 AppBar 圖示按鈕而非 Switch**；**(3) 防禦只認 `kDebugMode`**，Profile 模式同樣隱藏；**(4) 重繪用的 `reassembleApplication()` 放在 post-frame callback 內呼叫**。零新模型、零新相依，`lib/` 只改 `dashboard_modal.dart`。
 
 ### §P29 RenderFlex 錯誤視覺化解析 (RenderFlex Error Context Visualizer) — 🆕 新提案
 > **痛點**：Flutter 最常見的 UI 錯誤就是 "A RenderFlex overflowed by X pixels"。但在 Console 裡，這會產生一大坨文字 log，排查者很難一眼看出是哪個 Widget 在哪個方向超出了多少像素。
