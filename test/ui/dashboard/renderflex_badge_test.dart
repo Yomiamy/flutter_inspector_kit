@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('RenderFlex Badge in ConsoleTab', () {
-    testWidgets('displays overflow badge for RenderFlex errors', (tester) async {
+    testWidgets('displays overflow badge for RenderFlex errors', (
+      tester,
+    ) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
       );
@@ -37,7 +39,9 @@ void main() {
       expect(find.text('Overflow: 24px bottom'), findsOneWidget);
     });
 
-    testWidgets('formats small decimal overflow without displaying zero', (tester) async {
+    testWidgets('formats small decimal overflow without displaying zero', (
+      tester,
+    ) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
       );
@@ -62,32 +66,37 @@ void main() {
       expect(find.text('Overflow: 0.4px bottom'), findsOneWidget);
     });
 
-    testWidgets('formats scientific notation overflow without truncating exponent zeros', (tester) async {
-      final inspector = FlutterInspector(
-        navigatorKey: GlobalKey<NavigatorState>(),
-      );
+    testWidgets(
+      'formats scientific notation overflow without truncating exponent zeros',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
 
-      inspector.log(
-        'A RenderFlex overflowed by 1e-10 pixels on the bottom.',
-        level: LogLevel.error,
-        data: {
-          'isRenderFlexOverflow': true,
-          'overflowPixels': 1e-10,
-          'overflowDirection': 'bottom',
-        },
-      );
+        inspector.log(
+          'A RenderFlex overflowed by 1e-10 pixels on the bottom.',
+          level: LogLevel.error,
+          data: {
+            'isRenderFlexOverflow': true,
+            'overflowPixels': 1e-10,
+            'overflowDirection': 'bottom',
+          },
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: ConsoleTab(inspector: inspector)),
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Overflow: 1e-10px bottom'), findsOneWidget);
-    });
+        expect(find.text('Overflow: 1e-10px bottom'), findsOneWidget);
+      },
+    );
 
-    testWidgets('renders safely in narrow layout without overflow', (tester) async {
+    testWidgets('renders safely in narrow layout without overflow', (
+      tester,
+    ) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
       );
@@ -119,7 +128,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('does not display overflow badge for ordinary error log', (tester) async {
+    testWidgets('does not display overflow badge for ordinary error log', (
+      tester,
+    ) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
       );
@@ -142,7 +153,9 @@ void main() {
   });
 
   group('RenderFlex Overflow in LogDetailView', () {
-    testWidgets('shows Overflow Context row in General section', (tester) async {
+    testWidgets('shows Overflow Context row in General section', (
+      tester,
+    ) async {
       final entry = LogEntry(
         message: 'A RenderFlex overflowed by 16.0 pixels on the right.',
         level: LogLevel.error,
@@ -153,31 +166,55 @@ void main() {
         },
       );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LogDetailView(entry: entry),
-        ),
-      );
+      await tester.pumpWidget(MaterialApp(home: LogDetailView(entry: entry)));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Overflow Context'), findsOneWidget);
       expect(find.text('16.0 px on the right'), findsOneWidget);
     });
 
-    testWidgets('does not show Overflow Context row for regular entry', (tester) async {
-      final entry = LogEntry(
-        message: 'Normal message',
-        level: LogLevel.info,
-      );
+    testWidgets(
+      'shows Error Widget and Error Location in General section when present',
+      (tester) async {
+        final entry = LogEntry(
+          message: 'A RenderFlex overflowed by 16.0 pixels on the right.',
+          level: LogLevel.error,
+          data: {
+            'isRenderFlexOverflow': true,
+            'overflowPixels': 16.0,
+            'overflowDirection': 'right',
+            'errorCausingWidget': 'Row',
+            'errorLocation':
+                'file:///Users/yomiry/StudioWorkspace/flutter_inspector/example/lib/main.dart:322:13',
+          },
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LogDetailView(entry: entry),
-        ),
-      );
+        await tester.pumpWidget(MaterialApp(home: LogDetailView(entry: entry)));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Error Widget:'), findsOneWidget);
+        expect(find.text('Row'), findsOneWidget);
+        expect(find.textContaining('Error Location:'), findsOneWidget);
+        expect(
+          find.text(
+            'file:///Users/yomiry/StudioWorkspace/flutter_inspector/example/lib/main.dart:322:13',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('does not show Overflow Context row for regular entry', (
+      tester,
+    ) async {
+      final entry = LogEntry(message: 'Normal message', level: LogLevel.info);
+
+      await tester.pumpWidget(MaterialApp(home: LogDetailView(entry: entry)));
       await tester.pumpAndSettle();
 
       expect(find.text('Overflow Context'), findsNothing);
+      expect(find.text('Error Widget:'), findsNothing);
+      expect(find.text('Error Location:'), findsNothing);
     });
   });
 }

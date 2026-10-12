@@ -100,10 +100,24 @@ class UncaughtErrorHandler {
     final context = details.context;
     if (context != null) data['context'] = context.toString();
 
-    final overflowInfo = parseRenderFlexOverflow(message) ??
+    final overflowInfo =
+        parseRenderFlexOverflow(message) ??
         parseRenderFlexOverflow(details.exception.toString());
     if (overflowInfo != null) {
       data.addAll(overflowInfo);
+    }
+
+    String? fullDetails;
+    try {
+      fullDetails = details.toString();
+    } catch (_) {
+      // Fallback if details.toString() throws in custom subclasses.
+    }
+    final errorWidgetInfo =
+        (fullDetails != null ? parseErrorCausingWidget(fullDetails) : null) ??
+        parseErrorCausingWidget(message);
+    if (errorWidgetInfo != null) {
+      data.addAll(errorWidgetInfo);
     }
 
     onLog(
@@ -136,4 +150,33 @@ Map<String, dynamic>? parseRenderFlexOverflow(String message) {
     'overflowPixels': pixels,
     'overflowDirection': direction,
   };
+}
+
+final _errorCausingWidgetPattern = RegExp(
+  r'The relevant error-causing widget was:\s*\n?\s*(?:([^\n\r:]+?)\s+)?(?:([^\n\r\s:]+):)?((?:file://|package:|/|[A-Za-z]:[/\\])[^\s\n\r:]+:\d+:\d+)',
+  multiLine: true,
+);
+
+/// Attempts to parse the error-causing widget and source location from an
+/// error [text].
+///
+/// Returns a map with `errorCausingWidget` and `errorLocation` if matched,
+/// or null otherwise.
+Map<String, dynamic>? parseErrorCausingWidget(String text) {
+  final match = _errorCausingWidgetPattern.firstMatch(text);
+  if (match == null) return null;
+  final widgetGroup1 = match.group(1)?.trim();
+  final widgetGroup2 = match.group(2)?.trim();
+  final widget = (widgetGroup1 != null && widgetGroup1.isNotEmpty)
+      ? widgetGroup1
+      : ((widgetGroup2 != null && widgetGroup2.isNotEmpty)
+            ? widgetGroup2
+            : null);
+  final location = match.group(3)?.trim();
+  if (location == null || location.isEmpty) return null;
+  final result = <String, dynamic>{'errorLocation': location};
+  if (widget != null) {
+    result['errorCausingWidget'] = widget;
+  }
+  return result;
 }

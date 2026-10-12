@@ -13,18 +13,21 @@
 ## 資料結構與架構設計
 - **核心資料**: 
   - 沿用 `LogEntry.data` (`Map<String, dynamic>`)。
-  - 溢出欄位定義：
+  - 溢出與位置欄位定義：
     - `isRenderFlexOverflow`: `bool` (`true`)
     - `overflowPixels`: `double` (例如 `24.0`)
     - `overflowDirection`: `String` (例如 `'bottom'`, `'right'`)
+    - `errorCausingWidget`: `String` (例如 `'Row'`)
+    - `errorLocation`: `String` (例如 `'file:///Users/yomiry/StudioWorkspace/...:322:13'`)
 - **解析邏輯**:
-  - 正則表達式：`r'A RenderFlex overflowed by (\d+(?:\.\d+)?) pixels on the (\w+)'` (不區分大小寫)。
-  - 解析置於 `try-catch` 或條件防禦中，提取失敗時不附加欄位。
+  - 溢出正則表達式：`r'A RenderFlex overflowed by (\d+(?:\.\d+)?(?:e[+-]?\d+)?) pixels on the (\w+)'` (不區分大小寫)。
+  - 錯誤元件與位置正則：`r'The relevant error-causing widget was:\s*\n?\s*(?:([^\n\r:]+?)\s+)?(?:([^\n\r\s:]+):)?((?:file://|package:|/|[A-Za-z]:[/\\])[^\s\n\r:]+:\d+:\d+)'`。
+  - 解析置於防禦性條件下，提取失敗時靜默忽略不附加欄位。
 - **UI 呈現**:
   - `_LogEntryRow` (`lib/src/ui/dashboard/tabs/console_tab.dart`):
     - 若 `entry.data` 包含 `overflowPixels` 與 `overflowDirection`，在訊息上方或標題 Row 渲染專屬溢出標籤 Chip/Badge（例如 `Overflow: 24px bottom`）。
   - `LogDetailView` (`lib/src/ui/dashboard/tabs/console/log_detail_view.dart`):
-    - 在 General 區塊增列 `DetailKeyValueRow.text('Overflow Context', ...)`。
+    - 在 General 區塊增列 `DetailKeyValueRow.text('Overflow Context', ...)`、`DetailKeyValueRow.text('Error Widget', ...)` 與 `DetailKeyValueRow.text('Error Location', ...)`，支援選取與複製。
 
 ## 檔案異動清單
 1. `lib/src/core/uncaught_error_handler.dart`:
