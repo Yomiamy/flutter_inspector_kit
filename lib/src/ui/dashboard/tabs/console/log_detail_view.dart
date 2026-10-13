@@ -86,6 +86,13 @@ class _LogDetailViewState extends State<LogDetailView> {
   }
 
   Widget _generalSection(BuildContext context) {
+    final data = widget.entry.data;
+    final isOverflow = data?['isRenderFlexOverflow'] == true;
+    final overflowPixels = data?['overflowPixels'];
+    final overflowDirection = data?['overflowDirection'];
+    final errorWidget = data?['errorCausingWidget'];
+    final errorLocation = data?['errorLocation'];
+
     return DetailSection(
       title: 'General',
       child: Column(
@@ -99,6 +106,17 @@ class _LogDetailViewState extends State<LogDetailView> {
           ),
           if (widget.entry.activeRoute != null)
             DetailKeyValueRow.text('Active Route', widget.entry.activeRoute!),
+          if (isOverflow && overflowDirection != null)
+            DetailKeyValueRow.text(
+              'Overflow Context',
+              overflowPixels != null
+                  ? '$overflowPixels px on the $overflowDirection'
+                  : 'on the $overflowDirection',
+            ),
+          if (errorWidget is String)
+            DetailKeyValueRow.text('Error Widget', errorWidget),
+          if (errorLocation is String)
+            DetailKeyValueRow.text('Error Location', errorLocation),
         ],
       ),
     );

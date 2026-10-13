@@ -255,6 +255,21 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
+                // Triggers an intentional layout overflow. With captureUncaughtErrors
+                // enabled, FlutterError.onError captures the RenderFlex error,
+                // parses the overflow pixels and direction, and displays a
+                // RenderFlex badge in the Console tab.
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const _RenderFlexOverflowPage(),
+                    ),
+                  );
+                },
+                child: const Text('Trigger RenderFlex Overflow'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
                 // One record per level through logger, talker and logging,
                 // plus one stack-traced error each, all via the bridges wired
                 // in main(). Check colours, red rows and ⚡ Errors only.
@@ -281,5 +296,67 @@ class _BrokenWidgetPage extends StatelessWidget {
   Widget build(BuildContext context) {
     // Intentionally throw inside build method to trigger FlutterError.onError & ErrorWidget.builder
     throw FlutterError('Demo: Widget build error triggered inside build()');
+  }
+}
+
+class _RenderFlexOverflowPage extends StatelessWidget {
+  const _RenderFlexOverflowPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('RenderFlex Overflow Demo')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'This Row intentionally overflows horizontally by at least 200 pixels to trigger a RenderFlex error.\n'
+                'Check the Inspector Console tab for the RenderFlex badge!',
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Fixed 400px width (< 600px of children) so the overflow also
+            // triggers on wide screens.
+            SizedBox(
+              width: 400,
+              child: Row(
+                children: const [
+                  SizedBox(
+                    width: 300,
+                    height: 60,
+                    child: ColoredBox(
+                      color: Colors.blue,
+                      child: Center(
+                        child: Text(
+                          'Box 1 (300px)',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 300,
+                    height: 60,
+                    child: ColoredBox(
+                      color: Colors.red,
+                      child: Center(
+                        child: Text(
+                          'Box 2 (300px)',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

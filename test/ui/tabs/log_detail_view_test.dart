@@ -49,6 +49,27 @@ void main() {
       expect(find.textContaining('exceptionType'), findsOneWidget);
     });
 
+    testWidgets('non-String errorCausingWidget/errorLocation do not crash', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LogDetailView(
+            entry: LogEntry(
+              message: 'm',
+              level: LogLevel.info,
+              data: {'errorCausingWidget': 42, 'errorLocation': 3.14},
+              timestamp: t,
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Error Widget:'), findsNothing);
+      expect(find.text('Error Location:'), findsNothing);
+    });
+
     testWidgets('null stackTrace and null data do not crash', (tester) async {
       await tester.pumpWidget(
         MaterialApp(home: LogDetailView(entry: minimalEntry())),
