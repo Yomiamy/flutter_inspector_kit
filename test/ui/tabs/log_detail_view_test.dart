@@ -66,8 +66,8 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Error Widget'), findsNothing);
-      expect(find.text('Error Location'), findsNothing);
+      expect(find.text('Error Widget:'), findsNothing);
+      expect(find.text('Error Location:'), findsNothing);
     });
 
     testWidgets('null stackTrace and null data do not crash', (tester) async {
