@@ -108,14 +108,20 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
       try {
         if (value is Map) {
           return value.map((k, v) {
-            final keyStr = k?.toString() ?? '';
+            final String keyStr;
+            try {
+              keyStr = k?.toString() ?? '';
+            } catch (_) {
+              // Unclassifiable key: drop both key and value, never break recording.
+              return const MapEntry(kRedactedValue, kRedactedValue);
+            }
             if (isSensitiveRoutingKey(keyStr)) {
               return MapEntry(k, kRedactedValue);
             }
             return MapEntry(k, _redactArgument(v, activeVisited, depth + 1));
           });
         } else if (value is Set) {
-          return (value as Set)
+          return value
               .map((item) => _redactArgument(item, activeVisited, depth + 1))
               .toSet();
         } else {

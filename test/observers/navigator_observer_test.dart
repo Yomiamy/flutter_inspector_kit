@@ -431,7 +431,37 @@ void main() {
       expect(mapResults.values.first, '••••');
       expect(mapResults.values.last, 'normalValue');
     });
+
+    test('still records navigation when a Map key toString() throws', () {
+      final secureInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: true,
+      );
+
+      secureInspector.navigatorObserver.didPush(
+        MaterialPageRoute(
+          settings: RouteSettings(
+            name: '/throwing-key',
+            arguments: {_ThrowingKey(): 'rawSecretValue', 'user': 'bob'},
+          ),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+
+      expect(secureInspector.navigatorInspector.entries, hasLength(1));
+      final args =
+          secureInspector.navigatorInspector.entries.first.arguments as Map;
+      expect(args.values, isNot(contains('rawSecretValue')));
+      expect(args['user'], 'bob');
+      expect(args['••••'], '••••');
+    });
   });
+}
+
+class _ThrowingKey {
+  @override
+  String toString() => throw StateError('toString failed');
 }
 
 class _CustomTestKey {
