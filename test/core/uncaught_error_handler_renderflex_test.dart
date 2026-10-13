@@ -113,6 +113,17 @@ void main() {
       expect(result['errorLocation'], 'package:my_app/widgets/home.dart:45:10');
     });
 
+    test('extracts location with Windows drive letter in file URI', () {
+      const message =
+          'The relevant error-causing widget was:\n'
+          '  Row Row:file:///C:/work/lib/main.dart:12:3';
+      final result = parseErrorCausingWidget(message);
+
+      expect(result, isNotNull);
+      expect(result!['errorCausingWidget'], 'Row');
+      expect(result['errorLocation'], 'file:///C:/work/lib/main.dart:12:3');
+    });
+
     test('returns null when no error-causing widget is present', () {
       expect(
         parseErrorCausingWidget('A RenderFlex overflowed by 24 pixels'),

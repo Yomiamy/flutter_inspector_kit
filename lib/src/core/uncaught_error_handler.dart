@@ -153,7 +153,7 @@ Map<String, dynamic>? parseRenderFlexOverflow(String message) {
 }
 
 final _errorCausingWidgetPattern = RegExp(
-  r'The relevant error-causing widget was:\s*\n?\s*(?:([^\n\r:]+?)\s+)?(?:([^\n\r\s:]+):)?((?:file://|package:|/|[A-Za-z]:[/\\])[^\s\n\r:]+:\d+:\d+)',
+  r'The relevant error-causing widget was:\s*\n?\s*(?:([^\n\r:]+?)\s+)?(?:([^\n\r\s:]+):)?((?:file://|package:|/|[A-Za-z]:[/\\])(?:[^\s:]|(?<=[/\\][A-Za-z]):(?=[/\\]))+:\d+:\d+)',
   multiLine: true,
 );
 
