@@ -313,41 +313,46 @@ class _RenderFlexOverflowPage extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'This Row intentionally overflows horizontally by 200+ pixels to trigger a RenderFlex error.\n'
+                'This Row intentionally overflows horizontally by 200 pixels to trigger a RenderFlex error.\n'
                 'Check the Inspector Console tab for the RenderFlex badge!',
                 textAlign: TextAlign.center,
               ),
             ),
             const SizedBox(height: 20),
-            Row(
-              children: const [
-                SizedBox(
-                  width: 300,
-                  height: 60,
-                  child: ColoredBox(
-                    color: Colors.blue,
-                    child: Center(
-                      child: Text(
-                        'Box 1 (300px)',
-                        style: TextStyle(color: Colors.white),
+            // Fixed 400px width (< 600px of children) so the overflow also
+            // triggers on wide screens.
+            SizedBox(
+              width: 400,
+              child: Row(
+                children: const [
+                  SizedBox(
+                    width: 300,
+                    height: 60,
+                    child: ColoredBox(
+                      color: Colors.blue,
+                      child: Center(
+                        child: Text(
+                          'Box 1 (300px)',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                SizedBox(
-                  width: 300,
-                  height: 60,
-                  child: ColoredBox(
-                    color: Colors.red,
-                    child: Center(
-                      child: Text(
-                        'Box 2 (300px)',
-                        style: TextStyle(color: Colors.white),
+                  SizedBox(
+                    width: 300,
+                    height: 60,
+                    child: ColoredBox(
+                      color: Colors.red,
+                      child: Center(
+                        child: Text(
+                          'Box 2 (300px)',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
