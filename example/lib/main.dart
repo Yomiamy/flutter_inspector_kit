@@ -313,7 +313,7 @@ class _RenderFlexOverflowPage extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'This Row intentionally overflows horizontally by 200 pixels to trigger a RenderFlex error.\n'
+                'This Row intentionally overflows horizontally by at least 200 pixels to trigger a RenderFlex error.\n'
                 'Check the Inspector Console tab for the RenderFlex badge!',
                 textAlign: TextAlign.center,
               ),
