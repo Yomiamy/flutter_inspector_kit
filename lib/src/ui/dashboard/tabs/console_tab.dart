@@ -498,7 +498,7 @@ class _RenderFlexOverflowBadge extends StatelessWidget {
       }
       if (px >= 1.0) {
         final s = px.toStringAsFixed(1);
-        return s.endsWith('.0') ? px.toInt().toString() : s;
+        return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
       }
       final s = px.toStringAsPrecision(2);
       final expIndex = s.indexOf(RegExp(r'[eE]'));
@@ -516,6 +516,7 @@ class _RenderFlexOverflowBadge extends StatelessWidget {
           ? s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')
           : s;
     }
+
     final text = pixels != null
         ? 'Overflow: ${formatPixels(pixels!)}px $direction'
         : 'Overflow: $direction';
