@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-14**：**§P29 RenderFlex 錯誤視覺化解析完成**——PR #197 合入 main（issue #196）。溢出像素與方向寫入 `LogEntry.data`，ConsoleTab 顯示 badge、LogDetailView 顯示 Overflow Context。與原提案的差異：data key 改為 camelCase、像素值支援科學記號，並額外解析 error-causing widget 與原始碼位置（對所有 FlutterError 生效）。詳見 §P29 實作現況。檔名日期前綴由 `2026-10-13` 更新至 `2026-10-14`。
 > * **2026-10-13**：**§P28 視覺化排版邊界切換完成**——PR #195 合入 main（issue #194）。Dashboard AppBar 新增僅 `kDebugMode` 顯示的排版邊界切換按鈕。與原提案有三處差異：只切 `debugPaintSizeEnabled`（不含 baselines）、用圖示按鈕而非 Switch、Profile 模式不顯示。詳見 §P28 實作現況。檔名日期前綴由 `2026-10-09` 更新至 `2026-10-13`。
 > * **2026-10-09**：**新增三項輕量級排查新提案（§P28、§P29、§P30）**——基於 Linus Torvalds 哲學提出「視覺化排版邊界切換」、「RenderFlex 錯誤視覺化解析」及「路由參數擷取」三項高價值功能。著重於零新模型、復用既有基建，為 Timeline 帶來全新上下文維度。檔名日期前綴由 `2026-10-05` 更新至 `2026-10-09`。
 > * **2026-10-05**：**§P16 生態日誌適配器完成**——PR #191 合入 main（issue #190）。交付形態為 example 端 bridge 加 README 食譜，`lib/` 與根 `pubspec.yaml` 零改動。與原提案三處差異：**(1) logger 改用 `Logger.addOutputListener`**，不用 `LogOutput` 子類別；**(2) 草稿有三處無法編譯或會掉資料**（`StackTrace` 傳給 `String?`、null `message` 傳給 `String`、talker `LogLevel` 撞名），已修正；**(3) talker 的 log level 擋不住 observer**，README 改建議 `TalkerFilter`。Tier 4 活躍待辦剩 §P18 / §D4 / §P9。檔名日期前綴由 `2026-09-19` 更新至 `2026-10-05`。
@@ -1905,7 +1906,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐⭐
 * **✅ 實作現況（PR #195 · 2026-10-12 合入 main，issue #194）**：`DashboardModal` AppBar actions 新增私有 `_LayoutBoundaryToggleAction`（`IconButton`，`grid_on`/`grid_off_outlined` 圖示切換），僅 `kDebugMode` 下渲染。與提案的差異：**(1) 只切 `debugPaintSizeEnabled`**，未動 `debugPaintBaselinesEnabled`；**(2) 用 AppBar 圖示按鈕而非 Switch**；**(3) 防禦只認 `kDebugMode`**，Profile 模式同樣隱藏；**(4) 重繪用的 `reassembleApplication()` 放在 post-frame callback 內呼叫**。零新模型、零新相依，`lib/` 只改 `dashboard_modal.dart`。
 
-### §P29 RenderFlex 錯誤視覺化解析 (RenderFlex Error Context Visualizer) — 🆕 新提案
+### §P29 RenderFlex 錯誤視覺化解析 (RenderFlex Error Context Visualizer) — ✅ 已完成（PR #197）
 > **痛點**：Flutter 最常見的 UI 錯誤就是 "A RenderFlex overflowed by X pixels"。但在 Console 裡，這會產生一大坨文字 log，排查者很難一眼看出是哪個 Widget 在哪個方向超出了多少像素。
 
 * **好品味設計（核心洞察）**：
@@ -1920,6 +1921,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   - **破壞性**：零。不影響既有日誌的完整性，只是多加了一些幫助視覺化的 metadata。
   - **實用性**：高。把最常見的噪音日誌轉化為一目了然的排查證據。
 * **Effort**：Low ｜ **排查價值**：⭐⭐⭐⭐
+* **✅ 實作現況（PR #197 · 2026-10-13 合入 main，issue #196）**：`UncaughtErrorHandler._logFlutterError` 以頂層函式 `parseRenderFlexOverflow` 解析溢出訊息，結果併入既有 `LogEntry.data`；ConsoleTab 列表顯示 `Overflow: 24px bottom` 紅底 badge，LogDetailView 的 General 區塊多一列 `Overflow Context`。與提案的差異：**(1) data key 改為 `isRenderFlexOverflow` / `overflowPixels` / `overflowDirection`**，不是提案的 `overflow_pixels` / `axis`；**(2) 像素值支援小數與科學記號**（如 `1.00e-7`），badge 依量級格式化，不會把極小溢出顯示成 `0`；**(3) 範圍超出提案**：另加 `parseErrorCausingWidget`，從 `The relevant error-causing widget was:` 段落擷取 `errorCausingWidget` / `errorLocation`，並在 LogDetailView 顯示——這對**所有** FlutterError 生效，不限 RenderFlex；**(4) 位置解析支援 Windows 磁碟代號**（`file:///C:/…`，路徑來自開發機而非執行平台），且 regex 刻意不用 lookbehind——Safari 16.4 以前不支援，dart2js 初始化失敗會讓所有 FlutterError 都記不進 Inspector；**(5) LogDetailView 對 data 型別不做假設**，非 `String` 的 `errorCausingWidget` / `errorLocation` 直接略過，因 `LogEntry.data` 也接受使用者經 `FlutterInspector.log` 傳入的任意 Map。example 新增 RenderFlex 溢出示範頁。零新模型、零新相依，668 tests 綠、analyze 零新增。
 
 ### §P30 路由參數擷取與深層連結追蹤 (Routing Parameter Capture) — 🆕 新提案
 > **痛點**：深層連結 (Deep Link) 導航失敗或帶錯參數導致 crash，是常見且難查的問題。目前的 `NavigatorObserver` 為了避免 PII 與記憶體外洩，刻意移除了 `arguments` 的記錄（見 §P13），導致我們只知道「去了哪裡」，不知道「帶了什麼參數」。
