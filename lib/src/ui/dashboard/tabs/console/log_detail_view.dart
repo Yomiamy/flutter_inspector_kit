@@ -90,8 +90,8 @@ class _LogDetailViewState extends State<LogDetailView> {
     final isOverflow = data?['isRenderFlexOverflow'] == true;
     final overflowPixels = data?['overflowPixels'];
     final overflowDirection = data?['overflowDirection'];
-    final errorWidget = data?['errorCausingWidget'] as String?;
-    final errorLocation = data?['errorLocation'] as String?;
+    final errorWidget = data?['errorCausingWidget'];
+    final errorLocation = data?['errorLocation'];
 
     return DetailSection(
       title: 'General',
@@ -113,9 +113,9 @@ class _LogDetailViewState extends State<LogDetailView> {
                   ? '$overflowPixels px on the $overflowDirection'
                   : 'on the $overflowDirection',
             ),
-          if (errorWidget != null)
+          if (errorWidget is String)
             DetailKeyValueRow.text('Error Widget', errorWidget),
-          if (errorLocation != null)
+          if (errorLocation is String)
             DetailKeyValueRow.text('Error Location', errorLocation),
         ],
       ),
