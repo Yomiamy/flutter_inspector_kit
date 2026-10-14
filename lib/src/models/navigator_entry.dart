@@ -15,13 +15,13 @@ class NavigatorEntry implements TimestampedEntry {
     Map<String, String>? queryParams,
     Map<String, String>? argParams,
     DateTime? timestamp,
-  })  : queryParams = queryParams == null
-            ? null
-            : Map<String, String>.unmodifiable(queryParams),
-        argParams = argParams == null
-            ? null
-            : Map<String, String>.unmodifiable(argParams),
-        timestamp = timestamp ?? DateTime.now();
+  }) : queryParams = queryParams == null
+           ? null
+           : Map<String, String>.unmodifiable(queryParams),
+       argParams = argParams == null
+           ? null
+           : Map<String, String>.unmodifiable(argParams),
+       timestamp = timestamp ?? DateTime.now();
 
   /// When the navigation event occurred.
   @override
@@ -111,14 +111,14 @@ class NavigatorEntry implements TimestampedEntry {
 
   @override
   int get hashCode => Object.hash(
-        timestamp,
-        action,
-        routeName,
-        widgetType,
-        arguments,
-        queryParams?.length,
-        argParams?.length,
-      );
+    timestamp,
+    action,
+    routeName,
+    widgetType,
+    arguments,
+    queryParams?.length,
+    argParams?.length,
+  );
 
   @override
   String toString() =>

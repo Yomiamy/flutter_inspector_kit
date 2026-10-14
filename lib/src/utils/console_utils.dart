@@ -111,8 +111,7 @@ class ConsoleFilter {
         e.url.toLowerCase().contains(kw) ||
             e.method.toLowerCase().contains(kw) ||
             (e.statusCode?.toString().contains(kw) ?? false),
-      final NavigatorEntry e =>
-        e.routeLabel.toLowerCase().contains(kw),
+      final NavigatorEntry e => e.routeLabel.toLowerCase().contains(kw),
       final DatabaseEntry e =>
         e.tableName.toLowerCase().contains(kw) ||
             e.operation.name.toLowerCase().contains(kw),
