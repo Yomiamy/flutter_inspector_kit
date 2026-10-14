@@ -43,7 +43,7 @@
     3. **上限防禦**：兩個函式共用 `_sanitize`，各自最多容納 `maxEntries`（20 個）條目。
     4. **機敏資訊遮蔽**：若 `redact == true`，依 `isSensitiveRoutingKey` 判定的鍵其值替換為 `kRedactedValue` (`'••••'`)：
        - 子字串比對（不分大小寫）：`password`、`token`、`secret`、`apikey`、`api_key`、`auth`、`credential`、`access_token`、`privkey`、`private_key`。
-       - `pin` / `key` 採字詞邊界比對（完全相等、`_`／`-` 分隔、camelCase 前綴或後綴，如 `pinCode`、`userKey`、`userPIN`），避免 `shipping`、`keyboard`、`donkey` 誤判。
+       - `pin` / `key` 採字詞邊界比對（完全相等、`_`／`-` 分隔、camelCase 前綴、後綴或字中，如 `pinCode`、`userKey`、`userPIN`、`userPinCode`），避免 `shipping`、`keyboard`、`donkey` 誤判。
     5. **不可變包裝**：非空時回傳 `Map.unmodifiable(result)`，無參數時回傳 `null`。
 - **Observer 串接 (`FlutterInspectorNavigatorObserver`)**:
   - 在 `_record` 中，分別以 `routeName` 調用 `extractQueryParams`、以 `route.settings.arguments` 調用 `extractArgParams`（皆帶 `_inspector.redactSensitiveData`），並傳遞至 `NavigatorEntry`。
@@ -52,10 +52,10 @@
     - `Event History`：標題使用 `routeLabel`；`subtitle` 分行展示 `Params: id=99`（URL）與 `Args: orderId=123`（arguments，抽不出純量時退回 `NavigatorEntry.arguments`，redact 時為已遞迴遮蔽的版本）。
     - `_ActiveStackView`：在卡片副標題的 route name 下方分行展示 `Params` / `Args`，僅顯示擷取值。
   - `ConsoleTab`：導航列與關鍵字過濾改用 `routeLabel`。
-- **Redact 下的存檔行為（Observer）**：`routeName` 剝除 `?query`；`arguments` 遞迴遮蔽敏感 key（深度上限 8、循環參照標記 `<circular>`）；`AgentPrompt` 於 redact 時不輸出 `Arguments:` 行。
-- **Active Stack 層級比對 (`NavigatorStackResolver._matches`)**：比對 `routeName`、`widgetType` 與 `queryParams`，避免 query 被剝除後同名頁面誤配。
   - `AgentPrompt`:
     - 以 `Query Params:` 與 `Argument Params:` 分別輸出 `queryParams` / `argParams`。
+- **Redact 下的存檔行為（Observer）**：`routeName` 剝除 `?query`；`arguments` 遞迴遮蔽敏感 key（深度上限 8、循環參照標記 `<circular>`）；`AgentPrompt` 於 redact 時不輸出 `Arguments:` 行。
+- **Active Stack 層級比對 (`NavigatorStackResolver._matches`)**：比對 `routeName`、`widgetType` 與 `queryParams`，避免 query 被剝除後同名頁面誤配。
 
 ## 檔案異動清單
 1. `lib/src/utils/routing_param_extractor.dart` (新增):
