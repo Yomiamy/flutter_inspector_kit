@@ -163,26 +163,3 @@ Map<String, String>? _sanitize(
   }
   return sanitized.isEmpty ? null : Map<String, String>.unmodifiable(sanitized);
 }
-
-/// Strips query parameters from [routeName] when [redact] is true.
-String? redactRouteQuery(String? routeName, {required bool redact}) {
-  if (!redact || routeName == null) return routeName;
-  final queryStart = routeName.indexOf('?');
-  return queryStart < 0 ? routeName : routeName.substring(0, queryStart);
-}
-
-/// Redacts sensitive entries from route arguments if [arguments] is a Map.
-/// When [redact] is false or arguments is not a Map, returns [arguments] as-is.
-Object? redactRoutingArguments(Object? arguments, {required bool redact}) {
-  if (!redact || arguments == null) return arguments;
-  if (arguments is Map) {
-    return {
-      for (final entry in arguments.entries)
-        entry.key:
-            (entry.key != null && isSensitiveRoutingKey(entry.key.toString()))
-            ? kRedactedValue
-            : entry.value,
-    };
-  }
-  return arguments;
-}
