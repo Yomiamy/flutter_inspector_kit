@@ -8,7 +8,7 @@
 2. **缺乏防禦與記憶體風險**：若開發者在 `arguments` 傳遞了龐大的自訂業務物件或包含循環參照的複雜結構，直接持有或未受控字串化可能引發記憶體佔用與效能問題。
 3. **缺少敏感資訊防護**：若路由參數或 URL 查詢參數包含 Token、金鑰或個人憑證，未經遮蔽便直接呈現可能導致敏感資訊外洩。
 
-本功能在 `NavigatorEntry` 新增不可變的結構化欄位 `routingParams` (`Map<String, String>?`)，並於 `FlutterInspectorNavigatorObserver` 攔截路由事件時，安全地從 URL Query Parameters 以及 Map arguments 提取純量基本型別（Primitives：`String`、`num`、`bool`）。同時提供字串長度截斷防護、非純量物件佔位標記（`<complex>`），並整合現有的 `redactSensitiveData` 機制對敏感參數進行遮蔽，在 `NavigatorTab`、`ConsoleTab` 及診斷匯出中清晰呈現。
+本功能在 `NavigatorEntry` 新增兩個不可變的結構化欄位 `queryParams` 與 `argParams`（皆為 `Map<String, String>?`），依來源分開存放，並於 `FlutterInspectorNavigatorObserver` 攔截路由事件時，安全地從 route name 的 URL Query Parameters（→ `queryParams`）以及 arguments（→ `argParams`）提取純量基本型別（Primitives：`String`、`num`、`bool`）。同時提供字串長度截斷防護、非純量物件佔位標記（`<complex>`），並整合現有的 `redactSensitiveData` 機制對敏感參數進行遮蔽，在 `NavigatorTab` 以 `Params`（URL）／`Args`（arguments）分開呈現、`AgentPrompt` 以 `Query Params:`／`Argument Params:` 分開輸出；`ConsoleTab` 與 Event History 的列標題改用 `routeLabel`（如 `Scaffold (/second)`），讓 route name 不再被 widget type 遮住。分開存放也避免兩邊同名 key 時 arguments 靜默覆蓋 URL 的值。
 
 ## 使用者故事 (User Stories)
 - 身為一位測試工程師 (QA) 或開發者，當我透過 Deep Link 或 App 內部導航進入頁面時，我希望在 Navigator 視圖（包含 Event History 與 Active Stack）能直接看到清晰的結構化路由參數（如 `orderId: 1001`, `tab: detail`），不需要手動人眼過濾整段原始物件字串。
@@ -17,29 +17,34 @@
 
 ## 驗收條件 (Acceptance Criteria)
 1. **資料模型擴充 (`NavigatorEntry`)**:
-   - 新增可選且不可變的 `Map<String, String>? routingParams` 欄位。
+   - 新增可選且不可變的 `Map<String, String>? queryParams`（route name 的 URL query）與 `Map<String, String>? argParams`（arguments）兩個欄位，來源互不混合。
    - 保持 `arguments: Object?` 欄位向後相容。
-   - 健全更新 `copyWith`、`operator ==`、`hashCode` 與 `toString`。
+   - 健全更新 `copyWith`、`operator ==` 與 `hashCode`（`toString` 維持不變）。
 2. **安全純量擷取與防禦管線 (`RoutingParamExtractor` / Observer)**:
-   - **URL Query Parameters 擷取**：若 `route.settings.name` 或 `arguments` 包含合法 Uri query string，解析其查詢參數為鍵值對。
+   - **URL Query Parameters 擷取**：若 `route.settings.name` 包含合法 Uri query string，解析為 `queryParams`；若 `arguments` 為 `Uri` 或帶 `?` 的 `String`，其查詢參數歸入 `argParams`（依攜帶通道分類）。
    - **Arguments 純量提取**：若 `arguments` 為 `Map`，提取值為 `String`、`num`、`bool` 等基本型別；複雜物件或集合統一標註為 `'<complex>'`。
    - **字串長度截斷**：單一參數值超過 100 字元時進行截斷（如保留前 100 字元加上 `'...'`），防止巨大字串拖垮 UI 與記憶體。
-   - **數量上限防禦**：擷取的參數總數具備上限保護（最多 20 個），避免惡意或大量參數引發效能問題。
-   - **機敏資訊遮蔽**：整合現有 `redactSensitiveData` 設定；當啟用時，針對敏感參數名稱（例如包含 `password`, `token`, `secret`, `key`, `auth`, `credential` 等）遮蔽為 `'••••'`。
+   - **數量上限防禦**：`queryParams` 與 `argParams` 各自具備上限保護（各最多 20 個），避免惡意或大量參數引發效能問題。
+   - **機敏資訊遮蔽**：整合現有 `redactSensitiveData` 設定；當啟用時，針對敏感參數名稱（例如包含 `password`, `token`, `secret`, `key`, `auth`, `credential` 等）遮蔽為 `'••••'`。同時：
+     - `routeName` 存檔前剝除 `?query`（query 值只透過已遮蔽的 `queryParams` 保留）。
+     - `arguments` 存檔前遞迴遮蔽敏感 key（Map / List / Set，具深度上限與循環參照防護）。
+     - `AgentPrompt` 不輸出 `Arguments:` 行。
+   - **Active Stack 層級比對**：`NavigatorStackResolver` 以 `routeName`、`widgetType` 與 `queryParams` 判斷同一層，避免 redact 剝除 query 後 `/p?id=1` 與 `/p?id=2` 被誤判為同一頁。
 3. **UI 與輸出呈現 (`NavigatorTab` / `ConsoleTab` / `AgentPrompt`)**:
-   - 在 `NavigatorTab` 的 `Event History` 項目中，當存在 `routingParams` 時清楚呈現參數鍵值（如 `Params: id=42, tab=profile`）。
-   - 在 `NavigatorTab` 的 `Active Stack` 卡片中，適當展示目前各層 Route 的路由參數摘要。
-   - 在 `AgentPrompt` 輸出診斷資訊時，若包含 `routingParams`，一併納入結構化描述。
+   - 在 `NavigatorTab` 的 `Event History` 項目中，分行呈現 `Params: id=42`（URL query）與 `Args: tab=profile`（arguments）；arguments 抽不出純量時 `Args` 退回顯示 `NavigatorEntry.arguments`（redact 時為 observer 已遞迴遮蔽的版本）。標題使用 `routeLabel`。
+   - 在 `NavigatorTab` 的 `Active Stack` 卡片中，於 route name 下方分行展示 `Params` / `Args`；僅顯示擷取後的參數，不退回原始 arguments。
+   - `ConsoleTab` 的導航列使用 `routeLabel`；關鍵字過濾比對 `routeLabel`。
+   - 在 `AgentPrompt` 輸出診斷資訊時，分別以 `Query Params:` 與 `Argument Params:` 納入結構化描述。
 4. **測試覆蓋**:
    - 單元測試：涵蓋 Uri query string 解析、Map arguments 基本型別擷取、複雜物件 `<complex>` 標註、字串超長截斷、敏感欄位遮蔽與大小寫不敏感比對。
-   - Widget 測試：驗證帶有 `routingParams` 的 `NavigatorEntry` 在 `NavigatorTab`（Event History 與 Active Stack）中的正常呈現與空值優雅處理。
+   - Widget 測試：驗證帶有 `queryParams` / `argParams` 的 `NavigatorEntry` 在 `NavigatorTab`（Event History 與 Active Stack）中的正常呈現與空值優雅處理。
 
 ## 範圍邊界 (Scope & Boundaries)
 - **Included (包含)**:
-  - `NavigatorEntry` 的 `routingParams` 欄位與不可變支援。
+  - `NavigatorEntry` 的 `queryParams` / `argParams` 欄位與不可變支援。
   - 純量參數提取、URL Query 解析、截斷防護與機敏資訊遮蔽輔助邏輯。
   - `FlutterInspectorNavigatorObserver` 中的自動參數擷取與整合。
-  - `NavigatorTab`、`ActiveStackView` 與 `AgentPrompt` 的視覺化與文字呈現。
+  - `NavigatorTab`、`ActiveStackView`、`ConsoleTab`（`routeLabel`）與 `AgentPrompt` 的視覺化與文字呈現。
   - 完整的單元測試與 Widget 測試。
 - **Excluded (排除)**:
   - 不對深層自訂 Class 進行深度反射或遞迴序列化（避免循環參照與龐大記憶體佔用）。
