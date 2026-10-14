@@ -6,7 +6,7 @@
 
 你：好，開始執行開發流程。
     # STAGE 0·grill：需求盤問（planner 之前的必經步驟）
-    呼叫 gen-grill skill → Q1–Q4 齊備（或符合短路條件）且 Q5 已跑完 → 產出 brief
+    呼叫 gen-grill skill → 逐輪盤問至 frontier 清空且使用者確認（或符合短路條件）且 Q5 已跑完 → 產出 brief
     # STAGE 0a：功能規格（What & Why）
     Task("planner", "依 grill brief 為 <需求描述> 撰寫功能規格")
     → 產出 docs/features/YYYY-MM-DD-<feature>.md → 展示 → ⏸ 暫停確認
