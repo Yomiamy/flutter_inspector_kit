@@ -438,6 +438,27 @@ void main() {
       expect(find.byType(LogDetailView), findsNothing);
     });
 
+    testWidgets('nav row shows widget type and route name', (tester) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/second',
+          widgetType: Scaffold,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
+
+      expect(find.text('push Scaffold (/second)'), findsOneWidget);
+    });
+
     testWidgets('each row shows displayTime (HH:mm:ss.mmm)', (tester) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),

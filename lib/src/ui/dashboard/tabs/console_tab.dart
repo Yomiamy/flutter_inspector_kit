@@ -641,7 +641,7 @@ class _NavigatorEntryRow extends StatelessWidget {
             ),
             const SizedBox(width: ThemeSize.space4),
           ],
-          Expanded(child: Text('${entry.action.name} ${entry.displayName}')),
+          Expanded(child: Text('${entry.action.name} ${entry.routeLabel}')),
         ],
       ),
       subtitle: Text(entry.displayTime),

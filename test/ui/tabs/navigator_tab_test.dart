@@ -117,6 +117,29 @@ void main() {
       },
     );
 
+    testWidgets('eventHistory title shows widget type and route name', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/second',
+          widgetType: Scaffold,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      expect(find.text('PUSH Scaffold (/second)'), findsOneWidget);
+    });
+
     testWidgets('labels query Params and Args apart in eventHistory mode', (
       tester,
     ) async {

@@ -65,7 +65,7 @@ class _NavigatorTabState extends State<NavigatorTab> {
                     final query = _formatParams(entry.queryParams);
                     return ListTile(
                       title: Text(
-                        '${entry.action.name.toUpperCase()} ${entry.displayName}',
+                        '${entry.action.name.toUpperCase()} ${entry.routeLabel}',
                       ),
                       subtitle: Text(
                         [
