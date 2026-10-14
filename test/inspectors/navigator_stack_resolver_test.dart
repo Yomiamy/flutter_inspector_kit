@@ -157,6 +157,25 @@ void main() {
     expect(result[0].routeName, '/a');
   });
 
+  // Redaction strips the query from routeName, so queryParams is what keeps
+  // two pushes of the same page apart.
+  test('remove matches by queryParams when routeName is identical', () {
+    NavigatorEntry entry(NavigatorAction action, String id) => NavigatorEntry(
+      action: action,
+      routeName: '/p',
+      widgetType: ScreenA,
+      queryParams: {'id': id},
+    );
+    final first = entry(NavigatorAction.push, '1');
+    final second = entry(NavigatorAction.push, '2');
+    final removeFirst = entry(NavigatorAction.remove, '1');
+
+    final result = resolver.resolve([removeFirst, second, first]);
+
+    expect(result, hasLength(1));
+    expect(result.single.queryParams, {'id': '2'});
+  });
+
   // 9. push A, push B, push C, remove B -> [C, A]
   test('remove extracts a non-top layer by match', () {
     final a = NavigatorEntry(

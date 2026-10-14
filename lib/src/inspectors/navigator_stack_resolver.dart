@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../models/navigator_action.dart';
 import '../models/navigator_entry.dart';
 
@@ -55,8 +57,11 @@ class NavigatorStackResolver {
     return stack.reversed.toList();
   }
 
-  /// Two entries refer to the same route layer when both their [routeName] and
-  /// [widgetType] match.
+  /// Two entries refer to the same route layer when their [routeName],
+  /// [widgetType] and [queryParams] match. queryParams keeps `/p?id=1` and
+  /// `/p?id=2` apart even after redaction strips the query from [routeName].
   bool _matches(NavigatorEntry a, NavigatorEntry b) =>
-      a.routeName == b.routeName && a.widgetType == b.widgetType;
+      a.routeName == b.routeName &&
+      a.widgetType == b.widgetType &&
+      mapEquals(a.queryParams, b.queryParams);
 }
