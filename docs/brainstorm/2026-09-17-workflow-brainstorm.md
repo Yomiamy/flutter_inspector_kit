@@ -2271,7 +2271,7 @@ fs 層限制候選（上表三個 ❌ 項技術上同樣做得到，差別在採
 
 **effort**：低（純 skill 包裝，不動 wf-state.sh）| **價值**：⭐⭐⭐（認知負擔直接砍一半）
 
-##### A2. `/build auto` 自動執行模式
+##### A2. `/build auto` 自動執行模式 — 🟡 大致覆蓋（2026-10-15 實查，見 §7 表）
 
 **Addy 做法**：審批 plan 一次後，自動逐任務執行（TDD + commit），僅在失敗或風險時暫停。
 
@@ -2286,7 +2286,7 @@ fs 層限制候選（上表三個 ❌ 項技術上同樣做得到，差別在採
 > 「每個 task 都停」的問題，但使用者仍需在 stage 邊界確認。`/build auto` 把
 > 確認點壓到「plan 一次 + 失敗時」，是 `autonomous` 的正式化與 UX 包裝。
 
-##### A3. `interview-me` 一問一答需求探索
+##### A3. `interview-me` 一問一答需求探索 — ✅ 由 C4 `gen-grill` 覆蓋（PR #167）
 
 **Addy 做法**：一次只問一個問題，根據回答自適應下一個問題，涵蓋問題定義、使用者、約束、成功標準，最後合成 brief 交給 spec 階段。
 
@@ -2321,7 +2321,7 @@ fs 層限制候選（上表三個 ❌ 項技術上同樣做得到，差別在採
 
 #### (B) 🟡 中優先（3 項，值得規劃）
 
-##### B1. Release/Ship 完整流程
+##### B1. Release/Ship 完整流程 — 🟡 大致覆蓋（`gen-update-publish-info`，2026-10-15 實查）
 
 **缺口**：`finishing-a-development-branch` 只做到 PR 建立。缺少：
 - `gen changelog`（自動從 conventional commits 生成 CHANGELOG）
@@ -2408,16 +2408,17 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 
 ### 7. 建議動工順序
 
-| 順位 | 項目 | 理由 | effort | 價值 |
-|:---:|:-----|:-----|:---:|:---:|
-| 1 | **A1 Slash Command 簡化入口** | 認知負擔是目前最大 UX 瓶頸 | 低 | ⭐⭐⭐ |
-| 2 | **A2 `/build auto` 模式** | 解決 §2.1 痛點一的終極解法，且與 pause_level 正交 | 中 | ⭐⭐⭐ |
-| 3 | **A3 interview-me 模式** | 需求探索 UX 明顯缺口 | 低 | ⭐⭐⭐ |
-| 4 | **A4 共享 references/ checklist** | DRY 原則，降低維護成本 | 低 | ⭐⭐ |
-| 5 | B1 Release/Ship 流程 | Flutter package publish 確實需要 | 中 | ⭐⭐⭐ |
-| 6 | B2 Context 自動偵測 | 降低手動選 skill 的負擔 | 中 | ⭐⭐ |
+| 順位 | 項目 | 理由 | effort | 價值 | 狀態（2026-10-15 實查） |
+|:---:|:-----|:-----|:---:|:---:|:---|
+| 1 | **A1 Slash Command 簡化入口** | 認知負擔是目前最大 UX 瓶頸 | 低 | ⭐⭐⭐ | 提案（`.claude/skills/` 無 `gen-spec`／`gen-plan`／`gen-build`／`gen-review`／`gen-ship`） |
+| 2 | **A2 `/build auto` 模式** | 解決 §2.1 痛點一的終極解法，且與 pause_level 正交 | 中 | ⭐⭐⭐ | 🟡 大致覆蓋：`pause_level=balanced` 只停 0b 計畫確認／2 實作完成／4 PR 發布前（`gen-dev-workflow/SKILL.md:226`），且「中途不要問我」等口語會自動對應（`:233-234`），非需手動 set。剩餘差距僅「2、4 仍停」 |
+| 3 | **A3 interview-me 模式** | 需求探索 UX 明顯缺口 | 低 | ⭐⭐⭐ | ✅ 由 C4 `gen-grill` 覆蓋（PR #167）：一次一問、偏好選擇題（`gen-grill/SKILL.md:14,53`）；「brainstorming 缺一問一答」的前提已實查證偽（`:61`） |
+| 4 | **A4 共享 references/ checklist** | DRY 原則，降低維護成本 | 低 | ⭐⭐ | 提案（僅個別 skill 自帶 `references/`，無共享層） |
+| 5 | B1 Release/Ship 流程 | Flutter package publish 確實需要 | 中 | ⭐⭐⭐ | 🟡 大致覆蓋：`gen-update-publish-info` 已涵蓋 4 處版號 bump + CHANGELOG + tag push。未涵蓋：從 conventional commits 自動生成 CHANGELOG、release notes |
+| 6 | B2 Context 自動偵測 | 降低手動選 skill 的負擔 | 中 | ⭐⭐ | 提案 |
 
-> **📌 四項截至此日全部仍是提案，未動任何程式碼。**
+> **📌 2026-10-15 實查校正**：原註「四項截至此日全部仍是提案」已過期——A3 已由 C4 覆蓋，
+> A2、B1 已由既有機制大致覆蓋（見上表狀態欄）。仍是純提案的只剩 A1、A4、B2。
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
 
