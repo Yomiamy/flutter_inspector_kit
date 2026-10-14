@@ -67,6 +67,8 @@ class _Data {
   ];
 }
 
+class CheckoutPage {}
+
 void main() {
   group('ConsoleFilter.isEmpty', () {
     test('a default filter matches everything', () {
@@ -114,6 +116,17 @@ void main() {
       );
       expect(result, contains(_Data.navEntry));
       expect(result, contains(_Data.dbEntry));
+    });
+
+    test('matches navigator widget type and route name together', () {
+      final nav = NavigatorEntry(
+        action: NavigatorAction.push,
+        routeName: '/second',
+        widgetType: CheckoutPage,
+      );
+      for (final kw in ['checkoutpage', '/second']) {
+        expect(applyConsoleFilter([nav], ConsoleFilter(keyword: kw)), [nav]);
+      }
     });
 
     test('is case-insensitive', () {
