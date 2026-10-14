@@ -28,7 +28,7 @@
 | [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。含 `origin` / `pageUrl` provenance 欄位（帶預設值，向後相容）。`activeRoute` 於送出時捕捉、完成時不覆寫。 |
 | [`lib/src/models/network_origin.dart`](../../lib/src/models/network_origin.dart) | `NetworkOrigin` (enum) | **[新增]** 網路請求來源（`dio` / `webview`）。顯式 provenance，取代不可靠的 `sourceDio == null` 推斷（WeakReference 被 GC 後無法區分來源）。 |
 | [`lib/src/models/navigator_action.dart`](../../lib/src/models/navigator_action.dart) | `NavigatorAction` (enum) | 導航動作類型（`push`、`pop`、`replace`、`remove`）。 |
-| [`lib/src/models/navigator_entry.dart`](../../lib/src/models/navigator_entry.dart) | `NavigatorEntry` | 導航事件資料模型。實作 `TimestampedEntry`。`routeLabel` 為路由標籤格式的單一真相來源，供各維度 `activeRoute` 蓋章共用。 |
+| [`lib/src/models/navigator_entry.dart`](../../lib/src/models/navigator_entry.dart) | `NavigatorEntry` | 導航事件資料模型。實作 `TimestampedEntry`。`routeLabel` 為路由標籤格式的單一真相來源，供各維度 `activeRoute` 蓋章共用，亦為 Console 與 Event History 的列標題。`queryParams`（URL query）與 `argParams`（arguments）分欄保存擷取後的路由參數。 |
 | [`lib/src/models/database_operation.dart`](../../lib/src/models/database_operation.dart) | `DatabaseOperation` (enum) | 資料庫操作類型（`insert`、`update`、`delete`、`query`）。 |
 | [`lib/src/models/database_entry.dart`](../../lib/src/models/database_entry.dart) | `DatabaseEntry` | SQL 日誌資料模型。實作 `TimestampedEntry`。含寫入時記錄的 `activeRoute` 錨點。 |
 | [`lib/src/models/database_browser_source.dart`](../../lib/src/models/database_browser_source.dart) | `DatabaseBrowserSource`<br>`DatabaseTableInfo`<br>`DatabaseTablePage` | 定義自訂資料庫結構與資料的分頁讀取契約，用於資料庫瀏覽器 Tab。 |
@@ -41,7 +41,7 @@
 | [`lib/src/inspectors/log_inspector.dart`](../../lib/src/inspectors/log_inspector.dart) | `LogInspector` | 提供對日誌 RingBuffer 的包裝，主要實現級別過濾。 |
 | [`lib/src/inspectors/network_inspector.dart`](../../lib/src/inspectors/network_inspector.dart) | `NetworkInspector` | 提供對網路請求 RingBuffer 的包裝，負責 Response 大小判別與 Completion 就地替換。 |
 | [`lib/src/inspectors/navigator_inspector.dart`](../../lib/src/inspectors/navigator_inspector.dart) | `NavigatorInspector` | 提供對導航 RingBuffer 的包裝。 |
-| [`lib/src/inspectors/navigator_stack_resolver.dart`](../../lib/src/inspectors/navigator_stack_resolver.dart) | `NavigatorStackResolver` | 負責根據導航事件流重新解析與還原當前應用的作用中路由 stack。 |
+| [`lib/src/inspectors/navigator_stack_resolver.dart`](../../lib/src/inspectors/navigator_stack_resolver.dart) | `NavigatorStackResolver` | 負責根據導航事件流重新解析與還原當前應用的作用中路由 stack。同一層的判定比對 `routeName`、`widgetType` 與 `queryParams`。 |
 | [`lib/src/inspectors/database_inspector.dart`](../../lib/src/inspectors/database_inspector.dart) | `DatabaseInspector` | 提供對資料庫 RingBuffer 的包裝。 |
 | [`lib/src/interceptors/dio_interceptor.dart`](../../lib/src/interceptors/dio_interceptor.dart) | `FlutterInspectorDioInterceptor` | Dio 攔截器，實作 Adapter 模式，將網絡生命週期轉化為 `NetworkEntry` 發送給 Core。 |
 | [`lib/src/observers/navigator_observer.dart`](../../lib/src/observers/navigator_observer.dart) | `FlutterInspectorNavigatorObserver` | 導航觀察者，實作 Adapter 模式，將路由變更進行 Widget 類型解析後發送給 Core。 |
@@ -67,6 +67,7 @@
 | [`lib/src/utils/network_formatters.dart`](../../lib/src/utils/network_formatters.dart) | `ReplayRequest` | 提供網絡格式化功能，包含 `buildCurl` 產生 cURL 指令與 `prettyJson` 縮排工具。 |
 | [`lib/src/utils/network_utils.dart`](../../lib/src/utils/network_utils.dart) | `NetworkStatusGroup`<br>`NetworkFilter` | 提供網絡搜尋、過濾邏輯與狀態碼 Chip 對應常數。 |
 | [`lib/src/utils/redaction.dart`](../../lib/src/utils/redaction.dart) | - | 安全遮蔽。辨識敏感 headers（如 `authorization`、`cookie`）並遮蓋為 `••••`。 |
+| [`lib/src/utils/routing_param_extractor.dart`](../../lib/src/utils/routing_param_extractor.dart) | - | 路由參數擷取。`extractQueryParams` / `extractArgParams` 產出有界、可遮蔽的純量參數 Map；`isSensitiveRoutingKey` 判定敏感 key。 |
 | [`lib/src/utils/share_text.dart`](../../lib/src/utils/share_text.dart) | - | 分享平台適應分流器（條件導出）。 |
 | [`lib/src/utils/share_text_io.dart`](../../lib/src/utils/share_text_io.dart) | - | 使用 `share_plus` 開啟手機系統原生分享面板。 |
 | [`lib/src/utils/share_text_web.dart`](../../lib/src/utils/share_text_web.dart) | - | 使用 Web Share API `navigator.share`，降級則複製到剪貼簿。 |

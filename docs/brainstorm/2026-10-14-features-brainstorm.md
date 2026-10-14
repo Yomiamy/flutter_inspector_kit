@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-14**：**§P30 路由參數擷取與深層連結追蹤完成**——PR #199 合入 main（issue #198）。`NavigatorEntry` 新增 `queryParams` / `argParams` 兩欄分開記錄 URL query 與 arguments 參數，Navigator tab 以 `Params:` / `Args:` 分行顯示，Console 導航列改顯示 `routeLabel` 並可點開 `NavigatorDetailView`。與原提案的差異：單一 `routingParams` 拆成兩欄、標記改為 `<complex>`、保留 `arguments` 欄位（提案稱其已移除，實查不成立），並連帶修正 redact 下 Active Stack 的層級比對。詳見 §P30 實作現況。檔名日期前綴維持 `2026-10-14`（已是今日）。
 > * **2026-10-14**：**§P29 RenderFlex 錯誤視覺化解析完成**——PR #197 合入 main（issue #196）。溢出像素與方向寫入 `LogEntry.data`，ConsoleTab 顯示 badge、LogDetailView 顯示 Overflow Context。與原提案的差異：data key 改為 camelCase、像素值支援科學記號，並額外解析 error-causing widget 與原始碼位置（對所有 FlutterError 生效）。詳見 §P29 實作現況。檔名日期前綴由 `2026-10-13` 更新至 `2026-10-14`。
 > * **2026-10-13**：**§P28 視覺化排版邊界切換完成**——PR #195 合入 main（issue #194）。Dashboard AppBar 新增僅 `kDebugMode` 顯示的排版邊界切換按鈕。與原提案有三處差異：只切 `debugPaintSizeEnabled`（不含 baselines）、用圖示按鈕而非 Switch、Profile 模式不顯示。詳見 §P28 實作現況。檔名日期前綴由 `2026-10-09` 更新至 `2026-10-13`。
 > * **2026-10-09**：**新增三項輕量級排查新提案（§P28、§P29、§P30）**——基於 Linus Torvalds 哲學提出「視覺化排版邊界切換」、「RenderFlex 錯誤視覺化解析」及「路由參數擷取」三項高價值功能。著重於零新模型、復用既有基建，為 Timeline 帶來全新上下文維度。檔名日期前綴由 `2026-10-05` 更新至 `2026-10-09`。
@@ -1923,7 +1924,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **Effort**：Low ｜ **排查價值**：⭐⭐⭐⭐
 * **✅ 實作現況（PR #197 · 2026-10-13 合入 main，issue #196）**：`UncaughtErrorHandler._logFlutterError` 以頂層函式 `parseRenderFlexOverflow` 解析溢出訊息，結果併入既有 `LogEntry.data`；ConsoleTab 列表顯示 `Overflow: 24px bottom` 紅底 badge，LogDetailView 的 General 區塊多一列 `Overflow Context`。與提案的差異：**(1) data key 改為 `isRenderFlexOverflow` / `overflowPixels` / `overflowDirection`**，不是提案的 `overflow_pixels` / `axis`；**(2) 像素值支援小數與科學記號**（如 `1.00e-7`），badge 依量級格式化，不會把極小溢出顯示成 `0`；**(3) 範圍超出提案**：另加 `parseErrorCausingWidget`，從 `The relevant error-causing widget was:` 段落擷取 `errorCausingWidget` / `errorLocation`，並在 LogDetailView 顯示——這對**所有** FlutterError 生效，不限 RenderFlex；**(4) 位置解析支援 Windows 磁碟代號**（`file:///C:/…`，路徑來自開發機而非執行平台），且 regex 刻意不用 lookbehind——Safari 16.4 以前不支援，dart2js 初始化失敗會讓所有 FlutterError 都記不進 Inspector；**(5) LogDetailView 對 data 型別不做假設**，非 `String` 的 `errorCausingWidget` / `errorLocation` 直接略過，因 `LogEntry.data` 也接受使用者經 `FlutterInspector.log` 傳入的任意 Map。example 新增 RenderFlex 溢出示範頁。零新模型、零新相依，668 tests 綠、analyze 零新增。
 
-### §P30 路由參數擷取與深層連結追蹤 (Routing Parameter Capture) — 🆕 新提案
+### §P30 路由參數擷取與深層連結追蹤 (Routing Parameter Capture) — ✅ 已完成（PR #199）
 > **痛點**：深層連結 (Deep Link) 導航失敗或帶錯參數導致 crash，是常見且難查的問題。目前的 `NavigatorObserver` 為了避免 PII 與記憶體外洩，刻意移除了 `arguments` 的記錄（見 §P13），導致我們只知道「去了哪裡」，不知道「帶了什麼參數」。
 
 * **好品味設計（核心洞察）**：
@@ -1938,3 +1939,4 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   - **破壞性**：低。但需注意 PII 問題，需串接既有的 `redactSensitiveData` 管線來遮蔽可能的敏感參數。
   - **實用性**：極高。對於排查從外部（如推播、網頁跳轉）進入 App 時的狀態異常至關重要。
 * **Effort**：Medium ｜ **排查價值**：⭐⭐⭐⭐
+* **✅ 實作現況（PR #199 · 2026-10-14 合入 main，issue #198）**：新增 `routing_param_extractor.dart`，observer 於每次導航擷取參數；Navigator tab 的 Event History 與 Active Stack 分行顯示 `Params:` / `Args:`，AgentPrompt 輸出 `Query Params:` / `Argument Params:`。與提案的差異：**(1) 單一 `routingParams` 拆成兩欄**——`queryParams`（route name 的 URL query）與 `argParams`（arguments 的 Map 純量值、`Uri` 或含 `?` 字串的 query），合併成一張 Map 會在同名 key 時讓 arguments 靜默蓋掉 URL 值，也看不出來源；兩欄共用截斷 100 字元、各自上限 20 筆與遮蔽；**(2) 非純量標記為 `<complex>`**，不是提案的 `<Complex Object>`；**(3) 痛點描述與實況不符**——main 上 `NavigatorEntry.arguments` 其實一直保存原始 arguments，並未移除；本案保留該欄位，redact 時改由 observer 遞迴遮蔽（Map / List / Set / Uri / String，深度上限 8、循環參照防護）並剝除 `routeName` 的 query。自訂物件的 `toString()` 在 redact 下仍原樣可見，屬既有行為、另案處理；**(4) 敏感 key 判定**：子字串比對 `password` / `token` / `secret` 等，`pin` / `key` 改採字詞邊界與 camelCase 比對，避免 `shipping`、`keyboard`、`donkey` 誤遮；**(5) 範圍超出提案**：Console 與 Event History 列標題改用 `routeLabel`（如 `Scaffold (/second)`），Console 關鍵字過濾同步比對 `routeLabel`；帶參數的 Console 導航列可點開新的 `NavigatorDetailView`，以 JSON 樹狀檢視 Params / Args / Raw Arguments；**(6) 連帶修正**：redact 剝除 query 後 `/p?id=1` 與 `/p?id=2` 會被 `NavigatorStackResolver` 當成同一層，`_matches` 改為一併比對 `queryParams`。example「Push New Route」改為帶 query 與 Map arguments 的示範。零新相依，707 tests 綠、analyze 零新增。

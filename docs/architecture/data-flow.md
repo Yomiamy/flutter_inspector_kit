@@ -151,6 +151,7 @@
 
 - **避免循環記錄**：會主動偵測路由名稱，若為控制台頁面（`flutter_inspector_dashboard`），則跳過記錄，防止時序軸產生無限自我堆疊。
 - **類型安全解析**：若 `settings` 是 `Page`，則獲取 `page.child` 的 `runtimeType`；否則若是能解析 builder 的特定 Route 則安全呼叫 builder 獲取元件類型；最終降級至 `settings.name`。
+- **路由參數擷取**：同一次記錄內以 `extractQueryParams`（`settings.name` 的 URL query → `queryParams`）與 `extractArgParams`（`settings.arguments` → `argParams`）擷取純量參數，截斷 100 字元、各自上限 20 筆。`redactSensitiveData` 開啟時遮蔽敏感 key、剝除 `routeName` 的 query，並遞迴遮蔽存入的 `arguments`。
 
 ---
 
