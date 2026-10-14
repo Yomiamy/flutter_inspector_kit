@@ -9,6 +9,7 @@ import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
 import 'package:flutter_inspector_kit/src/models/navigator_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/console/log_detail_view.dart';
+import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/console/navigator_detail_view.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/console_tab.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -436,6 +437,38 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(NetworkDetailView), findsNothing);
       expect(find.byType(LogDetailView), findsNothing);
+    });
+
+    testWidgets('nav row with params opens NavigatorDetailView', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/order',
+          queryParams: {'id': '99'},
+          argParams: {'tab': 'detail'},
+          arguments: {'tab': 'detail'},
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ConsoleTab(inspector: inspector)),
+        ),
+      );
+
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+      await tester.tap(find.text('push /order'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NavigatorDetailView), findsOneWidget);
+      expect(find.text('Params (URL query)'), findsOneWidget);
+      expect(find.textContaining('99'), findsWidgets);
+      expect(find.textContaining('detail'), findsWidgets);
     });
 
     testWidgets('nav row shows widget type and route name', (tester) async {

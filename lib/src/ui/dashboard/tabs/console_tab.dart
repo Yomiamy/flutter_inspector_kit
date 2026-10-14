@@ -13,6 +13,7 @@ import '../../../observers/inspector_route_names.dart';
 import '../../../utils/console_utils.dart';
 import '../../theme/theme.dart';
 import 'console/log_detail_view.dart';
+import 'console/navigator_detail_view.dart';
 import 'network/network_detail_view.dart';
 
 /// Row background applied to error logs and failed network calls so they stand
@@ -630,6 +631,10 @@ class _NavigatorEntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBookmarked = inspector.isBookmarked(entry);
+    final canTap =
+        entry.queryParams != null ||
+        entry.argParams != null ||
+        entry.arguments != null;
     return ListTile(
       title: Row(
         children: [
@@ -645,6 +650,16 @@ class _NavigatorEntryRow extends StatelessWidget {
         ],
       ),
       subtitle: Text(entry.displayTime),
+      trailing: canTap
+          ? const Icon(Icons.chevron_right, size: ThemeSize.size18)
+          : null,
+      onTap: canTap
+          ? () => pushInspectorRoute(
+              context,
+              kInspectorNavigatorDetailRoute,
+              (_) => NavigatorDetailView(entry: entry),
+            )
+          : null,
       onLongPress: onToggleBookmark,
     );
   }
