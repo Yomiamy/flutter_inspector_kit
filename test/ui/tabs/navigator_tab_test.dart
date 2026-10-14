@@ -116,5 +116,86 @@ void main() {
         expect(find.text('PUSH /switch'), findsNothing);
       },
     );
+
+    testWidgets('eventHistory title shows widget type and route name', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/second',
+          widgetType: Scaffold,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      expect(find.text('PUSH Scaffold (/second)'), findsOneWidget);
+    });
+
+    testWidgets('labels query Params and Args apart in eventHistory mode', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/details',
+          queryParams: {'id': '42'},
+          argParams: {'tab': 'overview'},
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      expect(find.text('PUSH /details'), findsOneWidget);
+      expect(
+        find.textContaining('Params: id=42\nArgs: tab=overview'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('labels query Params and Args apart in activeStack mode', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      inspector.registry.navigator.add(
+        NavigatorEntry(
+          action: NavigatorAction.push,
+          routeName: '/profile',
+          queryParams: {'user': 'alice'},
+          argParams: {'tab': 'posts'},
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: NavigatorTab(inspector: inspector)),
+        ),
+      );
+
+      await tester.tap(find.text('Active Stack'));
+      await tester.pump();
+
+      expect(
+        find.textContaining('/profile\nParams: user=alice\nArgs: tab=posts'),
+        findsOneWidget,
+      );
+    });
   });
 }

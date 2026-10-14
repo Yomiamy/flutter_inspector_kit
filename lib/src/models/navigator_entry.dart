@@ -12,8 +12,16 @@ class NavigatorEntry implements TimestampedEntry {
     this.routeName,
     this.widgetType,
     this.arguments,
+    Map<String, String>? queryParams,
+    Map<String, String>? argParams,
     DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
+  }) : queryParams = queryParams == null
+           ? null
+           : Map<String, String>.unmodifiable(queryParams),
+       argParams = argParams == null
+           ? null
+           : Map<String, String>.unmodifiable(argParams),
+       timestamp = timestamp ?? DateTime.now();
 
   /// When the navigation event occurred.
   @override
@@ -33,6 +41,13 @@ class NavigatorEntry implements TimestampedEntry {
 
   /// The arguments passed to the route, if any.
   final Object? arguments;
+
+  /// Safe, bounded query parameters carried by the route name
+  /// (e.g. `/order?id=1`), if any.
+  final Map<String, String>? queryParams;
+
+  /// Safe, bounded scalar parameters carried by the route [arguments], if any.
+  final Map<String, String>? argParams;
 
   /// A human-readable label for the affected destination.
   ///
@@ -68,6 +83,8 @@ class NavigatorEntry implements TimestampedEntry {
     String? routeName,
     Type? widgetType,
     Object? arguments,
+    Map<String, String>? queryParams,
+    Map<String, String>? argParams,
   }) {
     return NavigatorEntry(
       timestamp: timestamp ?? this.timestamp,
@@ -75,6 +92,8 @@ class NavigatorEntry implements TimestampedEntry {
       routeName: routeName ?? this.routeName,
       widgetType: widgetType ?? this.widgetType,
       arguments: arguments ?? this.arguments,
+      queryParams: queryParams ?? this.queryParams,
+      argParams: argParams ?? this.argParams,
     );
   }
 
@@ -85,12 +104,21 @@ class NavigatorEntry implements TimestampedEntry {
         other.action == action &&
         other.routeName == routeName &&
         other.widgetType == widgetType &&
-        other.arguments == arguments;
+        other.arguments == arguments &&
+        mapEquals(other.queryParams, queryParams) &&
+        mapEquals(other.argParams, argParams);
   }
 
   @override
-  int get hashCode =>
-      Object.hash(timestamp, action, routeName, widgetType, arguments);
+  int get hashCode => Object.hash(
+    timestamp,
+    action,
+    routeName,
+    widgetType,
+    arguments,
+    queryParams?.length,
+    argParams?.length,
+  );
 
   @override
   String toString() =>

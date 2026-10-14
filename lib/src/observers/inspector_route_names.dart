@@ -21,6 +21,10 @@ const String kInspectorDashboardRoute = 'flutter_inspector_dashboard';
 /// The log detail page, opened from a Console row.
 const String kInspectorLogDetailRoute = 'flutter_inspector_log_detail';
 
+/// The navigator detail page, opened from a Console navigation row.
+const String kInspectorNavigatorDetailRoute =
+    'flutter_inspector_navigator_detail';
+
 /// The network detail page, opened from either the Console or Network tab.
 const String kInspectorNetworkDetailRoute = 'flutter_inspector_network_detail';
 

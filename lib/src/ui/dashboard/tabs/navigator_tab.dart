@@ -62,12 +62,17 @@ class _NavigatorTabState extends State<NavigatorTab> {
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
                     final entry = entries[index];
+                    final query = _formatParams(entry.queryParams);
                     return ListTile(
                       title: Text(
-                        '${entry.action.name.toUpperCase()} ${entry.displayName}',
+                        '${entry.action.name.toUpperCase()} ${entry.routeLabel}',
                       ),
                       subtitle: Text(
-                        '${entry.timestamp.toIso8601String()}\nArgs: ${entry.arguments ?? "None"}',
+                        [
+                          entry.timestamp.toIso8601String(),
+                          if (query != null) 'Params: $query',
+                          'Args: ${_argsText(entry) ?? "None"}',
+                        ].join('\n'),
                       ),
                     );
                   },
@@ -78,6 +83,17 @@ class _NavigatorTabState extends State<NavigatorTab> {
     );
   }
 }
+
+/// Formats extracted params as `k=v, k=v`, or null when there are none.
+String? _formatParams(Map<String, String>? params) {
+  if (params == null || params.isEmpty) return null;
+  return params.entries.map((e) => '${e.key}=${e.value}').join(', ');
+}
+
+/// Prefers the extracted [NavigatorEntry.argParams]; falls back to the raw
+/// arguments when nothing scalar could be extracted (e.g. a custom object).
+String? _argsText(NavigatorEntry entry) =>
+    _formatParams(entry.argParams) ?? entry.arguments?.toString();
 
 class _ActiveStackView extends StatelessWidget {
   const _ActiveStackView({required this.entries});
@@ -94,6 +110,9 @@ class _ActiveStackView extends StatelessWidget {
       itemCount: stack.length,
       itemBuilder: (context, index) {
         final entry = stack[index];
+        final query = _formatParams(entry.queryParams);
+        // Raw arguments stay out of the stack view; only extracted scalars show.
+        final args = _formatParams(entry.argParams);
         return Card(
           margin: ThemePadding.paddingH16V8,
           child: ListTile(
@@ -101,7 +120,13 @@ class _ActiveStackView extends StatelessWidget {
                 ? const Icon(Icons.visibility, color: ThemeColor.color2196F3)
                 : null,
             title: Text(entry.displayName),
-            subtitle: Text(entry.routeName ?? '(no route name)'),
+            subtitle: Text(
+              [
+                entry.routeName ?? '(no route name)',
+                if (query != null) 'Params: $query',
+                if (args != null) 'Args: $args',
+              ].join('\n'),
+            ),
             trailing: index == 0 ? const _CurrentBadge() : null,
           ),
         );

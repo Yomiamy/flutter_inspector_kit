@@ -3,6 +3,8 @@ import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/database_browser_source.dart';
 import 'package:flutter_inspector_kit/src/models/database_operation.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
+import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
+import 'package:flutter_inspector_kit/src/models/navigator_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/export_report_sheet.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/console_tab.dart';
@@ -53,6 +55,32 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(inspector.navigatorInspector.entries, isEmpty);
+    });
+
+    testWidgets('ConsoleTab navigation row does not record navigation', (
+      tester,
+    ) async {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      await pumpObserved(tester, inspector, ConsoleTab(inspector: inspector));
+      final hostEntry = NavigatorEntry(
+        action: NavigatorAction.push,
+        routeName: '/order',
+        queryParams: {'id': '1'},
+      );
+      inspector.registry.navigator.add(hostEntry);
+      // ConsoleTab redraws on demand; added after pumpObserved's buffer clear.
+      await tester.tap(find.byIcon(Icons.refresh));
+      await tester.pump();
+
+      await tester.tap(find.text('push /order'));
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, [hostEntry]);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(inspector.navigatorInspector.entries, [hostEntry]);
     });
 
     testWidgets('ConsoleTab network row does not record navigation', (

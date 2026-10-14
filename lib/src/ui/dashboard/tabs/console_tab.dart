@@ -13,6 +13,7 @@ import '../../../observers/inspector_route_names.dart';
 import '../../../utils/console_utils.dart';
 import '../../theme/theme.dart';
 import 'console/log_detail_view.dart';
+import 'console/navigator_detail_view.dart';
 import 'network/network_detail_view.dart';
 
 /// Row background applied to error logs and failed network calls so they stand
@@ -359,8 +360,8 @@ class _EntryRowDispatcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Intercepting here rather than in each row keeps the two tap meanings in
-    // one place, and gives navigation/database rows a jump target even though
-    // they have no detail view of their own to tap into.
+    // one place, and gives database rows and param-less navigation rows a jump
+    // target even though they have no detail view of their own to tap into.
     if (onJump != null) {
       return _JumpRow(
         onJump: onJump,
@@ -630,6 +631,10 @@ class _NavigatorEntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBookmarked = inspector.isBookmarked(entry);
+    final canTap =
+        entry.queryParams != null ||
+        entry.argParams != null ||
+        entry.arguments != null;
     return ListTile(
       title: Row(
         children: [
@@ -641,10 +646,20 @@ class _NavigatorEntryRow extends StatelessWidget {
             ),
             const SizedBox(width: ThemeSize.space4),
           ],
-          Expanded(child: Text('${entry.action.name} ${entry.displayName}')),
+          Expanded(child: Text('${entry.action.name} ${entry.routeLabel}')),
         ],
       ),
       subtitle: Text(entry.displayTime),
+      trailing: canTap
+          ? const Icon(Icons.chevron_right, size: ThemeSize.size18)
+          : null,
+      onTap: canTap
+          ? () => pushInspectorRoute(
+              context,
+              kInspectorNavigatorDetailRoute,
+              (_) => NavigatorDetailView(entry: entry),
+            )
+          : null,
       onLongPress: onToggleBookmark,
     );
   }
