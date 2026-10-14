@@ -1,3 +1,18 @@
+## 2.7.0
+
+### Added
+* **Navigation events record the parameters a route was opened with**: "Which order did the user actually open?" used to mean guessing from the route name. `NavigatorEntry` now carries `queryParams` (the query string of the route name, e.g. `/order?id=42`) and `argParams` (the scalar entries of a `Map` argument, or the query of a `Uri`/`String` argument), kept apart so a value's channel is never ambiguous and an argument cannot silently shadow a same-named query key. The Navigator tab shows them as **Params** and **Args**, and the agent handoff prompt includes them. Values are bounded — strings truncated at 100 characters, at most 20 entries per event — and nested values appear as `<complex>`.
+* **Navigation rows open a detail view**: Tapping a Console navigation row that carries params or arguments opens a detail view rendering them as JSON trees, so values collapsed to `<complex>` in the list are still inspectable. The view is pushed under an inspector route name, so it never shows up in your app's navigation history. Rows without params open nothing.
+* **RenderFlex overflow context**: When uncaught error capture is enabled, a RenderFlex overflow is recognised from the error text. The Console row carries an `Overflow: 200px right` badge, and the log detail view shows the **Error Widget** and **Error Location** (`file:line:column`) that Flutter names as the error-causing widget — so the offending `Row` or `Column` is found without reading the full report. The parsed values are stored in the log's `data` (`overflowPixels`, `overflowDirection`, `errorCausingWidget`, `errorLocation`); scientific-notation sizes and Windows drive-letter paths are handled.
+* **Layout boundary overlay toggle**: A grid button in the dashboard app bar toggles Flutter's layout boundary overlay (`debugPaintSizeEnabled`) and repaints the app immediately, so widget boxes and padding can be checked on the real screen without editing code. It is only shown in debug builds.
+
+### Changed
+* **Timeline rows name the route, not just the widget**: Console rows and Navigator Event History titles now show `routeLabel` (`OrderPage (/order)`) instead of the bare widget type, and the Console keyword filter matches both names.
+* **Routing data is redacted by default**: With `redactSensitiveData: true` (the default), keys that look sensitive (`token`, `password`, `secret`, `auth`, `apiKey`, `pin`, `key`, …) are masked in `queryParams`, `argParams` and the stored `arguments`, and the query string is stripped from `NavigatorEntry.routeName`. As a consequence, `NavigatorEntry.arguments` holds a redacted copy rather than the original object when redaction is on; set `redactSensitiveData: false` to keep the original. Redaction survives circular references, unusual `Map` keys whose `toString()` throws, and `Set` elements without breaking recording.
+
+### Fixed
+* **Active Stack tells apart routes that differ only by query**: Because redaction strips the query from `routeName`, `/p?id=1` and `/p?id=2` were treated as one stack layer, and a `removeRoute` could drop the wrong one. Layers are now matched by their query params as well.
+
 ## 2.6.0
 
 ### Added
