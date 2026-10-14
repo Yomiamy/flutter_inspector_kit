@@ -80,6 +80,7 @@
 | [`lib/src/ui/dashboard/dashboard_modal.dart`](../../lib/src/ui/dashboard/dashboard_modal.dart) | `DashboardModal` | 控制台全螢幕 Dialog 元件，包裝 TabBarView 結構。 |
 | [`lib/src/ui/dashboard/tabs/console_tab.dart`](../../lib/src/ui/dashboard/tabs/console_tab.dart) | `ConsoleTab` | 顯示混合時序軸（Console, Network, Nav, DB 等多源時序歸併）並依類型分頁展示。 |
 | [`lib/src/ui/dashboard/tabs/console/log_detail_view.dart`](../../lib/src/ui/dashboard/tabs/console/log_detail_view.dart) | `LogDetailView` | 展示單條日誌詳細資訊與 Stack Trace 的卡片。 |
+| [`lib/src/ui/dashboard/tabs/console/navigator_detail_view.dart`](../../lib/src/ui/dashboard/tabs/console/navigator_detail_view.dart) | `NavigatorDetailView` | 展示單條導航事件的 General、Params（URL query）、Args 與 Raw Arguments（JSON 樹狀）。 |
 | [`lib/src/ui/dashboard/tabs/network_tab.dart`](../../lib/src/ui/dashboard/tabs/network_tab.dart) | `NetworkTab` | 提供網絡請求列表、搜尋過濾與 Status 晶片篩選；支援慢速請求視覺標籤（`🐢 SLOW`）以及在 `_ErrorSummaryBanner` 中展示 slow request 統計指標與時間門檻資訊。 |
 | [`lib/src/ui/dashboard/tabs/network/network_detail_view.dart`](../../lib/src/ui/dashboard/tabs/network/network_detail_view.dart) | `NetworkDetailView` | 展現詳細的請求/響應 headers 與 body，並整合 Replay、cURL 複製與分享。 |
 | [`lib/src/ui/dashboard/tabs/navigator_tab.dart`](../../lib/src/ui/dashboard/tabs/navigator_tab.dart) | `NavigatorTab` | 以時間軸列表展示路由事件與傳參。 |

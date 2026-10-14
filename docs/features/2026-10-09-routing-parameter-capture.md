@@ -34,6 +34,7 @@
    - 在 `NavigatorTab` 的 `Event History` 項目中，分行呈現 `Params: id=42`（URL query）與 `Args: tab=profile`（arguments）；arguments 抽不出純量時 `Args` 退回顯示 `NavigatorEntry.arguments`（redact 時為 observer 已遞迴遮蔽的版本）。標題使用 `routeLabel`。
    - 在 `NavigatorTab` 的 `Active Stack` 卡片中，於 route name 下方分行展示 `Params` / `Args`；僅顯示擷取後的參數，不退回原始 arguments。
    - `ConsoleTab` 的導航列使用 `routeLabel`；關鍵字過濾比對 `routeLabel`。
+   - `ConsoleTab` 的導航列在帶有 `queryParams`、`argParams` 或 `arguments` 時可點擊，開啟 `NavigatorDetailView`，以 JSON 樹狀檢視 Params、Args 與 Raw Arguments（redact 時為已遮蔽的 arguments；自訂物件顯示其 `toString()`）。無參數的導航列維持不可點。
    - 在 `AgentPrompt` 輸出診斷資訊時，分別以 `Query Params:` 與 `Argument Params:` 納入結構化描述。
 4. **測試覆蓋**:
    - 單元測試：涵蓋 Uri query string 解析、Map arguments 基本型別擷取、複雜物件 `<complex>` 標註、字串超長截斷、敏感欄位遮蔽與大小寫不敏感比對。
@@ -44,7 +45,7 @@
   - `NavigatorEntry` 的 `queryParams` / `argParams` 欄位與不可變支援。
   - 純量參數提取、URL Query 解析、截斷防護與機敏資訊遮蔽輔助邏輯。
   - `FlutterInspectorNavigatorObserver` 中的自動參數擷取與整合。
-  - `NavigatorTab`、`ActiveStackView`、`ConsoleTab`（`routeLabel`）與 `AgentPrompt` 的視覺化與文字呈現。
+  - `NavigatorTab`、`ActiveStackView`、`ConsoleTab`（`routeLabel` 與 `NavigatorDetailView`）與 `AgentPrompt` 的視覺化與文字呈現。
   - 完整的單元測試與 Widget 測試。
 - **Excluded (排除)**:
   - 不對深層自訂 Class 進行深度反射或遞迴序列化（避免循環參照與龐大記憶體佔用）。

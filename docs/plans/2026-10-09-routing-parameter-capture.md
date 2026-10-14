@@ -51,7 +51,7 @@
   - `NavigatorTab`:
     - `Event History`：標題使用 `routeLabel`；`subtitle` 分行展示 `Params: id=99`（URL）與 `Args: orderId=123`（arguments，抽不出純量時退回 `NavigatorEntry.arguments`，redact 時為已遞迴遮蔽的版本）。
     - `_ActiveStackView`：在卡片副標題的 route name 下方分行展示 `Params` / `Args`，僅顯示擷取值。
-  - `ConsoleTab`：導航列與關鍵字過濾改用 `routeLabel`。
+  - `ConsoleTab`：導航列與關鍵字過濾改用 `routeLabel`；帶參數的導航列可點擊，經 `pushInspectorRoute(kInspectorNavigatorDetailRoute)` 開啟 `NavigatorDetailView`（General / Params / Args / Raw Arguments）。
   - `AgentPrompt`:
     - 以 `Query Params:` 與 `Argument Params:` 分別輸出 `queryParams` / `argParams`。
 - **Redact 下的存檔行為（Observer）**：`routeName` 剝除 `?query`；`arguments` 遞迴遮蔽敏感 key（深度上限 8、循環參照標記 `<circular>`）；`AgentPrompt` 於 redact 時不輸出 `Arguments:` 行。
@@ -84,6 +84,8 @@
     - 對應 `routeLabel` 顯示／過濾、`Query Params` / `Argument Params` 輸出與 query 區分的層級比對測試。
 13. `example/lib/main.dart`:
     - 「Push New Route」帶 query 與 Map arguments，供手動驗證。
+14. `lib/src/ui/dashboard/tabs/console/navigator_detail_view.dart`（新增）、`lib/src/observers/inspector_route_names.dart`:
+    - 導航事件詳細頁與其 inspector route name；`test/ui/tabs/console_tab_test.dart`、`test/observers/inspector_route_filter_test.dart` 驗證點擊開啟且不污染導航紀錄。
 
 ## 任務拆分
 1. **任務 1：實作 `RoutingParamExtractor` 工具與單元測試**
