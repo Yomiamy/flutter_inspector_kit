@@ -210,8 +210,22 @@ class _MyHomePageState extends State<MyHomePage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
+                  // Exercises routingParams in the Navigator tab: query params
+                  // from the name, scalar Map args, <complex> for collections,
+                  // 100-char truncation, and •••• for sensitive keys.
                   Navigator.of(context).push(
                     MaterialPageRoute(
+                      settings: RouteSettings(
+                        name: '/second?id=99&source=push&token=abc123',
+                        arguments: {
+                          'orderId': 1001,
+                          'isVip': true,
+                          'tab': 'detail',
+                          'password': 'hunter2',
+                          'cart': [1, 2, 3],
+                          'note': 'x' * 150,
+                        },
+                      ),
                       builder: (_) => Scaffold(
                         appBar: AppBar(title: const Text('Second Page')),
                         body: const Center(child: Text('Second Page')),
