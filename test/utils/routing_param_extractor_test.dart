@@ -3,27 +3,19 @@ import 'package:flutter_inspector_kit/src/utils/routing_param_extractor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('extractRoutingParams', () {
+  group('extractQueryParams / extractArgParams', () {
     test(
       'returns null when routeName has no query and arguments is null or empty',
       () {
-        expect(
-          extractRoutingParams(routeName: '/home', arguments: null),
-          isNull,
-        );
-        expect(extractRoutingParams(routeName: null, arguments: null), isNull);
-        expect(
-          extractRoutingParams(
-            routeName: '/order',
-            arguments: <String, dynamic>{},
-          ),
-          isNull,
-        );
+        expect(extractQueryParams(routeName: '/home'), isNull);
+        expect(extractQueryParams(routeName: null), isNull);
+        expect(extractArgParams(arguments: null), isNull);
+        expect(extractArgParams(arguments: <String, dynamic>{}), isNull);
       },
     );
 
     test('extracts query parameters from routeName', () {
-      final params = extractRoutingParams(
+      final params = extractQueryParams(
         routeName: '/search?keyword=flutter&category=tools',
       );
       expect(params, isNotNull);
@@ -34,16 +26,14 @@ void main() {
       final uri = Uri.parse(
         'https://example.com/details?id=123&from=notification',
       );
-      final params = extractRoutingParams(arguments: uri);
+      final params = extractArgParams(arguments: uri);
       expect(params, {'id': '123', 'from': 'notification'});
     });
 
     test(
       'extracts query parameters from String arguments with query string',
       () {
-        final params = extractRoutingParams(
-          arguments: '/detail?item=book&page=2',
-        );
+        final params = extractArgParams(arguments: '/detail?item=book&page=2');
         expect(params, {'item': 'book', 'page': '2'});
       },
     );
@@ -56,7 +46,7 @@ void main() {
         'isActive': true,
         'extra': null,
       };
-      final params = extractRoutingParams(arguments: map);
+      final params = extractArgParams(arguments: map);
       expect(params, {
         'name': 'Alice',
         'age': '30',
@@ -73,7 +63,7 @@ void main() {
         'metadata': {'nested': true},
         'tag': 'valid',
       };
-      final params = extractRoutingParams(arguments: map);
+      final params = extractArgParams(arguments: map);
       expect(params, {
         'user': '<complex>',
         'items': '<complex>',
@@ -82,21 +72,24 @@ void main() {
       });
     });
 
-    test('merges routeName query parameters and Map arguments', () {
-      final params = extractRoutingParams(
-        routeName: '/order?source=deeplink',
-        arguments: {'orderId': 999, 'status': 'pending'},
-      );
-      expect(params, {
+    test('keeps routeName query and arguments apart on key collision', () {
+      expect(extractQueryParams(routeName: '/order?id=1&source=deeplink'), {
+        'id': '1',
         'source': 'deeplink',
-        'orderId': '999',
+      });
+      expect(extractArgParams(arguments: {'id': 999, 'status': 'pending'}), {
+        'id': '999',
         'status': 'pending',
       });
     });
 
+    test('returns null for arguments that carry no params', () {
+      expect(extractArgParams(arguments: Object()), isNull);
+    });
+
     test('truncates strings longer than maxStringLength', () {
       final longString = 'a' * 120;
-      final params = extractRoutingParams(
+      final params = extractArgParams(
         arguments: {'message': longString},
         maxStringLength: 50,
       );
@@ -106,7 +99,7 @@ void main() {
 
     test('caps total entries to maxEntries', () {
       final map = {for (var i = 0; i < 30; i++) 'key$i': 'val$i'};
-      final params = extractRoutingParams(arguments: map, maxEntries: 10);
+      final params = extractArgParams(arguments: map, maxEntries: 10);
       expect(params?.length, 10);
     });
 
@@ -127,7 +120,7 @@ void main() {
         'spinner': 'loading',
         'keyboard': 'mechanical',
       };
-      final params = extractRoutingParams(arguments: map, redact: true);
+      final params = extractArgParams(arguments: map, redact: true);
       expect(params?['username'], 'john_doe');
       expect(params?['password'], kRedactedValue);
       expect(params?['authToken'], kRedactedValue);
@@ -145,7 +138,7 @@ void main() {
     });
 
     test('redacts camelCase pinCode parameter specifically', () {
-      final params = extractRoutingParams(
+      final params = extractArgParams(
         arguments: {'pinCode': '1234', 'shippingAddress': '123 Main St'},
         redact: true,
       );
@@ -162,7 +155,7 @@ void main() {
         'shipping': 'fedex',
         'donkey': 'kong',
       };
-      final params = extractRoutingParams(arguments: map, redact: true);
+      final params = extractArgParams(arguments: map, redact: true);
       expect(params?['userPIN'], kRedactedValue);
       expect(params?['userKEY'], kRedactedValue);
       expect(params?['userPINCode'], kRedactedValue);
@@ -180,20 +173,20 @@ void main() {
 
     test('does not redact sensitive keys when redact is false', () {
       final map = {'password': 'plainPassword', 'token': 'plainToken'};
-      final params = extractRoutingParams(arguments: map, redact: false);
+      final params = extractArgParams(arguments: map, redact: false);
       expect(params?['password'], 'plainPassword');
       expect(params?['token'], 'plainToken');
     });
 
     test('handles malformed Uri query string gracefully', () {
       // Uri with malformed percent-encoding
-      final params = extractRoutingParams(routeName: '/path?bad=%E0%A4');
+      final params = extractQueryParams(routeName: '/path?bad=%E0%A4');
       // Should not throw, may be empty or null
       expect(params, isNull);
     });
 
     test('returned map is unmodifiable', () {
-      final params = extractRoutingParams(routeName: '/page?id=1');
+      final params = extractQueryParams(routeName: '/page?id=1');
       expect(params, isNotNull);
       expect(() => params!['id'] = '2', throwsUnsupportedError);
     });

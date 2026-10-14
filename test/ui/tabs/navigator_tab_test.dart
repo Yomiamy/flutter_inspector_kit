@@ -117,7 +117,9 @@ void main() {
       },
     );
 
-    testWidgets('displays routingParams in eventHistory mode', (tester) async {
+    testWidgets('labels query Params and Args apart in eventHistory mode', (
+      tester,
+    ) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
       );
@@ -125,7 +127,8 @@ void main() {
         NavigatorEntry(
           action: NavigatorAction.push,
           routeName: '/details',
-          routingParams: {'id': '42', 'tab': 'overview'},
+          queryParams: {'id': '42'},
+          argParams: {'tab': 'overview'},
         ),
       );
 
@@ -136,10 +139,15 @@ void main() {
       );
 
       expect(find.text('PUSH /details'), findsOneWidget);
-      expect(find.textContaining('Params: id=42, tab=overview'), findsOneWidget);
+      expect(
+        find.textContaining('Params: id=42\nArgs: tab=overview'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('displays routingParams in activeStack mode', (tester) async {
+    testWidgets('labels query Params and Args apart in activeStack mode', (
+      tester,
+    ) async {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
       );
@@ -147,7 +155,8 @@ void main() {
         NavigatorEntry(
           action: NavigatorAction.push,
           routeName: '/profile',
-          routingParams: {'user': 'alice'},
+          queryParams: {'user': 'alice'},
+          argParams: {'tab': 'posts'},
         ),
       );
 
@@ -160,7 +169,10 @@ void main() {
       await tester.tap(find.text('Active Stack'));
       await tester.pump();
 
-      expect(find.textContaining('Params: user=alice'), findsOneWidget);
+      expect(
+        find.textContaining('/profile\nParams: user=alice\nArgs: tab=posts'),
+        findsOneWidget,
+      );
     });
   });
 }

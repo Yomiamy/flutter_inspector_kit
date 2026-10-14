@@ -60,8 +60,11 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
     final redact = _inspector.redactSensitiveData;
     final routeName = _displayRouteName(rawRouteName, redact: redact);
     final widgetType = _resolveWidgetType(route);
-    final routingParams = extractRoutingParams(
+    final queryParams = extractQueryParams(
       routeName: rawRouteName,
+      redact: redact,
+    );
+    final argParams = extractArgParams(
       arguments: route.settings.arguments,
       redact: redact,
     );
@@ -75,7 +78,8 @@ class FlutterInspectorNavigatorObserver extends NavigatorObserver {
         routeName: routeName,
         widgetType: widgetType,
         arguments: sanitizedArgs,
-        routingParams: routingParams,
+        queryParams: queryParams,
+        argParams: argParams,
       ),
     );
   }

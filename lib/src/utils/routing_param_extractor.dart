@@ -23,9 +23,7 @@ const Set<String> _kSensitiveSubstrings = {
 
 const Set<String> _kSensitiveWords = {'pin', 'key'};
 
-final RegExp _kSensitiveCamelBoundary = RegExp(
-  r'[a-z](Pin|PIN|Key|KEY)[A-Z]',
-);
+final RegExp _kSensitiveCamelBoundary = RegExp(r'[a-z](Pin|PIN|Key|KEY)[A-Z]');
 
 /// Returns true if [key] is recognized as containing sensitive data.
 bool isSensitiveRoutingKey(String key) {
@@ -67,100 +65,103 @@ bool _isAsciiUpper(String ch) {
   return code >= 65 && code <= 90;
 }
 
-/// Extracts a sanitized, bounded map of scalar routing parameters from
-/// [routeName] and [arguments].
+/// Extracts the query parameters carried by [routeName]
+/// (e.g. `/order?id=1&from=push`) as a sanitized, bounded map.
 ///
-/// Features:
-/// 1. Query parameters extraction:
-///    - If [routeName] contains `?`, parses it as a URI and extracts query parameters.
-///    - If [arguments] is a [Uri], extracts its query parameters.
-///    - If [arguments] is a [String] containing `?`, attempts to parse as URI and extract query parameters.
-/// 2. Scalar arguments extraction:
-///    - If [arguments] is a [Map], extracts entries with primitive values ([String], [num], [bool]).
-///    - Non-primitive or complex objects are substituted with `'<complex>'`.
-/// 3. Guardrails:
-///    - Truncates string values exceeding [maxStringLength] characters (appending `'...'`).
-///    - Caps the total number of entries to [maxEntries].
-///    - When [redact] is true, masks sensitive parameter keys with [kRedactedValue].
+/// Guardrails (shared with [extractArgParams]):
+/// - Truncates string values exceeding [maxStringLength] characters (appending `'...'`).
+/// - Caps the total number of entries to [maxEntries].
+/// - When [redact] is true, masks sensitive parameter keys with [kRedactedValue].
 ///
 /// Returns an unmodifiable map if any parameters were found, or `null` if empty.
-Map<String, String>? extractRoutingParams({
+Map<String, String>? extractQueryParams({
   String? routeName,
+  bool redact = true,
+  int maxStringLength = kDefaultMaxRoutingParamStringLength,
+  int maxEntries = kDefaultMaxRoutingParamEntries,
+}) {
+  final raw = routeName != null && routeName.contains('?')
+      ? _queryOf(Uri.tryParse(routeName))
+      : const <String, String>{};
+  return _sanitize(
+    raw,
+    redact: redact,
+    maxStringLength: maxStringLength,
+    maxEntries: maxEntries,
+  );
+}
+
+/// Extracts the parameters carried by route [arguments] as a sanitized,
+/// bounded map, kept apart from [extractQueryParams] so the UI can tell
+/// which channel a value came through.
+///
+/// - A [Uri], or a [String] containing `?`, yields its query parameters.
+/// - A [Map] yields its scalar entries ([String], [num], [bool], null);
+///   any other value is substituted with `'<complex>'`.
+///
+/// Applies the same guardrails as [extractQueryParams].
+Map<String, String>? extractArgParams({
   Object? arguments,
   bool redact = true,
   int maxStringLength = kDefaultMaxRoutingParamStringLength,
   int maxEntries = kDefaultMaxRoutingParamEntries,
 }) {
-  final rawMap = <String, String>{};
+  final raw = switch (arguments) {
+    final Uri uri => _queryOf(uri),
+    final String s when s.contains('?') => _queryOf(Uri.tryParse(s)),
+    final Map map => _scalarEntries(map),
+    _ => const <String, String>{},
+  };
+  return _sanitize(
+    raw,
+    redact: redact,
+    maxStringLength: maxStringLength,
+    maxEntries: maxEntries,
+  );
+}
 
-  // 1. Extract from routeName if it contains query parameters.
-  if (routeName != null && routeName.contains('?')) {
-    try {
-      final uri = Uri.tryParse(routeName);
-      if (uri != null && uri.hasQuery) {
-        rawMap.addAll(uri.queryParameters);
-      }
-    } catch (_) {
-      // Ignore malformed URI queries gracefully.
-    }
+Map<String, String> _queryOf(Uri? uri) {
+  try {
+    if (uri != null && uri.hasQuery) return uri.queryParameters;
+  } catch (_) {
+    // Malformed percent-encoding throws on access; treat as no query.
   }
+  return const {};
+}
 
-  // 2. Extract from arguments.
-  if (arguments != null) {
-    if (arguments is Uri) {
-      try {
-        if (arguments.hasQuery) {
-          rawMap.addAll(arguments.queryParameters);
-        }
-      } catch (_) {}
-    } else if (arguments is String && arguments.contains('?')) {
-      try {
-        final uri = Uri.tryParse(arguments);
-        if (uri != null && uri.hasQuery) {
-          rawMap.addAll(uri.queryParameters);
-        }
-      } catch (_) {}
-    } else if (arguments is Map) {
-      try {
-        for (final entry in arguments.entries) {
-          if (entry.key == null) continue;
-          final key = entry.key.toString();
-          final val = entry.value;
-          if (val == null) {
-            rawMap[key] = 'null';
-          } else if (val is String || val is num || val is bool) {
-            rawMap[key] = val.toString();
-          } else {
-            rawMap[key] = '<complex>';
-          }
-        }
-      } catch (_) {
-        // Fallback gracefully on custom map errors.
-      }
+Map<String, String> _scalarEntries(Map map) {
+  final raw = <String, String>{};
+  try {
+    for (final entry in map.entries) {
+      if (entry.key == null) continue;
+      final val = entry.value;
+      raw[entry.key.toString()] =
+          val == null || val is String || val is num || val is bool
+          ? '$val'
+          : '<complex>';
     }
+  } catch (_) {
+    // Fallback gracefully on custom map errors.
   }
+  return raw;
+}
 
-  if (rawMap.isEmpty) return null;
-
-  // 3. Apply capping, truncation, and redaction.
+Map<String, String>? _sanitize(
+  Map<String, String> raw, {
+  required bool redact,
+  required int maxStringLength,
+  required int maxEntries,
+}) {
   final sanitized = <String, String>{};
-  for (final entry in rawMap.entries) {
+  for (final MapEntry(:key, :value) in raw.entries) {
     if (sanitized.length >= maxEntries) break;
-
-    final key = entry.key;
-    var value = entry.value;
-
-    if (redact && isSensitiveRoutingKey(key)) {
-      value = kRedactedValue;
-    } else if (value.length > maxStringLength) {
-      value = '${value.substring(0, maxStringLength)}...';
-    }
-
-    sanitized[key] = value;
+    sanitized[key] = redact && isSensitiveRoutingKey(key)
+        ? kRedactedValue
+        : value.length > maxStringLength
+        ? '${value.substring(0, maxStringLength)}...'
+        : value;
   }
-
-  if (sanitized.isEmpty) return null;
-  return Map<String, String>.unmodifiable(sanitized);
+  return sanitized.isEmpty ? null : Map<String, String>.unmodifiable(sanitized);
 }
 
 /// Strips query parameters from [routeName] when [redact] is true.

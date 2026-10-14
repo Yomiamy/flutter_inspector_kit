@@ -210,8 +210,8 @@ class _MyHomePageState extends State<MyHomePage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
-                  // Exercises routingParams in the Navigator tab: query params
-                  // from the name, scalar Map args, <complex> for collections,
+                  // Exercises the Navigator tab's Params (name query) vs Args
+                  // (arguments) split, plus <complex> for collections,
                   // 100-char truncation, and •••• for sensitive keys.
                   Navigator.of(context).push(
                     MaterialPageRoute(

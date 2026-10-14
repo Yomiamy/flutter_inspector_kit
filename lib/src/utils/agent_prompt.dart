@@ -271,15 +271,8 @@ String _describeAnchor(TimestampedEntry entry, {required bool redact}) {
       }
     case final NavigatorEntry e:
       b.writeln(_oneLiner(e));
-      if (e.routingParams != null && e.routingParams!.isNotEmpty) {
-        final params = redact
-            ? e.routingParams!.map(
-                (k, v) =>
-                    MapEntry(k, isSensitiveRoutingKey(k) ? kRedactedValue : v),
-              )
-            : e.routingParams!;
-        b.writeln('Routing Parameters: $params');
-      }
+      _writeRoutingParams(b, 'Query Params', e.queryParams, redact: redact);
+      _writeRoutingParams(b, 'Argument Params', e.argParams, redact: redact);
       if (e.arguments != null && !redact) {
         b.writeln('Arguments: ${e.arguments}');
       }
@@ -287,6 +280,21 @@ String _describeAnchor(TimestampedEntry entry, {required bool redact}) {
       b.writeln('[${entry.displayTime}] $entry');
   }
   return b.toString();
+}
+
+void _writeRoutingParams(
+  StringBuffer b,
+  String label,
+  Map<String, String>? params, {
+  required bool redact,
+}) {
+  if (params == null || params.isEmpty) return;
+  final shown = redact
+      ? params.map(
+          (k, v) => MapEntry(k, isSensitiveRoutingKey(k) ? kRedactedValue : v),
+        )
+      : params;
+  b.writeln('$label: $shown');
 }
 
 void _writeHeaders(

@@ -12,11 +12,15 @@ class NavigatorEntry implements TimestampedEntry {
     this.routeName,
     this.widgetType,
     this.arguments,
-    Map<String, String>? routingParams,
+    Map<String, String>? queryParams,
+    Map<String, String>? argParams,
     DateTime? timestamp,
-  })  : routingParams = routingParams == null
+  })  : queryParams = queryParams == null
             ? null
-            : Map<String, String>.unmodifiable(routingParams),
+            : Map<String, String>.unmodifiable(queryParams),
+        argParams = argParams == null
+            ? null
+            : Map<String, String>.unmodifiable(argParams),
         timestamp = timestamp ?? DateTime.now();
 
   /// When the navigation event occurred.
@@ -38,9 +42,12 @@ class NavigatorEntry implements TimestampedEntry {
   /// The arguments passed to the route, if any.
   final Object? arguments;
 
-  /// Safe, bounded scalar routing parameters and query parameters extracted
-  /// from the navigation event, if any.
-  final Map<String, String>? routingParams;
+  /// Safe, bounded query parameters carried by the route name
+  /// (e.g. `/order?id=1`), if any.
+  final Map<String, String>? queryParams;
+
+  /// Safe, bounded scalar parameters carried by the route [arguments], if any.
+  final Map<String, String>? argParams;
 
   /// A human-readable label for the affected destination.
   ///
@@ -76,7 +83,8 @@ class NavigatorEntry implements TimestampedEntry {
     String? routeName,
     Type? widgetType,
     Object? arguments,
-    Map<String, String>? routingParams,
+    Map<String, String>? queryParams,
+    Map<String, String>? argParams,
   }) {
     return NavigatorEntry(
       timestamp: timestamp ?? this.timestamp,
@@ -84,7 +92,8 @@ class NavigatorEntry implements TimestampedEntry {
       routeName: routeName ?? this.routeName,
       widgetType: widgetType ?? this.widgetType,
       arguments: arguments ?? this.arguments,
-      routingParams: routingParams ?? this.routingParams,
+      queryParams: queryParams ?? this.queryParams,
+      argParams: argParams ?? this.argParams,
     );
   }
 
@@ -96,7 +105,8 @@ class NavigatorEntry implements TimestampedEntry {
         other.routeName == routeName &&
         other.widgetType == widgetType &&
         other.arguments == arguments &&
-        mapEquals(other.routingParams, routingParams);
+        mapEquals(other.queryParams, queryParams) &&
+        mapEquals(other.argParams, argParams);
   }
 
   @override
@@ -106,7 +116,8 @@ class NavigatorEntry implements TimestampedEntry {
         routeName,
         widgetType,
         arguments,
-        routingParams?.length,
+        queryParams?.length,
+        argParams?.length,
       );
 
   @override

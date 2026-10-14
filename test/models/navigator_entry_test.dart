@@ -25,43 +25,43 @@ void main() {
       expect(entry.displayTime, '14:30:01.123');
     });
 
-    test('routingParams defaults to null and can be supplied', () {
+    test('queryParams defaults to null and can be supplied', () {
       final entry = NavigatorEntry(
         action: NavigatorAction.push,
         routeName: '/home',
-        routingParams: {'id': '42'},
+        queryParams: {'id': '42'},
       );
-      expect(entry.routingParams, {'id': '42'});
+      expect(entry.queryParams, {'id': '42'});
     });
 
-    test('copyWith updates routingParams', () {
+    test('copyWith updates queryParams', () {
       final entry = NavigatorEntry(
         action: NavigatorAction.push,
         routeName: '/home',
-        routingParams: {'tab': 'one'},
+        queryParams: {'tab': 'one'},
       );
-      final copied = entry.copyWith(routingParams: {'tab': 'two'});
-      expect(copied.routingParams, {'tab': 'two'});
+      final copied = entry.copyWith(queryParams: {'tab': 'two'});
+      expect(copied.queryParams, {'tab': 'two'});
     });
 
-    test('operator == and hashCode compare routingParams correctly', () {
+    test('operator == and hashCode compare queryParams correctly', () {
       final entryA = NavigatorEntry(
         action: NavigatorAction.push,
         routeName: '/home',
         timestamp: fixedTime,
-        routingParams: {'a': '1'},
+        queryParams: {'a': '1'},
       );
       final entryB = NavigatorEntry(
         action: NavigatorAction.push,
         routeName: '/home',
         timestamp: fixedTime,
-        routingParams: {'a': '1'},
+        queryParams: {'a': '1'},
       );
       final entryC = NavigatorEntry(
         action: NavigatorAction.push,
         routeName: '/home',
         timestamp: fixedTime,
-        routingParams: {'a': '2'},
+        queryParams: {'a': '2'},
       );
 
       expect(entryA, equals(entryB));
@@ -69,16 +69,35 @@ void main() {
       expect(entryA, isNot(equals(entryC)));
     });
 
-    test('routingParams cannot be modified externally', () {
+    test('queryParams and argParams are distinct fields', () {
+      final asQuery = NavigatorEntry(
+        action: NavigatorAction.push,
+        timestamp: fixedTime,
+        queryParams: {'id': '1'},
+      );
+      final asArgs = NavigatorEntry(
+        action: NavigatorAction.push,
+        timestamp: fixedTime,
+        argParams: {'id': '1'},
+      );
+
+      expect(asQuery, isNot(equals(asArgs)));
+      expect(asArgs.copyWith(action: NavigatorAction.pop).argParams, {
+        'id': '1',
+      });
+      expect(() => asArgs.argParams?['id'] = '2', throwsUnsupportedError);
+    });
+
+    test('queryParams cannot be modified externally', () {
       final map = {'id': '42'};
       final entry = NavigatorEntry(
         action: NavigatorAction.push,
         routeName: '/home',
-        routingParams: map,
+        queryParams: map,
       );
       map['id'] = '99';
-      expect(entry.routingParams?['id'], '42');
-      expect(() => entry.routingParams?['id'] = '100', throwsUnsupportedError);
+      expect(entry.queryParams?['id'], '42');
+      expect(() => entry.queryParams?['id'] = '100', throwsUnsupportedError);
     });
   });
 }

@@ -146,20 +146,18 @@ void main() {
     });
 
     test(
-      'masks sensitive routingParams in NavigatorEntry when redact is true',
+      'masks sensitive query and argument params when redact is true',
       () {
         final nav = NavigatorEntry(
           action: NavigatorAction.push,
           routeName: '/login',
           timestamp: _Data.at(1),
-          routingParams: {
-            'token': 'super_raw_unredacted_token',
-            'pinCode': '9876',
-            'user': 'alice',
-          },
+          queryParams: {'token': 'super_raw_unredacted_token'},
+          argParams: {'pinCode': '9876', 'user': 'alice'},
         );
         final prompt = buildAgentPrompt(nav, timeline: const [], redact: true);
-        expect(prompt, contains('Routing Parameters:'));
+        expect(prompt, contains('Query Params:'));
+        expect(prompt, contains('Argument Params:'));
         expect(prompt, contains('alice'));
         expect(prompt, contains('••••'));
         expect(prompt, isNot(contains('super_raw_unredacted_token')));
@@ -167,12 +165,12 @@ void main() {
       },
     );
 
-    test('preserves routingParams in NavigatorEntry when redact is false', () {
+    test('preserves query params in NavigatorEntry when redact is false', () {
       final nav = NavigatorEntry(
         action: NavigatorAction.push,
         routeName: '/login',
         timestamp: _Data.at(1),
-        routingParams: {'token': 'super_raw_unredacted_token'},
+        queryParams: {'token': 'super_raw_unredacted_token'},
       );
       final prompt = buildAgentPrompt(nav, timeline: const [], redact: false);
       expect(prompt, contains('super_raw_unredacted_token'));
