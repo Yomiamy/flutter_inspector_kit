@@ -437,6 +437,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(NetworkDetailView), findsNothing);
       expect(find.byType(LogDetailView), findsNothing);
+      expect(find.byType(NavigatorDetailView), findsNothing);
     });
 
     testWidgets('nav row with params opens NavigatorDetailView', (

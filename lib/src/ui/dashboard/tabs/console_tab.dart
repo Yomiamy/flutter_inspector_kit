@@ -360,8 +360,8 @@ class _EntryRowDispatcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Intercepting here rather than in each row keeps the two tap meanings in
-    // one place, and gives navigation/database rows a jump target even though
-    // they have no detail view of their own to tap into.
+    // one place, and gives database rows and param-less navigation rows a jump
+    // target even though they have no detail view of their own to tap into.
     if (onJump != null) {
       return _JumpRow(
         onJump: onJump,
