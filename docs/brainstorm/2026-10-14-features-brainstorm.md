@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-14**：**v2.7.0 發布**——PR #201 合入 main（issue #200），將 §P28、§P29、§P30 打包為 v2.7.0，完成度總覽版本標記同步更新。檔名日期前綴維持 `2026-10-14`（已是今日）。
 > * **2026-10-14**：**§P30 路由參數擷取與深層連結追蹤完成**——PR #199 合入 main（issue #198）。`NavigatorEntry` 新增 `queryParams` / `argParams` 兩欄分開記錄 URL query 與 arguments 參數，Navigator tab 以 `Params:` / `Args:` 分行顯示，Console 導航列改顯示 `routeLabel` 並可點開 `NavigatorDetailView`。與原提案的差異：單一 `routingParams` 拆成兩欄、標記改為 `<complex>`、保留 `arguments` 欄位（提案稱其已移除，實查不成立），並連帶修正 redact 下 Active Stack 的層級比對。詳見 §P30 實作現況。檔名日期前綴維持 `2026-10-14`（已是今日）。
 > * **2026-10-14**：**§P29 RenderFlex 錯誤視覺化解析完成**——PR #197 合入 main（issue #196）。溢出像素與方向寫入 `LogEntry.data`，ConsoleTab 顯示 badge、LogDetailView 顯示 Overflow Context。與原提案的差異：data key 改為 camelCase、像素值支援科學記號，並額外解析 error-causing widget 與原始碼位置（對所有 FlutterError 生效）。詳見 §P29 實作現況。檔名日期前綴由 `2026-10-13` 更新至 `2026-10-14`。
 > * **2026-10-13**：**§P28 視覺化排版邊界切換完成**——PR #195 合入 main（issue #194）。Dashboard AppBar 新增僅 `kDebugMode` 顯示的排版邊界切換按鈕。與原提案有三處差異：只切 `debugPaintSizeEnabled`（不含 baselines）、用圖示按鈕而非 Switch、Profile 模式不顯示。詳見 §P28 實作現況。檔名日期前綴由 `2026-10-09` 更新至 `2026-10-13`。
@@ -34,7 +35,7 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-09-25 · v2.6.0）
+## 📊 完成度總覽（截至 2026-10-14 · v2.7.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
