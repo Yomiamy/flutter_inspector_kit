@@ -24,17 +24,24 @@ git -C "$REPO_ROOT" ls-files --error-unmatch -- "$SETTINGS" >/dev/null 2>&1 \
 # core.excludesFile=/dev/null：只看 repo 內規則，不讓個人全域 ignore 左右結果（S-3）。
 IGNORED="$(git -C "$REPO_ROOT" -c core.excludesFile=/dev/null check-ignore --no-index -- "$SETTINGS" || true)"
 [ -z "$IGNORED" ] || fail "$SETTINGS is matched by a repo ignore rule"
-jq -e . "$REPO_ROOT/$SETTINGS" >/dev/null || fail "$SETTINGS is not valid JSON"
+# -s：jq 預設會吞下多個頂層 JSON 值，但 Claude Code 的 strict parser 不會。
+jq -se 'length == 1 and (.[0] | type == "object")' "$REPO_ROOT/$SETTINGS" >/dev/null \
+  || fail "$SETTINGS is not exactly one valid JSON object"
 echo "PASS: $SETTINGS tracked, not ignored, valid JSON"
 
 echo "=== Test 2 (AC-2): each guard registered exactly once ==="
+# 依 事件+matcher+command 收集所有 handler（不看其他欄位），再與唯一預期形狀比對：
+# 重複註冊、或多了 timeout 等欄位的 handler 都會讓這裡不相等。
+# -S：兩邊 key 排序後再比，handler 內 key 順序不同不算差異。
+# arrays：事件或 hooks 被改成物件時 Claude Code 會拒載，這裡也要判失敗（物件會被 [] 迭代）。
 check_guard() {
-  local n
-  n="$(jq --arg e "$1" --arg m "$2" --arg c "$3" \
-    '[.hooks[$e][]? | select(.matcher == $m) | .hooks[]?
-      | select(. == {"type": "command", "command": $c})] | length' \
-    "$REPO_ROOT/$SETTINGS")"
-  [ "$n" = "1" ] || fail "$1 / $2 / $3 registered $n times (expected 1)"
+  local got want
+  got="$(jq -cS --arg e "$1" --arg m "$2" --arg c "$3" \
+    '[(.hooks[$e] | arrays)[] | select(.matcher == $m) | (.hooks | arrays)[]
+      | select(.command == $c)]' "$REPO_ROOT/$SETTINGS")" \
+    || fail "cannot query $1 / $2 in $SETTINGS"
+  want="$(jq -ncS --arg c "$3" '[{"type": "command", "command": $c}]')"
+  [ "$got" = "$want" ] || fail "$1 / $2 / $3 handlers: $got (expected exactly $want)"
   echo "PASS: $1 / $2 / $3"
 }
 check_guard PreToolUse Agent "$STAGE_CHECK"
