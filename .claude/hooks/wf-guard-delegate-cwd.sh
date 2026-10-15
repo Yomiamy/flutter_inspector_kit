@@ -13,17 +13,17 @@
 # 寫入非 git worktree 的位置（其他專案、家目錄普通檔案）偵測不到——涵蓋那些
 # 需要 fs-level 觀察，成本遠超本問題的嚴重度，屬另案。
 #
-# 掛載方式（.claude/settings.local.json，本地設定不進版控——沿用既有三個 hook 的慣例）：
+# 掛載於 .claude/settings.json（進版控；條目由 tests/test_project_settings_hooks.sh 鎖定）：
 #
 #   "PreToolUse": [
 #     { "matcher": "mcp__gemini-cli__ask-gemini",
 #       "hooks": [{ "type": "command",
-#         "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh pre" }] }
+#         "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wf-guard-delegate-cwd.sh pre" }] }
 #   ],
 #   "PostToolUse": [
 #     { "matcher": "mcp__gemini-cli__ask-gemini",
 #       "hooks": [{ "type": "command",
-#         "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh post" }] }
+#         "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wf-guard-delegate-cwd.sh post" }] }
 #   ]
 #
 # False positive 防護：非委派工具、無 state 檔、branch 對不上、stage 非 2、
