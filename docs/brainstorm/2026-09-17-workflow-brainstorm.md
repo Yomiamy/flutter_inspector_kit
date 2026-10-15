@@ -2473,7 +2473,7 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **兩者分工**：`pause_level` 管「這條流程要不要問」；`--confirmed` 管「這一次停下來後使用者答了沒」。要無人值守就設 autonomous，那是正門；B1 是把後門關上。
 - **落地狀況（2026-09-28，PR #178）**：(1) `wf-state.sh:240` 的 `promote` 於 jq 管道寫入 `.branch = $b | .stage = "1"`，並加入來源狀態檢查，確保僅支援 sequence 模式之 STAGE 0a/0b/1 晉升；(2) `state-machine.md` 徹底移除 Bug 1.6 Workaround 與假報 `--confirmed` 之操作指示，STAGE 1 晉升後直截了當呼叫 `stage-done 1`。
 
-##### 🟡 B3. guard 在 clone 後全失效（P1）
+##### 🟡 B3. guard 在 clone 後全失效（P1）— ✅ 已完成（2026-10-15，Issue #202 / PR #203）
 
 - **現況（已核實）**：5 支 hook 腳本皆已 commit，但唯一掛載它們的 `.claude/settings.local.json` 被 global gitignore（`~/.config/git/ignore`）擋掉，且 `.claude/settings.json` **不存在**。
 - **後果**：clone 到新機器 → 腳本都在，沒東西啟動它們。兩支 exit 2 守衛**靜默失效，無任何錯誤訊息**。倉庫裝了槍但沒有扳機。
@@ -2489,6 +2489,8 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 
   第 3 條是 codebase-memory 重建索引、非守衛，且依賴 cbm MCP server 存在；留在 local 可讓 `settings.json` 語意乾淨（只放「本 repo 的流程守衛」）。
 - **⚠️ 是「搬」不是「複製」**：兩邊都註冊同一支 hook 會雙掛載、每次觸發跑兩次。權限清單與 skillOverrides 留在 local 不動。
+- **落地狀況（2026-10-15，Issue #202 / PR #203）**：(1) 新增進版控的 `.claude/settings.json`（`$schema` + 上表 ✅ 的 3 條），指令改為加雙引號的 `"$CLAUDE_PROJECT_DIR"/.claude/hooks/...`——與原提案「原樣搬」的差異，因官方文件要求 shell form 路徑佔位符加引號，否則 repo 路徑含空白時守衛 exit 127 失效；(2) 新增 `tests/test_project_settings_hooks.sh`，鎖住檔案進版控且未被 repo ignore、恰好一個頂層 object、3 條各恰好註冊一次、腳本可執行；(3) `wf-guard-delegate-cwd.sh` 僅改掛載說明註解；(4) local 的 3 條於合併後在主 checkout 移除，只留 `cbm-reindex-on-pr.sh`。「搬」分兩段做（先加 `settings.json`、合併後才刪 local），是為了不讓主 checkout 在合併前失去守衛；兩邊字串因引號不同不會被去重，過渡期守衛各跑兩次，刪除 local 後消除。
+- **實測補記**：在目前 CLI 版本，worktree 內的 session 會讀主 checkout 的 `settings.local.json`，所以「新建 worktree 守衛失效」未實際發生；真正會失效的是新 clone 的環境。
 
 ##### 🔴 B2. STAGE 3 完成度閘門是死的（P1）— ✅ 已完成（2026-10-01，Issue #183）
 
@@ -2572,14 +2574,14 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 |:---:|:-----|:-----|:---:|:---|
 | 1 | **B6** release 四處版號 | 已實際出過事（v1.6.0），成因原封不動 | 低 | ✅ 已完成（2026-09-24，PR #173） |
 | 2 | **B1** promote 推進 stage | 唯一硬強制的人機閘門正被自家文件磨掉 | 極低（改1刪6） | ✅ 已完成（2026-09-28，PR #178） |
-| 3 | **B3** 專案層 settings.json | 守衛在 clone 後靜默失效 | 極低 | 提案 |
+| 3 | **B3** 專案層 settings.json | 守衛在 clone 後靜默失效 | 極低 | ✅ 已完成（2026-10-15，Issue #202 / PR #203） |
 | 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | ✅ 已完成（2026-10-01，Issue #183） |
 | 5 | **B5** effort 分層表 | 恢復 Agent frontmatter 的 effort 設定，並確立其會覆蓋 session | 低 | ✅ 已完成（2026-10-01，Issue #185 / 修正於 PR #189） |
 | 6 | A1 skill linter | 已知 1 檔中招，寫一次永久擋住 | 低 | 提案 |
 | 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | ✅ 已完成（2026-09-27，Issue #179） |
 | 8 | **A3** lens 特徵判準 | 廢除純行數一刀切，特徵驅動衛語句 + 主審兜底 | 極低 | ✅ 已完成（2026-09-26，Issue #175） |
 
-> **📌 8 項截至 2026-10-01 已完成 6 項（B6, A3, A2, B1, B2, B5），其餘 2 項仍是提案。**
+> **📌 8 項截至 2026-10-15 已完成 7 項（B6, A3, A2, B1, B2, B5, B3），其餘 1 項（A1）仍是提案。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
 
 ---
