@@ -5,8 +5,11 @@ set -euo pipefail
 # 刻意不讀 settings.local.json：它不進版控，clone 環境裡不存在。
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SETTINGS=".claude/settings.json"
-STAGE_CHECK='$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-stage-check.sh'
-DELEGATE_CWD='$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh'
+# shell form 的路徑佔位符必須加雙引號（官方 hooks 文件），否則 repo 路徑含空白時 hook 無法啟動。
+STAGE_CHECK_REL='.claude/hooks/wf-guard-stage-check.sh'
+DELEGATE_CWD_REL='.claude/hooks/wf-guard-delegate-cwd.sh'
+STAGE_CHECK='"$CLAUDE_PROJECT_DIR"/'"$STAGE_CHECK_REL"
+DELEGATE_CWD='"$CLAUDE_PROJECT_DIR"/'"$DELEGATE_CWD_REL"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -39,8 +42,7 @@ check_guard PreToolUse mcp__gemini-cli__ask-gemini "$DELEGATE_CWD pre"
 check_guard PostToolUse mcp__gemini-cli__ask-gemini "$DELEGATE_CWD post"
 
 echo "=== Test 3 (AC-3): guard scripts exist, executable, index mode 100755 ==="
-for cmd in "$STAGE_CHECK" "$DELEGATE_CWD"; do
-  rel="${cmd#\$CLAUDE_PROJECT_DIR/}"
+for rel in "$STAGE_CHECK_REL" "$DELEGATE_CWD_REL"; do
   [ -f "$REPO_ROOT/$rel" ] || fail "$rel does not exist"
   [ -x "$REPO_ROOT/$rel" ] || fail "$rel is not executable"
   mode="$(git -C "$REPO_ROOT" ls-files -s -- "$rel" | cut -d' ' -f1)"

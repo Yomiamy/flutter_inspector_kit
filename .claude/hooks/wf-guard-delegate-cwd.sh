@@ -18,12 +18,12 @@
 #   "PreToolUse": [
 #     { "matcher": "mcp__gemini-cli__ask-gemini",
 #       "hooks": [{ "type": "command",
-#         "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh pre" }] }
+#         "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wf-guard-delegate-cwd.sh pre" }] }
 #   ],
 #   "PostToolUse": [
 #     { "matcher": "mcp__gemini-cli__ask-gemini",
 #       "hooks": [{ "type": "command",
-#         "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh post" }] }
+#         "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wf-guard-delegate-cwd.sh post" }] }
 #   ]
 #
 # False positive 防護：非委派工具、無 state 檔、branch 對不上、stage 非 2、
