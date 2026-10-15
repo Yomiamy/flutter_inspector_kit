@@ -56,18 +56,20 @@ hook 有掛載但壞掉時，Claude Code 會在 transcript 顯示 `<event>:<matc
 
 | # | 事件 | matcher | 指令 | 去向 |
 |:-:|:---|:---|:---|:---|
-| 1 | PreToolUse | `Agent` | `$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-stage-check.sh` | → `settings.json` |
-| 2 | PreToolUse | `mcp__gemini-cli__ask-gemini` | `$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh pre` | → `settings.json` |
+| 1 | PreToolUse | `Agent` | `"$CLAUDE_PROJECT_DIR"/.claude/hooks/wf-guard-stage-check.sh` | → `settings.json` |
+| 2 | PreToolUse | `mcp__gemini-cli__ask-gemini` | `"$CLAUDE_PROJECT_DIR"/.claude/hooks/wf-guard-delegate-cwd.sh pre` | → `settings.json` |
 | 3 | PostToolUse | `Bash` | `$CLAUDE_PROJECT_DIR/.claude/hooks/cbm-reindex-on-pr.sh` | 留在 local |
-| 4 | PostToolUse | `mcp__gemini-cli__ask-gemini` | `$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh post` | → `settings.json` |
+| 4 | PostToolUse | `mcp__gemini-cli__ask-gemini` | `"$CLAUDE_PROJECT_DIR"/.claude/hooks/wf-guard-delegate-cwd.sh post` | → `settings.json` |
 
 第 3 條負責 codebase-memory 重建索引，不是守衛，而且依賴個人環境裡的 cbm MCP server。留在 local，`settings.json` 的語意才乾淨：只放「本 repo 的流程守衛」。
 
-指令字串**原文照搬**（`$CLAUDE_PROJECT_DIR/...`、不加引號），不藉機改寫格式。
+指令字串在 `settings.json` 中對 `$CLAUDE_PROJECT_DIR` 加雙引號（`"$CLAUDE_PROJECT_DIR"/.claude/hooks/...`）：[hooks 文件](https://code.claude.com/docs/en/hooks#reference-scripts-by-path)規定 shell form 須為路徑佔位符加雙引號，否則 repo 路徑含空白時 hook 無法啟動。其餘部分原文照搬。（PR #203 review 後由「原文照搬、不加引號」修正。）
 
 ### 3.2 是「搬」不是「複製」（論證校正）
 
 brainstorm 寫的理由是「兩邊都註冊會雙掛載、每次觸發跑兩次」。這**跟目前的官方行為不符**：[hooks 文件](https://code.claude.com/docs/en/hooks)寫明「If you define the same handler in more than one settings file, it runs once」，完全相同的 handler 會被去重。
+
+**重複執行（過渡狀態，範圍不只合併後）**：`settings.json` 的指令加了引號、`settings.local.json` 仍是未加引號的舊字串，兩者字串不同，不會被去重，三條守衛各會跑兩次，直到 PM-1 移除 local 的副本。這不只發生在合併後到 PM-1 之間：合併前在 worktree 根目錄啟動的 session，會同時讀到 worktree 的 `settings.json` 與主 checkout 的 local，現在就已各跑兩次。兩份都 fail-open。`stage-check` 唯讀、結果一致，無副作用。`delegate-cwd pre` 兩份並行、非原子地寫同一個 snapshot，交錯時可能寫壞檔，`post` 的 `json.load` 失敗就放行，因此極少數情況可能漏報（sensor 只告警，不阻斷）；`post` 另可能重複告警、`cwd-violations.log` 多寫一行。PM-1 緊接合併後執行即可，不需額外處理。
 
 不過「搬」這個決策本身依然正確，理由改為：
 
@@ -145,11 +147,11 @@ U-8 當時選的替代方案是「掛載片段寫在 hook 腳本的註解裡，�
 ### 自動化（新增 shell 測試涵蓋）
 
 - **AC-1 設定檔進版控且合法**：`.claude/settings.json` 存在、被 git 追蹤（`git ls-files` 列得出來），沒有被 repo 內的 ignore 規則（各層 `.gitignore` 與 `.git/info/exclude`，不含個人全域 `core.excludesFile`）排除（`git -c core.excludesFile=/dev/null check-ignore --no-index` 無輸出），而且是可解析的 strict JSON。
-- **AC-2 3 條守衛註冊正確**：`settings.json` 裡以下 3 組「事件 / matcher / 指令」**各恰好出現一次**，指令字串與 §3.1 表格逐字相同：
-  1. `PreToolUse` / `Agent` / `$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-stage-check.sh`
-  2. `PreToolUse` / `mcp__gemini-cli__ask-gemini` / `$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh pre`
-  3. `PostToolUse` / `mcp__gemini-cli__ask-gemini` / `$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh post`
-- **AC-3 腳本存在且可執行**：AC-2 指令引用的每支腳本（將 `$CLAUDE_PROJECT_DIR` 換成 repo 根目錄後解析）都存在、工作區有執行權限，而且 git index mode 是 `100755`。fresh clone 的執行權限來自 index mode，不是來自本機檔案屬性。
+- **AC-2 3 條守衛註冊正確**：`settings.json` 裡以下 3 組「事件 / matcher / 指令」**各恰好出現一次**，指令字串與 §3.1 表格完全相等：
+  1. `PreToolUse` / `Agent` / `"$CLAUDE_PROJECT_DIR"/.claude/hooks/wf-guard-stage-check.sh`
+  2. `PreToolUse` / `mcp__gemini-cli__ask-gemini` / `"$CLAUDE_PROJECT_DIR"/.claude/hooks/wf-guard-delegate-cwd.sh pre`
+  3. `PostToolUse` / `mcp__gemini-cli__ask-gemini` / `"$CLAUDE_PROJECT_DIR"/.claude/hooks/wf-guard-delegate-cwd.sh post`
+- **AC-3 腳本存在且可執行**：AC-2 指令引用的每支腳本（剝掉 `"$CLAUDE_PROJECT_DIR"/` 前綴，以 repo 根目錄為基準解析相對路徑）都存在、工作區有執行權限，而且 git index mode 是 `100755`。fresh clone 的執行權限來自 index mode，不是來自本機檔案屬性。
 - **AC-4 測試的形式**：
   - 放在 `tests/` 下的 shell 腳本，風格比照 `tests/test_wf_state_total_tasks.sh`：`set -euo pipefail`、以腳本位置推出 `REPO_ROOT`、逐條印 PASS/FAIL、失敗時 exit 1、最後印出全數通過的訊息。
   - 測試**不得讀取或依賴 `settings.local.json`**，因為它不進版控，在 clone 環境裡不存在。
@@ -162,7 +164,7 @@ U-8 當時選的替代方案是「掛載片段寫在 hook 腳本的註解裡，�
 
 ### 回歸（Never break userspace）
 
-- **AC-7 守衛行為不變**：兩支守衛腳本除了 `wf-guard-delegate-cwd.sh:16` 的註解，沒有其他改動；既有的 `.claude/hooks/tests/test_delegate_cwd_logic.py` 照常通過。
+- **AC-7 守衛行為不變**：兩支守衛腳本除了 `wf-guard-delegate-cwd.sh` 開頭的掛載說明註解（`:16-27`），沒有其他改動；既有的 `.claude/hooks/tests/test_delegate_cwd_logic.py` 照常通過。
 - **AC-8 一般貢獻者無感**：在無 workflow state 的環境下，§3.5 Q-A 實測表的 5 個情境仍然全部 exit 0，沒有 stderr。
 - **AC-9 註解與事實一致**：`wf-guard-delegate-cwd.sh:16` 的掛載說明改為「掛載於 `.claude/settings.json`（進版控）」，不再寫本地設定或「沿用既有三個 hook 的慣例」；`:18-27` 的 JSON 片段與 `settings.json` 的實際條目一致。
 
@@ -175,7 +177,7 @@ U-8 當時選的替代方案是「掛載片段寫在 hook 腳本的註解裡，�
 1. 新增 `.claude/settings.json`，只含 §3.4 的 `$schema`（第一個欄位）與 §3.1 的 3 條守衛。
 2. 從 `.claude/settings.local.json` 移除這 3 條（**合併後執行**：PR 合併、主 checkout 同步後才改，避免合併前主 checkout 失去守衛；見計畫 §1.1）。
 3. 在 `tests/` 新增 shell 測試（AC-1 至 AC-4）。
-4. 修正 `.claude/hooks/wf-guard-delegate-cwd.sh:16` 的掛載註解。
+4. 修正 `.claude/hooks/wf-guard-delegate-cwd.sh` 開頭的掛載說明註解（`:16` 說明句，以及 `:21`、`:26` 的 command 引號）。
 
 ### Out of scope
 

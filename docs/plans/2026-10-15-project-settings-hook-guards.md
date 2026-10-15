@@ -4,7 +4,7 @@
 
 > 狀態：實作計畫（STAGE 0b，plan-verifier 初審後修正第 1 次）｜日期：2026-10-15
 > 前置裁決（不可再議）：
-> - **§3.1**：搬 3 條守衛到 `settings.json`，`cbm-reindex-on-pr.sh` 留在 local；指令字串原文照搬、不加引號。
+> - **§3.1**：搬 3 條守衛到 `settings.json`，`cbm-reindex-on-pr.sh` 留在 local；指令字串對 `$CLAUDE_PROJECT_DIR` 加雙引號（PR #203 review 後修正；原為原文照搬不加引號）。
 > - **U-1**：採納 `$schema`，放在 `settings.json` 第一個欄位。
 > - **U-2**：場景 (b) 措辭定為「依 CLI 版本與平台而定」（已回寫規格 §1.3、§6）。
 >
@@ -14,7 +14,7 @@
 
 ## 1. 實作方向的 trade-off 分析
 
-整體改動很小：1 支新測試、1 個新設定檔、1 行註解，外加 1 次本機 JSON 編輯。真正需要設計判斷的只有三件事：**local 檔什麼時候改**、**測試怎麼斷言才不會形同虛設**、**local 檔怎麼改才不誤傷**。
+整體改動很小：1 支新測試、1 個新設定檔、3 行註解，外加 1 次本機 JSON 編輯。真正需要設計判斷的只有三件事：**local 檔什麼時候改**、**測試怎麼斷言才不會形同虛設**、**local 檔怎麼改才不誤傷**。
 
 ### 1.1 核心難題：`settings.local.json` 的修改時機
 
@@ -26,7 +26,7 @@
 | F-2 | 共享的 `.claude/settings.json` 從 session 的 **primary working directory** 讀取；只有 `/cd` 才會改讀新目錄的設定（v2.1.246+） | [settings](https://code.claude.com/docs/en/settings)（"reads the shared `.claude/settings.json` from the session's primary working directory"） |
 | F-3 | 在 worktree 內，`settings.local.json` 用的是**主 checkout 根目錄那一份**；worktree 自己沒有 | 同上（"In a worktree, it uses the file at the main checkout's root"） |
 | F-4 | 直接修改設定檔裡的 hooks，**file watcher 通常會即時套用到執行中的 session** | [hooks — Disable or remove hooks](https://code.claude.com/docs/en/hooks)（"normally picked up automatically by the file watcher"） |
-| F-5 | 同一個 handler 同時出現在多個設定檔時**只跑一次** | [hooks](https://code.claude.com/docs/en/hooks)（"it runs once"） |
+| F-5 | 完全相同的 handler 出現在多個設定檔時**僅執行一次**（字串須完全相等） | [hooks](https://code.claude.com/docs/en/hooks)（"it runs once"） |
 
 推論：
 
@@ -38,7 +38,7 @@
 
 | 方案 | 何時改 local | 優點 | 缺點 | 判定 |
 |:---|:---|:---|:---|:-:|
-| **A：PR 合併、主 checkout 同步之後** | STAGE 6 開頭（PM-1） | 合併前守衛完全不受影響。PM-1 執行時主 checkout 已有 `settings.json`，兩邊條目逐字相同，依 F-5 只跑一次 | AC-5/AC-6 要到合併後才能確認（規格 §4 已同步改寫）；PM-1 不計入 STAGE 2 的 `total_tasks` | **採用** |
+| **A：PR 合併、主 checkout 同步之後** | STAGE 6 開頭（PM-1） | 合併前守衛完全不受影響。PM-1 執行時主 checkout 已有 `settings.json`。兩邊字串不同（`settings.json` 加引號、local 為舊的未加引號），F-5 不會去重，兩份都會執行；這是過渡狀態，PM-1 後恢復單一來源（影響見 PM-1 段） | AC-5/AC-6 要到合併後才能確認（規格 §4 已同步改寫）；PM-1 不計入 STAGE 2 的 `total_tasks` | **採用** |
 | B：STAGE 2 內，和 T1、T2 同批 | 實作期間 | AC-5/AC-6 能在 STAGE 2/3 確認 | 從改檔那一刻到合併並 pull 之前，主 checkout **完全沒有守衛**。受影響的正好是本 PR 自己會走的路徑：STAGE 2 剩下的 gemini 委派（`delegate-cwd pre/post`），以及 STAGE 5 回覆 PR review 時派發 responder（`stage-check`） | 否決 |
 | C：STAGE 4 建立 PR 後、合併前 | review 期間 | 空窗比 B 短 | STAGE 5 就在這段空窗裡，而 `stage-check` 是 STAGE 5 唯一的防線 | 否決 |
 
@@ -56,9 +56,9 @@
 |:---|:---|:---|:-:|
 | 甲：golden file | 把整份 `settings.json` 拿去和期望檔做 diff | 之後在檔案裡加任何無關內容（例如另一條 hook）測試就紅，太脆 | 否決 |
 | 乙：只檢查存在 | `jq` 找得到該指令即算通過 | 抓不到重複註冊，也抓不到 matcher 或事件放錯 | 否決 |
-| **丙：逐組恰好一次，handler 整個物件比對** | 每組「事件 / matcher / handler」用 `jq` 計數，必須等於 1；handler 必須**整個等於** `{"type":"command","command":<指令>}` | 無 | **採用**（AC-2 的定義，再加上鎖住多出來的欄位） |
+| **丙：逐組恰好一次，handler 整個物件比對** | 每組「事件 / matcher」下，用 `jq` 收集 command 相同的**所有** handler（不看其他欄位），整份必須**等於** `[{"type":"command","command":<指令>}]`（事件與內層 `hooks` 須為 array） | 無 | **採用**（AC-2 的定義，再加上鎖住多出來的欄位） |
 
-handler 整個物件比對：只要多出任何欄位（例如 `timeout`、`onFailure`）或 `type` 被改掉，都會被判成「0 次」而 FAIL。目前 local 檔的 3 條條目都只有 `type` 與 `command` 兩個欄位，T1 的 `settings.json` 也一樣，所以不會誤判（§1.4 GREEN 實測）。
+handler 整個物件比對：重複註冊、多出任何欄位（例如 `timeout`、`onFailure`）、`type` 被改掉，或事件被改成物件，收集結果都不等於預期而 FAIL。目前 local 檔的 3 條條目都只有 `type` 與 `command` 兩個欄位，T1 的 `settings.json` 也一樣，所以不會誤判（§1.4 GREEN 實測）。
 
 AC-1 的兩個細節，都已實測：
 
@@ -67,8 +67,8 @@ AC-1 的兩個細節，都已實測：
 
 另外兩個細節：
 
-- `jq -e .` 不吞 stderr。jq 缺失或解析錯誤的真正原因會印出來，不會被一律誤報成「invalid JSON」。
-- AC-3 的腳本路徑直接取自 AC-2 的同一組常數，不另外解析整份 JSON。AC-2 已經保證這些指令逐字存在。
+- AC-1 的 JSON 驗證用 `jq -se 'length == 1 and (.[0] | type == "object")'`：`-s` 讓多個頂層 JSON 值（Claude Code 的 strict parser 會拒絕）與 top-level array 都判 FAIL；stderr 不吞，jq 缺失或解析錯誤的真正原因會印出來。
+- AC-3 的腳本路徑直接取自 AC-2 的同一組常數，不另外解析整份 JSON。AC-2 已經保證這些指令完全相等地存在。
 
 ### 1.3 local 檔的修改手法
 
@@ -122,11 +122,11 @@ AC-8 的 5 個情境已在主 checkout 實測：全部 exit 0，沒有 stderr。
 |:---|:-:|:---|:-:|
 | `tests/test_project_settings_hooks.sh` | 新增（`100755`） | AC-1 到 AC-4 的 shell 測試 | T1 |
 | `.claude/settings.json` | 新增 | `$schema` 加上 3 條守衛 | T1 |
-| `.claude/hooks/wf-guard-delegate-cwd.sh` | 修改 1 行（`:16`） | 修正掛載註解（AC-9） | T2 |
+| `.claude/hooks/wf-guard-delegate-cwd.sh` | 修改掛載說明註解（`:16`、`:18-27`） | 修正掛載註解（AC-9） | T2 |
 | `/Users/yomiry/StudioWorkspace/flutter_inspector/.claude/settings.local.json` | **僅本機修改，沒有 git diff** | 移除 3 條守衛（AC-5） | PM-1（**合併後，不計入 `total_tasks`**） |
 | `docs/features/2026-10-15-project-settings-hook-guards.md` | 已於 STAGE 0b 修改 | 狀態改為「已確認」、U-1/U-2 已決、§4 手動 AC 時機與 §5 In scope 第 2 項改為合併後 | — |
 
-**明確不動**：`wf-guard-stage-check.sh`（整支）、`wf-guard-delegate-cwd.sh` 的 `:16` 以外部分（含 `:18-27` 的 JSON 片段，內容本來就與 T1 的條目一致，見 T2 的驗證）、`.agents/hooks.json`、`SKILL.md` 中 `alwaysThinkingEnabled` 的寫入邏輯，以及規格 §5 列出的歷史文件。
+**明確不動**：`wf-guard-stage-check.sh`（整支）、`wf-guard-delegate-cwd.sh` 開頭掛載說明註解以外的部分（`:18-27` 的 JSON 片段須與 T1 的條目一致，含雙引號）、`.agents/hooks.json`、`SKILL.md` 中 `alwaysThinkingEnabled` 的寫入邏輯，以及規格 §5 列出的歷史文件。
 
 ---
 
@@ -142,7 +142,7 @@ T1、T2 都在 **STAGE 1 建立的 worktree**（`.claude/worktrees/<slug>/`）�
 
 - **等級**：機械性 → 快/便宜（2 個檔案，內容完整給定）
 - **寫入檔案**：`tests/test_project_settings_hooks.sh`、`.claude/settings.json`
-- **步驟 1（紅）**：建立測試檔，執行 `chmod +x tests/test_project_settings_hooks.sh`。`core.fileMode=true`，所以 `git add` 時會記成 `100755`。
+- **步驟 1（紅）**：（下方測試腳本為初版；PR #203 review 後改為依 事件+matcher+command 收集 handler 並比對唯一形狀、`jq -s` 驗單一 JSON object、指令字串含雙引號，最終版以 `tests/test_project_settings_hooks.sh` 為準。）建立測試檔，執行 `chmod +x tests/test_project_settings_hooks.sh`。`core.fileMode=true`，所以 `git add` 時會記成 `100755`。
 
 ```bash
 #!/usr/bin/env bash
@@ -207,7 +207,7 @@ grep -c "settings.local" tests/test_project_settings_hooks.sh
 # 期望：1（只有註解那一行；AC-4：測試不讀 local 檔）
 ```
 
-- **步驟 2（綠）**：建立 `.claude/settings.json`。`$schema` 放第一個欄位（U-1）；3 條指令字串與規格 §3.1 逐字相同；縮排 2 格，格式比照 local 檔。
+- **步驟 2（綠）**：建立 `.claude/settings.json`。`$schema` 放第一個欄位（U-1）；3 條指令字串與規格 §3.1 完全相等；縮排 2 格，格式比照 local 檔。
 
 ```json
 {
@@ -219,7 +219,7 @@ grep -c "settings.local" tests/test_project_settings_hooks.sh
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-stage-check.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wf-guard-stage-check.sh"
           }
         ]
       },
@@ -228,7 +228,7 @@ grep -c "settings.local" tests/test_project_settings_hooks.sh
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh pre"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wf-guard-delegate-cwd.sh pre"
           }
         ]
       }
@@ -239,7 +239,7 @@ grep -c "settings.local" tests/test_project_settings_hooks.sh
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/wf-guard-delegate-cwd.sh post"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wf-guard-delegate-cwd.sh post"
           }
         ]
       }
@@ -264,27 +264,30 @@ jq -r 'keys_unsorted[0]' .claude/settings.json
 
 ---
 
-### T2：修正 `wf-guard-delegate-cwd.sh:16` 的掛載註解 `[原地修改]`（接在 T1 之後）
+### T2：修正 `wf-guard-delegate-cwd.sh` 的掛載註解（`:16`、`:21`、`:26`） `[原地修改]`（接在 T1 之後）
 
-- **等級**：`[原地修改]`（派發煞車：單檔 1 行、沒有公開 API 變更，由主進程直接改）
+- **等級**：`[原地修改]`（派發煞車：單檔 3 行註解、沒有公開 API 變更，由主進程直接改）
 - **依賴**：必須在 T1 之後。AC-9 的驗證會讀 T1 產生的 `.claude/settings.json`。
 - **寫入檔案**：`.claude/hooks/wf-guard-delegate-cwd.sh`
-- **具體改動**：只替換第 16 行，總行數不變，規格引用的其他行號仍然正確。`:17-28` 一字不動。
+- **具體改動**：初版只替換第 16 行。PR #203 review 後，`:21`、`:26` 註解中的 command 也改為加引號（`\"$CLAUDE_PROJECT_DIR\"/...`），共 3 行，總行數不變，規格引用的其他行號仍然正確。其餘一字不動。（下方 diff 與驗證指令為最終版；與實檔不一致時以實檔為準。）
 
 ```diff
 -# 掛載方式（.claude/settings.local.json，本地設定不進版控——沿用既有三個 hook 的慣例）：
 +# 掛載於 .claude/settings.json（進版控；條目由 tests/test_project_settings_hooks.sh 鎖定）：
 ```
 
+  （`:21`、`:26` 兩行僅把 `"$CLAUDE_PROJECT_DIR/...` 改為 `"\"$CLAUDE_PROJECT_DIR\"/...`。）
+
   用 `gen-commit` 獨立提交一個 commit。
 
-- **對應 AC**：AC-9；AC-7（除這一行外不得有其他改動）。
+- **對應 AC**：AC-9；AC-7（除這三行註解外不得有其他改動）。
 - **驗證指令**（commit 之後執行，以 bash 執行，因為用到 process substitution）：
 
 ```bash
 git diff -U0 main...HEAD -- .claude/hooks/ | sed -n '/^@@/p;/^[-+][^-+]/p'
-# 期望：只有一個 "@@ -16 +16 @@" hunk，一行 - 一行 +（AC-7）
-diff <(sed -n '18,27s/.*"command": "\(.*\)".*/\1/p' .claude/hooks/wf-guard-delegate-cwd.sh) \
+# 期望：只有 "@@ -16 +16 @@"、"@@ -21 +21 @@"、"@@ -26 +26 @@" 三個 hunk，各一行 - 一行 +（AC-7）
+# sed 擷取的是帶 JSON 跳脫的字串，jq -r . 解碼後才與 settings.json 的 command 比對
+diff <(sed -n '18,27s/.*"command": \(".*"\) }.*/\1/p' .claude/hooks/wf-guard-delegate-cwd.sh | jq -r .) \
      <(jq -r '.hooks[][] | select(.matcher == "mcp__gemini-cli__ask-gemini") | .hooks[].command' .claude/settings.json) \
   && echo "AC-9 fragment consistent"
 # 期望：印出 "AC-9 fragment consistent"
@@ -302,7 +305,10 @@ diff <(sed -n '18,27s/.*"command": "\(.*\)".*/\1/p' .claude/hooks/wf-guard-deleg
   3. 放在 STAGE 6 開頭：推進狀態之後、同步文件之前。**AC-5 的檢查（§5.3）必須緊接在 PM-1 之後，而且要在 STAGE 6 的環境清理（移除 `alwaysThinkingEnabled`）之前完成**。否則 AC-5 的「非 hooks key 未變」比對會因為清理動作而誤判 FAIL。
   4. PM-1 本身與 `alwaysThinkingEnabled` 互不干涉：filter 只動 `.hooks`，該 key 當下是否存在都會原樣保留。
 - **前置檢查**：執行 `git worktree list`。若存在其他 worktree，且其 branch 早於本變更（沒有 `.claude/settings.json`），PM-1 之後在那些 worktree 內新開的 session 會失去守衛（規格 R-4）。遇到這種情況，先讓那些 branch 同步 `main`，或確認接受這個風險。
-- **具體改動**：以 bash 在單一呼叫內執行整段。各步驟用 `&&` 串接，步驟 0 失敗則後面全部不執行，什麼都不改。
+- **具體改動**：以 bash 在單一呼叫內執行整段。
+  - 下方 `--argjson cmds` 比對的是 **local 現存的未加引號舊字串**，刻意不隨 `settings.json` 加引號。
+  - 過渡期影響：`settings.json` 的指令加了引號、`settings.local.json` 仍是未加引號的舊字串，兩者字串不同，不會被去重，三條守衛各會跑兩次，直到 PM-1 移除 local 的副本。這不只發生在合併後到 PM-1 之間：合併前在 worktree 根目錄啟動的 session，會同時讀到 worktree 的 `settings.json` 與主 checkout 的 local，現在就已各跑兩次。兩份都 fail-open。`stage-check` 唯讀、結果一致，無副作用。`delegate-cwd pre` 兩份並行、非原子地寫同一個 snapshot，交錯時可能寫壞檔，`post` 的 `json.load` 失敗就放行，因此極少數情況可能漏報（sensor 只告警，不阻斷）；`post` 另可能重複告警、`cwd-violations.log` 多寫一行。PM-1 緊接合併後執行即可，不需額外處理。
+  - 各步驟用 `&&` 串接，步驟 0 失敗則後面全部不執行，什麼都不改。
 
 ```bash
 MAIN=/Users/yomiry/StudioWorkspace/flutter_inspector
@@ -341,7 +347,7 @@ bash "$MAIN/tests/test_project_settings_hooks.sh" >/dev/null \
 ## 4. 並行判定與 commit 切分
 
 ```
-STAGE 2:  T1（紅→綠，commit）──→ T2（1 行，commit）
+STAGE 2:  T1（紅→綠，commit）──→ T2（3 行，commit）
 STAGE 3:  §5.1 / §5.2 驗證 + §5.4 /hooks 冒煙檢查（必做）
 STAGE 4–5: PR、review
 合併 → 主 checkout 同步（使用者執行或授權）
@@ -373,7 +379,7 @@ python3 .claude/hooks/tests/test_delegate_cwd_logic.py   # AC-7：印 OK，exit 
 
 ### 5.2 回歸 AC-7 / AC-8 / AC-9
 
-- **AC-7**：執行 T2 的 `git diff -U0 main...HEAD -- .claude/hooks/`，期望只有 `:16` 一行；再加上 §5.1 的 python 測試通過。
+- **AC-7**：執行 T2 的 `git diff -U0 main...HEAD -- .claude/hooks/`，期望只有 `:16`、`:21`、`:26` 三個 hunk（掛載說明註解）；再加上 §5.1 的 python 測試通過。
 - **AC-8**：在 worktree 根目錄以 **bash** 執行下列片段（不要用 zsh，兩者的 word-splitting 行為不同）：
 
 ```bash
@@ -423,7 +429,7 @@ diff <(jq -S 'del(.hooks)' "$BAK") <(jq -S 'del(.hooks)' "$F") && echo "非 hook
 1. 在 worktree 根目錄開一個新的 Claude Code session。
 2. 執行 `/hooks`，確認 3 條守衛以 **Project settings** 來源出現，而且沒有 Settings Error。
 
-此時 local 還沒改，同一支守衛可能同時顯示 Project 與 Local 兩個來源。這是預期中的過渡狀態（F-5，只跑一次），不算 AC-6 失敗。順帶也能觀察 U-2：worktree 內的 session 是否讀到主 checkout 的 local 檔。
+此時 local 還沒改，同一支守衛可能同時顯示 Project 與 Local 兩個來源。這是預期中的過渡狀態（兩份字串不同，F-5 不去重，兩份都會執行），不算 AC-6 失敗。順帶也能觀察 U-2：worktree 內的 session 是否讀到主 checkout 的 local 檔。
 
 ---
 
@@ -467,8 +473,8 @@ PM-1、AC-5、AC-6 不在 STAGE 2–4 的流程內，PR 合併後很容易被遺
 | 通用解析 `settings.json` 內所有 hook 的腳本路徑 | §1.2：AC-3 只要求 AC-2 那 3 條；需要時再擴充 |
 | 測試檢查 `$schema` | 規格 §3.4：不影響任何 AC（§1.4 已確認拿掉後測試仍 PASS） |
 | 把 AC-8 的 5 個情境寫成 repo 內的測試檔 | 規格只要求 AC-1~4 自動化；AC-8 是一次性的回歸確認，計畫內附可直接貼上的片段即可 |
-| 改動 `:18-27` 的 JSON 片段 | 內容本來就與 T1 的條目一致（T2 的 diff 驗證）；AC-7 也限制只能改 `:16` |
-| 把指令改成 exec form，或給 `$CLAUDE_PROJECT_DIR` 加引號 | 規格 §3.1 要求原文照搬。已知限制：repo 路徑含空白時 hook 無法啟動，但官方行為是 non-blocking error，會留下可見的 notice（[hooks — Other exit codes](https://code.claude.com/docs/en/hooks)），不是靜默失效 |
+| 改動 hook 腳本的掛載說明註解以外的部分 | AC-7 限制只能改註解；`:18-27` 的 JSON 片段已隨 PR #203 review 同步為加引號版本 |
+| 把指令改成 exec form | PR #203 review 後改為 shell form 加雙引號（`"$CLAUDE_PROJECT_DIR"/...`），已滿足官方「shell form 須為佔位符加雙引號」；exec form 需改 `args` 結構，收益相同，不做 |
 | 在 worktree 內建立 `settings.local.json` | F-3：CLI 會改讀主 checkout 那份，建了只會多一個真相來源 |
 | 跑 `flutter test` / `flutter analyze` | 沒有改到任何 Dart 檔 |
 | 回寫 brainstorm §8.2 B3 / §8.5 的狀態 | 規格 §5：留到 STAGE 6 |
