@@ -3,6 +3,9 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-16**：**新增 §P31 點選元件查看尺寸與 constraints**——由第八部分比對 zero_inspector_kit 的 Widget 檢查器衍生，只取「實際尺寸 + constraints」改成點選查詢形狀，不重做整棵樹（故不撞 AF#8）。使用者同日裁決：支援 release build、需要父鏈切換、需要複製／分享。已親查 SDK：`debugCreator` 僅在 `assert` 內設定，release 下 widget 名稱改由 element 反查取得。狀態為提案、未排程。
+> * **2026-10-16**：**三項裁決落地**——(1) **§P20／AF#1**：採凍結級門檻 700ms（對齊 Android vitals frozen frame），debug 下也啟用，以 `totalSpan` 判定、寫成 warning log；AF#1 部分撤銷（僅解禁凍結幀離散事件，profiler／即時儀表照舊否決），理由是 2026-08-14 覆核的「debug-only」前提與 README 建議 release 內嵌矛盾。**排程前須通過實機 debug 實測閘門**（冷啟動、每條路由第一次進入、hot reload 下是否常態出現 ≥ 700ms 幀），未過則重新裁決——同日 Android 實機實測 0／307 幀 ≥ 700ms、最慢 424ms，**閘門通過，§P20 可排程**。(2) **§D5**：重新檢視後維持不排程。(3) **AF#3**：刪除「HAR 匯出可選保留」保留句（HAR 1.2 timings 必填）。第八部分 §Z2 判定式隨之由「任一相超標」改為 `totalSpan`。
+> * **2026-10-16**：**新增第八部分：zero_inspector_kit 比對**——逐檔深讀 [zero_inspector_kit](https://github.com/zero-labsco/zero_inspector_kit) v1.15.0（重點為記憶體監控與 FPS 監控），87 個候選逐項對抗驗證後，本部分只記錄**不需裁決**的待修正與調整：5 項既有缺陷（含 §P21 在 Android 切背景即誤報）、§P20 量測定義勘誤、§P1/§P18/§P9 規格補充、3 項新提案與記憶體知識補記。結論：對方的記憶體與 FPS 監控皆為「常駐輪詢 + 即時儀表 + 原生 plugin」，無可直接搬移者；它也未解決 debug 誤報（自身註解承認）。比對途中發現 AF#1 的「debug-only」前提與 README 建議 release 內嵌矛盾，以及 §D5、AF#3 的前提問題——這三項需使用者裁決，**本次未改動 AF#1 / §P20 / §D5 / AF#3 的任何結論**。檔名日期前綴維持 `2026-10-14`（改名會使 workflow brainstorm 與 `docs/features/` 下既有引用再度斷鏈）。
 > * **2026-10-14**：**v2.7.0 發布**——PR #201 合入 main（issue #200），將 §P28、§P29、§P30 打包為 v2.7.0，完成度總覽版本標記同步更新。檔名日期前綴維持 `2026-10-14`（已是今日）。
 > * **2026-10-14**：**§P30 路由參數擷取與深層連結追蹤完成**——PR #199 合入 main（issue #198）。`NavigatorEntry` 新增 `queryParams` / `argParams` 兩欄分開記錄 URL query 與 arguments 參數，Navigator tab 以 `Params:` / `Args:` 分行顯示，Console 導航列改顯示 `routeLabel` 並可點開 `NavigatorDetailView`。與原提案的差異：單一 `routingParams` 拆成兩欄、標記改為 `<complex>`、保留 `arguments` 欄位（提案稱其已移除，實查不成立），並連帶修正 redact 下 Active Stack 的層級比對。詳見 §P30 實作現況。檔名日期前綴維持 `2026-10-14`（已是今日）。
 > * **2026-10-14**：**§P29 RenderFlex 錯誤視覺化解析完成**——PR #197 合入 main（issue #196）。溢出像素與方向寫入 `LogEntry.data`，ConsoleTab 顯示 badge、LogDetailView 顯示 Overflow Context。與原提案的差異：data key 改為 camelCase、像素值支援科學記號，並額外解析 error-causing widget 與原始碼位置（對所有 FlutterError 生效）。詳見 §P29 實作現況。檔名日期前綴由 `2026-10-13` 更新至 `2026-10-14`。
@@ -693,6 +696,8 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 
 > **決策（2026-07-24）**：查核所述的涵蓋缺口屬實，但**不排入開發**。既有 redaction 實作**保留原樣、不動**，本節保留作為查核紀錄。
 >
+> **🔁 重新檢視（2026-10-16）：維持不排程。** 第八部分比對時發現本節理由的前提「使用者在自己的 debug build 看自己的資料」已有三處動搖：README 建議把 kit 嵌入 release build 當 QA 入口、§P27 自述場景為「QA 的手機、release-ish build」、§P26 agent prompt 新增把內容貼給外部 LLM 的出口。經使用者裁決**維持原判、不重開**。重開時的候選清單（URL query 遮蔽、補常見憑證 header、Bearer／JWT 文字遮蔽、body 遮蔽不建議）保留於第八部分 §Z6 備查；其中 URL query 一項另有既存的標準不一致：`buildNetworkOneLiner` 會藏 query，同份報告的 `buildPlainText` 卻明碼輸出。
+>
 > **理由**：`flutter_inspector_kit` 是 debug 工具，使用者是在自己的 debug build 裡看自己的資料——**除錯時資訊越詳細越好**。遮罩 header、遮罩 `LogEntry.data`，只會變成排查的絆腳石：想複製一段 curl 重現問題，結果 `Authorization` 是 `***`，還得回頭翻程式碼撈真值。這是為了「理論上的安全」增加真實的排查摩擦，與本文件「解決真實問題，不解決臆想威脅」的一貫判準相違。
 >
 > 因此「補齊涵蓋範圍」的方向被否決；既有的 `redactSensitiveData` 與 `redactHeaders()` 維持現狀（不擴大、也不移除），下方現況盤點與修復方向僅供未來若有需求時參考。
@@ -1212,7 +1217,7 @@ Google 的 10 類信號中，**6 類的核心信號在 Dart 執行之前或 OS/b
 | Permission Denials | Additional vital | ⚠️（需 host 餵） | host 在 call site 記入既有 log |
 | Crash rate | 1.09% | ✅（已有） | 既有 `captureUncaughtErrors`（可強化為 crash 前鏈快照） |
 
-### §P20. 掉幀/凍結幀維度（`capturePerformance`）— 🆕 旗艦 · ⚠️ 與 Anti-Feature #1 衝突待裁決
+### §P20. 掉幀/凍結幀維度（`capturePerformance`）— ✅ 已裁決（2026-10-16 · 採 700ms 凍結級門檻）· 實測閘門已通過，可排程
 
 > **🔴 動工前必讀（2026-09-01 交叉核對發現）**：本節設計與 **Anti-Feature #1 於 2026-08-14 覆核時明確否決的變體是同一個東西**（同樣是「不做 profiler 面板，只用 `SchedulerBinding.addTimingsCallback` 把單幀超標轉成離散事件併入 `mergedTimeline`」）。該否決的死因是 **debug build**：
 > 無 AOT、assert 全開，`buildDuration` 系統性偏慢數倍，判定掉幀會**大量誤報**而非漏報，timeline 會被假 jank 洗版，反過來污染 Console 這條原本乾淨的排查鏈；而本 kit 是 debug-only 工具，**誤判不是邊緣情況，是唯一情況**。
@@ -1224,6 +1229,23 @@ Google 的 10 類信號中，**6 類的核心信號在 Dart 執行之前或 OS/b
 > 2. **撤下 §P20** — 維持 Anti-Feature #1 原判，本節降為「已評估／不排程」。
 >
 > 在裁決落地前，**不應進入實作排程**。
+>
+> **✅ 裁決（2026-10-16）：採「撤銷否決」路線，解法為凍結級絕對門檻 700ms，debug 下也啟用。**
+> * **門檻來源**：Google Android vitals 對 frozen frame 的定義（單幀繪製超過 700ms）——事件語意與 Play Console 一致，讀者不必換算。
+> * **為何能回應 AF#1 死因**：debug 的膨脹是**乘法式**的（每幀慢數倍）。以 16／32ms 為門檻，膨脹後整條時間軸都是假事件；以 700ms 為門檻，正常 10ms 的幀膨脹 40 倍也只有 400ms，碰不到門檻，只有真的卡住的幀會被記下。
+> * **判定與形狀**：見第八部分 §Z2（以 `totalSpan` 判定、寫成 warning log 進既有 log 維度、連續超標合併）。**不做**即時 FPS 數字、掉幀率、趨勢圖——AF#1 對 profiler／即時儀表的否決照舊有效，本裁決只解禁「凍結幀離散事件」這一個形狀。
+> * **未採用的選項**：僅 profile/release 採集（選項 A）、心跳 watchdog 補不產幀卡頓（選項 C，會成為 `lib/` 第一個常駐 Timer）。
+> * **⏳ 排程前的實測閘門（必過）**：debug 下有幾種**一次性長停頓**不是乘法膨脹，可能直接超過 700ms——某段程式第一次執行的 JIT 編譯（如每條路由第一次 push）、冷啟動頭幾幀、hot reload 後的重建、shader 首次編譯。須以**實機 debug build** 照固定腳本操作一輪（冷啟動 → 每條路由第一次進入 → 一次 hot reload → 一般捲動），用臨時 `addTimingsCallback` probe（量完還原、不 commit）記錄每幀 `totalSpan` 分佈，結果寫回本節：
+>   * 正常操作下**幾乎沒有** ≥ 700ms 的幀 → 閘門通過，可排程。
+>   * 正常操作下**常態出現** ≥ 700ms 的幀 → 本裁決在 debug 下不成立，**須重新裁決**（選項 A 為現成候選）。
+>
+> **📏 實測結果（2026-10-16 · Android 實機 debug build · `example/` · 單輪）：閘門通過。**
+> * **總覽**：共 307 幀；≥ 100ms 共 22 幀（約 7%）；**≥ 700ms 為 0 幀**；最慢一幀 `total=424ms`（`wait=295`、`build=17`、`raster=111`），距門檻約 1.65 倍餘裕。
+> * **慢幀分佈**：多數慢幀卡在 `raster`（40～110ms），符合 debug 無 AOT、shader 首次編譯的特性。frames 276～296 出現一串 `wait` 偏高（最高 295ms），形狀符合 hot reload 或首次進頁面時的 JIT 停頓——正是原本擔心會衝破 700ms 的那類一次性停頓，實測最高 424ms。
+> * **反向佐證 AF#1 原判**：若門檻設為 32ms，這 307 幀中至少 22 幀會被判為掉幀，時間軸必被洗版；700ms 正好避開。
+> * **時間分段**：`total` 不等於 wait＋build＋raster 相加，差額是 build 結束到 raster 開始之間的 raster 執行緒排隊時間——以 `totalSpan` 判定會一併涵蓋，符合 §Z2 的判定式。
+> * **限制**：單一台 Android 實機、單輪、裝置型號未記錄；307 幀偏短。量測用的臨時 probe（`addTimingsCallback` 逐幀印出 `totalSpan` 與三段耗時）已移除，未 commit。若日後在較低階裝置或 iOS 實機補測出現常態 ≥ 700ms 的幀，須回頭重新裁決。
+> * **結論**：§P20 解除「實測閘門」限制，可依第八部分 §Z2 的形狀排程開發。
 
 * **痛點**：Slow Rendering 是 Core Vital，直接影響商店能見度。Play Console 只給**聚合百分比**（知道多爛、不知爛在哪一步）。app 內時間軸能提供 Console 拿不到的「烂在哪個事件之後」維度。
 * **好品味設計（核心洞察）**：
@@ -1239,8 +1261,11 @@ Google 的 10 類信號中，**6 類的核心信號在 Dart 執行之前或 OS/b
   > **正解（最笨最對）**：callback 觸發當下用 `DateTime.now()` 當 timestamp（延遲數十 ms，對因果排序精度綽綽有餘）；frame 的 build/raster **duration** 照實記進 payload（monotonic diff 的正當用途，不受 epoch 影響）。
 * **次要**：Web 平台 `FrameTiming` 上報不完整，需明講降級（不 crash 但「四平台一致」在 Web 打折）；`TimelineSource` enum 加 jank 要同步 `mergedTimeline` / console_tab filter chip 三處。
 * **Effort**：low~medium ｜ **排查價值**：⭐⭐⭐⭐⭐（對齊 Core Vital，鏈推斷價值最高）
+* **📌 2026-10-16 量測定義勘誤**：本節判定式、時間戳與事件形狀有數處錯誤，實作時以第八部分 §Z2 為準（本節上方原設計保留作紀錄）。
 
 ### §P21. 記憶體壓力事件（併入 `captureLifecycleEvents`）— ✅ 已完成（PR #155）
+
+> **⚠️ 2026-10-16 發現既有缺陷**：Android 上 app 每次切到背景都會記一筆 `Memory pressure` warning（engine 把 `TRIM_MEMORY_UI_HIDDEN` 也轉成 memory pressure），「OOM/LMK 唯一前導信號」的定性在 Android 上被稀釋。詳見第八部分 §Z1-5。
 
 * **痛點**：Memory usage（RSS+Swap / Bitmap）Feb 2027 強制。真正的 RSS 數值需 platform channel（粗糙且跨平台不一），但 **OOM/LMK 前的「記憶體壓力」是 Dart 層唯一拿得到的前導信號**。
 * **好品味設計**：
@@ -1568,6 +1593,8 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 ### ~~§P25. ImageCache 水位計（Image Cache Gauge）~~ — ❌ 不排程（2026-09-10 · 與 §P20 綁定待裁決）
 
+> **📌 2026-10-16 綁定關係更新**：§P20 已裁決，但裁決內容只解禁「凍結幀離散事件」，**未撤銷 AF#1 對即時儀表／常駐 overlay 的否決**。本項的常駐 overlay 變體依賴的正是後者，因此**不隨 §P20 解禁，維持不排程**；若要重啟，須另就 AF#1 的即時儀表條款單獨裁決。下文「綁定待裁決」等字樣為 2026-10-16 前的記述。
+
 > **⚠️ 本節以下設計內容維持原樣保留，但狀態已於 2026-09-10 改為不排程**——
 > 死因是「形狀與價值對不上」，詳見節尾裁決紀錄。原始評估過程有價值，故不刪。
 
@@ -1692,7 +1719,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
    Issue #158 曾嘗試為它附加 ImageCache 水位以補強收斂能力，**實作完成後因 SDK 行為整案撤回**
    （`PaintingBinding` 先清快取才通知 observer，讀到的恆為 0；死因與實測見上方 §P21 撤回紀錄）。
    該需求改由 **§P25 水位計**承接（low priority，主動查看時讀取，不綁 OS 事件）
-2. **§P20 掉幀維度**（旗艦、對齊 Core Vital、鏈推斷價值最高）→ **⚠️ 目前為「待裁決」而非待辦**：與 Anti-Feature #1（2026-08-14 覆核）否決的變體同源，需先解決 debug build 誤報爭議；若裁決通過，另需把 timestamp 地雷釘死在計畫
+2. **§P20 掉幀維度**（旗艦、對齊 Core Vital、鏈推斷價值最高）→ **✅ 2026-10-16 已裁決採 700ms 凍結級門檻，實機 debug 實測閘門已通過（0／307 幀 ≥ 700ms，最慢 424ms），可排程**（見 §P20 裁決段）。以下為裁決前的原記述：與 Anti-Feature #1（2026-08-14 覆核）否決的變體同源，需先解決 debug build 誤報爭議；若裁決通過，另需把 timestamp 地雷釘死在計畫
 3. ~~**§P22 權限**~~ → **已於 2026-09-11 裁決不排程**——`activeRoute` 錨點既有 `log()`
    已自動帶（`flutter_inspector.dart:397`），本項包裝成本趨近於零；且它是全清單唯一
    需逐 call site 手動埋的維度（與已取消的 §P10 同一死因），漏埋會讓排查者誤判
@@ -1723,10 +1750,11 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 堅守「不走向微核心 / 過度工程」：
 
-1. **完整效能 / Jank / 記憶體 Profiler**
+1. **ㄟ能 / Jank / 記憶體 Profiler**
    - *拒絕*：FPS 追蹤、frame drop、記憶體 profiling 是**另一個產品維度**，不是「錯誤排查」。Flutter 官方 DevTools 已有強大的 Performance/Memory view，in-app 重造只會是低配輪子。偏離主線，effort=high，**砍**。
    - **2026-08-14 覆核，維持原判**：曾評估一個看似繞得過本條的變體——不做 profiler 面板，只用 stdlib `SchedulerBinding.addTimingsCallback` 把「單幀超標」轉成一筆離散事件併入 `mergedTimeline`（零新相依，且是 app 層級 hook，無 §P10 那種逐 widget 接線問題）。**仍然否決，死因是 debug build**：debug 無 AOT、assert 全開，`buildDuration` 系統性偏慢數倍，判定掉幀會**大量誤報**而非漏報——timeline 會被假 jank 洗版，反過來污染 Console 這條原本乾淨的排查鏈。而本 kit 是 debug-only 工具，**誤判不是邊緣情況，是唯一情況**。連官方 DevTools 都須警告「debug 效能數據不具參考性、請用 profile mode」，in-app overlay 更無立場宣稱測得準。此變體與 Anti-Feature #6（第五個 `TimelineSource` 的全鏈路成本）亦有衝突，但**不必走到那一步就已出局**。
    - **2026-09-01 交叉核對補記**：第七部分的 **§P20 掉幀/凍結幀維度**由 Google Play Core Vital 角度重新提出了**同一個設計**，且未回應本條的 debug build 誤報死因。**兩節目前互相衝突，尚未裁決**——在裁決前本條維持原判，§P20 不得逕自進入排程。詳見 §P20 節首的待裁決警示。
+   - **2026-10-16 裁決（部分撤銷）**：2026-08-14 覆核的前提「本 kit 是 debug-only，誤判是唯一情況」與 README 不符——README「Magical Tap & Floating Button」列明文建議把 kit 嵌進 release build 當 QA 入口，`lib/` 唯一的 build-mode 閘門只擋排版邊界按鈕（`dashboard_modal.dart:62`）。據此重新裁決：**「凍結幀離散事件」這一個形狀解禁**，以 700ms 絕對門檻回應乘法式膨脹（詳見 §P20 裁決段），但須先通過實機 debug 實測閘門。**本條其餘部分維持否決**：FPS 追蹤、掉幀率、即時儀表、記憶體 profiler 照舊不做。對本條第一句「DevTools 已有」的回應：凍結事件的價值不在量測本身，而在它夾在時間軸的 network／route／db 之間形成因果鏈；這是 DevTools 給不了的，且 DevTools 需要開發機連線，QA 裝置上的現場拿不到。
    - **2026-09-04 記憶體洩漏分析（`leak_tracker`）深入評估維持原判**：深入剖析官方 `dart-lang/leak_tracker` 後，確認其核心機制（`MemoryAllocations` 依賴 assert、`forceGC` 激進記憶體配置引發嚴重 Jank、Web/WASM 下 Retaining Path 恆為 null、以及 5 分鐘無操作導致 notGCed 誤判的特殊情況打補丁）完全不符合 In-App 偵錯器定位。堅決拒絕 Direct In-App 內建整合，維持外部獨立；記憶體排查僅保留已落地的 §P21 記憶體壓力前導信號（PR #155），詳細機制與五層分解詳見第六部分 §3 核心決策三。
    - > 附帶結論（供日後看到同類套件清單時參考）：社群「Flutter 效能／崩潰分析」套件清單對本 kit **無一適用**——後端 telemetry SDK（sentry / crashlytics / newrelic / bugly …）與本 kit「資料不出裝置」的定位方向相反；FPS 小工具（statsfl / fps_monitor …）做的事十幾行 stdlib 即可取代且 `FrameTiming` 資料更完整（分得出 build 慢還是 raster 慢），但受制於上述 debug build 問題，取代了也沒用。**崩潰捕捉本 kit 已自有**（`uncaught_error_handler.dart` 三路 chain 且保留舊 handler），不需要 armor 這類「優雅恢復」——debug 階段要的是崩潰立刻現形，不是被吞掉。
 
@@ -1734,7 +1762,8 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
    - *拒絕*：把 buffer 定期寫 SQLite/Hive、重啟後還原——聽起來很美，但引入磁碟 IO、序列化版本相容、隱私（log 含敏感資料落盤）三重複雜度與風險。**排查的證據用 #3 的「一鍵匯出」帶走即可**，不需要工具自己當資料庫。違反「砍掉一半再砍一半」。**砍**。
 
 3. **完整 HAR timing waterfall（DNS/TLS/TTFB 分段）**
-   - *拒絕*：Dio 在多數版本拿不到可靠的分段 timing，硬湊出來的瀑布圖是**假精度**，反而誤導排查。保留 #4 的 total duration + timeout 判斷已足夠。匯出走標準 JSON 即可，不追 HAR 的完整 timings 物件。**砍**（HAR 匯出本身可選保留，但不偽造 timing）。
+   - *拒絕*：Dio 在多數版本拿不到可靠的分段 timing，硬湊出來的瀑布圖是**假精度**，反而誤導排查。保留 #4 的 total duration + timeout 判斷已足夠。匯出走標準 JSON 即可，不追 HAR 的完整 timings 物件。**砍**。
+   - **2026-10-16 修訂**：刪除原保留句「HAR 匯出本身可選保留，但不偽造 timing」——HAR 1.2 規格的 `timings` 物件中 `send`／`wait`／`receive` 為必填且非負，「不偽造 timing 的 HAR」本身不存在，保留句自相矛盾。結構化匯出一律走 §P9 JSON。
 
 4. **API Mocking / 動態回應改寫**
    - *拒絕*：同上一份 brainstorm 的判斷——在 debug overlay 裡注入 mock 規則會讓工具代碼翻倍，且極易因 debug 庫 bug 中斷宿主的正式網路流。**嚴重違反「Never break userspace」**。交給外部 proxy。**砍**。
@@ -1941,3 +1970,155 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   - **實用性**：極高。對於排查從外部（如推播、網頁跳轉）進入 App 時的狀態異常至關重要。
 * **Effort**：Medium ｜ **排查價值**：⭐⭐⭐⭐
 * **✅ 實作現況（PR #199 · 2026-10-14 合入 main，issue #198）**：新增 `routing_param_extractor.dart`，observer 於每次導航擷取參數；Navigator tab 的 Event History 與 Active Stack 分行顯示 `Params:` / `Args:`，AgentPrompt 輸出 `Query Params:` / `Argument Params:`。與提案的差異：**(1) 單一 `routingParams` 拆成兩欄**——`queryParams`（route name 的 URL query）與 `argParams`（arguments 的 Map 純量值、`Uri` 或含 `?` 字串的 query），合併成一張 Map 會在同名 key 時讓 arguments 靜默蓋掉 URL 值，也看不出來源；兩欄共用截斷 100 字元、各自上限 20 筆與遮蔽；**(2) 非純量標記為 `<complex>`**，不是提案的 `<Complex Object>`；**(3) 痛點描述與實況不符**——main 上 `NavigatorEntry.arguments` 其實一直保存原始 arguments，並未移除；本案保留該欄位，redact 時改由 observer 遞迴遮蔽（Map / List / Set / Uri / String，深度上限 8、循環參照防護）並剝除 `routeName` 的 query。自訂物件的 `toString()` 在 redact 下仍原樣可見，屬既有行為、另案處理；**(4) 敏感 key 判定**：子字串比對 `password` / `token` / `secret` 等，`pin` / `key` 改採字詞邊界與 camelCase 比對，避免 `shipping`、`keyboard`、`donkey` 誤遮；**(5) 範圍超出提案**：Console 與 Event History 列標題改用 `routeLabel`（如 `Scaffold (/second)`），Console 關鍵字過濾同步比對 `routeLabel`；帶參數的 Console 導航列可點開新的 `NavigatorDetailView`，以 JSON 樹狀檢視 Params / Args / Raw Arguments；**(6) 連帶修正**：redact 剝除 query 後 `/p?id=1` 與 `/p?id=2` 會被 `NavigatorStackResolver` 當成同一層，`_matches` 改為一併比對 `queryParams`。example「Push New Route」改為帶 query 與 Map arguments 的示範。零新相依，707 tests 綠、analyze 零新增。
+
+### §P31 點選元件查看尺寸與 constraints (Tap-to-Inspect Layout Info) — 🆕 提案（2026-10-16）
+> **痛點**：QA 在實機發現 UI 被壓扁、溢出或尺寸不對，§P28 排版邊界能畫出框線，但回報時仍說不出精確數字——這個元件實際多大？父層給了什麼上下限？是哪一層的 constraints 把它卡住？目前只能截圖，再由開發者接 DevTools 重現，而 QA 的裝置通常沒有開發機連線。
+
+* **來源**：第八部分比對 zero_inspector_kit 的 Widget 檢查器時衍生。對方做的是整棵 Element tree 瀏覽器（撞 AF#8），本提案只取其中「實際尺寸 + constraints」這一點，改成點選查詢的形狀。
+* **好品味設計（核心洞察）**：
+  > 不要重做一棵樹。排版排查要回答的只是「我點的這個東西多大、受什麼限制、限制從哪一層來」——一次 hit test 走一條路徑就答得出來，不需要遍歷整棵樹。
+  - **進入選取模式**：dashboard AppBar 加一顆按鈕，按下後關閉 dashboard，在 app 上蓋一層透明的攔截層。
+  - **點畫面**：以 Flutter 原生 hit test 取得點擊位置的命中路徑，取最底層的 `RenderBox`。
+  - **資訊卡**：顯示 `size`、`constraints`、螢幕上的位置與 widget 型別名，並在畫面上框出被點中的元件。
+  - **往上看父層**：資訊卡可沿 render 父鏈逐層往上切換，每層都顯示 size 與 constraints——溢出、被壓扁的真正原因常在父層。
+  - **複製／分享**：一鍵把當前資訊卡（含父鏈）輸出成純文字，供 QA 貼進 bug 單；複製走既有 `Clipboard.setData` 慣例，分享走既有 `shareText`（`share_text.dart` 條件匯出，不新增介面）。
+* **使用者裁決（2026-10-16）**：
+  1. **支援 release build**——README 建議 release 內嵌當 QA 入口，release 正是 QA 實機的主要場景。
+  2. **需要父鏈切換**——只看單一元件的排查價值少一半。
+  3. **需要複製／分享**——讓回報附上精確數字，取代「截圖 + 口頭描述」。
+* **Linus 模式五層評估**：
+  - **資料結構**：無新 model、無 buffer、不進時間軸。資訊卡只在顯示當下從 render object 讀取，關掉即丟，零狀態負擔。
+  - **特殊情況 (Edge cases)**：
+    - **widget 名稱在 release 拿不到捷徑**（✅ 已親查 SDK）：`RenderObject.debugCreator` 只在 `assert` 內設定（Flutter 3.47.1 `widgets/framework.dart:6830-6831`），release／profile 下為 null。統一走「從根 element 往下找 `renderObject` 為該目標的 element」取名稱，**不分 build mode 走兩條路**——單次點擊的遍歷成本可接受，且消滅 debug／release 分支。若 app 以 `--obfuscate` 編譯，型別名會被混淆，卡片上標註「名稱可能經混淆」，不嘗試還原。
+    - **命中路徑上不是 `RenderBox`**（如 sliver）：沿父鏈往上找第一個 `RenderBox`；找不到時卡片只顯示型別名，不硬湊尺寸。
+    - **攔截層自己會被命中**：hit test 須排除 kit 自己的攔截層與 FAB，否則永遠點到自己。
+    - **dashboard 開著時**：dashboard 是掛在 root Navigator 上的 dialog，進入選取模式前必須先關閉，否則點到的是 dashboard 而非 app。
+  - **複雜度**：中。一個攔截層 + 一張資訊卡 + 父鏈切換 + 一個文字 formatter。
+  - **破壞性**：低。opt-in 操作（不按按鈕就不存在），不寫入任何 buffer、不動 `revision`、不碰 `mergedTimeline`。
+  - **實用性**：高。把 §P28 的「看得到框線」補成「拿得到數字」，且數字可隨 bug 單帶走。
+* **與既有裁決的關係**：
+  - **AF#8（State 檢查器／Widget Tree 瀏覽器）**：不衝突。AF#8 否決的是在 app 內重做整棵樹；本提案不遍歷整棵樹做瀏覽，只做單點查詢。名稱反查雖需遍歷，但只為取一個名字、不呈現樹。
+  - **§P28 排版邊界切換**：互補，同屬「實機排版排查」工具，§P28 是可接受先例。本項與 §P28 一樣不進時間軸——它是排版工具，不是鏈推斷工具。
+  - **§P28 的 `kDebugMode` 限制不適用**：§P28 隱藏於非 debug 是因為 `debugPaintSizeEnabled` 在 release 無效；本項讀的 `size`／`constraints` 在任何 build mode 都有效。
+* **刻意不做**：整棵樹瀏覽、即時更新（畫面變動後須重新點選）、修改屬性、屬性白名單清單（顏色、padding 等——那是 DevTools 的範圍，且 release 下 diagnostics 不完整）、寫入時間軸。
+* **⚠️ 動工前必查**：
+  - hit test 的入口 API 須對照套件 SDK 下限（Flutter >= 3.10.0）以 Context7 查證——multi-view 相關的 `renderViews`／`hitTestInView` 在不同版本的可用性與 deprecation 狀態不同，不要憑記憶選。
+  - 依 §P7 教訓，先 grep dashboard 內既有的 overlay／`OverlayEntry` 用法（`InspectorOverlayManager` 目前註明「僅支援單一 FAB 實體」），決定攔截層要擴充它還是另立，避免 overlay 管理出現第二份。
+* **寫入路徑**：`lib/src/ui/dashboard/dashboard_modal.dart`（AppBar 按鈕）、新增選取模式的攔截層與資訊卡（如 `lib/src/ui/layout_inspect/`）、`lib/src/core/inspector_overlay_manager.dart`（視上方必查結論）、`example/` 無需新增示範頁（既有 RenderFlex 溢出示範頁即可驗收）。
+* **Effort**：Medium ｜ **排查價值**：⭐⭐⭐⭐
+
+---
+
+## 🔬 第八部分：zero_inspector_kit 比對——記憶體／FPS 監控與可借鏡項（2026-10-16 新增）
+
+> **來源**：<https://github.com/zero-labsco/zero_inspector_kit>（v1.15.0，MPL-2.0——只借想法，不複製檔案）
+>
+> **查證方式**：`git clone --depth 1` 後由 10 個 reader 分子系統逐檔深讀，整理出 87 個候選。fps-1～fps-7 由 4 個獨立視角（證據／量測有效性／既有裁決／價值）各自驗證；其餘 77 個因用量上限改由 10 個批次 agent 各以單一合併視角驗證，**獨立確認程度較低**。下文標「✅ 已親查」者為主對話親自讀原始碼核實。
+>
+> **範圍**：本部分收不需使用者裁決的待修正與調整。比對途中浮現的三項裁決已於同日由使用者拍板，結論寫在各原節：**§P20／AF#1 採 700ms 凍結級門檻**（待實測閘門）、**§D5 維持不排程**、**AF#3 刪除 HAR 保留句**。
+
+### 結論
+
+**記憶體監控與 FPS 監控皆無可直接搬移者**。兩者的形狀都是「常駐 `Timer.periodic` 輪詢 + 即時儀表 + 原生 plugin（Android/iOS MethodChannel）」，與本專案的純 Dart package、不輪詢、離散事件進 `mergedTimeline` 三項定位正面衝突；Web 亦不可用（無條件 `import 'dart:io'`）。
+
+**它沒有解決 debug 誤報，反而佐證 AF#1 的死因**（✅ 已親查）：`fps_service.dart:322-335` 註解自承「debug/模擬器下一次簡單重繪常超過 16ms」，因此只在閒置判定改數幀數，掉幀率照算；v1.11.0 還把 120Hz 門檻收緊至 8.3ms，等於放大誤報。
+
+**對方的實作缺陷（勿重蹈）**：
+
+| 缺陷 | 位置 |
+|:---|:---|
+| 掉幀定義為 `rasterFinish − buildStart`，量的是延遲（含執行緒排隊），非 SDK 的「任一相單獨超標」 | `fps_service.dart:250-272` |
+| 單調時鐘 `buildStart` 存成時間戳，再當牆上時間顯示 | `fps_service.dart:261` |
+| 「1 秒 ≤ 4 幀即閒置」會把單幀 ≥ 250ms 的重度卡頓當成靜止而不告警 | `fps_service.dart:100, 336-338` |
+| 自身 UI 每 500ms 重繪，計入 FPS 與掉幀率（觀察者效應） | `fps_viewer.dart:29, 39` |
+| 阻塞 watchdog 以牆上時鐘量間隔、無生命週期處理，背景回來即記一筆假阻塞 | `blocking_watchdog_service.dart:92, 115-138` |
+| 記憶體 4 個 timer（500ms/3s/3s/2s）在背景照跑，全 lib 無 `WidgetsBindingObserver`（✅ 已親查） | `memory_inspector_service.dart:591, 664, 1356, 1560` |
+| 洩漏的「GC 證明」只是「VM Service 已連線」，觸發 GC 不等待；`FlutterMemoryAllocations` 路徑把「已 dispose 仍存活」判成已釋放 | `memory_inspector_service.dart:1576-1672` |
+| CHANGELOG 自揭多次根本性 FPS bug（v1.2.0 少算 6～10 倍、v1.2.1 時鐘混用致 FPS 恆為 0）；repo 零 issue，114 個 PR 皆維護者自開 | `CHANGELOG.md` |
+
+### §Z1. 既有缺陷（不需裁決，可直接排程）
+
+> 皆為比對途中查到的**本專案**缺陷，與對方功能無關。全部 ✅ 已親查程式碼。
+
+| # | 缺陷 | 位置 | 最小修法 | Effort |
+|:---:|:---|:---|:---|:---:|
+| 1 | Dio 回傳 bytes（`Uint8List`）時，`_stringifyData` 走 `data is List` 分支被 `jsonEncode` 成 `[137,80,…]` 完整字串，**之後**才截斷——大檔下載造成記憶體尖峰與卡頓（觀察者效應，release 內嵌情境同樣發生） | `dio_interceptor.dart:19-30`、`network_inspector.dart:37-38` | 開頭判 `data is Uint8List`（非 `List<int>`，否則誤判 host 的 JSON 陣列）回傳 `'[binary N bytes]'` 佔位，並以 `kTruncatedMarker` 結尾，沿用既有 `isRequestTruncated` 停用 Resend | low |
+| 2 | 匯出報告時 `DatabaseEntry.data` 以 `JsonEncoder.withIndent('  ')` 編碼且無 `toEncodable`，host 的 data 含 `DateTime` 等型別即丟 `JsonUnsupportedObjectError`，`ExportReportSheet` 外層只有 try/finally | `diagnostic_report.dart:152` | 改 `JsonEncoder.withIndent('  ', (o) => o.toString())`（同 `json_tree_viewer.dart` 既有寫法），補一個含 `DateTime` 的測試 | trivial |
+| 3 | 一直沒回應的請求永遠不會被標 🐢 SLOW——判斷式要求 `duration != null`；Dio 預設無 timeout，最糟的情況反而漏標（§P8 盲點） | `network_tab.dart:275`、`network_tab.dart:359-361`、`console_tab.dart:586` | `NetworkEntry` extension `Duration elapsedAt(DateTime now) => duration ?? now.difference(timestamp)`，三處謂詞改用它；pending 標籤寫「no response · 12s」而非斷言式 STALLED（語意是「尚未記錄到完成」） | low |
+| 4 | `truncateBody` 以 `substring(0, kNetworkBodyMaxLength)` 截斷，可能切斷 surrogate pair（emoji） | `network_entry.dart:131` | 末位為 high surrogate（`0xD800–0xDBFF`）時 `end--`，補一個測試 | trivial |
+| 5 | **§P21 在 Android 切背景即誤報**：engine `FlutterActivityAndFragmentDelegate.java:1067-1070`（SDK 3.47.1）只要 `level >= TRIM_MEMORY_RUNNING_LOW` 就送 memory pressure，`TRIM_MEMORY_UI_HIDDEN`（切背景）也在其內；加上 Google 已將 `onTrimMemory` 多數 callback deprecated、只留 `UI_HIDDEN` 與 `BACKGROUND`——**現代 Android 上 §P21 記到的多半只是「切到背景」** | `lifecycle_handler.dart`（`didHaveMemoryPressure`） | 純 Dart：記錄時若 `WidgetsBinding.instance.lifecycleState` 非 `resumed`，訊息附上當下狀態（如 `(app hidden)`），讓讀者分辨「切背景觸發」與「前景真壓力」；不轉 plugin、不加等級 | trivial |
+
+> **附帶一處註解修正（併入 #5）**：`lifecycle_handler.dart:66-67` 寫「the actual RSS figure needs a platform channel」不精確——`dart:io` 的 `ProcessInfo.currentRss` 不需 channel，但本套件刻意不用（Web 不支援且公開承諾不碰 `dart:io`）；Google 定義的 anonymous RSS+Swap 則確實沒有 in-app API。
+
+### §Z2. §P20 量測定義勘誤（實作時以本節為準）
+
+§P20 已於 2026-10-16 裁決採 700ms 凍結級門檻（見 §P20 裁決段），其原設計段有以下錯誤，實作時以本節為準：
+
+1. **判定式**（§P20「好品味設計」第二點）：原草案 `buildDuration + rasterDuration` 超門檻是錯的。
+   * 對 **16／32ms 的掉幀預算**而言，SDK `addTimingsCallback` 文件明定掉幀是 `buildDuration` **或** `rasterDuration` **單獨**超標；兩相相加超標只代表延遲高（UI 與 raster 執行緒管線並行）。
+   * 但裁決採的是**凍結幀語意**（Android vitals：單幀繪製超過 700ms），量的是使用者實際看到畫面停住多久，應以 `t.totalSpan >= 700ms` 判定。`totalSpan` 涵蓋 vsyncOverhead（vsyncStart→buildStart），才抓得到「事件 handler 同步阻塞 UI 執行緒」這類凍結——兩相各自判定或相加都量不到這段。
+   * payload 分記 `vsyncOverhead`／`buildDuration`／`rasterDuration` 三段原始耗時，供讀者區分「幀前被同步工作阻塞」「build 期」「raster 期」。
+2. **時間戳**（§P20「動工必讀」地雷段）：「callback 當下用 `DateTime.now()`，延遲數十 ms」不成立——timings 為**批次**送達（debug/profile 約 100ms、release 約 1s、首幀立即），同批多幀會撞同一時間戳且整批晚標最多 1s。native 平台改用 `FramePhase.rasterFinishWallTime`（engine 以 `system_clock` 記錄，與 `DateTime.now()` 同時鐘域）；**Web 上它不是 epoch**，須退回 `DateTime.now()`。原地雷警告（`timestampInMicroseconds` 其餘 phase 為單調時鐘）保留。
+3. **逐幀處理**：每批必須 `for (final t in timings)` 逐幀判斷，不可一批只判一次（對方 v1.2.0 即因此少算 6～10 倍）。必測案例：一批 `[正常, 超標, 超標]`。
+4. **事件形狀**：改為寫一筆 `LogLevel.warning` 進既有 log 維度（`data` 帶 build/raster 耗時），**不新增** `JankEntry` / `JankInspector` / `TimelineSource`——原設計與 AF#6「第五個 TimelineSource」衝突，改形狀即消除。連續超標幀合併為一筆（以幀自身的單調時間間隔收尾，累計狀態跨批次保留），避免單一捲動手勢塞滿 `RingBuffer(500)`。
+5. **觀察者效應前提更正**：Console 為手動刷新，`revision` 唯一訂閱者是 `_DashboardTabBar` 的 badge，不存在「jank → revision → Console 重建 → jank」迴圈；但 kit 自己觸發的 `reassembleApplication()`（排版邊界切換）是自造停頓，裁決後的實作需排除。
+6. **驗收**：`example/` 加一顆「製造凍結」按鈕，比照 `Simulate Memory Pressure`，以 `Stopwatch` 忙等**約 900ms**（須高於 700ms 門檻）。建議兩種各做一次：在小 widget 的 `build` 內忙等（驗 build 期），以及在 `onPressed` 內忙等（驗 vsyncOverhead 段——這正是 `totalSpan` 判定能抓、分相判定抓不到的情況）。
+
+### §Z3. 既有待辦的規格補充
+
+**§P1 錯誤爆發偵測**：
+- 失敗判定一律用 `NetworkEntry.isFailed`（本節「重用」段的手寫公式已過期）。
+- **窗口歸屬用完成時間**（`timestamp + duration`）：`NetworkEntry.timestamp` 是請求開始時間，timeout 類失敗成立時早已滑出 30s 窗口。
+- 系統通知採**邊緣觸發 + 遲滯**：計數由「< 閾值」變「≥ 閾值」那一刻觸發一次，回落到「閾值減遲滯」以下才重新武裝；評估掛在既有 `revision` listener，**不加 timer**。若要在時間軸留一筆爆發標記，只在觸發那一刻寫一筆 warning，並以 `scheduleMicrotask` 延後寫入，避免在 `onMutate` 中重入（不變式 #1）。
+- 前景提示通道用 **FAB 未讀數 badge**（讀取時推導：`_lastSeenAt` 於開啟 dashboard 時更新），不用 toast（遮擋且有觀察者效應）。
+- 動工時 grill 須正面處理：§P24 crash 通知已覆蓋 uncaught error，而 `flutter_inspector.dart:273-276` 明定手動 `log(level: error)` 不發通知——§P1 若要對失敗請求或手動 error 發通知，需與此既有立場對齊。
+
+**§P18 輕量網路效能統計條**：
+- 傳輸量改用 `content-length` header（`int? get responseContentLength`），缺值才退回 body 長度——**原規格「重用 `responseBody` 長度」會因 10KB 截斷而系統性低估**。
+- 失敗率與平均延遲的分母只算**已完成且非 replay** 的請求。
+- 多回傳一個 Max 耗時（顯示為 `Avg 185ms / Max 8.2s`，點擊開該筆 detail）；不做 p95。
+- 多一個 pending 數，沿用 §Z1-3 的 `elapsedAt(now)`。
+- 拿不到的值顯示為空，不用 0。
+
+**§P9 Diagnostic Report JSON**：
+- 頂層加 `schemaVersion: 1`；時間戳帶時區；表頭對應既有 Markdown 表頭（`diagnostic_report.dart:60-73`）。
+- 拿不到的值一律輸出 `null`（不用 `'N/A'`、`0` 或空字串）。
+- Host 提供的 Map 一律經 `toEncodable` 回退（同 §Z1-2）；network body 原樣輸出字串，**不要再 `jsonEncode` 一次**（對方即因此雙重編碼）。
+- 大報告改走**檔案分享**而非純文字：`share_text_io.dart` / `share_text_web.dart` 兩側各加 `shareFile(...)`（不變式 #4 雙側簽章同步）。動工前先在 Android 實測大文字分享是否真的觸發 Binder 失敗（目前為推論）。
+
+**§P25 ImageCache 水位計**（仍不排程，僅補設計文件供重啟時用）：
+- 張數與位元組**兩軸都附分母**（`currentSize/maximumSize`、`currentSizeBytes/maximumSizeBytes`）：LRU 任一軸超限即淘汰，只看位元組會漏掉張數軸。
+- 重啟條件 #3 的可行解：讀水位時並排顯示 `liveImageCount`——`ImageCache.clear()` **不清** `_liveImages`，故「`currentSize ≈ 0` 且 `liveImageCount > 0`」是「剛被清空」的提示（僅提示，不能單獨判定；live 與 cache 有重疊不可相加）。另可從 log buffer 由新到舊找最近一筆 `Memory pressure` 標註時間（三態：capture 未開／buffer 內無／T−Xs）。
+
+### §Z4. 新提案（不需裁決，待排程）
+
+| 項目 | 內容 | 寫入路徑 | Effort |
+|:---|:---|:---|:---:|
+| **Console 錯誤聚合** | Network 端 #7 錯誤聚合的 log 版：純函式 `aggregateLogErrors(List<LogEntry>)`，key = exception type + 簽章（優先用 PR #197 已解析的 `data['errorLocation']`，其次前 8 個非空 frame，再次「訊息中數字換 `#`」），顯示計數與首末次時間 | `utils/` 新增純函式 + `console_tab.dart` | low |
+| **Replay 結果顯示狀態碼** | SnackBar 改顯示 `Resent → 200`／`Resent → 500`／`Resend failed: <type>`，不顯示 ms；同步改 `network_detail_view_test.dart` 三處字串斷言 | `network_detail_view.dart` | trivial |
+| **README「非 Dio 傳輸」食譜** | gRPC：呼叫開始 `logNetwork(NetworkEntry(method: 'gRPC', url: '/pkg.Svc/Method'))`、結束時 replace；WebSocket：只在 connect／close（含 closeCode）／error 時 `log()`。陷阱：協定狀態碼**不可**放進 `statusCode`（`isFailed` 以 ≥ 400 判斷會誤判）；**不要**新增 `NetworkOrigin` 值（公開 enum，會打破 host 的窮舉 switch）。`lib/` 零改動；實作時以 Context7 查證 grpc `ClientInterceptor` API | `README.md` | low |
+
+### §Z5. 知識補記（純文件，不排程）
+
+- **記憶體選項表（2026-09-08）補一列**：iOS 進程記憶體——jetsam 依據的是 `phys_footprint`（非 RSS），剩餘預算看 `os_proc_available_memory()`（iOS 13+，語意為「本進程距 jetsam 的預算」，非系統空閒記憶體）。兩者都需 native，本套件拿不到；日後若寫 host 端食譜以此為準。
+- **時點陷阱延伸**：Android engine 送出 memory pressure 的同一路徑也呼叫 `notifyLowMemoryWarning`（VM GC），加上 `PaintingBinding` 先清 imageCache——callback 當下讀到的任何量級（RSS、剩餘預算、imageCache）都是**釋放之後**的值，與 Issue #158 假否證同類。日後任何「在 pressure 當下附量級」的提案須先實測。
+- **核心決策三（leak_tracker）佐證**：zero_inspector_kit 的獨立實作同樣只能靠 VM Service 才敢判 leaked，且其 `FlutterMemoryAllocations` 第二來源把「disposed 但仍存活」（leak_tracker 的 notGCed，即本文件 :1022 所述最嚴重的洩漏）判成已釋放——兩點都強化 2026-09-04 的否決。另 :1014 精度修正：框架的 disposed 與 Layer 派發走 assert，ChangeNotifier created 走 `kFlutterMemoryAllocationsEnabled`，故 profile 加 dart-define 也只收得到部分 created、收不到 disposed。
+- **AF#4 佐證**：對方的 mocking 實作約 1.2k 行 `dart:io` 代理，response mock 仍會打到真 server，Web 無效。
+- **全域 hook 反例**：對方對 `FlutterError.onError`、`ErrorWidget.builder`、`HttpOverrides.global`、`debugPrint` 皆無條件替換／還原且順序錯誤（dispose 為 FIFO），會覆蓋 host 後裝的 handler——本專案「只 chain、不還原、不吞錯」的既有設計是對的。
+- **通知初始化前提**（未親查，待驗證）：`network_notifier_io.dart:138-163` 的通知 init 在 binding 未就緒時可能靜默永久失效；最小修法為在 `showNetworkNotification` / `showCrashNotification` 的 doc comment 與 README 補 binding 前提，不加重試。
+
+### §Z6. 不借鏡（附撞到的裁決）
+
+| 項目 | 理由 |
+|:---|:---|
+| 即時 FPS 數字、趨勢圖、低 FPS 告警、閒置判定、記憶體儀表、絕對門檻告警、用量著色 | AF#1；§P20 已定「不做當前 FPS 數字」 |
+| 只看 raster 相判定、依刷新率換算預算、shader warm-up 標籤、路由到首幀延遲、阻塞統計摘要 | 不回應 debug 誤報死因，或屬 §P20 子集／衍生值 |
+| 洩漏追蹤、app 內自連 VM Service（手寫 JSON-RPC）、`obj.trackMemoryLeak()` | 核心決策三（leak_tracker 否決）；對方實作本身亦證明不成立 |
+| 原生 memory pressure 等級（EventChannel） | 須轉成 plugin，違反純 Dart 定位；切背景誤報改以 §Z1-5 純 Dart 解 |
+| 告警持久化、資料驅動規則清單、時間軸 ALERT 軌道、頂部 toast | AF#2、AF#6、觀察者效應 |
+| ±N 秒時間窗過濾 | 與已否決的 §D3 同形；agent prompt 的路由邊界回溯已是正確替代 |
+| API mocking、重送前改寫參數 | AF#4；既有 replay 邊界 |
+| 請求併發瀑布圖、sparkline、CSV 匯出、依 host 篩選 chip | 偏 profiler 方向；單一來源表格違反鏈推斷；keyword 已涵蓋 |
+| 依嚴重度分層淘汰、master switch、分頁錯誤邊界、執行期 dispose、provider 層 keyword 過濾、崩潰時寫快照、逐幀合併通知、延後初始化重試 | 撞不變式 #1／#2、§P2、§P23、§D4 不排程表形狀②，或吞錯 |
+| Redaction 擴充：URL query 遮蔽、pattern 式憑證 header、log 文字中的 Bearer／JWT、JSON body 依 key 遞迴遮蔽、遮蔽失敗回傳全遮蔽占位 | §D5 經 2026-10-16 重新檢視**維持不排程**。若日後重開，優先序為 URL query > 補固定的常見憑證 header set（`proxy-authorization`、`x-auth-token`、`x-csrf-token` 等）> 只取 Bearer／JWT 兩條 regex；body 遮蔽即使重開也不建議（成本高、最妨礙排查） |
+| 把 network buffer 匯出成 HAR 1.2 | AF#3（2026-10-16 修訂後不再保留 HAR 匯出）；結構化匯出走 §P9 JSON |
