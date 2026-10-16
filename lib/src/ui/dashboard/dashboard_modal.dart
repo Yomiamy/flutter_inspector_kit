@@ -60,7 +60,7 @@ class DashboardModal extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
           ),
           actions: [
-            if (kDebugMode) const _LayoutBoundaryToggleAction(),
+            if (kDebugMode) _LayoutBoundaryToggleAction(inspector: inspector),
             const _LayoutInspectAction(),
             IconButton(
               icon: const Icon(Icons.ios_share),
@@ -205,7 +205,9 @@ class _BadgeTabLabel extends StatelessWidget {
 /// An action button that toggles Flutter's layout boundary overlay
 /// ([debugPaintSizeEnabled]) and marks the render tree for repainting.
 class _LayoutBoundaryToggleAction extends StatefulWidget {
-  const _LayoutBoundaryToggleAction();
+  const _LayoutBoundaryToggleAction({this.inspector});
+
+  final FlutterInspector? inspector;
 
   @override
   State<_LayoutBoundaryToggleAction> createState() =>
@@ -226,6 +228,7 @@ class _LayoutBoundaryToggleActionState
           ? 'Disable layout boundaries'
           : 'Enable layout boundaries',
       onPressed: () {
+        widget.inspector?.markSelfInducedReassemble();
         setState(() {
           debugPaintSizeEnabled = !debugPaintSizeEnabled;
         });
