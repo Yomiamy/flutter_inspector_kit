@@ -45,6 +45,10 @@ void main() {
     // the nearest lifecycle entry above a crash tells you both whether the app
     // was in the foreground and which page it was on.
     captureLifecycleEvents: true,
+    // Capture frozen frame rendering events (>= 700ms) as warning logs (opt-in).
+    // Aligned with Android Vitals frozen frames to correlate UI freezes with
+    // preceding network, database or navigation events.
+    capturePerformance: true,
   );
   // Bridge existing loggers into the Console timeline (README: "Bridge
   // existing loggers"). Every hook is synchronous, so a bridged record keeps
@@ -243,6 +247,20 @@ class _MyHomePageState extends State<MyHomePage> {
                 // enabled it lands on the timeline as a warning entry.
                 onPressed: () => WidgetsBinding.instance.handleMemoryPressure(),
                 child: const Text('Simulate Memory Pressure'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                // Simulates a frozen frame (~900ms busy wait on the UI thread).
+                // With capturePerformance enabled, this single-frame stall exceeds
+                // the 700ms threshold and is recorded as a warning log with
+                // duration breakdowns.
+                onPressed: () {
+                  final sw = Stopwatch()..start();
+                  while (sw.elapsedMilliseconds < 900) {
+                    // busy-wait to freeze the UI thread
+                  }
+                },
+                child: const Text('Simulate Frozen Frame (900ms)'),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
