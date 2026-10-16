@@ -11,6 +11,9 @@ void main() {
   tearDown(() {
     handler?.detach();
     handler = null;
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
   });
 
   test('attach: state change produces one info log with the state name', () {
@@ -244,6 +247,70 @@ void main() {
     WidgetsBinding.instance.handleMemoryPressure();
 
     expect(messages, ['Memory pressure', 'Memory pressure']);
+  });
+
+  test('memory pressure: non-resumed lifecycle states add (app <state>) qualifier', () {
+    final messages = <String>[];
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        messages.add(message);
+      },
+    );
+    handler = h;
+    h.attach();
+
+    const nonResumedStates = [
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.inactive,
+      AppLifecycleState.detached,
+    ];
+
+    for (final state in nonResumedStates) {
+      WidgetsBinding.instance.handleAppLifecycleStateChanged(state);
+      messages.clear();
+      WidgetsBinding.instance.handleMemoryPressure();
+      expect(messages.length, 1);
+      expect(messages.first, 'Memory pressure (app ${state.name})');
+    }
+  });
+
+  test('memory pressure: non-resumed state preserves topPageLabel suffix', () {
+    String? lastMessage;
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        lastMessage = message;
+      },
+      topPageLabel: () => 'HomePage (/home)',
+    );
+    handler = h;
+    h.attach();
+
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.hidden,
+    );
+    WidgetsBinding.instance.handleMemoryPressure();
+
+    expect(lastMessage, 'Memory pressure (app hidden) · HomePage (/home)');
+  });
+
+  test('memory pressure: resumed state produces no qualifier', () {
+    String? lastMessage;
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        lastMessage = message;
+      },
+      topPageLabel: () => 'HomePage (/home)',
+    );
+    handler = h;
+    h.attach();
+
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+    WidgetsBinding.instance.handleMemoryPressure();
+
+    expect(lastMessage, 'Memory pressure · HomePage (/home)');
   });
 
   test('memory pressure: not attached produces no log', () {
