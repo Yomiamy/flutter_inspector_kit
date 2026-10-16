@@ -64,11 +64,14 @@ class LifecycleHandler with WidgetsBindingObserver {
   /// Records the OS-reported memory pressure as a [LogLevel.warning] entry.
   ///
   /// This is the only OOM/LMK precursor available to Dart — the actual RSS
-  /// figure needs a platform channel — and it arrives as a discrete, timestamped
-  /// event, so it lands on the merged timeline next to the network, route and
-  /// database entries that preceded it. Warning rather than info: it is a
-  /// precursor signal, not a state transition, so it has to surface through the
-  /// existing error/warning filters instead of sinking into the info stream.
+  /// figure needs a platform channel (or `dart:io`'s `ProcessInfo.currentRss`,
+  /// which this package deliberately avoids for Web compatibility and zero
+  /// `dart:io` promise; Google's anonymous RSS+Swap has no in-app API) — and
+  /// it arrives as a discrete, timestamped event, so it lands on the merged
+  /// timeline next to the network, route and database entries that preceded it.
+  /// Warning rather than info: it is a precursor signal, not a state transition,
+  /// so it has to surface through the existing error/warning filters instead of
+  /// sinking into the info stream.
   ///
   /// Platform coverage: Android reports it via `onTrimMemory`, iOS via
   /// `didReceiveMemoryWarning`. Web effectively never fires it.
@@ -77,7 +80,12 @@ class LifecycleHandler with WidgetsBindingObserver {
     try {
       final page = topPageLabel?.call();
       final suffix = (page == null || page.isEmpty) ? '' : ' · $page';
-      onLog('Memory pressure$suffix', level: LogLevel.warning);
+      final state = WidgetsBinding.instance.lifecycleState;
+      final stateQualifier =
+          (state != null && state != AppLifecycleState.resumed)
+              ? ' (app ${state.name})'
+              : '';
+      onLog('Memory pressure$stateQualifier$suffix', level: LogLevel.warning);
     } catch (e, s) {
       // Same contract as the lifecycle callback above: on the SDK floor this
       // package supports (Flutter >=3.10.0), `handleMemoryPressure` walks the
