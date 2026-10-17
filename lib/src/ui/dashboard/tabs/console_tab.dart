@@ -582,8 +582,8 @@ class _NetworkEntryRow extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (entry.duration != null &&
-              entry.duration! >= inspector.slowRequestThreshold)
+          if (entry.elapsedAt(DateTime.now()) >=
+              inspector.slowRequestThreshold)
             Container(
               margin: const EdgeInsets.only(right: ThemeSize.space8),
               padding: const EdgeInsets.symmetric(

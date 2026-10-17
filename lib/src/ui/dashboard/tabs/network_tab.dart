@@ -255,24 +255,34 @@ class _EntryTile extends StatelessWidget {
       entry.statusCode,
       hasError: entry.error != null,
     );
+    final now = DateTime.now();
+    final isSlow = entry.elapsedAt(now) >= slowRequestThreshold;
     final statusText = entry.isComplete
         ? '${entry.statusCode ?? entry.error ?? '-'}'
-        : 'Pending';
+        : 'no response · ${entry.elapsedAt(now).inSeconds}s';
     final totalSize = entry.requestSizeBytes + entry.responseSizeBytes;
+    final durationText = entry.duration != null
+        ? '${entry.duration!.inMilliseconds} ms'
+        : null;
+    final subtitleParts = [
+      statusText,
+      ?durationText,
+      formatBytes(totalSize),
+      timeOf(entry.timestamp),
+    ];
 
     return ListTile(
       dense: true,
       leading: _MethodBadge(method: entry.method, color: statusColor),
       title: Text(entry.url, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '$statusText · ${entry.duration?.inMilliseconds ?? '-'} ms · '
-        '${formatBytes(totalSize)} · ${timeOf(entry.timestamp)}',
+        subtitleParts.join(' · '),
         style: TextStyle(color: entry.error != null ? statusColor : null),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (entry.duration != null && entry.duration! >= slowRequestThreshold)
+          if (isSlow)
             Container(
               margin: const EdgeInsets.only(right: ThemeSize.space8),
               padding: const EdgeInsets.symmetric(
@@ -356,8 +366,9 @@ class _ErrorSummaryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final groups = aggregateNetworkErrors(entries);
+    final now = DateTime.now();
     final slowCount = entries
-        .where((e) => e.duration != null && e.duration! >= slowRequestThreshold)
+        .where((e) => e.elapsedAt(now) >= slowRequestThreshold)
         .length;
     final thresholdSec = (slowRequestThreshold.inMilliseconds / 1000)
         .toStringAsFixed(1)
