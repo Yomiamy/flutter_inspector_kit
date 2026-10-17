@@ -373,12 +373,12 @@ void main() {
       expect(identical(replays.first.sourceDio?.target, dio), isTrue);
 
       // Success snackbar shown.
-      expect(find.text('Request resent'), findsOneWidget);
+      expect(find.text('Resent → 200'), findsOneWidget);
     });
 
-    // Test 4: badResponse (500) resend → error entry recorded + "Request resent" snackbar
+    // Test 4: badResponse (500) resend → error entry recorded + "Resent → 500" snackbar
     testWidgets(
-      'resend badResponse (500) records error entry and shows request resent',
+      'resend badResponse (500) records error entry and shows status code',
       (tester) async {
         final inspector = FlutterInspector(
           navigatorKey: GlobalKey<NavigatorState>(),
@@ -412,47 +412,48 @@ void main() {
         expect(replays.length, 1);
         expect(replays.first.error, isNotNull);
 
-        // badResponse is treated as successful transmission.
-        expect(find.text('Request resent'), findsOneWidget);
+        // badResponse is treated as successful transmission with status code.
+        expect(find.text('Resent → 500'), findsOneWidget);
       },
     );
 
-    // Test 4b: connection failure resend → "Resend failed" snackbar
-    testWidgets('resend connection failure shows resend failed', (
-      tester,
-    ) async {
-      final inspector = FlutterInspector(
-        navigatorKey: GlobalKey<NavigatorState>(),
-      );
-      final dio = Dio()
-        ..httpClientAdapter = _StubAdapter(
-          (_) async => throw DioException(
-            requestOptions: RequestOptions(path: 'https://api.test/users'),
-            type: DioExceptionType.connectionError,
-            error: 'Connection failed',
-          ),
+    // Test 4b: connection failure resend → "Resend failed: connectionError" snackbar
+    testWidgets(
+      'resend connection failure shows resend failed with error type',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
         );
-      dio.interceptors.add(
-        FlutterInspectorDioInterceptor(inspector, sourceDio: dio),
-      );
+        final dio = Dio()
+          ..httpClientAdapter = _StubAdapter(
+            (_) async => throw DioException(
+              requestOptions: RequestOptions(path: 'https://api.test/users'),
+              type: DioExceptionType.connectionError,
+              error: 'Connection failed',
+            ),
+          );
+        dio.interceptors.add(
+          FlutterInspectorDioInterceptor(inspector, sourceDio: dio),
+        );
 
-      final entry = NetworkEntry(
-        method: 'POST',
-        url: 'https://api.test/users',
-        requestHeaders: {'Content-Type': 'application/json'},
-        requestBody: '{"name":"fail"}',
-        statusCode: 200,
-        isComplete: true,
-        sourceDio: dio,
-        timestamp: t,
-      );
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://api.test/users',
+          requestHeaders: {'Content-Type': 'application/json'},
+          requestBody: '{"name":"fail"}',
+          statusCode: 200,
+          isComplete: true,
+          sourceDio: dio,
+          timestamp: t,
+        );
 
-      await pumpView(tester, entry);
-      await tester.tap(find.byTooltip('Resend'));
-      await tester.pumpAndSettle();
+        await pumpView(tester, entry);
+        await tester.tap(find.byTooltip('Resend'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Resend failed'), findsOneWidget);
-    });
+        expect(find.text('Resend failed: connectionError'), findsOneWidget);
+      },
+    );
 
     // Test 4c: truncated request body → disabled
     testWidgets('disabled when request body is truncated', (tester) async {
