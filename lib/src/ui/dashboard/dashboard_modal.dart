@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import '../../core/flutter_inspector.dart';
 import '../../models/log_level.dart';
 import '../../observers/inspector_route_names.dart';
+import '../layout_inspect/layout_inspect_overlay.dart';
 import 'export_report_sheet.dart';
 import 'tabs/console_tab.dart';
 import 'tabs/database_tab.dart';
@@ -60,6 +61,7 @@ class DashboardModal extends StatelessWidget {
           ),
           actions: [
             if (kDebugMode) const _LayoutBoundaryToggleAction(),
+            const _LayoutInspectAction(),
             IconButton(
               icon: const Icon(Icons.ios_share),
               tooltip: 'Export diagnostic report',
@@ -230,6 +232,27 @@ class _LayoutBoundaryToggleActionState
         WidgetsBinding.instance.addPostFrameCallback((_) {
           RendererBinding.instance.reassembleApplication();
         });
+      },
+    );
+  }
+}
+
+/// An action button that closes the dashboard and opens the tap-to-inspect
+/// layout overlay ([LayoutInspectOverlay]).
+class _LayoutInspectAction extends StatelessWidget {
+  const _LayoutInspectAction();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.ads_click),
+      tooltip: 'Inspect layout',
+      onPressed: () {
+        final overlay = Overlay.maybeOf(context, rootOverlay: true);
+        Navigator.of(context).pop();
+        if (overlay != null) {
+          LayoutInspectOverlay.show(overlay);
+        }
       },
     );
   }
