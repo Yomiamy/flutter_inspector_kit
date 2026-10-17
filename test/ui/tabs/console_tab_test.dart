@@ -761,5 +761,33 @@ void main() {
         expect(find.byType(NetworkDetailView), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'displays 🐢 SLOW on pending network entry exceeding threshold',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          slowRequestThreshold: const Duration(seconds: 2),
+        );
+        final oldTime = DateTime.now().subtract(const Duration(seconds: 4));
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/hanging',
+            timestamp: oldTime,
+            isComplete: false,
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ConsoleTab(inspector: inspector)),
+          ),
+        );
+
+        expect(find.textContaining('https://api.test/hanging'), findsOneWidget);
+        expect(find.text('🐢 SLOW'), findsOneWidget);
+      },
+    );
   });
 }

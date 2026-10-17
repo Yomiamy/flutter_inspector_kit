@@ -123,6 +123,9 @@ class NetworkEntry implements TimestampedEntry {
   bool get isFailed =>
       (statusCode ?? 0) >= 400 || error != null || errorType != null;
 
+  /// Round-trip duration if complete, or elapsed time from [timestamp] to [now].
+  Duration elapsedAt(DateTime now) => duration ?? now.difference(timestamp);
+
   /// Truncates [body] to [kNetworkBodyMaxLength] characters, appending
   /// [kTruncatedMarker] when truncation occurs. Returns `null` for `null` input.
   static String? truncateBody(String? body) {
