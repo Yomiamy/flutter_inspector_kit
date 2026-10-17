@@ -384,8 +384,10 @@ class _ResendActionState extends State<_ResendAction> {
     setState(() => _inFlight = true);
     final messenger = ScaffoldMessenger.of(context);
     final req = buildReplayRequest(widget.entry);
+    int? statusCode;
+    String? failureText;
     try {
-      await dio.request<dynamic>(
+      final response = await dio.request<dynamic>(
         req.url,
         data: req.body,
         options: Options(
@@ -394,17 +396,21 @@ class _ResendActionState extends State<_ResendAction> {
           extra: <String, dynamic>{'_inspector_is_replay': true},
         ),
       );
-      messenger.showSnackBar(const SnackBar(content: Text('Request resent')));
+      statusCode = response.statusCode;
     } on DioException catch (e) {
       if (e.type == DioExceptionType.badResponse) {
-        messenger.showSnackBar(const SnackBar(content: Text('Request resent')));
+        statusCode = e.response?.statusCode;
       } else {
-        messenger.showSnackBar(const SnackBar(content: Text('Resend failed')));
+        failureText = 'Resend failed: ${e.type.name}';
       }
     } catch (_) {
-      messenger.showSnackBar(const SnackBar(content: Text('Resend failed')));
+      failureText = 'Resend failed';
     } finally {
       if (mounted) setState(() => _inFlight = false);
     }
+    final text =
+        failureText ??
+        (statusCode != null ? 'Resent → $statusCode' : 'Request resent');
+    messenger.showSnackBar(SnackBar(content: Text(text)));
   }
 }
