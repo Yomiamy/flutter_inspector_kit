@@ -63,18 +63,26 @@ class LifecycleHandler with WidgetsBindingObserver {
 
   /// Records the OS-reported memory pressure as a [LogLevel.warning] entry.
   ///
-  /// This is the only OOM/LMK precursor available to Dart — the actual RSS
-  /// figure needs a platform channel (or `dart:io`'s `ProcessInfo.currentRss`,
-  /// which this package deliberately avoids for Web compatibility and zero
-  /// `dart:io` promise; Google's anonymous RSS+Swap has no in-app API) — and
-  /// it arrives as a discrete, timestamped event, so it lands on the merged
-  /// timeline next to the network, route and database entries that preceded it.
-  /// Warning rather than info: it is a precursor signal, not a state transition,
-  /// so it has to surface through the existing error/warning filters instead of
+  /// While the app is in the foreground ([AppLifecycleState.resumed]), this is
+  /// the primary OOM/LMK precursor available to Dart — the actual RSS figure
+  /// needs a platform channel (or `dart:io`'s `ProcessInfo.currentRss`, which
+  /// this package deliberately avoids for Web compatibility and zero `dart:io`
+  /// promise; Google's anonymous RSS+Swap has no in-app API) — and it arrives
+  /// as a discrete, timestamped event, so it lands on the merged timeline next
+  /// to the network, route and database entries that preceded it. Warning
+  /// rather than info: it is a precursor signal, not a state transition, so it
+  /// has to surface through the existing error/warning filters instead of
   /// sinking into the info stream.
   ///
-  /// Platform coverage: Android reports it via `onTrimMemory`, iOS via
-  /// `didReceiveMemoryWarning`. Web effectively never fires it.
+  /// Platform coverage & background qualification: iOS reports it via
+  /// `didReceiveMemoryWarning`, and Web effectively never fires it. Android
+  /// reports it via `onTrimMemory`, which also fires routinely when the app
+  /// moves to the background (e.g. `TRIM_MEMORY_UI_HIDDEN`). When
+  /// `WidgetsBinding.instance.lifecycleState` is non-null and not
+  /// [AppLifecycleState.resumed], the message appends ` (app <state>)` (e.g.
+  /// `Memory pressure (app paused)`) so timelines and AI prompts can
+  /// distinguish foreground memory pressure from routine background
+  /// reclamation.
   @override
   void didHaveMemoryPressure() {
     try {
@@ -83,8 +91,8 @@ class LifecycleHandler with WidgetsBindingObserver {
       final state = WidgetsBinding.instance.lifecycleState;
       final stateQualifier =
           (state != null && state != AppLifecycleState.resumed)
-              ? ' (app ${state.name})'
-              : '';
+          ? ' (app ${state.name})'
+          : '';
       onLog('Memory pressure$stateQualifier$suffix', level: LogLevel.warning);
     } catch (e, s) {
       // Same contract as the lifecycle callback above: on the SDK floor this
