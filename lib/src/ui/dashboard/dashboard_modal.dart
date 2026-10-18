@@ -228,11 +228,11 @@ class _LayoutBoundaryToggleActionState
           ? 'Disable layout boundaries'
           : 'Enable layout boundaries',
       onPressed: () {
-        widget.inspector?.markSelfInducedReassemble();
         setState(() {
           debugPaintSizeEnabled = !debugPaintSizeEnabled;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          widget.inspector?.markSelfInducedReassemble();
           RendererBinding.instance.reassembleApplication();
         });
       },

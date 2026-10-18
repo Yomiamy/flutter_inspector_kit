@@ -165,6 +165,14 @@ class FlutterInspector {
   /// the merged timeline.
   ///
   /// Defaults to `false`.
+  ///
+  /// Notes:
+  /// - When `true`, the inspector registers a timings callback with
+  ///   [SchedulerBinding.instance] at construction time, so the binding must
+  ///   already exist — construct the inspector after
+  ///   `WidgetsFlutterBinding.ensureInitialized()` / `runApp`.
+  /// - [detach] removes the callback from [SchedulerBinding.instance] and
+  ///   flushes any pending frozen-frame streak.
   final bool capturePerformance;
 
   /// Duration threshold to classify a frame as frozen. Defaults to 700ms.
@@ -318,7 +326,26 @@ class FlutterInspector {
     );
     if (captureLifecycleEvents) _lifecycleHandler.attach();
     _performanceHandler = PerformanceHandler(
-      onLog: log,
+      onLog:
+          (
+            message, {
+            required level,
+            stackTrace,
+            data,
+            timestamp,
+            activeRoute,
+          }) {
+            _registry.log.add(
+              LogEntry(
+                message: message,
+                level: level,
+                stackTrace: stackTrace,
+                data: data,
+                activeRoute: activeRoute,
+                timestamp: timestamp,
+              ),
+            );
+          },
       topPageLabel: _currentTopPageLabel,
       threshold: frozenFrameThreshold,
     );
@@ -544,6 +571,7 @@ class FlutterInspector {
 
   /// Clears all console logs.
   void clearLogs() {
+    _performanceHandler.reset();
     _registry.log.clear();
     clearBookmarks();
   }

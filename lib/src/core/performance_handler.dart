@@ -13,6 +13,7 @@ typedef PerformanceLogCallback =
       String? stackTrace,
       Map<String, dynamic>? data,
       DateTime? timestamp,
+      String? activeRoute,
     });
 
 /// Monitors frame rendering timings via [SchedulerBinding.addTimingsCallback],
@@ -45,6 +46,7 @@ class PerformanceHandler {
   Duration _streakBuildDuration = Duration.zero;
   Duration _streakRasterDuration = Duration.zero;
   DateTime? _streakTimestamp;
+  String? _streakPageLabel;
   int? _lastRasterFinishMicros;
 
   /// Max inter-frame gap (in microseconds) to treat two frozen frames as
@@ -90,24 +92,29 @@ class PerformanceHandler {
     _flushStreak();
   }
 
+  /// Discards any pending frozen frame streak without logging it.
+  void reset() => _resetStreak();
+
   /// Marks that a self-induced reassemble (e.g. toggling debug layout boundaries)
-  /// was triggered by the inspector. The subsequent frame timing will be ignored
-  /// to prevent self-observing jank from polluting the timeline.
+  /// was triggered by the inspector. The subsequent frozen frame timing will be
+  /// ignored to prevent self-observing jank from polluting the timeline.
   void markSelfInducedReassemble() {
+    _flushStreak();
     _selfInducedReassemblePending = true;
   }
 
   /// Processes a batch of frame timings. Visible for testing.
   @visibleForTesting
   void handleTimings(List<FrameTiming> timings) {
+    if (timings.isEmpty) return;
     for (final t in timings) {
-      if (_selfInducedReassemblePending) {
+      if (_selfInducedReassemblePending && t.totalSpan >= threshold) {
         _selfInducedReassemblePending = false;
-        _flushStreak();
         continue;
       }
       _processTiming(t);
     }
+    _selfInducedReassemblePending = false;
   }
 
   void _onTimings(List<FrameTiming> timings) {
@@ -140,6 +147,7 @@ class PerformanceHandler {
         _streakBuildDuration = t.buildDuration;
         _streakRasterDuration = t.rasterDuration;
         _streakTimestamp = _resolveTimestamp(t);
+        _streakPageLabel = topPageLabel?.call();
       } else {
         _streakCount++;
         _streakTotalSpan += t.totalSpan;
@@ -169,14 +177,13 @@ class PerformanceHandler {
 
   void _flushStreak() {
     if (_streakCount == 0) return;
-    final page = topPageLabel?.call();
+    final page = _streakPageLabel;
     final suffix = (page == null || page.isEmpty) ? '' : ' · $page';
     final count = _streakCount;
     final totalMs = _streakTotalSpan.inMilliseconds;
-    final message =
-        count > 1
-            ? 'Frozen frame (${totalMs}ms, $count frames)$suffix'
-            : 'Frozen frame (${totalMs}ms)$suffix';
+    final message = count > 1
+        ? 'Frozen frame (${totalMs}ms, $count frames)$suffix'
+        : 'Frozen frame (${totalMs}ms)$suffix';
 
     final data = <String, dynamic>{
       'totalSpanMs': totalMs,
@@ -194,6 +201,7 @@ class PerformanceHandler {
       level: LogLevel.warning,
       data: data,
       timestamp: timestamp,
+      activeRoute: page,
     );
   }
 
@@ -204,6 +212,7 @@ class PerformanceHandler {
     _streakBuildDuration = Duration.zero;
     _streakRasterDuration = Duration.zero;
     _streakTimestamp = null;
+    _streakPageLabel = null;
     _lastRasterFinishMicros = null;
   }
 }

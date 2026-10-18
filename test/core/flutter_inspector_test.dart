@@ -371,33 +371,98 @@ void main() {
       inspector.detach();
     });
 
-    test('markSelfInducedReassemble ignores jank from inspector operations', () {
+    test(
+      'markSelfInducedReassemble ignores jank from inspector operations',
+      () {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          capturePerformance: true,
+        );
+
+        inspector.markSelfInducedReassemble();
+        inspector.performanceHandler.handleTimings([
+          FrameTiming(
+            vsyncStart: 0,
+            buildStart: 50000,
+            buildFinish: 200000,
+            rasterStart: 200000,
+            rasterFinish: 1000000,
+            rasterFinishWallTime: 1600000000000000,
+          ),
+          FrameTiming(
+            vsyncStart: 1001000,
+            buildStart: 1002000,
+            buildFinish: 1005000,
+            rasterStart: 1005000,
+            rasterFinish: 1010000,
+            rasterFinishWallTime: 1600000000010000,
+          ),
+        ]);
+
+        expect(inspector.registry.log.entries.isEmpty, isTrue);
+
+        // Subsequent genuine frozen frame is recorded normally
+        inspector.performanceHandler.handleTimings([
+          FrameTiming(
+            vsyncStart: 2000000,
+            buildStart: 2050000,
+            buildFinish: 2200000,
+            rasterStart: 2200000,
+            rasterFinish: 2850000,
+            rasterFinishWallTime: 1600000001000000,
+          ),
+          FrameTiming(
+            vsyncStart: 2851000,
+            buildStart: 2852000,
+            buildFinish: 2855000,
+            rasterStart: 2855000,
+            rasterFinish: 2860000,
+            rasterFinishWallTime: 1600000001010000,
+          ),
+        ]);
+
+        expect(inspector.registry.log.entries.length, 1);
+        expect(
+          inspector.registry.log.entries.first.message,
+          contains('Frozen frame (850ms)'),
+        );
+        inspector.detach();
+      },
+    );
+
+    test('clearLogs() discards any pending frozen frame streak', () {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
         capturePerformance: true,
       );
 
-      inspector.markSelfInducedReassemble();
+      // Start a frozen frame streak without flushing it yet
       inspector.performanceHandler.handleTimings([
         FrameTiming(
           vsyncStart: 0,
           buildStart: 50000,
           buildFinish: 200000,
           rasterStart: 200000,
-          rasterFinish: 1000000,
+          rasterFinish: 900000,
           rasterFinishWallTime: 1600000000000000,
         ),
+      ]);
+
+      inspector.clearLogs();
+
+      // Next normal frame should not flush the cleared streak into logs
+      inspector.performanceHandler.handleTimings([
         FrameTiming(
-          vsyncStart: 1001000,
-          buildStart: 1002000,
-          buildFinish: 1005000,
-          rasterStart: 1005000,
-          rasterFinish: 1010000,
+          vsyncStart: 901000,
+          buildStart: 902000,
+          buildFinish: 905000,
+          rasterStart: 905000,
+          rasterFinish: 910000,
           rasterFinishWallTime: 1600000000010000,
         ),
       ]);
 
-      expect(inspector.registry.log.entries.isEmpty, isTrue);
+      expect(inspector.registry.log.entries, isEmpty);
       inspector.detach();
     });
   });

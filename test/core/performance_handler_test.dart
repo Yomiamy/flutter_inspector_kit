@@ -36,14 +36,30 @@ void main() {
     test('rejects threshold <= Duration.zero', () {
       expect(
         () => PerformanceHandler(
-          onLog: (_, {level = LogLevel.info, stackTrace, data, timestamp}) {},
+          onLog:
+              (
+                _, {
+                level = LogLevel.info,
+                stackTrace,
+                data,
+                timestamp,
+                activeRoute,
+              }) {},
           threshold: Duration.zero,
         ),
         throwsArgumentError,
       );
       expect(
         () => PerformanceHandler(
-          onLog: (_, {level = LogLevel.info, stackTrace, data, timestamp}) {},
+          onLog:
+              (
+                _, {
+                level = LogLevel.info,
+                stackTrace,
+                data,
+                timestamp,
+                activeRoute,
+              }) {},
           threshold: const Duration(milliseconds: -1),
         ),
         throwsArgumentError,
@@ -53,17 +69,22 @@ void main() {
     test('normal frames under threshold do not produce logs', () {
       var logged = false;
       handler = PerformanceHandler(
-        onLog: (_, {level = LogLevel.info, stackTrace, data, timestamp}) {
-          logged = true;
-        },
+        onLog:
+            (
+              _, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              logged = true;
+            },
       );
 
       // 699ms frame
       handler!.handleTimings([
-        createTiming(
-          vsyncStart: 0,
-          rasterFinish: 699000,
-        ),
+        createTiming(vsyncStart: 0, rasterFinish: 699000),
       ]);
       handler!.detach();
 
@@ -75,14 +96,24 @@ void main() {
       LogLevel? loggedLevel;
       Map<String, dynamic>? loggedData;
       DateTime? loggedTimestamp;
+      String? loggedActiveRoute;
 
       handler = PerformanceHandler(
-        onLog: (message, {level = LogLevel.info, stackTrace, data, timestamp}) {
-          loggedMessage = message;
-          loggedLevel = level;
-          loggedData = data;
-          loggedTimestamp = timestamp;
-        },
+        onLog:
+            (
+              message, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              loggedMessage = message;
+              loggedLevel = level;
+              loggedData = data;
+              loggedTimestamp = timestamp;
+              loggedActiveRoute = activeRoute;
+            },
         topPageLabel: () => 'ProfilePage (/profile)',
         threshold: const Duration(milliseconds: 700),
       );
@@ -104,6 +135,7 @@ void main() {
 
       expect(loggedLevel, LogLevel.warning);
       expect(loggedMessage, 'Frozen frame (850ms) · ProfilePage (/profile)');
+      expect(loggedActiveRoute, 'ProfilePage (/profile)');
       expect(loggedData, {
         'totalSpanMs': 850,
         'vsyncOverheadMs': 50,
@@ -119,9 +151,17 @@ void main() {
     test('omits page suffix when topPageLabel is empty or null', () {
       String? loggedMessage;
       handler = PerformanceHandler(
-        onLog: (message, {level = LogLevel.info, stackTrace, data, timestamp}) {
-          loggedMessage = message;
-        },
+        onLog:
+            (
+              message, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              loggedMessage = message;
+            },
         topPageLabel: () => '',
       );
 
@@ -133,15 +173,59 @@ void main() {
       expect(loggedMessage, 'Frozen frame (750ms)');
     });
 
+    test('captures topPageLabel at streak start rather than flush time', () {
+      var currentPage = 'PageA (/a)';
+      String? loggedMessage;
+      String? loggedActiveRoute;
+
+      handler = PerformanceHandler(
+        onLog:
+            (
+              message, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              loggedMessage = message;
+              loggedActiveRoute = activeRoute;
+            },
+        topPageLabel: () => currentPage,
+      );
+
+      // Freeze occurs on PageA
+      handler!.handleTimings([
+        createTiming(vsyncStart: 0, rasterFinish: 800000),
+      ]);
+
+      // Navigation happens before the next normal frame flushes the streak
+      currentPage = 'PageB (/b)';
+      handler!.handleTimings([
+        createTiming(vsyncStart: 801000, rasterFinish: 810000),
+      ]);
+
+      expect(loggedMessage, 'Frozen frame (800ms) · PageA (/a)');
+      expect(loggedActiveRoute, 'PageA (/a)');
+    });
+
     test('consecutive frozen frames are merged into a single streak event', () {
       final messages = <String>[];
       final dataList = <Map<String, dynamic>?>[];
 
       handler = PerformanceHandler(
-        onLog: (message, {level = LogLevel.info, stackTrace, data, timestamp}) {
-          messages.add(message);
-          dataList.add(data);
-        },
+        onLog:
+            (
+              message, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              messages.add(message);
+              dataList.add(data);
+            },
         threshold: const Duration(milliseconds: 700),
       );
 
@@ -190,9 +274,17 @@ void main() {
       final messages = <String>[];
 
       handler = PerformanceHandler(
-        onLog: (message, {level = LogLevel.info, stackTrace, data, timestamp}) {
-          messages.add(message);
-        },
+        onLog:
+            (
+              message, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              messages.add(message);
+            },
         threshold: const Duration(milliseconds: 700),
       );
 
@@ -214,14 +306,20 @@ void main() {
     test('detach() flushes any unflushed frozen frame streak', () {
       String? loggedMessage;
       handler = PerformanceHandler(
-        onLog: (message, {level = LogLevel.info, stackTrace, data, timestamp}) {
-          loggedMessage = message;
-        },
+        onLog:
+            (
+              message, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              loggedMessage = message;
+            },
       );
 
-      handler!.handleTimings([
-        createTiming(rasterFinish: 900000),
-      ]);
+      handler!.handleTimings([createTiming(rasterFinish: 900000)]);
       expect(loggedMessage, isNull);
 
       handler!.detach();
@@ -229,21 +327,44 @@ void main() {
     });
 
     test('markSelfInducedReassemble() ignores the self-induced frame', () {
-      var logged = false;
+      final messages = <String>[];
       handler = PerformanceHandler(
-        onLog: (_, {level = LogLevel.info, stackTrace, data, timestamp}) {
-          logged = true;
-        },
+        onLog:
+            (
+              message, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              messages.add(message);
+            },
       );
 
       handler!.markSelfInducedReassemble();
       handler!.handleTimings([
-        createTiming(rasterFinish: 1200000), // 1.2s freeze during reassemble
-        createTiming(rasterFinish: 10000), // normal frame
+        createTiming(vsyncStart: 0, rasterFinish: 10000), // normal pre-frame
+        createTiming(
+          vsyncStart: 11000,
+          rasterFinish: 1211000,
+        ), // 1.2s freeze during reassemble
+        createTiming(
+          vsyncStart: 1212000,
+          rasterFinish: 1222000,
+        ), // normal frame
+      ]);
+
+      expect(messages, isEmpty);
+
+      // Subsequent genuine frozen frame is logged normally
+      handler!.handleTimings([
+        createTiming(vsyncStart: 2000000, rasterFinish: 2850000), // 850ms
+        createTiming(vsyncStart: 2851000, rasterFinish: 2861000), // normal
       ]);
       handler!.detach();
 
-      expect(logged, isFalse);
+      expect(messages, ['Frozen frame (850ms)']);
     });
 
     test('falls back to clock when wall-time is zero or negative', () {
@@ -251,17 +372,22 @@ void main() {
       DateTime? capturedTimestamp;
 
       handler = PerformanceHandler(
-        onLog: (_, {level = LogLevel.info, stackTrace, data, timestamp}) {
-          capturedTimestamp = timestamp;
-        },
+        onLog:
+            (
+              _, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {
+              capturedTimestamp = timestamp;
+            },
         clock: () => fixedTime,
       );
 
       handler!.handleTimings([
-        createTiming(
-          rasterFinish: 800000,
-          rasterFinishWallTime: 0,
-        ),
+        createTiming(rasterFinish: 800000, rasterFinishWallTime: 0),
         createTiming(rasterFinish: 10000),
       ]);
 
@@ -270,7 +396,15 @@ void main() {
 
     test('attach() and detach() can be called safely and idempotently', () {
       handler = PerformanceHandler(
-        onLog: (_, {level = LogLevel.info, stackTrace, data, timestamp}) {},
+        onLog:
+            (
+              _, {
+              level = LogLevel.info,
+              stackTrace,
+              data,
+              timestamp,
+              activeRoute,
+            }) {},
       );
 
       handler!.attach();
