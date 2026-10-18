@@ -232,36 +232,45 @@ class _LayoutInfoCard extends StatelessWidget {
                               style: ThemeTextStyle.boldStyle,
                             ),
                           ),
+                          const SizedBox(width: ThemeSize.space8),
                           Text(
                             '${index + 1} / $total',
                             style: ThemeTextStyle.mutedSmallStyle,
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_upward),
-                            tooltip: 'Parent',
-                            onPressed: onParent,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_downward),
-                            tooltip: 'Child',
-                            onPressed: onChild,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.copy),
-                            tooltip: 'Copy layout chain',
-                            onPressed: onCopy,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.share),
-                            tooltip: 'Share layout chain',
-                            onPressed: onShare,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            tooltip: 'Close layout inspector',
-                            onPressed: onClose,
-                          ),
                         ],
+                      ),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.arrow_upward),
+                              tooltip: 'Parent',
+                              onPressed: onParent,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.arrow_downward),
+                              tooltip: 'Child',
+                              onPressed: onChild,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy),
+                              tooltip: 'Copy layout chain',
+                              onPressed: onCopy,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.share),
+                              tooltip: 'Share layout chain',
+                              onPressed: onShare,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              tooltip: 'Close layout inspector',
+                              onPressed: onClose,
+                            ),
+                          ],
+                        ),
                       ),
                       Text(
                         'size: ${formatSize(current.size)}',

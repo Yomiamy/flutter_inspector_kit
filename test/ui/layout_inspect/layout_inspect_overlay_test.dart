@@ -273,5 +273,54 @@ void main() {
         fabEntry.remove();
       },
     );
+
+    testWidgets(
+      'does not overflow on narrow 320dp screen and keeps close action reachable',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 640);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final targetKey = GlobalKey();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 80,
+                  height: 40,
+                  child: ColoredBox(
+                    key: targetKey,
+                    color: const Color(0xFF336699),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final overlay = Overlay.of(
+          tester.element(find.byType(Scaffold)),
+          rootOverlay: true,
+        );
+        LayoutInspectOverlay.show(overlay);
+        await tester.pump();
+
+        await tester.tapAt(tester.getCenter(find.byKey(targetKey)));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+        expect(find.textContaining('ColoredBox'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('Close layout inspector'));
+        await tester.pump();
+
+        expect(find.byTooltip('Close layout inspector'), findsNothing);
+      },
+    );
   });
 }
