@@ -1,7 +1,10 @@
-import 'package:flutter/widgets.dart';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -385,6 +388,115 @@ void main() {
         final entry = inspector.registry.network.entries.first;
         expect(entry.errorType, isNull);
         expect(entry.errorStackTrace, isNull);
+      });
+    });
+
+    group('Uint8List binary payload placeholder', () {
+      test(
+        'onResponse formats Uint8List as binary placeholder with truncated marker',
+        () {
+          final options = RequestOptions(
+            path: 'http://example.com/file.png',
+            method: 'GET',
+            responseType: ResponseType.bytes,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+
+          final bytes = Uint8List.fromList([137, 80, 78, 71]);
+          final response = Response<Uint8List>(
+            requestOptions: options,
+            statusCode: 200,
+            data: bytes,
+          );
+          interceptor.onResponse(response, ResponseInterceptorHandler());
+
+          final entry = inspector.registry.network.entries.first;
+          expect(entry.responseBody, '[binary 4 bytes]$kTruncatedMarker');
+          expect(entry.isTruncated, isTrue);
+        },
+      );
+
+      test(
+        'onResponse formats empty Uint8List(0) as binary 0 bytes placeholder',
+        () {
+          final options = RequestOptions(
+            path: 'http://example.com/empty.bin',
+            method: 'GET',
+            responseType: ResponseType.bytes,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+
+          final response = Response<Uint8List>(
+            requestOptions: options,
+            statusCode: 200,
+            data: Uint8List(0),
+          );
+          interceptor.onResponse(response, ResponseInterceptorHandler());
+
+          final entry = inspector.registry.network.entries.first;
+          expect(entry.responseBody, '[binary 0 bytes]$kTruncatedMarker');
+          expect(entry.isTruncated, isTrue);
+        },
+      );
+
+      test(
+        'onRequest formats Uint8List as binary placeholder and marks request truncated',
+        () {
+          final bytes = Uint8List.fromList([1, 2, 3, 4, 5, 6]);
+          final options = RequestOptions(
+            path: 'http://example.com/upload',
+            method: 'POST',
+            data: bytes,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+
+          final entry = inspector.registry.network.entries.first;
+          expect(entry.requestBody, '[binary 6 bytes]$kTruncatedMarker');
+          expect(entry.isRequestTruncated, isTrue);
+          expect(entry.isTruncated, isTrue);
+        },
+      );
+
+      test(
+        'onError formats Uint8List response data as binary placeholder',
+        () async {
+          final options = RequestOptions(
+            path: 'http://example.com/error-bytes',
+            method: 'GET',
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+
+          final errorHandler = ErrorInterceptorHandler();
+          final err = DioException(
+            requestOptions: options,
+            type: DioExceptionType.badResponse,
+            response: Response<Uint8List>(
+              requestOptions: options,
+              statusCode: 500,
+              data: Uint8List.fromList([0xff, 0x00]),
+            ),
+          );
+          interceptor.onError(err, errorHandler);
+          // ignore: invalid_use_of_protected_member
+          await errorHandler.future.then((_) {}, onError: (_) {});
+
+          final entry = inspector.registry.network.entries.first;
+          expect(entry.responseBody, '[binary 2 bytes]$kTruncatedMarker');
+          expect(entry.isTruncated, isTrue);
+        },
+      );
+
+      test('plain List<int> is still serialized as JSON array, not binary', () {
+        final options = RequestOptions(
+          path: 'http://example.com/numbers',
+          method: 'POST',
+          data: <int>[137, 80, 78, 71],
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.requestBody, '[137,80,78,71]');
+        expect(entry.isRequestTruncated, isFalse);
       });
     });
   });
