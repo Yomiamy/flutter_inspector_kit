@@ -8,7 +8,7 @@
 
 ## 1. 網路請求攔截與更新流程 (HTTP Interception & Completion)
 
-在網路請求的生命週期中，數據被低干涉地捕獲兩次：發出請求時（用於即時顯示 pending 狀態）與響應/失敗時（更新狀態碼、時長與 Body）。同時，完成的請求會與設定的慢請求閾值（`slowRequestThreshold`）比對，以提供 UI 層視覺標示與統計。
+在網路請求的生命週期中，數據被低干涉地捕獲兩次：發出請求時（用於即時顯示 pending 狀態）與響應/失敗時（更新狀態碼、時長與 Body）。同時，請求（含尚未完成的 pending 請求）會與設定的慢請求閾值（`slowRequestThreshold`）比對，以提供 UI 層視覺標示與統計。
 
 ### 數據流時序圖
 
@@ -51,11 +51,11 @@
 3. **純淨模型解耦 (Model Decoupling)**：`NetworkEntry` 本身僅儲存完成時計算的原始 round-trip 時長 `duration`（`Duration?`），不將 `isSlow` 布林值寫死於資料模型中。此解耦設計確保數據模型之純潔性，即使閾值動態變更亦無須異動已儲存的條目。
 
 ### 關鍵細節：UI 慢請求視覺標記與摘要橫幅 (UI Slow Request Presentation & Summary Banner)
-1. **動態判定標準**：UI 層統一以 `entry.duration != null && entry.duration! >= slowRequestThreshold` 作為慢請求判定條件。
+1. **動態判定標準**：UI 層統一以 `entry.elapsedAt(now) >= slowRequestThreshold` 作為慢請求判定條件。`NetworkEntry.elapsedAt(now)` 回傳 `duration ?? (isComplete ? Duration.zero : now.difference(timestamp))`——已完成取實際耗時、pending 取「至今經過時間」（一直沒回應的請求也會被標慢）、已完成卻無 `duration` 回傳 `Duration.zero` 不誤標。pending 列副標顯示 `no response · Ns`。判定只在 widget 重建時重算，無計時器驅動。
 2. **列表列慢標籤 (`🐢 SLOW` Badge)**：在 `NetworkTab`（`_EntryTile`）與 `ConsoleTab`（`_NetworkEntryRow`）的請求列表項中，若請求符合慢請求條件，會在右側 trailing 區域（chevron 箭頭前）渲染橘色（`ThemeColor.colorFF9800`，15% 透明背景與 1px 邊框）`🐢 SLOW` 徽章。
 3. **效能與錯誤摘要橫幅 (`_ErrorSummaryBanner`)**：
    - 橫幅會在包含錯誤群組或慢請求（`groups.isNotEmpty || slowCount > 0`）時顯示。
-   - 動態計算滿足 `entry.duration! >= slowRequestThreshold` 的慢請求數量 `slowCount` 與秒數閾值 `thresholdSec = (slowRequestThreshold.inMilliseconds / 1000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')`。
+   - 動態計算滿足 `entry.elapsedAt(now) >= slowRequestThreshold` 的慢請求數量 `slowCount` 與秒數閾值 `thresholdSec = (slowRequestThreshold.inMilliseconds / 1000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')`。
    - 當同時存在網路錯誤與慢請求時，橫幅標題與折疊狀態附加 `| 🐢 {slowCount} slow (>{thresholdSec}s)`；當無網路錯誤但存在慢請求時，橫幅標題顯示 `🐢 {slowCount} slow requests (>{thresholdSec}s)`。
 
 ### 關鍵細節：請求重發 (Replay Request)
