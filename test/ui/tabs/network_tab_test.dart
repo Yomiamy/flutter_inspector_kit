@@ -269,5 +269,62 @@ void main() {
         findsOneWidget,
       ); // Expanded header back
     });
+
+    testWidgets(
+      'pending request with elapsed time >= slowRequestThreshold displays 🐢 SLOW and no response label',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          slowRequestThreshold: const Duration(seconds: 2),
+        );
+        final oldTime = DateTime.now().subtract(const Duration(seconds: 5));
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: '/api/hanging',
+            timestamp: oldTime,
+            isComplete: false,
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: NetworkTab(inspector: inspector)),
+          ),
+        );
+
+        expect(find.text('/api/hanging'), findsOneWidget);
+        expect(find.text('🐢 SLOW'), findsOneWidget);
+        expect(find.textContaining('no response · 5s'), findsOneWidget);
+        expect(find.textContaining('- ms'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'pending request exceeding threshold is counted in Error Summary banner',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          slowRequestThreshold: const Duration(seconds: 2),
+        );
+        final oldTime = DateTime.now().subtract(const Duration(seconds: 3));
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: '/api/slow-pending',
+            timestamp: oldTime,
+            isComplete: false,
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: NetworkTab(inspector: inspector)),
+          ),
+        );
+
+        expect(find.textContaining('🐢 1 slow'), findsOneWidget);
+      },
+    );
   });
 }

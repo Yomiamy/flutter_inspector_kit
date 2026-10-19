@@ -55,6 +55,52 @@ void main() {
       });
     });
 
+    group('elapsedAt', () {
+      test('returns duration when duration is present', () {
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+          duration: const Duration(milliseconds: 350),
+        );
+        expect(
+          entry.elapsedAt(fixedTime.add(const Duration(seconds: 10))),
+          const Duration(milliseconds: 350),
+        );
+      });
+
+      test(
+        'returns difference from timestamp to now when duration is null',
+        () {
+          final entry = NetworkEntry(
+            method: 'GET',
+            url: 'https://x',
+            timestamp: fixedTime,
+          );
+          expect(
+            entry.elapsedAt(fixedTime.add(const Duration(seconds: 5))),
+            const Duration(seconds: 5),
+          );
+        },
+      );
+
+      test(
+        'returns Duration.zero when isComplete is true and duration is null',
+        () {
+          final entry = NetworkEntry(
+            method: 'GET',
+            url: 'https://x',
+            timestamp: fixedTime,
+            isComplete: true,
+          );
+          expect(
+            entry.elapsedAt(fixedTime.add(const Duration(seconds: 5))),
+            Duration.zero,
+          );
+        },
+      );
+    });
+
     test('copyWith completes the entry', () {
       final pending = NetworkEntry(
         method: 'GET',
