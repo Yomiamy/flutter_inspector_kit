@@ -11,6 +11,9 @@ void main() {
   tearDown(() {
     handler?.detach();
     handler = null;
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
   });
 
   test('attach: state change produces one info log with the state name', () {
@@ -244,6 +247,85 @@ void main() {
     WidgetsBinding.instance.handleMemoryPressure();
 
     expect(messages, ['Memory pressure', 'Memory pressure']);
+  });
+
+  test('memory pressure: background lifecycle states produce no log', () {
+    final messages = <String>[];
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        messages.add(message);
+      },
+    );
+    handler = h;
+    h.attach();
+
+    const backgroundStates = [
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.detached,
+    ];
+
+    for (final state in backgroundStates) {
+      WidgetsBinding.instance.handleAppLifecycleStateChanged(state);
+      messages.clear();
+      WidgetsBinding.instance.handleMemoryPressure();
+      expect(messages, isEmpty, reason: 'state: ${state.name}');
+    }
+  });
+
+  test('memory pressure: inactive state (still visible) logs the warning', () {
+    final messages = <String>[];
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        messages.add(message);
+      },
+    );
+    handler = h;
+    h.attach();
+
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.inactive,
+    );
+    messages.clear();
+    WidgetsBinding.instance.handleMemoryPressure();
+
+    expect(messages, ['Memory pressure']);
+  });
+
+  test('memory pressure: null lifecycle state logs the warning', () {
+    final messages = <String>[];
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        messages.add(message);
+      },
+    );
+    handler = h;
+    h.attach();
+
+    WidgetsBinding.instance.resetInternalState();
+    expect(WidgetsBinding.instance.lifecycleState, isNull);
+    WidgetsBinding.instance.handleMemoryPressure();
+
+    expect(messages, ['Memory pressure']);
+  });
+
+  test('memory pressure: resumed state logs the warning', () {
+    String? lastMessage;
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        lastMessage = message;
+      },
+      topPageLabel: () => 'HomePage (/home)',
+    );
+    handler = h;
+    h.attach();
+
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+    WidgetsBinding.instance.handleMemoryPressure();
+
+    expect(lastMessage, 'Memory pressure · HomePage (/home)');
   });
 
   test('memory pressure: not attached produces no log', () {

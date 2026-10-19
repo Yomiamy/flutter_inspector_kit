@@ -63,17 +63,39 @@ class LifecycleHandler with WidgetsBindingObserver {
 
   /// Records the OS-reported memory pressure as a [LogLevel.warning] entry.
   ///
-  /// This is the only OOM/LMK precursor available to Dart — the actual RSS
-  /// figure needs a platform channel — and it arrives as a discrete, timestamped
-  /// event, so it lands on the merged timeline next to the network, route and
-  /// database entries that preceded it. Warning rather than info: it is a
-  /// precursor signal, not a state transition, so it has to surface through the
-  /// existing error/warning filters instead of sinking into the info stream.
+  /// While the app is in the foreground, this is the primary OOM/LMK
+  /// precursor available to Dart — the actual RSS figure
+  /// needs a platform channel (or `dart:io`'s `ProcessInfo.currentRss`, which
+  /// this package deliberately avoids for Web compatibility and zero `dart:io`
+  /// promise; Google's anonymous RSS+Swap has no in-app API) — and it arrives
+  /// as a discrete, timestamped event, so it lands on the merged timeline next
+  /// to the network, route and database entries that preceded it. Warning
+  /// rather than info: it is a precursor signal, not a state transition, so it
+  /// has to surface through the existing error/warning filters instead of
+  /// sinking into the info stream.
   ///
-  /// Platform coverage: Android reports it via `onTrimMemory`, iOS via
-  /// `didReceiveMemoryWarning`. Web effectively never fires it.
+  /// Platform coverage: iOS reports it via `didReceiveMemoryWarning`, and Web
+  /// effectively never fires it. Android reports it via `onTrimMemory`, which
+  /// also fires routinely when the app moves to the background (e.g.
+  /// `TRIM_MEMORY_UI_HIDDEN`; on Android 14+ that is nearly all it ever
+  /// delivers). So events arriving while
+  /// `WidgetsBinding.instance.lifecycleState` is [AppLifecycleState.hidden],
+  /// [AppLifecycleState.paused] or [AppLifecycleState.detached] are dropped:
+  /// they are routine background reclamation, not a precursor anyone can act
+  /// on — if the OS does kill the app, this in-memory timeline dies with it.
+  /// [AppLifecycleState.inactive] is deliberately kept: the app is still
+  /// visible (e.g. an iOS phone call or Control Center), so a warning there is
+  /// a real signal, and `UI_HIDDEN` arrives only after `onStop` has already
+  /// moved the state past `inactive`.
   @override
   void didHaveMemoryPressure() {
+    final state = WidgetsBinding.instance.lifecycleState;
+    if (state
+        case AppLifecycleState.hidden ||
+            AppLifecycleState.paused ||
+            AppLifecycleState.detached) {
+      return;
+    }
     try {
       final page = topPageLabel?.call();
       final suffix = (page == null || page.isEmpty) ? '' : ' · $page';
