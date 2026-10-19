@@ -63,8 +63,8 @@ class LifecycleHandler with WidgetsBindingObserver {
 
   /// Records the OS-reported memory pressure as a [LogLevel.warning] entry.
   ///
-  /// While the app is in the foreground ([AppLifecycleState.resumed]), this is
-  /// the primary OOM/LMK precursor available to Dart — the actual RSS figure
+  /// While the app is in the foreground, this is the primary OOM/LMK
+  /// precursor available to Dart — the actual RSS figure
   /// needs a platform channel (or `dart:io`'s `ProcessInfo.currentRss`, which
   /// this package deliberately avoids for Web compatibility and zero `dart:io`
   /// promise; Google's anonymous RSS+Swap has no in-app API) — and it arrives
