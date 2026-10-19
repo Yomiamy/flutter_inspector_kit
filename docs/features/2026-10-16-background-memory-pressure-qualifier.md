@@ -61,6 +61,26 @@ PR #155 落地了 §P21，將 `WidgetsBindingObserver.didHaveMemoryPressure()` �
 | 5 | 既有與新增測試全數通過（`flutter test`） | 指令執行驗證 |
 | 6 | 靜態分析無新增警告（`flutter analyze`） | 指令執行驗證 |
 
-### 前提（需實機確認）
+### 前提（✅ 2026-10-19 已於 Android 實機確認）
 
-Android 送出 `TRIM_MEMORY_UI_HIDDEN` 時，Flutter 的 `lifecycleState` 已離開 `resumed`（依 Android 時序 `onStop` 先於 `onTrimMemory`）。若順序相反，切背景的第一筆仍會漏進時間軸。
+Android 送出 `TRIM_MEMORY_UI_HIDDEN` 時，Flutter 的 `lifecycleState` 已離開 `resumed`。實機觀察為 `onStop` 先到、之後才呼叫 `didHaveMemoryPressure()`，guard 可擋下切背景的事件。
+
+### 手動觸發方法
+
+```bash
+adb shell am send-trim-memory com.example.example RUNNING_CRITICAL
+```
+
+`am send-trim-memory` 走 `ActivityManagerService.setProcessMemoryTrimLevel()`，有兩條限制（AOSP 原始碼確認）：
+
+- **level 只能遞增**：每個 process 記錄上次送出的 level，同級或更低一律拒絕（`Unable to set a higher trim level than current level`），且無任何路徑重置——要重測同一 level 只能重啟 process。
+- **前景不收背景級**：`TRIM_MEMORY_UI_HIDDEN`(20) 以上的 level 對前景 process 一律拒絕（`Unable to set a background trim level on a foreground process`）。
+
+Flutter engine 僅在 `level >= TRIM_MEMORY_RUNNING_LOW`(10) 時轉送 memory pressure，因此單一 process 生命週期內可測：
+
+| App 狀態 | 依序送出 | 預期 |
+|:---|:---|:---|
+| 前景 | `RUNNING_LOW` → `RUNNING_CRITICAL` | 各記一筆 `Memory pressure`，共 2 筆 |
+| 背景 | `HIDDEN` → `BACKGROUND` → `MODERATE` → `COMPLETE` | 全數被 guard 丟棄 |
+
+快速重啟 process：`adb shell am force-stop com.example.example && adb shell monkey -p com.example.example -c android.intent.category.LAUNCHER 1`（`flutter run` 的 debug session 會中斷，需重跑或 `flutter attach`）。

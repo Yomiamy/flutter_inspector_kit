@@ -78,7 +78,7 @@ flutter test
 flutter analyze lib/ test/
 ```
 
-另需 Android 實機手動確認：example app 切背景後，Console 不出現 `Memory pressure`。
+另需 Android 實機手動確認：example app 切背景後，Console 不出現 `Memory pressure`（✅ 2026-10-19 已確認）。手動觸發方法與 `am send-trim-memory` 的限制見規格「手動觸發方法」一節。
 
 ---
 
@@ -95,4 +95,4 @@ flutter analyze lib/ test/
 ## 5. 風險與回滾
 
 - 改動範圍僅限於 `didHaveMemoryPressure()` 開頭一道 guard，不影響 `didChangeAppLifecycleState` 或其他既有流程。回滾僅需 revert 該方法。
-- 依賴「`UI_HIDDEN` 抵達時 `lifecycleState` 已非 `resumed`」的時序；若實機上順序相反，切背景首筆仍會漏記（退化為修正前行為，不會更糟）。
+- 依賴「`UI_HIDDEN` 抵達時 `lifecycleState` 已非 `resumed`」的時序，已於 2026-10-19 Android 實機確認成立；即使未來平台改變順序，也只退化為修正前行為，不會更糟。
