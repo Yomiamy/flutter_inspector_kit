@@ -63,6 +63,7 @@
 | 檔案路徑 | 關鍵類別/列舉 | 單一職責 (Single Responsibility) |
 | :--- | :--- | :--- |
 | [`lib/src/utils/agent_prompt.dart`](../../lib/src/utils/agent_prompt.dart) | `buildAgentPrompt` | **[新增]** 把單筆事件與同路由的稍早事件組成交接給 coding agent 的 Markdown 提示。純函式，回溯以 `activeRoute` 為界並在觸頂時揭露截斷。 |
+| [`lib/src/utils/layout_formatters.dart`](../../lib/src/utils/layout_formatters.dart) | `formatLayoutChain` | **[新增]** 將 size／constraints／offset 與整條 `LayoutLevel` 父鏈格式化為純文字（`∞` 表示無上限），供 layout inspect 複製／分享。 |
 | [`lib/src/utils/log_formatters.dart`](../../lib/src/utils/log_formatters.dart) | - | 將日誌資料模型格式化為單行與純文字的工具方法。 |
 | [`lib/src/utils/network_formatters.dart`](../../lib/src/utils/network_formatters.dart) | `ReplayRequest` | 提供網絡格式化功能，包含 `buildCurl` 產生 cURL 指令與 `prettyJson` 縮排工具。 |
 | [`lib/src/utils/network_utils.dart`](../../lib/src/utils/network_utils.dart) | `NetworkStatusGroup`<br>`NetworkFilter` | 提供網絡搜尋、過濾邏輯與狀態碼 Chip 對應常數。 |
@@ -78,7 +79,7 @@
 
 | 檔案路徑 | 關鍵類別/列舉 | 單一職責 (Single Responsibility) |
 | :--- | :--- | :--- |
-| [`lib/src/ui/dashboard/dashboard_modal.dart`](../../lib/src/ui/dashboard/dashboard_modal.dart) | `DashboardModal` | 控制台全螢幕 Dialog 元件，包裝 TabBarView 結構。 |
+| [`lib/src/ui/dashboard/dashboard_modal.dart`](../../lib/src/ui/dashboard/dashboard_modal.dart) | `DashboardModal` | 控制台全螢幕 Dialog 元件，包裝 TabBarView 結構。AppBar 含 `Inspect layout`（所有 build mode）與排版邊界切換（僅 `kDebugMode`）按鈕。 |
 | [`lib/src/ui/dashboard/tabs/console_tab.dart`](../../lib/src/ui/dashboard/tabs/console_tab.dart) | `ConsoleTab` | 顯示混合時序軸（Console, Network, Nav, DB 等多源時序歸併）並依類型分頁展示。 |
 | [`lib/src/ui/dashboard/tabs/console/log_detail_view.dart`](../../lib/src/ui/dashboard/tabs/console/log_detail_view.dart) | `LogDetailView` | 展示單條日誌詳細資訊與 Stack Trace 的卡片。 |
 | [`lib/src/ui/dashboard/tabs/console/navigator_detail_view.dart`](../../lib/src/ui/dashboard/tabs/console/navigator_detail_view.dart) | `NavigatorDetailView` | 展示單條導航事件的 General、Params（URL query）、Args 與 Raw Arguments（JSON 樹狀）。 |
@@ -88,7 +89,9 @@
 | [`lib/src/ui/dashboard/tabs/database_tab.dart`](../../lib/src/ui/dashboard/tabs/database_tab.dart) | `DatabaseTab` | 數據庫瀏覽器 Tab。支援動態下拉切換不同的 `DatabaseBrowserSource`。 |
 | [`lib/src/ui/dashboard/tabs/database/table_rows_view.dart`](../../lib/src/ui/dashboard/tabs/database/table_rows_view.dart) | `TableRowsView` | 表格二維數據瀏覽器。支援動態加載（Load More）、點擊單元格查看，以及點擊表頭排序。 |
 | [`lib/src/ui/dashboard/export_report_sheet.dart`](../../lib/src/ui/dashboard/export_report_sheet.dart) | `ExportReportSheet` | **[新增]** 診斷報告導出與分享 Dialog (Bottom Sheet)。包含 Include 篩選、時間區間與 errors-only 選項，並實現了 Clipboard 降級 fallback 分享容錯機制。 |
-| [`lib/src/ui/widgets/inspector_fab.dart`](../../lib/src/ui/widgets/inspector_fab.dart) | `InspectorFab` | 安全區域內可拖曳的懸浮按鈕。 |
+| [`lib/src/ui/layout_inspect/layout_inspect_overlay.dart`](../../lib/src/ui/layout_inspect/layout_inspect_overlay.dart) | `LayoutInspectOverlay` | **[新增]** 點選元件查看尺寸與 constraints 的選取模式：全螢幕攔截層、框線標示、資訊卡（父鏈上下切換、複製／分享）。單一 `OverlayEntry`，不寫 buffer、不進時間軸。 |
+| [`lib/src/ui/layout_inspect/layout_probe.dart`](../../lib/src/ui/layout_inspect/layout_probe.dart) | `LayoutLevel`<br>`LayoutProbeShield`<br>`probeLayoutAt()` | **[新增]** 以 hit test 取點擊位置的 `RenderBox` 父鏈並快照成不可變 `LayoutLevel`；`LayoutProbeShield` 讓包住的子樹在探測期間不被命中。 |
+| [`lib/src/ui/widgets/inspector_fab.dart`](../../lib/src/ui/widgets/inspector_fab.dart) | `InspectorFab` | 安全區域內可拖曳的懸浮按鈕（以 `LayoutProbeShield` 包住，對 layout 探測透明）。 |
 | [`lib/src/ui/widgets/magical_tap.dart`](../../lib/src/ui/widgets/magical_tap.dart) | `FlutterInspectorMagicalTap` | 靜默手勢防護罩，用於隱藏 FAB 時藉由快速連擊喚醒控制台。 |
 | [`lib/src/ui/widgets/key_value_table.dart`](../../lib/src/ui/widgets/key_value_table.dart) | `KeyValueTable` | 通用的緊湊二欄式鍵值表格組件。 |
 | [`lib/src/ui/widgets/json_tree_viewer.dart`](../../lib/src/ui/widgets/json_tree_viewer.dart) | `JsonTreeViewer`<br>`JsonNode`<br>`flattenJson()` | 折疊式 JSON 樹狀檢視器。接受**已解析**的資料，扁平化成一維節點清單後以折疊/搜尋篩選；含深度上限、循環偵測與 raw JSON 切換。 |

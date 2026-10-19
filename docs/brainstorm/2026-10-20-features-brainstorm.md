@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-20**：**§P31 點選元件查看尺寸與 constraints 完成**——PR #211 合入 main（issue #210）。Dashboard 新增所有 build mode 可用的 `Inspect layout` 按鈕，點選元件即顯示 size／constraints／位置並可切換父鏈、複製／分享。與原提案的差異：overlay 另立 `LayoutInspectOverlay` 而非擴充 `InspectorOverlayManager`、以 `LayoutProbeShield` 讓 kit 自身對探測透明、點擊當下即快照、命中不到 `RenderBox` 時不顯示卡片。詳見 §P31 實作現況。檔名日期前綴維持 `2026-10-20`（已是今日）。
 > * **2026-10-16**：**新增 §P31 點選元件查看尺寸與 constraints**——由第八部分比對 zero_inspector_kit 的 Widget 檢查器衍生，只取「實際尺寸 + constraints」改成點選查詢形狀，不重做整棵樹（故不撞 AF#8）。使用者同日裁決：支援 release build、需要父鏈切換、需要複製／分享。已親查 SDK：`debugCreator` 僅在 `assert` 內設定，release 下 widget 名稱改由 element 反查取得。狀態為提案、未排程。
 > * **2026-10-16**：**三項裁決落地**——(1) **§P20／AF#1**：採凍結級門檻 700ms（對齊 Android vitals frozen frame），debug 下也啟用，以 `totalSpan` 判定、寫成 warning log；AF#1 部分撤銷（僅解禁凍結幀離散事件，profiler／即時儀表照舊否決），理由是 2026-08-14 覆核的「debug-only」前提與 README 建議 release 內嵌矛盾。**排程前須通過實機 debug 實測閘門**（冷啟動、每條路由第一次進入、hot reload 下是否常態出現 ≥ 700ms 幀），未過則重新裁決——同日 Android 實機實測 0／307 幀 ≥ 700ms、最慢 424ms，**閘門通過，§P20 可排程**。(2) **§D5**：重新檢視後維持不排程。(3) **AF#3**：刪除「HAR 匯出可選保留」保留句（HAR 1.2 timings 必填）。第八部分 §Z2 判定式隨之由「任一相超標」改為 `totalSpan`。
 > * **2026-10-16**：**新增第八部分：zero_inspector_kit 比對**——逐檔深讀 [zero_inspector_kit](https://github.com/zero-labsco/zero_inspector_kit) v1.15.0（重點為記憶體監控與 FPS 監控），87 個候選逐項對抗驗證後，本部分只記錄**不需裁決**的待修正與調整：5 項既有缺陷（含 §P21 在 Android 切背景即誤報）、§P20 量測定義勘誤、§P1/§P18/§P9 規格補充、3 項新提案與記憶體知識補記。結論：對方的記憶體與 FPS 監控皆為「常駐輪詢 + 即時儀表 + 原生 plugin」，無可直接搬移者；它也未解決 debug 誤報（自身註解承認）。比對途中發現 AF#1 的「debug-only」前提與 README 建議 release 內嵌矛盾，以及 §D5、AF#3 的前提問題——這三項需使用者裁決，**本次未改動 AF#1 / §P20 / §D5 / AF#3 的任何結論**。檔名日期前綴維持 `2026-10-14`（改名會使 workflow brainstorm 與 `docs/features/` 下既有引用再度斷鏈）。
@@ -1971,7 +1972,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **Effort**：Medium ｜ **排查價值**：⭐⭐⭐⭐
 * **✅ 實作現況（PR #199 · 2026-10-14 合入 main，issue #198）**：新增 `routing_param_extractor.dart`，observer 於每次導航擷取參數；Navigator tab 的 Event History 與 Active Stack 分行顯示 `Params:` / `Args:`，AgentPrompt 輸出 `Query Params:` / `Argument Params:`。與提案的差異：**(1) 單一 `routingParams` 拆成兩欄**——`queryParams`（route name 的 URL query）與 `argParams`（arguments 的 Map 純量值、`Uri` 或含 `?` 字串的 query），合併成一張 Map 會在同名 key 時讓 arguments 靜默蓋掉 URL 值，也看不出來源；兩欄共用截斷 100 字元、各自上限 20 筆與遮蔽；**(2) 非純量標記為 `<complex>`**，不是提案的 `<Complex Object>`；**(3) 痛點描述與實況不符**——main 上 `NavigatorEntry.arguments` 其實一直保存原始 arguments，並未移除；本案保留該欄位，redact 時改由 observer 遞迴遮蔽（Map / List / Set / Uri / String，深度上限 8、循環參照防護）並剝除 `routeName` 的 query。自訂物件的 `toString()` 在 redact 下仍原樣可見，屬既有行為、另案處理；**(4) 敏感 key 判定**：子字串比對 `password` / `token` / `secret` 等，`pin` / `key` 改採字詞邊界與 camelCase 比對，避免 `shipping`、`keyboard`、`donkey` 誤遮；**(5) 範圍超出提案**：Console 與 Event History 列標題改用 `routeLabel`（如 `Scaffold (/second)`），Console 關鍵字過濾同步比對 `routeLabel`；帶參數的 Console 導航列可點開新的 `NavigatorDetailView`，以 JSON 樹狀檢視 Params / Args / Raw Arguments；**(6) 連帶修正**：redact 剝除 query 後 `/p?id=1` 與 `/p?id=2` 會被 `NavigatorStackResolver` 當成同一層，`_matches` 改為一併比對 `queryParams`。example「Push New Route」改為帶 query 與 Map arguments 的示範。零新相依，707 tests 綠、analyze 零新增。
 
-### §P31 點選元件查看尺寸與 constraints (Tap-to-Inspect Layout Info) — 🆕 提案（2026-10-16）
+### §P31 點選元件查看尺寸與 constraints (Tap-to-Inspect Layout Info) — ✅ 已完成（PR #211）
 > **痛點**：QA 在實機發現 UI 被壓扁、溢出或尺寸不對，§P28 排版邊界能畫出框線，但回報時仍說不出精確數字——這個元件實際多大？父層給了什麼上下限？是哪一層的 constraints 把它卡住？目前只能截圖，再由開發者接 DevTools 重現，而 QA 的裝置通常沒有開發機連線。
 
 * **來源**：第八部分比對 zero_inspector_kit 的 Widget 檢查器時衍生。對方做的是整棵 Element tree 瀏覽器（撞 AF#8），本提案只取其中「實際尺寸 + constraints」這一點，改成點選查詢的形狀。
@@ -2006,6 +2007,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   - 依 §P7 教訓，先 grep dashboard 內既有的 overlay／`OverlayEntry` 用法（`InspectorOverlayManager` 目前註明「僅支援單一 FAB 實體」），決定攔截層要擴充它還是另立，避免 overlay 管理出現第二份。
 * **寫入路徑**：`lib/src/ui/dashboard/dashboard_modal.dart`（AppBar 按鈕）、新增選取模式的攔截層與資訊卡（如 `lib/src/ui/layout_inspect/`）、`lib/src/core/inspector_overlay_manager.dart`（視上方必查結論）、`example/` 無需新增示範頁（既有 RenderFlex 溢出示範頁即可驗收）。
 * **Effort**：Medium ｜ **排查價值**：⭐⭐⭐⭐
+* **✅ 實作現況（PR #211 · 2026-10-20 合入 main，issue #210）**：Dashboard AppBar 新增所有 build mode 皆顯示的 `Inspect layout` 按鈕，按下關閉 dashboard 並插入選取模式；資訊卡顯示 widget／render 型別名、size、constraints、global offset 與層級 `i / N`，框線標出目前層級，可上下切換父鏈，複製／分享輸出整條父鏈純文字（target 在前）。新增 `layout_probe.dart`（探測）、`layout_inspect_overlay.dart`（攔截層與資訊卡）、`utils/layout_formatters.dart`（純文字 formatter）。與提案的差異：**(1) overlay 另立而非擴充 `InspectorOverlayManager`**——`LayoutInspectOverlay` 是靜態單一 `OverlayEntry`，插入 root `Overlay`，重複呼叫忽略；**(2) hit test 入口**不用 `renderViews`／`hitTestInView`，而是從錨點 render object 往上找所屬 `RenderView` 後呼叫 `view.hitTest`；**(3) kit 自身對探測透明**以 `LayoutProbeShield`（`RenderProxyBox`，探測期間 `hitTest` 回傳 false）包住 FAB 與攔截層，一般觸控不受影響；**(4) 點擊當下快照**成不可變的 `LayoutLevel`（不持有 render object、不進 buffer），而非提案的「顯示當下讀取」，畫面變動須重新點選；**(5) 命中路徑無已 layout 的 `RenderBox` 時不顯示卡片**、維持選取模式，而非提案的「只顯示型別名」；**(6) 混淆標註預設 `!kDebugMode`**，profile 亦標註。零新相依。
 
 ---
 
