@@ -249,7 +249,7 @@ void main() {
     expect(messages, ['Memory pressure', 'Memory pressure']);
   });
 
-  test('memory pressure: non-resumed lifecycle states produce no log', () {
+  test('memory pressure: background lifecycle states produce no log', () {
     final messages = <String>[];
     final h = LifecycleHandler(
       onLog: (message, {level = LogLevel.info, stackTrace, data}) {
@@ -259,19 +259,55 @@ void main() {
     handler = h;
     h.attach();
 
-    const nonResumedStates = [
+    const backgroundStates = [
       AppLifecycleState.hidden,
       AppLifecycleState.paused,
-      AppLifecycleState.inactive,
       AppLifecycleState.detached,
     ];
 
-    for (final state in nonResumedStates) {
+    for (final state in backgroundStates) {
       WidgetsBinding.instance.handleAppLifecycleStateChanged(state);
       messages.clear();
       WidgetsBinding.instance.handleMemoryPressure();
       expect(messages, isEmpty, reason: 'state: ${state.name}');
     }
+  });
+
+  test('memory pressure: inactive state (still visible) logs the warning', () {
+    final messages = <String>[];
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        messages.add(message);
+      },
+    );
+    handler = h;
+    h.attach();
+
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.inactive,
+    );
+    messages.clear();
+    WidgetsBinding.instance.handleMemoryPressure();
+
+    expect(messages, ['Memory pressure']);
+  });
+
+  test('memory pressure: null lifecycle state logs the warning', () {
+    final messages = <String>[];
+    final h = LifecycleHandler(
+      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
+        messages.add(message);
+      },
+    );
+    handler = h;
+    h.attach();
+
+    // ignore: invalid_use_of_visible_for_testing_member
+    WidgetsBinding.instance.resetInternalState();
+    expect(WidgetsBinding.instance.lifecycleState, isNull);
+    WidgetsBinding.instance.handleMemoryPressure();
+
+    expect(messages, ['Memory pressure']);
   });
 
   test('memory pressure: resumed state logs the warning', () {
