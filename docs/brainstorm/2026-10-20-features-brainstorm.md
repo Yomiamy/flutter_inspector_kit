@@ -38,7 +38,7 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-10-19 · v2.7.0）
+## 📊 完成度總覽（截至 2026-10-20 · v2.7.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
@@ -2095,7 +2095,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | 項目 | 內容 | 寫入路徑 | Effort |
 |:---|:---|:---|:---:|
 | **Console 錯誤聚合** | Network 端 #7 錯誤聚合的 log 版：純函式 `aggregateLogErrors(List<LogEntry>)`，key = exception type + 簽章（優先用 PR #197 已解析的 `data['errorLocation']`，其次前 8 個非空 frame，再次「訊息中數字換 `#`」），顯示計數與首末次時間 | `utils/` 新增純函式 + `console_tab.dart` | low |
-| **Replay 結果顯示狀態碼** | SnackBar 改顯示 `Resent → 200`／`Resent → 500`／`Resend failed: <type>`，不顯示 ms；同步改 `network_detail_view_test.dart` 三處字串斷言 | `network_detail_view.dart` | trivial |
+| **Replay 結果顯示狀態碼** — ✅ 已完成（PR #213 / Issue #212 · 2026-10-20） | SnackBar 改顯示 `Resent → 200`／`Resent → 500`／`Resend failed: <type>`，不顯示 ms；同步改 `network_detail_view_test.dart` 三處字串斷言 | `network_detail_view.dart` | trivial |
 | **README「非 Dio 傳輸」食譜** | gRPC：呼叫開始 `logNetwork(NetworkEntry(method: 'gRPC', url: '/pkg.Svc/Method'))`、結束時 replace；WebSocket：只在 connect／close（含 closeCode）／error 時 `log()`。陷阱：協定狀態碼**不可**放進 `statusCode`（`isFailed` 以 ≥ 400 判斷會誤判）；**不要**新增 `NetworkOrigin` 值（公開 enum，會打破 host 的窮舉 switch）。`lib/` 零改動；實作時以 Context7 查證 grpc `ClientInterceptor` API | `README.md` | low |
 
 ### §Z5. 知識補記（純文件，不排程）
