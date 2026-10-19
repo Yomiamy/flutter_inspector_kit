@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-20**：**v2.8.0 發布**——PR #217 合入 main（issue #216），將 §P20、§P31、§Z1-1、§Z1-3、§Z1-5 與 §Z4 Replay 結果狀態碼打包為 v2.8.0，完成度總覽版本標記同步更新。檔名日期前綴維持 `2026-10-20`（已是今日）。
 > * **2026-10-20**：**§P20 掉幀/凍結幀維度完成**——PR #207 合入 main（issue #206）。`capturePerformance` 開啟後，`totalSpan` ≥ `frozenFrameThreshold`（預設 700ms）的幀寫成 warning log 進既有 log 維度，連續凍結幀合併為一筆，排版邊界切換的自造停頓會被排除。與 §Z2 的差異：合併以「前幀 raster 結束到下一幀 vsync 間隔 ≤ 300ms」判定、公開 API 多出 `markSelfInducedReassemble()` 與 `log()` 的 `timestamp` 參數、example 只做 `onPressed` 忙等。詳見 §P20 實作現況。檔名日期前綴維持 `2026-10-20`（已是今日）。
 > * **2026-10-20**：**§P31 點選元件查看尺寸與 constraints 完成**——PR #211 合入 main（issue #210）。Dashboard 新增所有 build mode 可用的 `Inspect layout` 按鈕，點選元件即顯示 size／constraints／位置並可切換父鏈、複製／分享。與原提案的差異：overlay 另立 `LayoutInspectOverlay` 而非擴充 `InspectorOverlayManager`、以 `LayoutProbeShield` 讓 kit 自身對探測透明、點擊當下即快照、命中不到 `RenderBox` 時不顯示卡片。詳見 §P31 實作現況。檔名日期前綴維持 `2026-10-20`（已是今日）。
 > * **2026-10-16**：**新增 §P31 點選元件查看尺寸與 constraints**——由第八部分比對 zero_inspector_kit 的 Widget 檢查器衍生，只取「實際尺寸 + constraints」改成點選查詢形狀，不重做整棵樹（故不撞 AF#8）。使用者同日裁決：支援 release build、需要父鏈切換、需要複製／分享。已親查 SDK：`debugCreator` 僅在 `assert` 內設定，release 下 widget 名稱改由 element 反查取得。狀態為提案、未排程。
@@ -40,7 +41,7 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-10-20 · v2.7.0）
+## 📊 完成度總覽（截至 2026-10-20 · v2.8.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
