@@ -1,3 +1,19 @@
+## 2.8.0
+
+### Added
+* **Frozen frame capture (opt-in)**: "The app hung for a second" used to leave no trace. With `capturePerformance: true`, every frame whose `totalSpan` reaches `frozenFrameThreshold` (default 700ms, the Android vitals frozen-frame definition; must be greater than zero) is recorded as a `warning` log — `Frozen frame (920ms) · OrderListPage` — on the merged Timeline, so the stall can be read against the response or route push that preceded it. The log's `data` carries `totalSpanMs`, `vsyncOverheadMs`, `buildDurationMs` and `rasterDurationMs`; consecutive frozen frames merge into one entry with `frameCount`. Timestamps come from the engine's raster-finish wall clock, so a batch of timings does not collapse onto one instant. The 700ms threshold keeps debug builds, which render every frame several times slower, from flooding the Timeline. `detach()` removes the callback and flushes a pending merged entry; pauses caused by the inspector itself (toggling the layout boundary overlay) are skipped. With the flag on, construct the inspector after the binding exists.
+* **Tap-to-inspect layout**: An **Inspect layout** button in the dashboard app bar closes the dashboard and lets you tap any widget to read its widget and render object type, `size`, `constraints` and screen position, outlined on screen. Step up and down through its parent chain, and copy or share the whole chain as plain text. Works in every build mode, including release; nothing is written to the Timeline, and the values are a snapshot taken at the tap. The inspector's own floating button is skipped, so tapping where it sits selects the widget underneath.
+* `FlutterInspector.log()` accepts an optional `timestamp`.
+
+### Changed
+* **Replay shows its result**: The Resend confirmation now reports the status code (`Resent → 200`, `Resent → 500`) or the failure type (`Resend failed: connectionError`) instead of a generic "Request resent" / "Resend failed", so a replay can be judged without going back to the list.
+* **Pending requests show how long they have waited**: Network rows for requests without a response read `no response · 12s` instead of `Pending`, and rows no longer show `- ms` when no duration was recorded.
+
+### Fixed
+* **Requests that never return are now flagged as slow**: The `🐢 SLOW` badge and the summary banner's slow count required a recorded duration, so a request hanging with no response — the worst case — was never flagged. Pending requests are now measured from when they were sent, in both the Network and Console tabs.
+* **No false memory-pressure warnings on Android backgrounding**: Android reports memory pressure every time the app goes to the background (`TRIM_MEMORY_UI_HIDDEN`), which logged a `Memory pressure` warning on each home-button press. Pressure reported while the app is `hidden`, `paused` or `detached` is now dropped; `inactive` is still recorded.
+* **Binary payloads no longer stall the app**: A `Uint8List` request or response body (e.g. a file download) was `jsonEncode`d into a full `[137,80,…]` string before truncation, causing memory spikes and jank on large downloads. It is now recorded as `[binary N bytes]`, and a request with a binary body cannot be resent.
+
 ## 2.7.0
 
 ### Added

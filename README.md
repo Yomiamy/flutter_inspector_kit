@@ -16,8 +16,8 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🧵 **Merged Timeline** | Console tab interleaves logs, network, navigation, and database events on one timestamp-sorted timeline, with per-source filter chips; error logs and failed network calls carry a faint red row tint so they stand out while scrolling | Continuing the checkout case — switch the source chip to "All" and scroll back along the timeline to inspect the request that got 401: check what token was in the `Authorization` header, what params were sent, and compare with backend expectations to pinpoint why the server rejected it — all without switching tabs or manually comparing timestamps |
 | 📡 **Network** | Intercept HTTP traffic via Dio; inspect structured request/response details; search/filter by URL, method, or status; share as cURL | A page shows up completely blank — open the Network tab to find the API returned an error, so there's no data to display; tap in to inspect request params and response body, then copy as a runnable cURL command and paste it into a bug ticket for the backend team to reproduce |
 | 🌳 **JSON Tree Viewer** | Network request/response bodies and structured log `data` render as a collapsible tree — container sizes inline, first two levels expanded, long-press any row to copy its `path: value`; a search field appears for large payloads, and a raw/tree toggle restores the selectable plain text | A 200-line response body hides the one field you need — fold away the branches that don't matter, or type the key into the search field and read the match with its parents forced open, instead of scrolling a wall of pretty-printed JSON |
-| 🔄 **Network Replay** | Resend a captured request using the original Dio instance (same headers, base URL, interceptors); replayed entries are auto-labeled | Re-trigger a failed API call on-device to verify a server-side hotfix without restarting the app or rebuilding the user flow |
-| 🐢 **Slow Request Indicator** | Network requests that exceed a configurable time threshold are flagged with a `🐢 SLOW` visual marker in the Network tab | Easily spot endpoints that are slowing down your app, and track down performance bottlenecks without digging through logs manually |
+| 🔄 **Network Replay** | Resend a captured request using the original Dio instance (same headers, base URL, interceptors); replayed entries are auto-labeled, and the result shows the status code (`Resent → 500`) or the failure type (`Resend failed: connectionError`) on the spot | Re-trigger a failed API call on-device to verify a server-side hotfix without restarting the app or rebuilding the user flow |
+| 🐢 **Slow Request Indicator** | Network requests that exceed a configurable time threshold are flagged with a `🐢 SLOW` visual marker in the Network and Console tabs — including requests still waiting for a response, which show `no response · 12s` | Easily spot endpoints that are slowing down your app, and track down performance bottlenecks without digging through logs manually |
 | 🚨 **Structured Network Errors** | Failed requests show an **Exception Details** section distinguishing transport-layer failures (device offline / DNS / timeout) from server-side errors (4xx/5xx), with copyable stack traces | Instantly tell whether "Failed" means the device lost connectivity or the server returned 500 — no more guessing during QA |
 | 📊 **Error Aggregation Summary** | Network tab shows a collapsible banner that groups failed/errored requests by status code (or error type for transport failures), with per-group counts and time range; tap a group to filter the call list down to just that error | A page is flooded with dozens of failed calls — glance at the summary banner to see "12× 401", "3× timeout", tap the 401 group to isolate exactly those calls instead of scrolling through the full list |
 | 🩺 **Diagnostic Report** | Export a single Markdown report — device/app header, current route stack, and the logs / network / navigation / database sections — filtered by time window (5m / 1h / all), source, and an optional errors-only toggle; straight to the share sheet, nothing written to disk | QA reproduces a bug and, instead of screenshotting four tabs and hand-typing the OS version, taps Export once and pastes a complete report into the Jira ticket |
@@ -31,8 +31,10 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 | 🤖 **Agent Handoff Prompt** | Copy any log or network entry as a Markdown prompt for a coding agent — the event's own facts, its stack trace, and what else happened earlier on the same route, bounded by the visit rather than a fixed time window | You find the failing call but the fix is in code you don't know — instead of retyping the error and hunting the timeline for context, copy the prompt and paste it into your agent; it arrives with the preceding same-route events already assembled, and with an explicit note that the cause is unknown so the agent doesn't treat the failing line as the faulty one |
 | 🛑 **Uncaught Error Capture** *(opt-in)* | Automatically turn uncaught errors into `error`-level Console logs via three Flutter hooks (build/layout/paint, async, `ErrorWidget`); chains existing handlers — never swallows errors. RenderFlex overflows get a badge with the overflow size and direction, and the detail view names the error-causing widget and its source location | An unawaited `Future` throws deep inside a third-party package — no `try/catch` anywhere near it. Uncaught error capture logs it automatically with a full stack trace, so it shows up in Console without any manual instrumentation |
 | ⏱️ **App Lifecycle Markers** *(opt-in)* | Record every `resumed` / `inactive` / `paused` / `detached` transition as an `info` Console log, each naming the top-most page at that moment, interleaved into the merged Timeline | A batch of requests fails with timeouts that nobody can reproduce at a desk — read the Timeline and an `App lifecycle: paused · CheckoutPage` marker sits right before them, so the OS froze the network while the user switched away; the backend was never at fault. Equally useful in reverse: confirming a "refresh on resume" actually fires, and on which page |
+| 🧊 **Frozen Frame Capture** *(opt-in)* | Record every frame that takes 700ms or longer to render (Android vitals' frozen-frame definition) as a `warning` Console log with its wait / build / raster breakdown; consecutive frozen frames merge into one entry | The app "hangs for a second" after opening the order list — the Timeline shows `Frozen frame (1240ms) · OrderListPage` right after a 2 MB JSON response, so the stall is the parse on the UI thread, not the network |
 | 🔔 **Live Notification** *(opt-in)* | A system notification summarising the latest API call and the running total; tap to jump straight to the Network tab | Monitor API traffic in real-time while navigating the app — no need to keep the dashboard open; also useful for verifying whether the number of API calls per operation is reasonable (e.g., a single page load triggering dozens of calls hints at redundant requests) |
 | 📐 **Layout Boundary Overlay** *(debug only)* | A grid button in the dashboard app bar toggles Flutter's layout boundary overlay (`debugPaintSizeEnabled`) and repaints the app immediately; hidden outside debug builds | A row overflows on a small device — flip the overlay on from the dashboard and see every widget's box and padding on the real screen, without editing code or opening DevTools |
+| 🎯 **Tap-to-Inspect Layout** | Tap any widget to read its size, constraints and screen position, step up through its parents, and copy or share the whole chain as text; works in release builds | A button is squashed on a QA device — tap it to see `constraints: 0.0 ≤ h ≤ 20.0`, step up to the parent that imposes the 20px limit, and paste the exact numbers into the bug ticket instead of a screenshot |
 | 👆 **Magical Tap & Floating Button** | Open the dashboard with a hidden multi-tap gesture or a draggable in-app FAB | Embed in a release build as a hidden diagnostic entry point — when QA or users hit an issue, trigger the inspector on the spot for initial error triage without rebuilding a debug version or tracing through source code |
 | 🧩 **Custom Tab** | Inject your own widget as a 5th dashboard tab via `FlutterInspector(customTab: ..., customTabTitle: ...)` — sits alongside Console / Network / Navigator / Database | Surface app-specific debug tooling right next to the built-in inspectors — a feature-flag toggle panel, the current auth/session state, or a "clear cache" button — so your team's ad-hoc diagnostics live in one place instead of a separate debug screen |
 
@@ -60,7 +62,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^2.7.0
+  flutter_inspector_kit: ^2.8.0
 ```
 
 Then run `flutter pub get`.
@@ -128,6 +130,12 @@ void initState() {
 
 Remove it again with `inspector.detach()`.
 
+### Inspect widget size and constraints
+
+Tap the **Inspect layout** button in the dashboard app bar. The dashboard closes and the next tap on your app selects the widget under the finger: it is outlined on screen, and a card shows its widget and render object type, `size`, `constraints` and screen position. Use the up/down arrows to walk through its parents — the constraint that squashes a widget usually comes from an ancestor — and copy or share the whole chain as plain text for a bug ticket. Tap elsewhere to select another widget, or close the card to return to the app.
+
+It needs no setup and works in every build mode, including release. Values are a snapshot taken at the moment of the tap; if the layout changes, tap again. Nothing is written to the Timeline. In profile and release builds the card notes that type names may be obfuscated (when the app is built with `--obfuscate`).
+
 ### Add a custom tab
 
 Inject your own widget as a 5th dashboard tab, sitting alongside the built-in Console / Network / Navigator / Database tabs. Use it to surface app-specific diagnostics — a feature-flag panel, the current auth state, a "clear cache" button, etc.
@@ -189,9 +197,10 @@ inspector.logNetwork(completedEntry, replaces: pending);
 
 - **Search & filter**: filter the call list by URL, method, or status code (case-insensitive); method and status (`2xx`/`3xx`/`4xx`/`5xx`/`Failed`) chips narrow it further.
 - **Error summary banner**: a collapsible banner above the call list groups failed/errored requests by status code (or error type for transport failures — offline/timeout/DNS), showing a per-group count and first/last-seen time range. Tap a group card to filter the list down to just that error; tap again to clear the filter.
-- **Call details**: tap any call for a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON bodies rendered as a collapsible tree (with search for large payloads and a **Show raw** toggle for the plain text). A body that is not valid JSON — truncated, or mislabelled by its `Content-Type` — falls back to plain text. Truncated bodies are clearly marked. Failed requests display an **Exception Details** section distinguishing between transport-layer failures and server-side errors, with a copyable stack trace.
+- **Call details**: tap any call for a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON bodies rendered as a collapsible tree (with search for large payloads and a **Show raw** toggle for the plain text). A body that is not valid JSON — truncated, or mislabelled by its `Content-Type` — falls back to plain text. Truncated bodies are clearly marked. Binary payloads (`Uint8List`, e.g. file downloads) are recorded as a `[binary N bytes]` placeholder instead of being encoded byte by byte, and a request with a binary body cannot be resent. Failed requests display an **Exception Details** section distinguishing between transport-layer failures and server-side errors, with a copyable stack trace.
 - **Sharing**: copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (native via `share_plus`, web via the browser Web Share API — falls back to the clipboard when unavailable).
-- **Replay / Resend**: for requests captured with a `sourceDio` provided to the interceptor, you can trigger a "Resend" action in the detail view to replay the request locally using the same Dio client (carrying the same headers, base URL, and interceptors). Replayed requests automatically show up as new entries with a dedicated "Replay" label.
+- **Replay / Resend**: for requests captured with a `sourceDio` provided to the interceptor, you can trigger a "Resend" action in the detail view to replay the request locally using the same Dio client (carrying the same headers, base URL, and interceptors). Replayed requests automatically show up as new entries with a dedicated "Replay" label, and the confirmation shows the outcome directly — `Resent → 200` / `Resent → 500` when a response arrived, or `Resend failed: <type>` (e.g. `connectionError`, `receiveTimeout`) when it did not.
+- **Slow requests**: calls at or above `slowRequestThreshold` carry a `🐢 SLOW` badge here and in the Console, and the summary banner counts them. A request still waiting for a response is measured from the moment it was sent — its row reads `no response · 12s` — so a call that never returns gets flagged too. The badge is evaluated when the list rebuilds; it does not tick on its own timer.
 
 ### Redact sensitive headers
 
@@ -743,6 +752,36 @@ This is the only OOM/LMK precursor visible from Dart — the actual RSS figure n
 It shares `captureLifecycleEvents` rather than having its own flag because both are callbacks on the same `WidgetsBindingObserver`, with one attach/detach lifecycle.
 
 > **Platform coverage**: Android delivers it via `onTrimMemory`, iOS via `didReceiveMemoryWarning`. On Web it effectively never fires — no entry appearing there is the platform's behavior, not a fault in the package.
+>
+> **Only while the app is visible.** Pressure reported while the app is `hidden`, `paused` or `detached` is dropped: Android signals memory pressure routinely every time the app goes to the background (`TRIM_MEMORY_UI_HIDDEN`), which would otherwise turn each home-button press into a false OOM warning. `inactive` is still recorded, since the app is on screen.
+
+### Frozen frame capture (opt-in)
+
+Enable **performance capture** to record every frozen frame — one that takes 700ms or longer to render, the Android vitals definition — as a `warning`-level Console log:
+
+```dart
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  capturePerformance: true,
+  // Optional: defaults to 700ms; must be greater than zero.
+  frozenFrameThreshold: const Duration(milliseconds: 700),
+);
+```
+
+It is **disabled by default**, and `detach()` removes the timings callback again. Each entry names the top-most page, and a run of consecutive frozen frames is merged into one entry:
+
+```text
+Frozen frame (920ms) · OrderListPage
+Frozen frame (2140ms, 3 frames) · CheckoutPage
+```
+
+The entry's `data` carries `totalSpanMs`, plus `vsyncOverheadMs`, `buildDurationMs` and `rasterDurationMs` to tell a UI thread blocked before the frame (a synchronous `onPressed` handler) apart from a slow build or a slow raster; merged entries add `frameCount`. Like every other entry it lands on the merged Timeline, so the freeze can be read against the response that was parsed or the route that was pushed just before it.
+
+The 700ms threshold is deliberate: debug builds render every frame several times slower than release, and a 16ms or 32ms threshold would flood the Timeline with false jank, while 700ms is only reached by a real stall. There is no FPS counter or live meter — only these discrete events.
+
+> **Construct the inspector after the binding exists.** With `capturePerformance: true` the callback is registered with `SchedulerBinding.instance` at construction time. A top-level `final inspector = FlutterInspector(...)` is fine — Dart initialises it on first use, after `runApp` — but if you create it eagerly in `main`, call `WidgetsFlutterBinding.ensureInitialized()` first.
+>
+> Pauses the inspector causes itself, such as toggling the layout boundary overlay (which reassembles the app), are not recorded.
 
 ### Track navigation
 
