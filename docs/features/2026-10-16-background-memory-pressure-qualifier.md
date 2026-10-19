@@ -55,11 +55,10 @@ PR #155 落地了 §P21，將 `WidgetsBindingObserver.didHaveMemoryPressure()` �
 | # | 條件 | 驗證方式 |
 |:---:|:---|:---|
 | 1 | 當 `lifecycleState` 為 `AppLifecycleState.resumed` 時，訊息為 `Memory pressure$suffix` | 單元測試斷言 |
-| 2 | 當 `lifecycleState` 為 `null` 時，照常記錄 `Memory pressure$suffix`（狀態未知時寧可多記） | 程式碼 review |
-| 3 | 當 `lifecycleState` 為 `hidden` / `paused` / `detached` 時，不產生任何 log；`inactive`（App 仍可見，如 iOS 來電）與 `null` 照常記錄 | 單元測試覆蓋各狀態 |
-| 4 | `lifecycle_handler.dart` 註解精確陳述 RSS 與 native 邊界，並說明丟棄理由 | 程式碼 review |
-| 5 | 既有與新增測試全數通過（`flutter test`） | 指令執行驗證 |
-| 6 | 靜態分析無新增警告（`flutter analyze`） | 指令執行驗證 |
+| 2 | 當 `lifecycleState` 為 `hidden` / `paused` / `detached` 時，不產生任何 log；`inactive`（App 仍可見，如 iOS 來電）與 `null`（狀態未知時寧可多記）照常記錄 | 單元測試覆蓋各狀態 |
+| 3 | `lifecycle_handler.dart` 註解精確陳述 RSS 與 native 邊界，並說明丟棄理由 | 程式碼 review |
+| 4 | 既有與新增測試全數通過（`flutter test`） | 指令執行驗證 |
+| 5 | 靜態分析無新增警告（`flutter analyze`） | 指令執行驗證 |
 
 ### 前提（✅ 2026-10-19 已於 Android 實機確認）
 
