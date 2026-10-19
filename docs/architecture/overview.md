@@ -64,7 +64,8 @@
 - **`WebViewBridgeAdapter`** + **`inspectorWebViewBridgeJs`**：WebView 觀測橋。宿主把 `inspectorWebViewBridgeJs`（可注入 JS payload）掛進自己的 WebView（`webview_flutter` 或 `flutter_inappwebview` 皆可，套件零相依），頁內的 `console.*`、JS error、`fetch`/`XHR` 事件經 `JavaScriptChannel`（webview_flutter）/ `addJavaScriptHandler`（flutter_inappwebview）以 JSON 送回，adapter 翻譯為既有 `LogEntry` / `NetworkEntry` 後透過公開 API 推入 Core——與 Dio interceptor 完全同形的「翻譯器」，不持有 buffer、不做 UI。
 
 ### 4. 表現層 (Presentation Layer) & 工具類
-- **`InspectorFab`**：支援拖曳的安全區域內懸浮按鈕。
+- **`InspectorFab`**：支援拖曳的安全區域內懸浮按鈕。以 `LayoutProbeShield` 包住，對 layout 探測透明。
+- **`LayoutInspectOverlay`**：點選元件查看尺寸與 constraints 的選取模式（所有 build mode 可用，由 `DashboardModal` 的 `Inspect layout` 按鈕進入）。靜態單一 `OverlayEntry` 插入 root `Overlay`，不是 route、不寫 buffer、不進時間軸。點擊時 `probeLayoutAt` 從錨點找到所屬 `RenderView` 做 hit test，取第一個已 layout 的 `RenderBox` 及其 `RenderBox` 祖先，快照成不可變的 `LayoutLevel` 清單（widget 名稱由根 element 反查，不依賴僅 debug 有效的 `debugCreator`）；`LayoutProbeShield` 在探測期間讓 kit 自身（FAB、攔截層）的 `hitTest` 回傳 false。
 - **`DashboardModal`**：全螢幕控制台儀表板，封裝了四大 Tab（Console, Network, Navigator, Database）與自訂頁。其中 `ConsoleTab` 與 `NetworkTab` 整合慢速網路請求偵測，當請求耗時 `entry.elapsedAt(now) >= slowRequestThreshold`（含尚未回應的 pending 請求）時於列表項目（`_EntryTile` / `_NetworkEntryRow`）顯示 **`🐢 SLOW`** 警示 Badge；`NetworkTab` 頂部摘要列（`_ErrorSummaryBanner`）亦同步彙整慢速請求數量與時間門檻（如 `| 🐢 N slow (>Xs)`）。
 - **`MagicalTap`**：靜默連擊偵測元件，可在隱藏 FAB 時喚醒控制台。
 - **`ExportReportSheet`**：展示層的診斷報告導出與分享 Bottom Sheet。提供 Include 篩選、時間區間與 errors-only 選項，並整合了 async try-catch、`shareText` 及 clipboard fallback 的容錯分享流程。
