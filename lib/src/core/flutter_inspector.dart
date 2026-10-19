@@ -21,6 +21,7 @@ import '../ui/dashboard/dashboard_modal.dart';
 import 'inspector_overlay_manager.dart';
 import 'inspector_registry.dart';
 import 'lifecycle_handler.dart';
+import 'performance_handler.dart';
 import 'uncaught_error_handler.dart';
 import '../version.dart';
 
@@ -155,9 +156,38 @@ class FlutterInspector {
   /// constructor for why this is a fuse rather than a routine limit.
   final int maxTraceBackEntries;
 
+  /// Whether to record discrete frozen-frame performance warnings
+  /// ([LogLevel.warning]) when a frame's rendering duration exceeds
+  /// [frozenFrameThreshold] (default 700ms).
+  ///
+  /// Aligned with Android Vitals frozen frame definitions, enabling causality
+  /// correlation against preceding network, database, and navigation events on
+  /// the merged timeline.
+  ///
+  /// Defaults to `false`.
+  ///
+  /// Notes:
+  /// - When `true`, the inspector registers a timings callback with
+  ///   [SchedulerBinding.instance] at construction time, so the binding must
+  ///   already exist — construct the inspector after
+  ///   `WidgetsFlutterBinding.ensureInitialized()` / `runApp`.
+  /// - [detach] removes the callback from [SchedulerBinding.instance] and
+  ///   flushes any pending frozen-frame streak.
+  final bool capturePerformance;
+
+  /// Duration threshold to classify a frame as frozen. Defaults to 700ms.
+  ///
+  /// Must be greater than [Duration.zero].
+  final Duration frozenFrameThreshold;
+
   late final UncaughtErrorHandler _uncaughtErrorHandler;
   late final LifecycleHandler _lifecycleHandler;
+  late final PerformanceHandler _performanceHandler;
   late final InspectorRegistry _registry;
+
+  /// The performance timing handler.
+  @visibleForTesting
+  PerformanceHandler get performanceHandler => _performanceHandler;
   late final FlutterInspectorNavigatorObserver _navigatorObserver;
   late final OperationLogSource _operationLogSource;
   final List<DatabaseBrowserSource> _customDatabaseSources = [];
@@ -245,6 +275,8 @@ class FlutterInspector {
     required this.navigatorKey,
     this.captureUncaughtErrors = false,
     this.captureLifecycleEvents = false,
+    this.capturePerformance = false,
+    this.frozenFrameThreshold = const Duration(milliseconds: 700),
     this.redactSensitiveData = true,
     this.diagnosticInfoSource,
     this.slowRequestThreshold = const Duration(seconds: 2),
@@ -255,6 +287,13 @@ class FlutterInspector {
     List<DatabaseBrowserSource>? databaseSources,
     List<KeyValueBrowserSource>? keyValueSources,
   }) {
+    if (frozenFrameThreshold <= Duration.zero) {
+      throw ArgumentError.value(
+        frozenFrameThreshold,
+        'frozenFrameThreshold',
+        'must be greater than zero',
+      );
+    }
     if (slowRequestThreshold.isNegative) {
       throw ArgumentError.value(
         slowRequestThreshold,
@@ -286,6 +325,31 @@ class FlutterInspector {
       topPageLabel: _currentTopPageLabel,
     );
     if (captureLifecycleEvents) _lifecycleHandler.attach();
+    _performanceHandler = PerformanceHandler(
+      onLog:
+          (
+            message, {
+            required level,
+            stackTrace,
+            data,
+            timestamp,
+            activeRoute,
+          }) {
+            _registry.log.add(
+              LogEntry(
+                message: message,
+                level: level,
+                stackTrace: stackTrace,
+                data: data,
+                activeRoute: activeRoute,
+                timestamp: timestamp,
+              ),
+            );
+          },
+      topPageLabel: _currentTopPageLabel,
+      threshold: frozenFrameThreshold,
+    );
+    if (capturePerformance) _performanceHandler.attach();
     _navigatorObserver = FlutterInspectorNavigatorObserver(this);
     _operationLogSource = OperationLogSource(_registry.database);
     if (keyValueSources != null) {
@@ -374,11 +438,20 @@ class FlutterInspector {
     _overlayManager.attach(context: context, visible: visible);
   }
 
-  /// Removes the FAB overlay, and the lifecycle observer when
-  /// [captureLifecycleEvents] is enabled.
+  /// Removes the FAB overlay, the lifecycle observer when
+  /// [captureLifecycleEvents] is enabled, and the performance callback when
+  /// [capturePerformance] is enabled.
   void detach() {
     _overlayManager.detach();
     _lifecycleHandler.detach();
+    _performanceHandler.detach();
+  }
+
+  /// Marks that a self-induced reassemble (e.g. toggling debug layout boundaries)
+  /// was triggered by the inspector. The subsequent frame timing will be ignored
+  /// to prevent self-observing jank from polluting the timeline.
+  void markSelfInducedReassemble() {
+    _performanceHandler.markSelfInducedReassemble();
   }
 
   /// Records a log message.
@@ -387,6 +460,7 @@ class FlutterInspector {
     LogLevel level = LogLevel.info,
     String? stackTrace,
     Map<String, dynamic>? data,
+    DateTime? timestamp,
   }) {
     _registry.log.add(
       LogEntry(
@@ -395,6 +469,7 @@ class FlutterInspector {
         stackTrace: stackTrace,
         data: data,
         activeRoute: _currentTopPageLabel(),
+        timestamp: timestamp,
       ),
     );
   }
@@ -496,6 +571,7 @@ class FlutterInspector {
 
   /// Clears all console logs.
   void clearLogs() {
+    _performanceHandler.reset();
     _registry.log.clear();
     clearBookmarks();
   }
