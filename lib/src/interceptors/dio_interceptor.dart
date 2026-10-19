@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -19,6 +20,9 @@ class FlutterInspectorDioInterceptor extends Interceptor {
   String? _stringifyData(dynamic data) {
     if (data == null) return null;
     if (data is String) return data;
+    if (data is Uint8List) {
+      return '[binary ${data.length} bytes]$kTruncatedMarker';
+    }
     if (data is Map || data is List) {
       try {
         return jsonEncode(data);
