@@ -38,7 +38,7 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-10-14 · v2.7.0）
+## 📊 完成度總覽（截至 2026-10-19 · v2.7.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
@@ -2042,7 +2042,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 | # | 缺陷 | 位置 | 最小修法 | Effort |
 |:---:|:---|:---|:---|:---:|
-| 1 | Dio 回傳 bytes（`Uint8List`）時，`_stringifyData` 走 `data is List` 分支被 `jsonEncode` 成 `[137,80,…]` 完整字串，**之後**才截斷——大檔下載造成記憶體尖峰與卡頓（觀察者效應，release 內嵌情境同樣發生） | `dio_interceptor.dart:19-30`、`network_inspector.dart:37-38` | 開頭判 `data is Uint8List`（非 `List<int>`，否則誤判 host 的 JSON 陣列）回傳 `'[binary N bytes]'` 佔位，並以 `kTruncatedMarker` 結尾，沿用既有 `isRequestTruncated` 停用 Resend | low |
+| 1 | Dio 回傳 bytes（`Uint8List`）時，`_stringifyData` 走 `data is List` 分支被 `jsonEncode` 成 `[137,80,…]` 完整字串，**之後**才截斷——大檔下載造成記憶體尖峰與卡頓（觀察者效應，release 內嵌情境同樣發生）— ✅ 已完成（PR #215 / Issue #214 · 2026-10-19） | `dio_interceptor.dart:19-30`、`network_inspector.dart:37-38` | 開頭判 `data is Uint8List`（非 `List<int>`，否則誤判 host 的 JSON 陣列）回傳 `'[binary N bytes]'` 佔位，並以 `kTruncatedMarker` 結尾，沿用既有 `isRequestTruncated` 停用 Resend | low |
 | 2 | 匯出報告時 `DatabaseEntry.data` 以 `JsonEncoder.withIndent('  ')` 編碼且無 `toEncodable`，host 的 data 含 `DateTime` 等型別即丟 `JsonUnsupportedObjectError`，`ExportReportSheet` 外層只有 try/finally | `diagnostic_report.dart:152` | 改 `JsonEncoder.withIndent('  ', (o) => o.toString())`（同 `json_tree_viewer.dart` 既有寫法），補一個含 `DateTime` 的測試 | trivial |
 | 3 | 一直沒回應的請求永遠不會被標 🐢 SLOW——判斷式要求 `duration != null`；Dio 預設無 timeout，最糟的情況反而漏標（§P8 盲點） | `network_tab.dart:275`、`network_tab.dart:359-361`、`console_tab.dart:586` | `NetworkEntry` extension `Duration elapsedAt(DateTime now) => duration ?? now.difference(timestamp)`，三處謂詞改用它；pending 標籤寫「no response · 12s」而非斷言式 STALLED（語意是「尚未記錄到完成」） | low |
 | 4 | `truncateBody` 以 `substring(0, kNetworkBodyMaxLength)` 截斷，可能切斷 surrogate pair（emoji） | `network_entry.dart:131` | 末位為 high surrogate（`0xD800–0xDBFF`）時 `end--`，補一個測試 | trivial |
