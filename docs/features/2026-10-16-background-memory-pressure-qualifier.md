@@ -73,7 +73,7 @@ adb shell am send-trim-memory com.example.example RUNNING_CRITICAL
 
 `am send-trim-memory` 走 `ActivityManagerService.setProcessMemoryTrimLevel()`，有兩條限制（AOSP 原始碼確認）：
 
-- **level 只能遞增**：每個 process 記錄上次送出的 level，同級或更低一律拒絕（`Unable to set a higher trim level than current level`），且無任何路徑重置——要重測同一 level 只能重啟 process。
+- **level 通常只能遞增**：每個 process 記錄上次送出的 level，同級或更低一律拒絕（`Unable to set a higher trim level than current level`）。Android 14 及更早的 `AppProfiler` 在記憶體狀態回到 `ADJ_MEM_FACTOR_NORMAL` 時會把 process 的 trim level 重設為 0，這些版本不一定要重啟；Android 15、16 的 `AppProfiler` 已無此重設，實測裝置上同一 level 觸發過一次後也必須重啟 process。保險作法是直接重啟 process。
 - **前景不收背景級**：`TRIM_MEMORY_UI_HIDDEN`(20) 以上的 level 對前景 process 一律拒絕（`Unable to set a background trim level on a foreground process`）。
 
 Flutter engine 僅在 `level >= TRIM_MEMORY_RUNNING_LOW`(10) 時轉送 memory pressure，因此單一 process 生命週期內可測：
