@@ -13,7 +13,7 @@
 # 寫入非 git worktree 的位置（其他專案、家目錄普通檔案）偵測不到——涵蓋那些
 # 需要 fs-level 觀察，成本遠超本問題的嚴重度，屬另案。
 #
-# 掛載於 .claude/settings.json（進版控；條目由 tests/test_project_settings_hooks.sh 鎖定）：
+# 掛載於 .claude/settings.json（進版控；條目由 .claude/hooks/tests/test_project_settings_hooks.sh 鎖定）：
 #
 #   "PreToolUse": [
 #     { "matcher": "mcp__gemini-cli__ask-gemini",
@@ -36,7 +36,7 @@ WF_HOOK_MODE="$mode" python3 -c '
 import json, sys, glob, hashlib, time
 
 # --- LOGIC-START ---
-# 本區段由 tests/test_delegate_cwd_logic.py 抽出獨立執行，
+# 本區段由 .claude/hooks/tests/test_delegate_cwd_logic.py 抽出獨立執行，
 # 因此必須自給自足：import 寫在區段內，只定義純函式，
 # 不可有任何 side effect 或依賴區段外的變數。
 import os, subprocess, tempfile, shutil
