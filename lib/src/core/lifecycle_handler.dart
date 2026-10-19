@@ -74,26 +74,23 @@ class LifecycleHandler with WidgetsBindingObserver {
   /// has to surface through the existing error/warning filters instead of
   /// sinking into the info stream.
   ///
-  /// Platform coverage & background qualification: iOS reports it via
-  /// `didReceiveMemoryWarning`, and Web effectively never fires it. Android
-  /// reports it via `onTrimMemory`, which also fires routinely when the app
-  /// moves to the background (e.g. `TRIM_MEMORY_UI_HIDDEN`). When
+  /// Platform coverage: iOS reports it via `didReceiveMemoryWarning`, and Web
+  /// effectively never fires it. Android reports it via `onTrimMemory`, which
+  /// also fires routinely when the app moves to the background (e.g.
+  /// `TRIM_MEMORY_UI_HIDDEN`; on Android 14+ that is nearly all it ever
+  /// delivers). So events arriving while
   /// `WidgetsBinding.instance.lifecycleState` is non-null and not
-  /// [AppLifecycleState.resumed], the message appends ` (app <state>)` (e.g.
-  /// `Memory pressure (app paused)`) so timelines and AI prompts can
-  /// distinguish foreground memory pressure from routine background
-  /// reclamation.
+  /// [AppLifecycleState.resumed] are dropped: they are routine background
+  /// reclamation, not a precursor anyone can act on — if the OS does kill the
+  /// app, this in-memory timeline dies with it.
   @override
   void didHaveMemoryPressure() {
+    final state = WidgetsBinding.instance.lifecycleState;
+    if (state != null && state != AppLifecycleState.resumed) return;
     try {
       final page = topPageLabel?.call();
       final suffix = (page == null || page.isEmpty) ? '' : ' · $page';
-      final state = WidgetsBinding.instance.lifecycleState;
-      final stateQualifier =
-          (state != null && state != AppLifecycleState.resumed)
-          ? ' (app ${state.name})'
-          : '';
-      onLog('Memory pressure$stateQualifier$suffix', level: LogLevel.warning);
+      onLog('Memory pressure$suffix', level: LogLevel.warning);
     } catch (e, s) {
       // Same contract as the lifecycle callback above: on the SDK floor this
       // package supports (Flutter >=3.10.0), `handleMemoryPressure` walks the

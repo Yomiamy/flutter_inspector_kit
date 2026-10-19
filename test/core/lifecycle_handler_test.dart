@@ -249,7 +249,7 @@ void main() {
     expect(messages, ['Memory pressure', 'Memory pressure']);
   });
 
-  test('memory pressure: non-resumed lifecycle states add (app <state>) qualifier', () {
+  test('memory pressure: non-resumed lifecycle states produce no log', () {
     final messages = <String>[];
     final h = LifecycleHandler(
       onLog: (message, {level = LogLevel.info, stackTrace, data}) {
@@ -270,31 +270,11 @@ void main() {
       WidgetsBinding.instance.handleAppLifecycleStateChanged(state);
       messages.clear();
       WidgetsBinding.instance.handleMemoryPressure();
-      expect(messages.length, 1);
-      expect(messages.first, 'Memory pressure (app ${state.name})');
+      expect(messages, isEmpty, reason: 'state: ${state.name}');
     }
   });
 
-  test('memory pressure: non-resumed state preserves topPageLabel suffix', () {
-    String? lastMessage;
-    final h = LifecycleHandler(
-      onLog: (message, {level = LogLevel.info, stackTrace, data}) {
-        lastMessage = message;
-      },
-      topPageLabel: () => 'HomePage (/home)',
-    );
-    handler = h;
-    h.attach();
-
-    WidgetsBinding.instance.handleAppLifecycleStateChanged(
-      AppLifecycleState.hidden,
-    );
-    WidgetsBinding.instance.handleMemoryPressure();
-
-    expect(lastMessage, 'Memory pressure (app hidden) · HomePage (/home)');
-  });
-
-  test('memory pressure: resumed state produces no qualifier', () {
+  test('memory pressure: resumed state logs the warning', () {
     String? lastMessage;
     final h = LifecycleHandler(
       onLog: (message, {level = LogLevel.info, stackTrace, data}) {
