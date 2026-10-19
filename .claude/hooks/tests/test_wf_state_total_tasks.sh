@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Locate repo root and wf-state.sh
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 WF_STATE="$REPO_ROOT/.claude/skills/gen-dev-workflow/scripts/wf-state.sh"
 
 if [ ! -f "$WF_STATE" ]; then

@@ -3,7 +3,7 @@ set -euo pipefail
 
 # 鎖住「流程守衛掛載在進版控的 .claude/settings.json」。
 # 刻意不讀 settings.local.json：它不進版控，clone 環境裡不存在。
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 SETTINGS=".claude/settings.json"
 # shell form 的路徑佔位符必須加雙引號（官方 hooks 文件），否則 repo 路徑含空白時 hook 無法啟動。
 STAGE_CHECK_REL='.claude/hooks/wf-guard-stage-check.sh'
