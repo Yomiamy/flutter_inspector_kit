@@ -11,7 +11,7 @@
 **不新增任何資料結構與模型。**
 
 改動純粹在 `LifecycleHandler.didHaveMemoryPressure()` 開頭加一道 guard，就地讀取 `WidgetsBinding.instance.lifecycleState`：
-- 若 `lifecycleState != null && lifecycleState != AppLifecycleState.resumed`，直接 return。
+- 若 `lifecycleState` 為 `hidden` / `paused` / `detached`，直接 return；`inactive`（App 仍可見，如 iOS 來電）、`resumed`、`null` 照常記錄。
 - 否則維持既有訊息格式 `Memory pressure$suffix`。
 
 資料流：
@@ -19,7 +19,7 @@
 OS (TRIM_MEMORY_UI_HIDDEN / onTrimMemory / didReceiveMemoryWarning)
   → WidgetsBinding.handleMemoryPressure()
   → LifecycleHandler.didHaveMemoryPressure()
-      ├── lifecycleState 非 null 且非 resumed → return（丟棄）
+      ├── lifecycleState 為 hidden / paused / detached → return（丟棄）
       └── 組合：'Memory pressure' + suffix
   → onLog (LogLevel.warning)
   → ConsoleTab / Merged Timeline
@@ -44,7 +44,11 @@ OS (TRIM_MEMORY_UI_HIDDEN / onTrimMemory / didReceiveMemoryWarning)
    @override
    void didHaveMemoryPressure() {
      final state = WidgetsBinding.instance.lifecycleState;
-     if (state != null && state != AppLifecycleState.resumed) return;
+     if (state case AppLifecycleState.hidden ||
+         AppLifecycleState.paused ||
+         AppLifecycleState.detached) {
+       return;
+     }
      try {
        final page = topPageLabel?.call();
        final suffix = (page == null || page.isEmpty) ? '' : ' · $page';
@@ -63,8 +67,9 @@ OS (TRIM_MEMORY_UI_HIDDEN / onTrimMemory / didReceiveMemoryWarning)
 
 #### 1b. 測試 (`lifecycle_handler_test.dart`)
 
-1. `memory pressure: non-resumed lifecycle states produce no log`：
-   - 走訪 `hidden`、`paused`、`inactive`、`detached`，斷言不產生任何 log。
+1. `memory pressure: background lifecycle states produce no log`：
+   - 走訪 `hidden`、`paused`、`detached`，斷言不產生任何 log。
+   - 另有 `inactive` 與 `null`（`WidgetsBinding.instance.resetInternalState()`）兩個案例，斷言照常記錄 `Memory pressure`。
 2. `memory pressure: resumed state logs the warning`：
    - 設定狀態為 `resumed` 且有 `topPageLabel`，斷言訊息為 `Memory pressure · HomePage (/home)`。
 
@@ -95,4 +100,4 @@ flutter analyze lib/ test/
 ## 5. 風險與回滾
 
 - 改動範圍僅限於 `didHaveMemoryPressure()` 開頭一道 guard，不影響 `didChangeAppLifecycleState` 或其他既有流程。回滾僅需 revert 該方法。
-- 依賴「`UI_HIDDEN` 抵達時 `lifecycleState` 已非 `resumed`」的時序，已於 2026-10-19 Android 實機確認成立；即使未來平台改變順序，也只退化為修正前行為，不會更糟。
+- 依賴「`UI_HIDDEN` 抵達時 `lifecycleState` 已進入 `hidden` / `paused`」的時序，已於 2026-10-19 Android 實機確認成立；即使未來平台改變順序，也只退化為修正前行為，不會更糟。

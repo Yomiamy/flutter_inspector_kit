@@ -33,10 +33,10 @@ PR #155 落地了 §P21，將 `WidgetsBindingObserver.didHaveMemoryPressure()` �
 ### ✅ 做
 
 - `LifecycleHandler.didHaveMemoryPressure()` 開頭檢查 `WidgetsBinding.instance.lifecycleState`
-- 若狀態非 `null` 且非 `resumed`：直接 return，不記錄
-- 若狀態為 `resumed` 或 `null`：維持原訊息格式 `Memory pressure$suffix`
+- 若狀態為 `hidden` / `paused` / `detached`：直接 return，不記錄
+- 若狀態為 `resumed`、`inactive` 或 `null`：維持原訊息格式 `Memory pressure$suffix`
 - 修正 `lifecycle_handler.dart` 註解中關於 RSS 與 platform channel 的不精確陳述
-- 更新對應單元測試（涵蓋所有非 `resumed` 狀態）
+- 更新對應單元測試（涵蓋 `hidden` / `paused` / `detached` 丟棄，以及 `inactive`、`null` 照常記錄）
 
 ### ❌ 不做（明確排除）
 
@@ -56,14 +56,14 @@ PR #155 落地了 §P21，將 `WidgetsBindingObserver.didHaveMemoryPressure()` �
 |:---:|:---|:---|
 | 1 | 當 `lifecycleState` 為 `AppLifecycleState.resumed` 時，訊息為 `Memory pressure$suffix` | 單元測試斷言 |
 | 2 | 當 `lifecycleState` 為 `null` 時，照常記錄 `Memory pressure$suffix`（狀態未知時寧可多記） | 程式碼 review |
-| 3 | 當 `lifecycleState` 為 `hidden` / `paused` / `inactive` / `detached` 時，不產生任何 log | 單元測試覆蓋非 resumed 狀態 |
+| 3 | 當 `lifecycleState` 為 `hidden` / `paused` / `detached` 時，不產生任何 log；`inactive`（App 仍可見，如 iOS 來電）與 `null` 照常記錄 | 單元測試覆蓋各狀態 |
 | 4 | `lifecycle_handler.dart` 註解精確陳述 RSS 與 native 邊界，並說明丟棄理由 | 程式碼 review |
 | 5 | 既有與新增測試全數通過（`flutter test`） | 指令執行驗證 |
 | 6 | 靜態分析無新增警告（`flutter analyze`） | 指令執行驗證 |
 
 ### 前提（✅ 2026-10-19 已於 Android 實機確認）
 
-Android 送出 `TRIM_MEMORY_UI_HIDDEN` 時，Flutter 的 `lifecycleState` 已離開 `resumed`。實機觀察為 `onStop` 先到、之後才呼叫 `didHaveMemoryPressure()`，guard 可擋下切背景的事件。
+Android 送出 `TRIM_MEMORY_UI_HIDDEN` 時，Flutter 的 `lifecycleState` 已進入 `hidden` / `paused`。實機觀察為 `onStop` 先到、之後才呼叫 `didHaveMemoryPressure()`，guard 可擋下切背景的事件。
 
 ### 手動觸發方法
 
