@@ -36,7 +36,7 @@
   ┌─────────────────────────────┴──────────────────────────────┐
   │            資料擷取層 (Collectors / Interceptors)          │
   │ [DioInterceptor] [NavigatorObserver] [UncaughtErrorHandler]│
-  │ [LifecycleHandler]                                         │
+  │ [LifecycleHandler] [PerformanceHandler]                    │
   │ [WebViewBridgeAdapter] <── postMessage ── 頁內注入 JS bridge │
   └────────────────────────────────────────────────────────────┘
 ```
@@ -60,6 +60,7 @@
 - **`NavigatorObserver`** (`FlutterInspectorNavigatorObserver`)：自動監聽路由變化，並安全解析頁面 Widget 類型。
 - **`UncaughtErrorHandler`**：獨立類別，專職掛載與鏈接未捕捉的例外。它透過建構子接收 `onLog` 回呼函數，在呼叫 `attach()` 時安全地將錯誤鉤子鏈接（chain/wrap）至 `FlutterError.onError`、`PlatformDispatcher.instance.onError` 與 `ErrorWidget.builder`。此類別無 `FlutterInspector` 的逆向依賴，保證了職責單一與高品味的模組獨立性。針對同一次 build 崩潰會同時觸發 `FlutterError.onError` 與 `ErrorWidget.builder`（兩者收到**同一個** `FlutterErrorDetails` 物件）的情況，`_logFlutterError` 以 object-identity 去重（`identical` 比對上一筆已記錄的 details），確保 Console 只記錄一次（PR #96）。記錄前會以 `parseRenderFlexOverflow` 與 `parseErrorCausingWidget` 對錯誤文字做輕量解析，把溢出像素／方向與 error-causing widget 位置併入 `LogEntry.data`；解析不到時靜默略過，不影響原本的錯誤日誌（PR #197）。
 - **`LifecycleHandler`**：獨立類別，專職把 app 前景/背景切換（`resumed`/`inactive`/`paused`/`detached`，及 Flutter 3.13+ 的 `hidden`）記成 `LogLevel.info` 的 `LogEntry`（opt-in `captureLifecycleEvents`，default off）。與 `UncaughtErrorHandler` 同形——透過建構子接收 `onLog` 回呼、無 `FlutterInspector` 逆向依賴。message 尾巴附加當前 top-most page（`FlutterInspector._currentTopPageLabel()` 走 `NavigatorStackResolver` best-effort 重播，推不出來時省略而非猜測），讓 home/back 頻繁切換仍能在 Console 一眼分辨發生在哪一頁。與錯誤鉤子不同，此 observer **可乾淨 teardown**：`detach()` 會 `removeObserver(this)`——因為 `WidgetsBindingObserver` 是一個 list（移除自己不影響宿主），而非 `FlutterError.onError` 那種單一 slot。同一旗標下還覆寫 `didHaveMemoryPressure()`，把 OS 回報的記憶體壓力記成 `LogLevel.warning`（非 info——這是 OOM/LMK 前導信號，要能被既有 warning/error 過濾撈起來，不能沉在資訊流裡）；`lifecycleState` 為 `hidden`/`paused`/`detached` 時直接丟棄（Android 切背景會因 `TRIM_MEMORY_UI_HIDDEN` 例行觸發，PR #205），`inactive` 因 App 仍可見照常記錄。**共用 `captureLifecycleEvents` 而非另開旗標**：兩者是同一個 observer 上的 callback、共用同一組 attach/detach 生命週期（PR #155）。
+- **`PerformanceHandler`**：凍結幀捕捉（opt-in `capturePerformance`，default off）。以 `SchedulerBinding.addTimingsCallback` 逐幀檢查 `FrameTiming.totalSpan >= frozenFrameThreshold`（預設 700ms，對齊 Android vitals frozen frame），寫成 `LogLevel.warning` 的 `LogEntry`——**多一個事件來源，不是多一個維度**（無新 Entry／buffer／`TimelineSource`）。連續凍結幀（前幀 `rasterFinish` 到下一幀 `vsyncStart` ≤ 300ms）合併為一筆；時間戳取 `rasterFinishWallTime`（Web 或值異常時退回 `DateTime.now()`）。與 `LifecycleHandler` 同形：建構子接收 `onLog`／`topPageLabel`，無 `FlutterInspector` 逆向依賴，callback 內例外以 `try-catch` 隔離，`detach()` 移除 callback 並 flush 未發布的合併事件。kit 自身的 `reassembleApplication()`（排版邊界切換）前會呼叫 `FlutterInspector.markSelfInducedReassemble()`，略過該次自造停頓。
 - **`OperationLogSource`**：將資料庫操作日誌轉換為虛擬表格，以配合資料庫瀏覽器展示。
 - **`WebViewBridgeAdapter`** + **`inspectorWebViewBridgeJs`**：WebView 觀測橋。宿主把 `inspectorWebViewBridgeJs`（可注入 JS payload）掛進自己的 WebView（`webview_flutter` 或 `flutter_inappwebview` 皆可，套件零相依），頁內的 `console.*`、JS error、`fetch`/`XHR` 事件經 `JavaScriptChannel`（webview_flutter）/ `addJavaScriptHandler`（flutter_inappwebview）以 JSON 送回，adapter 翻譯為既有 `LogEntry` / `NetworkEntry` 後透過公開 API 推入 Core——與 Dio interceptor 完全同形的「翻譯器」，不持有 buffer、不做 UI。
 

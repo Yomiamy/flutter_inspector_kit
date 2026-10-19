@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-20**：**§P20 掉幀/凍結幀維度完成**——PR #207 合入 main（issue #206）。`capturePerformance` 開啟後，`totalSpan` ≥ `frozenFrameThreshold`（預設 700ms）的幀寫成 warning log 進既有 log 維度，連續凍結幀合併為一筆，排版邊界切換的自造停頓會被排除。與 §Z2 的差異：合併以「前幀 raster 結束到下一幀 vsync 間隔 ≤ 300ms」判定、公開 API 多出 `markSelfInducedReassemble()` 與 `log()` 的 `timestamp` 參數、example 只做 `onPressed` 忙等。詳見 §P20 實作現況。檔名日期前綴維持 `2026-10-20`（已是今日）。
 > * **2026-10-20**：**§P31 點選元件查看尺寸與 constraints 完成**——PR #211 合入 main（issue #210）。Dashboard 新增所有 build mode 可用的 `Inspect layout` 按鈕，點選元件即顯示 size／constraints／位置並可切換父鏈、複製／分享。與原提案的差異：overlay 另立 `LayoutInspectOverlay` 而非擴充 `InspectorOverlayManager`、以 `LayoutProbeShield` 讓 kit 自身對探測透明、點擊當下即快照、命中不到 `RenderBox` 時不顯示卡片。詳見 §P31 實作現況。檔名日期前綴維持 `2026-10-20`（已是今日）。
 > * **2026-10-16**：**新增 §P31 點選元件查看尺寸與 constraints**——由第八部分比對 zero_inspector_kit 的 Widget 檢查器衍生，只取「實際尺寸 + constraints」改成點選查詢形狀，不重做整棵樹（故不撞 AF#8）。使用者同日裁決：支援 release build、需要父鏈切換、需要複製／分享。已親查 SDK：`debugCreator` 僅在 `assert` 內設定，release 下 widget 名稱改由 element 反查取得。狀態為提案、未排程。
 > * **2026-10-16**：**三項裁決落地**——(1) **§P20／AF#1**：採凍結級門檻 700ms（對齊 Android vitals frozen frame），debug 下也啟用，以 `totalSpan` 判定、寫成 warning log；AF#1 部分撤銷（僅解禁凍結幀離散事件，profiler／即時儀表照舊否決），理由是 2026-08-14 覆核的「debug-only」前提與 README 建議 release 內嵌矛盾。**排程前須通過實機 debug 實測閘門**（冷啟動、每條路由第一次進入、hot reload 下是否常態出現 ≥ 700ms 幀），未過則重新裁決——同日 Android 實機實測 0／307 幀 ≥ 700ms、最慢 424ms，**閘門通過，§P20 可排程**。(2) **§D5**：重新檢視後維持不排程。(3) **AF#3**：刪除「HAR 匯出可選保留」保留句（HAR 1.2 timings 必填）。第八部分 §Z2 判定式隨之由「任一相超標」改為 `totalSpan`。
@@ -1218,7 +1219,7 @@ Google 的 10 類信號中，**6 類的核心信號在 Dart 執行之前或 OS/b
 | Permission Denials | Additional vital | ⚠️（需 host 餵） | host 在 call site 記入既有 log |
 | Crash rate | 1.09% | ✅（已有） | 既有 `captureUncaughtErrors`（可強化為 crash 前鏈快照） |
 
-### §P20. 掉幀/凍結幀維度（`capturePerformance`）— ✅ 已裁決（2026-10-16 · 採 700ms 凍結級門檻）· 實測閘門已通過，可排程
+### §P20. 掉幀/凍結幀維度（`capturePerformance`）— ✅ 已完成（PR #207 · 2026-10-20；2026-10-16 裁決採 700ms 凍結級門檻）
 
 > **🔴 動工前必讀（2026-09-01 交叉核對發現）**：本節設計與 **Anti-Feature #1 於 2026-08-14 覆核時明確否決的變體是同一個東西**（同樣是「不做 profiler 面板，只用 `SchedulerBinding.addTimingsCallback` 把單幀超標轉成離散事件併入 `mergedTimeline`」）。該否決的死因是 **debug build**：
 > 無 AOT、assert 全開，`buildDuration` 系統性偏慢數倍，判定掉幀會**大量誤報**而非漏報，timeline 會被假 jank 洗版，反過來污染 Console 這條原本乾淨的排查鏈；而本 kit 是 debug-only 工具，**誤判不是邊緣情況，是唯一情況**。
@@ -1263,6 +1264,7 @@ Google 的 10 類信號中，**6 類的核心信號在 Dart 執行之前或 OS/b
 * **次要**：Web 平台 `FrameTiming` 上報不完整，需明講降級（不 crash 但「四平台一致」在 Web 打折）；`TimelineSource` enum 加 jank 要同步 `mergedTimeline` / console_tab filter chip 三處。
 * **Effort**：low~medium ｜ **排查價值**：⭐⭐⭐⭐⭐（對齊 Core Vital，鏈推斷價值最高）
 * **📌 2026-10-16 量測定義勘誤**：本節判定式、時間戳與事件形狀有數處錯誤，實作時以第八部分 §Z2 為準（本節上方原設計保留作紀錄）。
+* **✅ 實作現況（PR #207 · 2026-10-20 合入 main，issue #206）**：依 §Z2 形狀落地——新增 `lib/src/core/performance_handler.dart`（`PerformanceHandler`），`FlutterInspector` 新增 `capturePerformance`（預設 false）與 `frozenFrameThreshold`（預設 700ms，須大於零），逐幀以 `totalSpan >= threshold` 判定，寫成 `LogLevel.warning` 進既有 log 維度（`Frozen frame (Nms[, K frames]) · <page>`，`data` 帶 `totalSpanMs`／`vsyncOverheadMs`／`buildDurationMs`／`rasterDurationMs`／合併時 `frameCount`），native 以 `rasterFinishWallTime` 為時間戳、Web 或值異常時退回 `DateTime.now()`，`detach()` 移除 callback 並 flush 未發布的合併事件；排版邊界按鈕在 `reassembleApplication()` 前呼叫 `markSelfInducedReassemble()` 排除自造停頓；example 開啟 `capturePerformance` 並加「Simulate Frozen Frame (900ms)」按鈕。與提案／§Z2 的差異：**(1) 合併判定**為前一凍結幀 `rasterFinish` 到下一幀 `vsyncStart` 間隔 ≤ 300ms（固定常數），遇正常幀即收尾；**(2) 公開 API 多出兩處**——`FlutterInspector.markSelfInducedReassemble()` 與 `log()` 的可選 `timestamp` 參數；**(3) 自造停頓排除**是一次性旗標，只略過標記後下一批 timings 裡第一個超標幀，該批結束即清除，標記前先 flush 既有合併事件；**(4) `clearLogs()` 會丟棄**尚未發布的合併事件；**(5) 時間戳與頁面標籤**取合併序列的第一幀；**(6) example 只做 `onPressed` 忙等**一種（驗 vsyncOverhead 段），未做 §Z2 建議的 `build` 內忙等版本；**(7) 建構時即註冊 callback**，須在 binding 初始化後建立 inspector。callback 內例外以 `debugPrintStack` 隔離。零新相依。
 
 ### §P21. 記憶體壓力事件（併入 `captureLifecycleEvents`）— ✅ 已完成（PR #155）
 
@@ -1720,7 +1722,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
    Issue #158 曾嘗試為它附加 ImageCache 水位以補強收斂能力，**實作完成後因 SDK 行為整案撤回**
    （`PaintingBinding` 先清快取才通知 observer，讀到的恆為 0；死因與實測見上方 §P21 撤回紀錄）。
    該需求改由 **§P25 水位計**承接（low priority，主動查看時讀取，不綁 OS 事件）
-2. **§P20 掉幀維度**（旗艦、對齊 Core Vital、鏈推斷價值最高）→ **✅ 2026-10-16 已裁決採 700ms 凍結級門檻，實機 debug 實測閘門已通過（0／307 幀 ≥ 700ms，最慢 424ms），可排程**（見 §P20 裁決段）。以下為裁決前的原記述：與 Anti-Feature #1（2026-08-14 覆核）否決的變體同源，需先解決 debug build 誤報爭議；若裁決通過，另需把 timestamp 地雷釘死在計畫
+2. **§P20 掉幀維度**（旗艦、對齊 Core Vital、鏈推斷價值最高）→ **✅ 2026-10-16 已裁決採 700ms 凍結級門檻，實機 debug 實測閘門已通過（0／307 幀 ≥ 700ms，最慢 424ms），可排程**（見 §P20 裁決段）。**✅ 已完成（PR #207 · 2026-10-20）**。以下為裁決前的原記述：與 Anti-Feature #1（2026-08-14 覆核）否決的變體同源，需先解決 debug build 誤報爭議；若裁決通過，另需把 timestamp 地雷釘死在計畫
 3. ~~**§P22 權限**~~ → **已於 2026-09-11 裁決不排程**——`activeRoute` 錨點既有 `log()`
    已自動帶（`flutter_inspector.dart:397`），本項包裝成本趨近於零；且它是全清單唯一
    需逐 call site 手動埋的維度（與已取消的 §P10 同一死因），漏埋會讓排查者誤判
@@ -2052,7 +2054,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 > **附帶一處註解修正（併入 #5）**：`lifecycle_handler.dart:66-67` 寫「the actual RSS figure needs a platform channel」不精確——`dart:io` 的 `ProcessInfo.currentRss` 不需 channel，但本套件刻意不用（Web 不支援且公開承諾不碰 `dart:io`）；Google 定義的 anonymous RSS+Swap 則確實沒有 in-app API。
 
-### §Z2. §P20 量測定義勘誤（實作時以本節為準）
+### §Z2. §P20 量測定義勘誤（實作時以本節為準）— ✅ 已落地（PR #207 · 2026-10-20，差異見 §P20 實作現況）
 
 §P20 已於 2026-10-16 裁決採 700ms 凍結級門檻（見 §P20 裁決段），其原設計段有以下錯誤，實作時以本節為準：
 
