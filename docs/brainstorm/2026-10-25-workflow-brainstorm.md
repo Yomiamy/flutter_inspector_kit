@@ -2884,10 +2884,12 @@ LLM 在具備 Subagent 能力後常出現「懶惰化派發」現象：連讀取
 都下意識啟動子進程，導致浪費數萬 Token 與數十秒的冷啟動延遲。
 現已於 `SKILL.md` 與 `delegation-and-parallel.md` 嵌入「派發煞車」硬門檻：規範單檔 ≤ 20 行且無公共 API 變更之微任務**必須留在主進程原地修改與跑測**，嚴禁派發子進程。
 
-#### 3.3 驗收三值契約 (`CONFIRMED / REFUTED / INCONCLUSIVE`) — 🟡 PR 審查中（Issue #218 / PR #219）
+#### 3.3 驗收三值契約 (`CONFIRMED / REFUTED / INCONCLUSIVE`) — ✅ 已完成（2026-10-23 · Issue #218）
 現行 Verifier 報告常以長篇 Markdown 呈現，結論隱含在文字中，容易使主指揮產生誤判。
-pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代碼**（只做反駁與測試驗證），
-杜絕「球員兼裁判」與結論模糊。
+已於 `.claude/agents/verifier.md`、`.agents/agents/verifier.yaml`、`SKILL.md` 與 `delegation-and-parallel.md` 建立標準化三態契約：
+- **首行頂格輸出狀態前綴**：`CONFIRMED` / `REFUTED: <簡述>` / `INCONCLUSIVE: <簡述>`。
+- **三態語意標準**：`CONFIRMED` 需符合規格並引述測試全綠與分析基線數據；`REFUTED` 需附具體反駁證據；`INCONCLUSIVE` 表明非代碼之環境受阻，主流程自動同 tier 重試 1 次，仍未定則暫停求助人類。
+- **硬性角色邊界**：維持 `enable_write_tools: false`，嚴禁 Verifier 修改代碼，杜絕「球員兼裁判」與結論模糊。
 
 #### 3.4 逐次派發動態 `effort` 覆寫 + Reviewer 下限鎖定（Floor）+ `"Explicit instruction:"` 觸發前綴（2026-10-25 新增 · 上游 v1.5.0 #98）
 Claude Code ≥ 2.1.292 在 `Agent` 工具新增了執行期 `effort` 參數（修正本文件 §8.2 B5 於 2026-10-03 記錄「CLI 不支援執行期 `effort` 參數」之歷史限制）。
@@ -2913,7 +2915,7 @@ pilotfish v1.5.0（commit `44a2140`）透過 `benchmarks/effort-selection/` 實�
 |:---:|:---|:---|:---:|:---|
 | 1 | **D1** STAGE 0b Plan 機器對抗初審 (`plan-verifier`) | Plan 產出後、問人確認前，自動起獨立 Opus 審查資料結構與回滾邊界，輸出 `READY`/`REVISE` | 中 | ✅ 已完成（2026-09-27 · Issue #181） |
 | 2 | **D2** STAGE 2 引入「派發煞車」硬門檻 (`Dispatch Brake`) | 明定單檔 ≤ 20 行且無公共 API 變更之微任務強制主進程原地修改，不派發 subagent | 低 | ✅ 已完成（2026-10-01 · Issue #187） |
-| 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | 🟡 PR 審查中（Issue #218 / PR #219） |
+| 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | ✅ 已完成（2026-10-23 · Issue #218） |
 | 4 | **D4** `Agent` 執行期 `effort` 動態覆寫 + Reviewer 下限鎖定（Floor） | 在 `delegation-and-parallel.md` 補充 Claude Code ≥ 2.1.292 之 `Agent` runtime `effort` 觸發句式（`"Explicit instruction: ..."`）與 Verifier/Reviewer 不可降級之 Floor 鐵律（2026-10-25 新增） | 極低 | 提案 |
 
 ### 6. 刻意不學（保持 Good Taste 的底線）
@@ -2925,7 +2927,7 @@ pilotfish v1.5.0（commit `44a2140`）透過 `benchmarks/effort-selection/` 實�
 | 放棄狀態機走向純 Prompt 軟約束 | Prompt 的道德勸說在生產環境終會破防，作業系統級的 Exit 2 阻斷與磁碟原子狀態才是真防線。 |
 | **將阻斷守衛改掛 `SubagentStart`** | **實證否決「偽攔截 (False Interception)」**。官方文件與社群實證顯示 `SubagentStart` 是純觀察型生命週期事件，其 exit 2 退出碼與 deny 決策會被 Claude Code runtime 忽略，無法阻止 subagent 建立與執行。若盲目改掛，將使 STAGE 5 防線全面失效。堅守 `PreToolUse` 作為唯一阻斷點，並以 `"onFailure": "block"` 達成 fail-closed。 |
 
-> **📌 D1–D4 共 4 項：截至 2026-10-25 已完成 2 項（D1 於 2026-09-27、D2 於 2026-10-01 落地）、1 項 PR 審查中（D3，PR #219）、1 項為 2026-10-25 新增提案（D4）。**
+> **📌 D1–D4 共 4 項：截至 2026-10-25 已完成 3 項（D1 於 2026-09-27、D2 於 2026-10-01、D3 於 2026-10-23 落地）、1 項為 2026-10-25 新增提案（D4）。**
 >
 > **📌 2026-10-25 追蹤更新（基準 `v1.4.2` `aa595da` [2026-09-26] → 最新 `v1.5.0` `40d170e` [2026-10-10]，+14 commits）**：
 > 1. **v1.4.3（PR #96 `168e5cd`）**：完成 Haiku 5.5 `scout` 實證基準測試（40/40），已更新於 §7.6。
