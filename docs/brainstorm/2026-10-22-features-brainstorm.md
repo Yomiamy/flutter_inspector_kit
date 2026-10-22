@@ -59,14 +59,13 @@
 > 並連帶讓 **§P11 NetworkNotifier 重構**落地——§P11 原記「應與 §P1 綁定排程」，
 > 但 §P24 成為它先一步的消費者，該綁定關係已解除且前提已就緒。
 >
-> **📝 實查校正 (2026-08-06)**：對照 codebase 逐項核對 Tier 4，修正兩處與實況不符的記載——
+> **📝 實查校正 (2026-08-06 · 2026-09-12 追蹤更新)**：對照 codebase 逐項核對 Tier 4，修正兩處與實況不符的記載——
 > * **§P8 慢請求標記**：文件原標 🆕 待辦，**實為已完成**（PR #111 / Issue #110）。
 >   `slowRequestThreshold` 已參數化（預設 2s、拒絕負值），NetworkTab 與 ConsoleTab
 >   混合時間軸兩處皆有 `🐢 SLOW` 標記。Tier 4 因此由 5 項降為 4 項。
-> * **§P4 快速複製 Diagnostic Snippet**：仍未實作（無任何組合式 snippet builder），
->   但 effort 由 low 下修為 **trivial~low**——`buildCurl` / `buildPlainText` / `shareText`
->   皆已存在且已接 redaction，`PopupMenuButton<_ShareAction>` 選單也已就位，
->   真正缺的只有一個組裝 formatter。現為 Tier 4 最低成本入口。
+> * **§P4 快速複製 Diagnostic Snippet**：**已完成**（commit `eef782b` / Issue #160 · 2026-09-12）。
+>   實作形式由原構想的「一鍵 cURL + error payload」升級為 `_ShareAction.agentPrompt`（Agent Handoff Prompt），
+>   除了 error payload 外，更納入了同路由歷史與環境狀態，精準對位原需求且已完全整合於 detail view 選單。
 >
 > **📝 版本更新與確認 (v1.8.0 - 2026-07-27)**：
 > * **新功能與缺陷修復 (Tier 1 & 2)**：
@@ -540,7 +539,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
   - ConsoleTab 加一個 FilterChip「Bookmarks Only」
 * **Effort**：low ｜ **排查價值**：⭐⭐⭐⭐
 
-### §P4. 快速複製 Diagnostic Snippet（一鍵複製 cURL + Error Payload）— 🆕
+### §P4. 快速複製 Diagnostic Snippet（一鍵複製 cURL + Error Payload）— ✅ 已完成（2026-09-12 · Issue #160 / commit `eef782b`）
 
 > **痛點**：開發者看到 API 失敗後，需要手動從 `NetworkDetailView` 複製 cURL、再從 error response 複製 body、再手動拼成一段完整的 bug report——步驟太多。
 
@@ -569,12 +568,10 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
     Markdown fenced block 的 formatter（`network_formatters.dart` 新增一個函式）。
   - ⚠️ 注意 `diagnostic_report.dart:186` 已記載「固定 3-backtick fence 會被內容中的 fence 打斷」
     的既有教訓，新 formatter 產 fenced block 時沿用該處的處理方式，勿重寫一份。
-  - 🔴 **範圍已被 §P26 壓縮（2026-09-12 · PR #161）**：新落地的 `agentPrompt` 選單項
-    同樣輸出 Markdown、同樣帶 error payload 與 timestamp，且已佔用 `_ShareAction` 的一個值。
-    實查 `agent_prompt.dart` 全檔**未呼叫 `buildCurl`**，故本項尚存的獨立價值收斂為
-    「**cURL + error payload 併進單一 fenced block**」這一點。
-    **動工前先裁決本項與 `agentPrompt` 是否合併**（例如在既有 prompt 中補一段 cURL），
-    否則會在同一個選單裡做出兩個近似選項——那正是本文件反覆否決的「為不存在的區別打補丁」。
+  - 🔴 **已隨 §P26 完成並升級（2026-09-12 · commit `eef782b` / Issue #160）**：
+    實作形式由原構想的「一鍵 cURL + error payload」升級為 `_ShareAction.agentPrompt`（Agent Handoff Prompt）。
+    除了 error payload 與 timestamp 外，更納入了同路由歷史與環境狀態，精準對位原需求且已完全整合於
+    detail view 選單（`agent_prompt.dart` + `network_detail_view.dart` + `log_detail_view.dart`）。
 
 ### §P5. Console Timeline 自動跳轉最新 Error（Jump to Latest Error）— ✅ 已完成（PR #128 · 2026-08-14，隨 §D1 合併落地）
 
@@ -668,7 +665,7 @@ ENTRIES: [NavigatorAction.push/NetworkDetailView, NavigatorAction.push/SizedBox]
 | ~~6~~ | Timeline 書籤 / 標記 — ✅ 已完成（PR #115） | §P3 新提案 | low | ⭐⭐⭐⭐ |
 | **7** | Dashboard 錯誤計數 Badge ✅ 已完成（`b4846ea`） | §P6 新提案 | low | ⭐⭐⭐ |
 | ~~8~~ | Error 高亮強化 — ✅ 已完成（PR #101） | §P7 新提案 | trivial | ⭐⭐⭐ |
-| **9** | 快速複製 Diagnostic Snippet | §P4 新提案 | trivial–low | ⭐⭐⭐ |
+| ~~9~~ | 快速複製 Diagnostic Snippet — ✅ 已完成（`eef782b` / Issue #160，以 agentPrompt 落地） | §P4 新提案 | trivial–low | ⭐⭐⭐ |
 | ~~10~~ | Jump to Latest Error FAB — ✅ 已完成（PR #128，併入 §D1；入口改為點擊過濾結果，FAB 為被取代的原始構想） | §P5 新提案 | low | ⭐⭐⭐ |
 | **11** | DatabaseTab 搜尋 / 過濾 | §D4 缺口 | low | ⭐⭐⭐ |
 | ~~12~~ | 慢請求標記 — ✅ 已完成（PR #111 / Issue #110） | §P8 新提案 | trivial | ⭐⭐ |
