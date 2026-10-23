@@ -183,6 +183,7 @@ description: |
     → 呼叫 worktree-close-cleanup skill 移除 STAGE 1 建立的 worktree
     → 僅移除 worktree 本身，**對應 branch 一律保留、不刪除**
     → 🔴 環境清理：透過 Bash 與 `jq` 將 `.claude/settings.local.json` 中的 `"alwaysThinkingEnabled": true` 移除，避免殘留。
+    → 💡 【環境回顧建議】清理完成後，若本次開發過程有遇到摩擦、多次測試失敗或審查退回，建議輸入 `/retro` 進行環境回顧，將機械性問題轉化為自動化檢查。
 ```
 
 ---
