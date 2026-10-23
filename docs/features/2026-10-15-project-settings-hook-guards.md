@@ -137,7 +137,7 @@ U-8 當時選的替代方案是「掛載片段寫在 hook 腳本的註解裡，�
 
 **對 AC 的影響**：這是既有行為，本需求**不改變**它，也不新增 AC 去改它。明確**不做**的兩件事：
 
-- 不設 `onFailure: "block"`：會讓沒裝 python3 的人無法派發任何 Agent。
+- 不設 `onFailure: "block"`：會讓沒裝 python3 的人無法派發任何 Agent。（**註：此決策已於 2026-10-23 被 Issue #220 / PR #221 取代**——為落實 fail-closed 確定性防禦，所有 PreToolUse 守衛均已配置 `"onFailure": "block"`，當 hook 因直譯器異常非零退出時強制阻斷，杜絕安全穿透）。
 - 不在腳本加 `command -v python3 || exit 0` 靜默短路：那等於把「會出聲的失效」改回「靜默失效」，正好違背本需求要解決的問題。
 
 ---
