@@ -66,10 +66,10 @@
 
 ### 2.2 報告格式契約
 
-Verifier 產出的報告必須遵循以下結構：
+Verifier 產出的報告必須遵循以下結構（若為未通過或無法斷定，首行改為 `REFUTED: <簡述>` 或 `INCONCLUSIVE: <簡述>`）：
 
 ```markdown
-CONFIRMED (或 REFUTED: <簡述> / INCONCLUSIVE: <簡述>)
+CONFIRMED
 
 ## 1. 兩階段驗收結果摘要
 - Spec Compliance: 符合 / 偏離
@@ -107,13 +107,13 @@ CONFIRMED (或 REFUTED: <簡述> / INCONCLUSIVE: <簡述>)
 
 ## 4. 影響範圍檔案（Where）
 
-1. [`.claude/agents/verifier.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/.claude/agents/verifier.md)：
+1. [`.claude/agents/verifier.md`](../../.claude/agents/verifier.md)：
    - 將二值規則改寫為三態契約定義，明確記錄 `CONFIRMED / REFUTED / INCONCLUSIVE` 的意圖、判定準則與首行輸出格式。
-2. [`.agents/agents/verifier.yaml`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/.agents/agents/verifier.yaml)：
+2. [`.agents/agents/verifier.yaml`](../../.agents/agents/verifier.yaml)：
    - 同步更新 `system_prompt`，與 `verifier.md` 保持完全一致。
-3. [`.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md)：
+3. [`.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`](../../.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md)：
    - 更新 STAGE 2 驗收契約章節，載明三態契約標準與主流程對 `INCONCLUSIVE` 的重試機制。
-4. [`.claude/skills/gen-dev-workflow/SKILL.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/.claude/skills/gen-dev-workflow/SKILL.md)：
+4. [`.claude/skills/gen-dev-workflow/SKILL.md`](../../.claude/skills/gen-dev-workflow/SKILL.md)：
    - STAGE 2 實作章節註記三態驗收契約。
-5. [`docs/brainstorm/2026-09-17-workflow-brainstorm.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/docs/brainstorm/2026-09-17-workflow-brainstorm.md)：
+5. [`docs/brainstorm/2026-09-17-workflow-brainstorm.md`](../brainstorm/2026-09-17-workflow-brainstorm.md)：
    - 將第七部分 §3.3 與 §5 建議借鏡表之 D3 項目狀態同步更新。
