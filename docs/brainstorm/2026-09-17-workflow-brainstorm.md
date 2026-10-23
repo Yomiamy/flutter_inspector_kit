@@ -2675,6 +2675,11 @@ verbosity、broken code、architectural decay。
 附帶一條可直接用的洞見：**coding standard 應由 review agent 背，不是 implementation agent 背**
 ——implementer 的 context 壓力最大（要探索、寫碼、debug），reviewer 只收 diff，壓力最小。
 
+> **✅ 已落地（2026-10-23，Issue #222）**：已建立獨立 `.claude/skills/retro/SKILL.md`，
+> 採用 `disable-model-invocation: true` 專供使用者在 session / PR / worktree 結束後調用；
+> 嚴格落實二分診斷樹（Mechanical 違規產出自動化檢查腳本，禁止塞進 prompt/rules；Judgement 項目才產出規範條款修訂建議）；
+> 並於 `gen-dev-workflow` STAGE 6 結尾提供 `/retro` 引導建議。
+
 #### 3.5 `writing-for-agents` 的雙預算模型
 
 - **context load**：常駐 context 的成本（skill description、CLAUDE.md 每一行，每輪都在燒）
@@ -2729,7 +2734,7 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 | 2 | **C2** `gen-dev-workflow` 改 user-invoked | frontmatter 加 `disable-model-invocation: true`，13 行 description 砍成 1 行 | 極低 | 提案 |
 | 3 | **C3** `.out-of-scope/` 拒絕決議 KB | 每個否決提案獨立一檔，STAGE 0a 先查 | 低 | 提案 |
 | 4 | **C4** STAGE 0a 前插 grilling 關卡 | 新增一問一答 skill，盤問到需求收斂才進 planner | 中 | ✅ 已完成（2026-09-18，PR #167）|
-| 5 | **C5** `retro` + mechanical/judgement 二分 | 加 retro skill；規則先問「能不能做成 lint/hook」，能就別寫進文件 | 中 | 提案 |
+| 5 | **C5** `retro` + mechanical/judgement 二分 | 加 retro skill；規則先問「能不能做成 lint/hook」，能就別寫進文件 | 中 | ✅ 已完成（2026-10-23，Issue #222） |
 | 6 | ~~**C6** coding standard 移交 reviewer~~ | ~~風格規則從 implementer 派發模板移到 verifier/reviewer~~ — ❌ 不排程（2026-09-25）：前提不成立。原構想借鑑人類團隊分工（developer 內化規範、reviewer 把關），但 LLM agent 無持久記憶——不在 context 裡 = 不存在。implementer 不載入 style guide 就會違反規範，reviewer 退回後重做的總 token 消耗反而更高。`always_on` 是正確選擇，implementer 需要在寫 code 的當下就知道規範，不能事後補救。PR #174 實測確認，已關閉 | ~~中~~ | ❌ |
 | 7 | **C7** negation → positive 重寫 | SKILL.md 裡「絕不 X」「禁止 X」改寫成正面目標 | 中 | 提案 |
 | 8 | **C8** 版號一致性自動檢查 | 一支 script 檢查 4 處版號（與 §8.5 的 B6 同源，已於 B6 完成） | 低 | ✅ 已完成（2026-09-24，PR #173）|
