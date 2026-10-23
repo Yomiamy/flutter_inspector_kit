@@ -35,14 +35,18 @@ echo "=== Test 2 (AC-2): each guard registered exactly once ==="
 # -S：兩邊 key 排序後再比，handler 內 key 順序不同不算差異。
 # arrays：事件或 hooks 被改成物件時 Claude Code 會拒載，這裡也要判失敗（物件會被 [] 迭代）。
 check_guard() {
-  local got want
-  got="$(jq -cS --arg e "$1" --arg m "$2" --arg c "$3" \
+  local got want event="$1" matcher="$2" cmd="$3"
+  got="$(jq -cS --arg e "$event" --arg m "$matcher" --arg c "$cmd" \
     '[(.hooks[$e] | arrays)[] | select(.matcher == $m) | (.hooks | arrays)[]
       | select(.command == $c)]' "$REPO_ROOT/$SETTINGS")" \
-    || fail "cannot query $1 / $2 in $SETTINGS"
-  want="$(jq -ncS --arg c "$3" '[{"type": "command", "command": $c}]')"
-  [ "$got" = "$want" ] || fail "$1 / $2 / $3 handlers: $got (expected exactly $want)"
-  echo "PASS: $1 / $2 / $3"
+    || fail "cannot query $event / $matcher in $SETTINGS"
+  if [ "$event" = "PreToolUse" ]; then
+    want="$(jq -ncS --arg c "$cmd" '[{"type": "command", "command": $c, "onFailure": "block"}]')"
+  else
+    want="$(jq -ncS --arg c "$cmd" '[{"type": "command", "command": $c}]')"
+  fi
+  [ "$got" = "$want" ] || fail "$event / $matcher / $cmd handlers: $got (expected exactly $want)"
+  echo "PASS: $event / $matcher / $cmd"
 }
 check_guard PreToolUse Agent "$STAGE_CHECK"
 check_guard PreToolUse mcp__gemini-cli__ask-gemini "$DELEGATE_CWD pre"
