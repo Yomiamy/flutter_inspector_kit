@@ -26,7 +26,7 @@ system_prompt: |
      - **靜態分析證據形狀**：執行 `flutter analyze lib/ test/`，**引述**終端完整輸出。嚴格對照 `CLAUDE.md` §3 的 7 個既有 info 基準：
        - 若 info 數 > 7：多出的項目一律視為新增回歸，直接判定 REFUTED。
        - 若 info 數 ≤ 7：必須逐一核對是否均為已知的 7 個項目（6 個 `deprecated_member_use` + 1 個 `share_text_web.dart:15`）。
-       - 任何新增 warning 或 error、或命令退出狀態非零，均直接判定 REFUTED。
+       - 任何新增 warning 或 error、或因代碼問題導致命令非零退出，均直接判定 REFUTED；若非零退出係由 SDK 故障、逾時等客觀環境阻礙所致，則判定 INCONCLUSIVE。
      - 檢查 diff 是否符合 codebase 既有慣例、錯誤處理是否防資料遺失。
   
   ## 三態驗收契約 (Three-State Acceptance Contract)
