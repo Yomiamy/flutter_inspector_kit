@@ -2817,10 +2817,12 @@ LLM 在具備 Subagent 能力後常出現「懶惰化派發」現象：連讀取
 都下意識啟動子進程，導致浪費數萬 Token 與數十秒的冷啟動延遲。
 現已於 `SKILL.md` 與 `delegation-and-parallel.md` 嵌入「派發煞車」硬門檻：規範單檔 ≤ 20 行且無公共 API 變更之微任務**必須留在主進程原地修改與跑測**，嚴禁派發子進程。
 
-#### 3.3 驗收三值契約 (`CONFIRMED / REFUTED / INCONCLUSIVE`)
+#### 3.3 驗收三值契約 (`CONFIRMED / REFUTED / INCONCLUSIVE`) — ✅ 已完成（2026-10-23 · Issue #218）
 現行 Verifier 報告常以長篇 Markdown 呈現，結論隱含在文字中，容易使主指揮產生誤判。
-pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代碼**（只做反駁與測試驗證），
-杜絕「球員兼裁判」與結論模糊。
+已於 `.claude/agents/verifier.md`、`.agents/agents/verifier.yaml`、`SKILL.md` 與 `delegation-and-parallel.md` 建立標準化三態契約：
+- **首行頂格輸出狀態前綴**：`CONFIRMED` / `REFUTED: <簡述>` / `INCONCLUSIVE: <簡述>`。
+- **三態語意標準**：`CONFIRMED` 需符合規格並引述測試全綠與分析基線數據；`REFUTED` 需附具體反駁證據；`INCONCLUSIVE` 表明非代碼之環境受阻，主流程自動同 tier 重試 1 次，仍未定則暫停求助人類。
+- **硬性角色邊界**：維持 `enable_write_tools: false`，嚴禁 Verifier 修改代碼，杜絕「球員兼裁判」與結論模糊。
 
 ### 4. 我們的關鍵優勢（他沒有的）
 
@@ -2839,7 +2841,7 @@ pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代
 |:---:|:---|:---|:---:|:---|
 | 1 | **D1** STAGE 0b Plan 機器對抗初審 (`plan-verifier`) | Plan 產出後、問人確認前，自動起獨立 Opus 審查資料結構與回滾邊界，輸出 `READY`/`REVISE` | 中 | ✅ 已完成（2026-09-27 · Issue #181） |
 | 2 | **D2** STAGE 2 引入「派發煞車」硬門檻 (`Dispatch Brake`) | 明定單檔 ≤ 20 行且無公共 API 變更之微任務強制主進程原地修改，不派發 subagent | 低 | ✅ 已完成（2026-10-01 · Issue #187） |
-| 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | 提案 |
+| 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | ✅ 已完成（2026-10-23 · Issue #218） |
 
 ### 6. 刻意不學（保持 Good Taste 的底線）
 
@@ -2849,4 +2851,4 @@ pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代
 | 放棄 Worktree 走向單一工作目錄 | 多任務並行與 PR Review 迭代時，實體 Worktree 是防止代碼污染的唯一正解。 |
 | 放棄狀態機走向純 Prompt 軟約束 | Prompt 的道德勸說在生產環境終會破防，作業系統級的 Exit 2 阻斷與磁碟原子狀態才是真防線。 |
 
-> **📌 D3 剩 1 項待優化提案（D1 於 2026-09-27、D2 於 2026-10-01 落地），落地後應即時回寫本表。**
+> **📌 D1–D3 建議借鏡項已全數落地完成（D1 於 2026-09-27、D2 於 2026-10-01、D3 於 2026-10-23 落地）。**
