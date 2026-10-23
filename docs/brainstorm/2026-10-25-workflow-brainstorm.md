@@ -1559,7 +1559,7 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 | **2** | **改寫機制 6 的理由**（R1） | 🔴 修正文件 | 極低 | 規則不動，理由從「能力不足」改為「同分佈熟悉度」。歪理由會導出錯誤簡化 |
 | **3** | 審查槓桿階層（原順位 1） | 🟢 新可學 | 極低 | 不變 |
 | **4** | context 主動巡航（原順位 2） | 🟢 新可學 | 低 | 不變 |
-| **5** | **改用 `SubagentStart` + 檢查 exit code**（R3/R4） | 🔴 修正實作 | 低 | `exit 1` 掛成 hook 無效；`SubagentStart` 可依 agent type 過濾，比手刻 payload 解析更穩 |
+| ~~**5**~~ | ~~**確立 Hook Fail-Closed 防禦與退出碼校驗（否決 SubagentStart 阻斷）**（R3/R4）~~ ✅ **已於 2026-10-23 完成** | 🔴 **修正實作** | 低 | 查證證實 `SubagentStart` 屬觀察型事件（exit 2 無法阻擋 subagent 啟動），正式否決改掛 SubagentStart；改為在 `.claude/settings.json` 為 PreToolUse 配置 `"onFailure": "block"` 達成 fail-closed，並強化測試斷言（Issue #220） |
 | ~~**6**~~ | ~~Guide→Sensor：委派 cwd（原順位 3）~~ ✅ **已於 2026-08-19 完成** | 🟢 新可學 | 中 | `wf-guard-delegate-cwd.sh`：pre 端檢查派發 prompt 是否含目標 worktree 絕對路徑，缺失/不符即 `exit 2` 阻擋；post 端以 git status 差集偵測目標 worktree 以外的寫入與新增 commit（只告警不阻斷）。⚠️ **R5 的擴大範圍未做**——偵測建立在 git status 上，只涵蓋主 repo 與已知 worktree，寫入非 git 位置仍偵測不到（該檔檔頭已載明屬另案）。該另案即 §W2，已於 2026-08-30 實查重新定性為 ⏸ 降級待命（Issue #152） |
 | **7** | anti-slop（原順位 4） | 🟡 條件性 | 低 | 不變 |
 
@@ -1657,9 +1657,14 @@ gdw 目前只用 `PreToolUse`。官方尚有：
 | 事件 | exit 2 的效果 | 對應我們的缺口 |
 |:---|:---|:---|
 | `Stop` | 阻止 Claude 停止，繼續對話 | 棘輪只防「未確認往前衝」，**沒防「stage 中途擅自收工」** |
-| `SubagentStart` | 依 **agent type** 過濾攔截 | 比在 PreToolUse 手刻 Task payload 解析更短、更不易失效 |
+| `SubagentStart` | 依 **agent type** 接收啟動上下文 | 純觀察型事件；**exit 2 無法阻斷啟動**（見下方實查校正） |
 | `TaskCompleted` | 阻止任務被標記完成 | 機制 8「回報不等於事實」的**事前阻擋**版（現行是事後 `git log` 偵測） |
 | `TeammateIdle` | 把要偷懶的 agent 叫回去 | — |
+
+> 🔍 **實查校正（2026-10-23 · 順位 5 落地查證）**：
+> 官方文件與社群實證指出，`SubagentStart` 屬於純觀察型（informational/contextual）事件，觸發於子進程啟動當下；其 exit 2 狀態碼或 JSON deny 決策會被 Claude Code runtime 忽略，**無法阻止 subagent 建立與執行**。
+> 若將守衛改掛到 `SubagentStart`，將導致 STAGE 5 防線全面失效。因此**正式否決「改掛 SubagentStart」的提案**，堅守 `PreToolUse(Agent)` 作為唯一且確定性的阻斷點。
+> 同時，針對 R3「退出碼與 fail-open」隱患，於 `.claude/settings.json` 為所有 PreToolUse 守衛加上 `"onFailure": "block"`，當 hook crash 或以非零碼退出時強制 fail-closed，完成確定性防禦閉環（Issue #220）。
 
 **⚠️ Stop hook 的逃生閥**：官方明載 Stop hook **連擋 8 次即被強制覆寫**，且須自行處理 `stop_hook_active` 否則無限迴圈。這反向驗證了我們走 shell 狀態機 + 檔案旗標的選型（天然免疫），但也說明**確定性 gate 必須有逃生閥**。
 
@@ -2918,6 +2923,7 @@ pilotfish v1.5.0（commit `44a2140`）透過 `benchmarks/effort-selection/` 實�
 | **STAGE 0a 解除 Haiku 封印（`scout` 偵察兵）** | **實用主義否決「偽效益 (False Economy)」，但隨 Haiku 5.5 實測數據精確化邊界**。<br>• **原判準（對跨模組架構探索仍成立）**：STAGE 0a 是整條流水線的根（Root），首端一旦漏查依賴或誤判型別契約，下游 Planner（即便用 Opus）也會產出錯誤計畫。<br>• **📌 2026-10-25 實測校準（上游 v1.4.2 → v1.4.3 #96 `168e5cd`）**：上游其實在 v1.4.2（`3bcefac`）也因幻覺報告一度將 `scout` 改回 Sonnet；直到 Claude Code ≥ 2.1.293 將 `haiku` 別名升級至 `claude-haiku-5-5` 後，上游建立 `benchmarks/scout-haiku-probe/`（20 道只讀 `Read/Glob/Grep` 定位題 × 2 輪）：**Haiku 5.5 在 `effort: low` 下拿到 40/40 全對、0 捏造行號**（反觀 Haiku 4.5 錯 2 題、Sonnet 5.5 `low` 錯 1 題，且調高 Haiku 5.5 effort 不增加準確率只耗時）。<br>• **我們的結論**：對於「已知符號或檔案路徑的純機械定位」，Haiku 5.5（`effort: low`）已具備實證可靠性；但本專案 STAGE 0a 的 `explorer` 同時承擔「既有覆蓋實查與跨檔案架構綜整」，仍維持 Sonnet 保底。 |
 | 放棄 Worktree 走向單一工作目錄 | 多任務並行與 PR Review 迭代時，實體 Worktree 是防止代碼污染的唯一正解。 |
 | 放棄狀態機走向純 Prompt 軟約束 | Prompt 的道德勸說在生產環境終會破防，作業系統級的 Exit 2 阻斷與磁碟原子狀態才是真防線。 |
+| **將阻斷守衛改掛 `SubagentStart`** | **實證否決「偽攔截 (False Interception)」**。官方文件與社群實證顯示 `SubagentStart` 是純觀察型生命週期事件，其 exit 2 退出碼與 deny 決策會被 Claude Code runtime 忽略，無法阻止 subagent 建立與執行。若盲目改掛，將使 STAGE 5 防線全面失效。堅守 `PreToolUse` 作為唯一阻斷點，並以 `"onFailure": "block"` 達成 fail-closed。 |
 
 > **📌 D1–D4 共 4 項：截至 2026-10-25 已完成 2 項（D1 於 2026-09-27、D2 於 2026-10-01 落地）、1 項 PR 審查中（D3，PR #219）、1 項為 2026-10-25 新增提案（D4）。**
 >
