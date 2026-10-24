@@ -127,7 +127,7 @@ U-8 當時選的替代方案是「掛載片段寫在 hook 腳本的註解裡，�
 
 #### Q-B：缺 python3 時的行為
 
-**結論：fail-open（不阻擋），但不靜默。** 守衛會失去作用，不會擋任何人的工具呼叫，而且每次觸發都會留下一行可見的 notice。
+**歷史結論（2026-10-15 實測，pre-PR #221）：fail-open（不阻擋），但不靜默。** 守衛會失去作用，不會擋任何人的工具呼叫，而且每次觸發都會留下一行可見的 notice。
 
 - 兩支腳本都以 bash 包 `python3 -c '...'`（stage-check `:13`、delegate-cwd `:35`），最後 `exit $?`（`:131`、`:390`）。
 - 實測 `PATH=/bin`（沒有 python3）：兩支都印出 `python3: command not found`，並以 **exit 127** 結束。
@@ -137,7 +137,7 @@ U-8 當時選的替代方案是「掛載片段寫在 hook 腳本的註解裡，�
 
 **對 AC 的影響**：這是既有行為，本需求**不改變**它，也不新增 AC 去改它。明確**不做**的兩件事：
 
-- 不設 `onFailure: "block"`：會讓沒裝 python3 的人無法派發任何 Agent。
+- 不設 `onFailure: "block"`：會讓沒裝 python3 的人無法派發任何 Agent。（**註：此決策已於 2026-10-23 被 Issue #220 / PR #221 取代**——為落實 fail-closed 確定性防禦，所有 PreToolUse 守衛均已配置 `"onFailure": "block"`，當 hook 因直譯器異常非零退出時強制阻斷，杜絕安全穿透。前提：`"onFailure": "block"` 需要 Claude Code v2.1.295 或更高版本支援；若環境使用更早版本，runtime 仍可能降級為 fail-open）。
 - 不在腳本加 `command -v python3 || exit 0` 靜默短路：那等於把「會出聲的失效」改回「靜默失效」，正好違背本需求要解決的問題。
 
 ---
@@ -192,7 +192,7 @@ U-8 當時選的替代方案是「掛載片段寫在 hook 腳本的註解裡，�
 - **`cbm-reindex-on-pr.sh`**：留在 local。
 - **`cbm-reindex-on-sync.sh`**：已追蹤，但 Claude Code 側沒有掛載，本次不處理。
 - **`.agents/hooks.json`**（Antigravity 側）：已進版控，不動。
-- **缺 python3 時的行為**：不加 `onFailure`，也不改腳本（§3.5 Q-B）。
+- **缺 python3 時的行為**：原定不加 `onFailure`（§3.5 Q-B 歷史紀錄）；已於 Issue #220 / PR #221 納入範疇並導入 `"onFailure": "block"`（需 CLI ≥ v2.1.295）。腳本本身維持不改。
 - **matcher 寫死委派通道名稱**的問題（architecture analysis「Hook 層脆弱」缺口 (2)）：另案處理。
 - **`settings.json` 的其他用途**（permissions、env、plugins 等）：YAGNI，本次只放守衛。
 - **brainstorm §8.2 B3 與 §8.5 的狀態回寫**：留到 STAGE 6。
@@ -206,7 +206,7 @@ U-8 當時選的替代方案是「掛載片段寫在 hook 腳本的註解裡，�
 | # | 風險 | 影響 | 緩解 |
 |:-:|:---|:---|:---|
 | R-1 | 進版控後所有 clone 者都會執行這些守衛 | 低 | §3.5 Q-A：fresh clone 沒有 state 檔，一律 exit 0；延遲在 60 ms 以內，而且只在特定 matcher 觸發 |
-| R-2 | 沒裝 python3 的貢獻者每次觸發都看到 hook error notice | 低 | 不阻擋任何動作；接受這個噪音，換取「缺依賴會出聲」（§3.5 Q-B） |
+| R-2 | 沒裝 python3 的貢獻者觸發守衛時 | 低（原為中） | 歷史上為僅出 notice 不阻擋；PR #221 配置 "onFailure": "block"（需 CLI ≥ v2.1.295）後改為強制阻斷，杜絕穿透（§3.5 Q-B） |
 | R-3 | 從 local 搬出時手誤（漏刪造成兩個不同 handler 雙跑，或連 cbm 一起刪掉） | 中 | AC-5、AC-6 手動確認 |
 | R-4 | 分支早於本變更的 worktree，其 checkout 沒有 `settings.json` | 低 | 目前 `git worktree list` 只有主 checkout；STAGE 1 的 worktree 從 main 分出，合併後新建的 worktree 都會有 |
 | R-5 | 有人把條目搬回 local，或改名、刪除腳本 | 中 | AC-1 至 AC-4 的測試立即失敗 |
