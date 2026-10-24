@@ -55,8 +55,9 @@ disable-model-invocation: true
 從三個管道收集本次開發發生的摩擦：
 1. **Git 軌跡**：
    - 明確指定待回顧的功能分支 `<branch>`（若當前分支已合併或已切回 `main`，請指定該 feature branch）與基準 base（預設為 `origin/main`；若無法確定基準，主動詢問使用者）。
-   - 執行 `git log -n 5 --oneline <branch>` 查看該分支最近提交。
-   - 執行 `git diff --stat <base>...<branch>` 檢視該分支相對於 base 的檔案異動範疇。
+   - 先確認 `<branch>` 與 `<base>` 只含 `A-Z a-z 0-9 . _ / -`；含其他字元時停止並詢問使用者。
+   - 執行 `git log -n 5 --oneline "<branch>" --` 查看該分支最近提交。
+   - 執行 `git diff --stat "<base>...<branch>" --` 檢視該分支相對於 base 的檔案異動範疇。
 2. **失敗與重試紀錄**：
    - 當前 session 曾出現的測試失敗（Red）、編譯報錯或 linter 警告。
    - Reviewer / Verifier 曾打回要求修正的意見。
