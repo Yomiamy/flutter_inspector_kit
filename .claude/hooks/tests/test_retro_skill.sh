@@ -7,7 +7,7 @@ WORKTREE_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 RETRO_CLAUDE="${WORKTREE_ROOT}/.claude/skills/retro/SKILL.md"
 RETRO_AGENTS="${WORKTREE_ROOT}/.agents/skills/retro/SKILL.md"
 WORKFLOW_SKILL="${WORKTREE_ROOT}/.claude/skills/gen-dev-workflow/SKILL.md"
-BRAINSTORM_DOC="${WORKTREE_ROOT}/docs/brainstorm/2026-09-17-workflow-brainstorm.md"
+BRAINSTORM_DOC="$(ls "${WORKTREE_ROOT}"/docs/brainstorm/*workflow-brainstorm.md 2>/dev/null | head -1)"
 
 echo "=== Running Retro Skill Verification Tests ==="
 
