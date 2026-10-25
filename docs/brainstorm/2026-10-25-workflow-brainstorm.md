@@ -3,6 +3,9 @@
 > **📝 合併紀錄**：
 > 本文件整併了 `2026-07-17` 與 `2026-07-30` 的腦力激盪記錄。依據時間軸與完成度，前半部記錄歷史遺留 Bug、流程漏洞的分析與修復；後半部基於系統穩固的基礎，進行開源多 Agent 框架的深度比對，並提出 2.0 架構的具體優化提案。
 >
+> **2026-10-25 新增第八部分（並完成 §2.7 / §5 / §6 / §7 四大上游最新版追蹤更新）**：**`cursor/plugins/pstack` (`poteto-mode`, v0.15.32 `9580c23`) 深度工程與跨模型對抗體系比對**。
+> 作者為 Lauren Tan（`@poteto`，Cursor 核心工程師、React Compiler 成員）。與前幾部分的差異：§5 addyosmani 比廣度與 CI 規範、§6 mattpocock 比前置需求對齊、§7 pilotfish 比單 session 微觀派發經濟學；§8 `pstack` 則是**「Go deep first, fearless parallelism, anti-slop & cross-model verification」**的實戰工程系統（1 路由入口 `/poteto-mode` + 23 playbooks + 34 situational skills + 24 principle skills）。提煉出 **E1–E9 共 9 項高投報可借鏡設計**（含 `correct` 四層防禦升級階梯 + 規則↔強制器配對表、`blast-radius` 單一安全事實 5 級實證階梯、`show-me-your-work` TSV 決策軌跡與跨模型 transcript 稽核、提問前經驗性分叉分類器與禁用 subagent resume、`attack-the-premise` 兩敗質疑前提熔斷律、`worktree-audit.sh` 唯讀 5 桶盤點、`bugbot-triage.md` 機器審查誤報模式庫等）。
+>
 > **2026-09-18 新增第六部分**：**mattpocock/skills 對齊型 Skill 體系比對**。
 > 與 §5 的差異：addyosmani 是「同構但更寬」，Pocock 是「**異構且更窄**」——
 > 幾乎不做流程強制（零 state、零 orchestrator hook），把全部賭注押在**開發啟動前的需求對齊**。
@@ -1455,6 +1458,18 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 - **⚠️ 特別說明**：**本 session 就載入了 superpowers**（見系統提示的 `using-superpowers`）。所以這不是「別人的做法」，而是我們**已在共用的基礎設施**。它與 `gen-dev-workflow` 的關係是互補：superpowers 管「流程紀律與 skill 選用」，`gen-dev-workflow` 管「六階段編排與狀態機」。
 - **佐證**：worktree 平行隔離、subagent 逐任務實作 + code review、TDD——三項我們都有，且是各自獨立收斂到同一答案。
 
+##### 📌 2026-10-25 追蹤更新（基準 `v6.3.0` `b36e082` [2026-08-12] → 最新 `v7.0.1` `2ce8aa1` [2026-10-21]）
+
+上游在 `v6.4.0`～`v7.0.1` 期間經歷兩次關鍵工程演進，且直接揭露本 repo 內 vendored 副本（`.claude/skills/`）的**兩項活體缺陷**與**兩項高投報可借鏡設計**：
+
+| 編號 | 項目（上游版本 / PR） | 核心機制與本專案實況核對 | 級別 / effort | 狀態 |
+|:---:|:---|:---|:---:|:---|
+| **S1** | **Compaction 20,000 字元截斷防線**（`v7.0.1` · #2481 / #2565） | Claude Code 在觸發對話壓縮（compaction）後重掛已呼叫的 skill 時，**會在 20,000 字元處硬截斷**，尾部規則在剩餘 session 中永久消失（上游實測 `subagent-driven-development` 因此遺失尾部的「最多 5 輪修復上限」而鬼打牆 18 輪）。上游將條件式段落抽入 `references/` 並新增 `tests/skill-size/test-skill-size.sh` 強制 `SKILL.md < 20,000 bytes`。<br>🔴 **本地實況**：本 repo vendored 副本仍停在 v6.3.0——`.claude/skills/subagent-driven-development/SKILL.md` 高達 **32,339 bytes（32,120 chars）**、`.claude/skills/writing-skills/SKILL.md` 達 **26,360 bytes（26,260 chars）**，一旦觸發 compaction 尾部規則必遭腰斬；另 `.claude/skills/gen-dev-workflow/SKILL.md` 為 **22,084 bytes（12,648 chars）**（字元數安全但 byte 數超標）。應同步上游瘦身並將 `< 20,000 chars/bytes` 納入 §8.2 A1 skill linter。 | 🔴 P1（既有隱患） / 低 | 提案 |
+| **S2** | **Skill 內文 `$1` 參數展開污染修補**（`v7.0.0` · #2311 / #2361） | Claude Code 載入 skill 時會將內文中未跳脫的 `$1` 替換為呼叫該 skill 的第一個位置參數，導致嵌在 skill 內的 `awk '{print $1}'` 被展開成壞語法或空字串。上游已改用 `cut -d' ' -f1`。<br>🔴 **本地實況（活 Bug）**：`.claude/skills/requesting-code-review/SKILL.md:55` 仍寫著 `BASE_SHA=$(git log --oneline \| grep "Task 1" \| head -1 \| awk '{print $1}')`，帶參數呼叫時必壞。應立即改為 `cut -d' ' -f1` 並由 A1 skill linter 掃描禁用未防護的 `$1`。 | 🔴 P1（活 Bug） / 極低 | 提案 |
+| **S3** | **`writing-plans` 決策導向精簡計畫 + `Review Focus` 段落**（`v6.4.1` #2319 / `v6.4.2` #2333） | 上游實測發現：在 plan 中預寫完整實作程式碼會浪費大量規劃時間與 token；改為**只寫確切函式簽章、型別、測試斷言與規格常數**（搭配「plan 長度 vs spec 長度」比例自審），規劃時間降至 **1/4**、token 降至 **1/3**，且在植入缺陷探針測試中與完整代碼計畫同拿 **9/9 滿分**。另新增 **`Review Focus`** 段落：列出最多 5 個「規格隱含但無任何 task 測試覆蓋的輸入或失效模式」，強制綁定回具體 task 測試。可直接同步至本地 `.claude/skills/writing-plans/SKILL.md` 與 `planner.md`。 | 🟢 P2 / 低 | 提案 |
+| **S4** | **`diagnosing-superpowers` 磁碟軌跡事後診斷**（`v6.4.1` · #2236 / #2287） | 新增專用診斷 skill，直接讀取 `~/.claude/projects/` 下的 session JSONL 歷史軌跡，透過 10 個結構化分析維度（`cost-and-time`、`plan-adherence`、`quality-evidence`、`repeated-work`、`stumbles` 等）提取附帶 `path:line` 的客觀證據——這是本文件 **§3.6 R9（稽核系統側錄的軌跡，而非 agent 自述）** 的完整開源實作，可作為 C5 `retro` 的進階數據源。 | 🟢 P2 / 中 | 提案 |
+| **S5** | **TDD 反藉口表（Rationalization Table）內聯論證**（`v7.0.0` · #2489） | 上游在精簡 `test-driven-development/SKILL.md` 時發現：直接刪掉反駁散文會讓高壓情境下的測試先行合規率從 **8/10 暴跌至 5/10**；改將 5 條核心論證壓縮進表格列內，既省下 45 行又保住抗壓合規率。這為後續執行 **§6.5 C7（精簡 SKILL.md 負向規則）** 提供了關鍵實驗邊界：**可砍散文贅字，不可刪抗壓反駁理由**。 | 🔵 設計守則 | 佐證 |
+
 #### 2.8 🔴 反方立場：Just Talk To It — Peter Steinberger
 
 - **來源**：<https://steipete.me/posts/just-talk-to-it>
@@ -2511,15 +2526,35 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **落地產物**：`docs/features/2026-10-01-align-model-tiers-remove-effort.md`、`docs/plans/2026-10-01-align-model-tiers-remove-effort.md`、`.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`、`.claude/skills/gen-dev-workflow/references/workflow-parallel.md`、`.claude/skills/gen-dev-workflow/references/command-cheatsheet.md`、`.claude/skills/gen-dev-workflow/references/execution-modes.md`、`.claude/skills/gen-dev-workflow/SKILL.md`。
 
 > 📌 **事實在案補記（2026-10-03 · 詳見 [`docs/orchestration-model-effort-analysis.md`](../architecture/orchestration-model-effort-analysis.md)）**：
-> 1. **上游實況查證**：經查證 Claude Code 官方文檔，Subagent YAML Frontmatter 支援 `effort`（可覆蓋主對話 session 值）；當前 CLI 工具派發介面未支援執行期 `effort` 參數傳遞。
+> 1. **上游實況查證**：經查證 Claude Code 官方文檔，Subagent YAML Frontmatter 支援 `effort`（可覆蓋主對話 session 值）；當時 CLI 工具派發介面未支援執行期 `effort` 參數傳遞。**（2026-10-25 校正：Claude Code ≥ 2.1.292 已於 `Agent` 工具新增執行期 `effort` 參數，詳見 §7.5 D4 與 `pilotfish` v1.5.0 實測數據。）**
 > 2. **重構建議**：應修復 `a6fcd29` 的誤殺，重新將 `effort: xhigh` 與 `effort: max` 宣告回 `.claude/agents/*.md` frontmatter；同時於 PreToolUse Hook（`wf-guard-stage-check.sh`）建立計算式 Sensor，當偵測環境停用 thinking 時主動降級，根治 400 風險。
 
 
-##### 🟢 A1. skill frontmatter linter（P2）
+##### 🟢 A1. skill frontmatter linter（P2 · 2026-10-25 隨上游演進擴充規格）
 
 - **現況（2026-09-25 校正）**：`gen-rn-br/SKILL.md` 的 frontmatter 缺失**已於 2026-09-11 修復**（commit `f585027`，補上 `name` / `description`），個案不再中招。但此修復為手動一次性補正，**專案仍無系統性結構檢查**——58 個 skill 中若有其他缺漏仍會靜默失效、無任何訊號。本提案的價值由「修單檔」轉為「常態防線」。
-- **改法**：約 40 行 shell，只查三件事：SKILL.md 存在、frontmatter 可解析且 `name`/`description` 俱在、`name` 與目錄名相符。掛進 Makefile（已有 `analyze_lint` / `format` / `fix`）。
+- **2026-10-25 上游演進補強（`addyosmani/agent-skills` `0.6.13` `aeac41d` + `mattpocock/skills` #911 + `superpowers` `v7.0.1`）**：
+  - 上游 `scripts/lib/skill-lint.js` 新增了 `lintPersonaContent`（`92101ae`，檢查 `agents/*.md` 的 frontmatter `name` 必須與檔名 stem 一致且含 `description`）、修補 YAML 註解與巢狀 key 解析（`1ab25ea`），並新增 `scripts/validate-reference-links.js`（檢查 skill 內部相對路徑與 markdown anchor 是否斷鏈，正好能擋下本文件 §W3 的斷鏈問題）。
+  - `mattpocock/skills`（`4f28947`）更實際踩到 YAML frontmatter `description` 含未加引號的 `: ` 導致 6 個 skill 靜默解析失敗。
+- **改法（整合版，約 60 行 shell）**：掛進 `Makefile` 與 `tests/`，一次鎖死五條硬不變式：
+  1. `.claude/skills/*/SKILL.md` 與 `.claude/agents/*.md` 皆存在合法 YAML frontmatter（阻擋未加引號 `: ` 等語法錯誤），且 `name`/`description` 非空、`name` 與目錄/檔名相符。
+  2. `SKILL.md` 內部引用的相對路徑（如 `references/*.md`、腳本路徑）在磁碟上真實存在（防斷鏈）。
+  3. `SKILL.md` 字元數/位元組數 `< 20,000`（防 Claude Code compaction 腰斬，見 §2.7 S1）。
+  4. `SKILL.md` 內禁止未防護的 `awk '{print $1}'` 等位置參數展開陷阱（見 §2.7 S2）。
+  5. `disable-model-invocation: true` 的 skill 不得被其他 skill 以 `Skill` 工具呼叫（見 §6.5 C2）。
 - **不抄**：上游 275 行版本的 required-sections（Overview/When to Use/Rationalizations/Red Flags/Verification）與豁免清單。我們沒有統一段落模板，為餵飽 linter 去發明一個再回改 58 個檔是本末倒置。
+
+##### 🟢 A5. `constraint-driven-development` 之 `floor-guard` Diff 降標感測器（P2 · 2026-10-25 新增）
+
+- **來源**：上游 `v0.6.13` 新增 `skills/constraint-driven-development/SKILL.md` 與 `references/floor-guard.md`（附 291 行契約測試 `scripts/floor-guard-reference-test.js`）。
+- **核心設計（"Tightening is silent, loosening is loud"）**：不靠散文勸說，直接對 `git diff merge-base` + `untracked files` 執行確定性掃描，專抓 AI Agent 為求綠燈而偷降標準的 **5 種作弊動作**：
+  1. 測試弱化：新增 `.skip`（在 Dart 即 `skip:` 參數）、刪除既有 `*_test.dart` 檔案、或保留測試但拔掉 `expect(...)` 斷言。
+  2. 靜默檢查器：在 diff 新增 linter 抑制註解（在 Dart 即 `// ignore:` 或 `// ignore_for_file:`）。
+  3. 半成品殘留：新增未實作 stub（`UnimplementedError` / `TODO`）或空 `catch` 區塊。
+  4. 調降門檻值或私自新增豁免列。
+  5. 退出碼遵循 fail-closed：`0` 乾淨、`1` 抓到降標違規、`2` 無法取得 merge-base（嚴禁把 `2` 當 `0` 放行）。
+- **為何值得借鏡**：這直接把 **§2.3 Kent Beck 抓到的「agent 刪測試/改弱測試作弊」** 轉化為 **§2.6 Böckeler 的計算式 Sensor**！本專案雖有 Verifier 跑 `flutter test` 與核對 `flutter analyze` 的 7-info 基線（A2），但若 Implementer 在代碼塞入 `// ignore: ...` 或在測試加上 `skip: true`，`flutter analyze` 與 `flutter test` 表面數字依然全綠，A2 的數量核對抓不到。
+- **改法**：在 STAGE 2/3 驗收腳本或 `verifier.md` 的機械檢查步驟加入一段 20 行 diff-scoped 掃描（檢查 `git diff` 新增行是否含 `// ignore:`、`// ignore_for_file:`、`skip:`、刪除 `test/` 下檔案或減少 `expect(` 次數），抓到即強制顯式列出並要求說明理由。
 
 ##### 🟢 A2. verifier 加「證據形狀」（P2）— ✅ 已完成（2026-09-27，Issue #179）
 
@@ -2577,12 +2612,19 @@ Ponytail 判準：**刪除優先**——先確認近期是否用過，沒用過�
 | 3 | **B3** 專案層 settings.json | 守衛在 clone 後靜默失效 | 極低 | ✅ 已完成（2026-10-15，Issue #202 / PR #203） |
 | 4 | **B2** total_tasks 閘門 | 移除假保護（活化或刪除，別留半殘） | 低 | ✅ 已完成（2026-10-01，Issue #183） |
 | 5 | **B5** effort 分層表 | 恢復 Agent frontmatter 的 effort 設定，並確立其會覆蓋 session | 低 | ✅ 已完成（2026-10-01，Issue #185 / 修正於 PR #189） |
-| 6 | A1 skill linter | 已知 1 檔中招，寫一次永久擋住 | 低 | 提案 |
+| 6 | **A1** skill/agent 結構與斷鏈 linter | 已知多起案例（缺 frontmatter、未引號冒號、斷鏈、`>20k` 腰斬、未跳脫 `$1`），寫一次永久擋住 | 低 | 提案（2026-10-25 擴充為 5 條硬不變式） |
 | 7 | A2 verifier 證據形狀 | 把「態度嚴格」補成「證據可查」 | 極低 | ✅ 已完成（2026-09-27，Issue #179） |
 | 8 | **A3** lens 特徵判準 | 廢除純行數一刀切，特徵驅動衛語句 + 主審兜底 | 極低 | ✅ 已完成（2026-09-26，Issue #175） |
+| 9 | **A5** `floor-guard` Diff 降標感測器 | 掃描 `git diff` 抓測試 `skip:`、刪測試檔、拔斷言與新增 `// ignore:`（2026-10-25 新增） | 低 | 提案 |
 
-> **📌 8 項截至 2026-10-15 已完成 7 項（B6, A3, A2, B1, B2, B5, B3），其餘 1 項（A1）仍是提案。**
+> **📌 9 項截至 2026-10-25 已完成 7 項（B6, A3, A2, B1, B2, B5, B3），其餘 2 項（A1, A5）為提案。**
 > 任一項落地後應立即回寫本表，避免重蹈 §5 的 7 次狀態漂移。
+>
+> **📌 2026-10-25 追蹤更新（基準 `510259a` [2026-09-16] → 最新 `v0.6.13` `aeac41d` [2026-10-13]，+188 commits）**：
+> 1. **新增 `constraint-driven-development` 與 `references/floor-guard.md`**：提供 diff-scoped 降標感測器參考實作與契約測試（已收錄為上方 **A5**）。
+> 2. **Skill / Persona Linter 擴充**：`scripts/lib/skill-lint.js` 新增 `lintPersonaContent`（驗證 `agents/*.md` frontmatter 與 `## Composition` 段落）、`lintSkillLayout`（禁空目錄與非 kebab-case 附屬檔）、修補 YAML 註解與巢狀 key 解析（`1ab25ea`），並新增 `scripts/validate-reference-links.js`（360 行內部連結與 anchor 檢查）與 `scripts/validate-artifact-paths.js`（已併入 **A1** 規格）。
+> 3. **Context Diet（`references/` 拆分）**：`performance-optimization/SKILL.md`（-273 行 → `references/optimization-patterns.md`）與 `security-and-hardening/SKILL.md`（-480 行 → `references/hardening-patterns.md`）大幅瘦身，印證主 `SKILL.md` 保持精簡、長篇目錄下放 `references/` 的趨勢。
+> 4. **评测防造假與嚴重度對齊**：`scripts/run-evals.js`（`7abea51`）強制拒絕空白的評分證據（non-blank grading evidence）；`/review` 與 `/test` 明確定義於主對話執行並統一審查嚴重度標籤（`Critical / Required / Optional / Nit`，`2bdbe1f`）。
 
 ---
 
@@ -2649,10 +2691,14 @@ verbosity、broken code、architectural decay。
 > 故短路條件只跳過前四項，**既有覆蓋實查一律要跑**。
 > 此關卡不是暫停點，也不動狀態機轉移表（維持 `0a→0b→1→2→3→4`）。
 
-#### 3.2 `CONTEXT.md` 領域語言（ubiquitous language）
+#### 3.2 `CONTEXT.md` → `GLOSSARY.md` 領域語言（ubiquitous language · 2026-10-25 隨上游 v1.3.0 更名更新）
 
 把專案黑話寫成單一詞彙表。他舉的例：不寫「課程裡的章節中的課程被實體化時」，
 而寫 "the materialization cascade"。既省 token 又讓命名一致。
+
+- **📌 2026-10-25 上游演進（`v1.3.0` · PR #1120 · commit `006a52b` / `d80fa0f`）**：上游已將全 repo 11 個 skill 中的 `CONTEXT.md` 全面更名為 **`GLOSSARY.md`**（多 bounded context 專案則搭配根目錄 `GLOSSARY-MAP.md`），並將格式規範定名為 `GLOSSARY-FORMAT.md`。原因極具好品味：`CONTEXT.md` 極易與 LLM 的 Context Window 或框架的 `BuildContext` 混淆，`GLOSSARY.md` 一眼即知是領域詞彙表。其標準條目格式為：
+  - `**Term**: 1-2 sentences — opinionated, concrete, grounded in domain intent.`
+  - `_Avoid_: "synonym1", "synonym2"`（明確列出禁止混用的同義詞黑名單）。
 
 **我們的材料已存在但散落**：`mergedTimeline` 歸併、緩衝型 vs 即時查詢型分流、
 `onMutate` → `revision` 唯一變更通道、鏈推斷 vs 點查詢——散在 CLAUDE.md 與
@@ -2725,16 +2771,20 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 
 | 順位 | 借鏡項 | 做法 | effort | 狀態 |
 |:---:|:---|:---|:---:|:---|
-| 1 | **C1** `CONTEXT.md` 領域詞彙表 | repo 根目錄新建一頁，收攏 `mergedTimeline`／緩衝型 vs 即時查詢型／`onMutate` 唯一變更通道／鏈推斷 等既有黑話 | 低 | 提案 |
-| 2 | **C2** `gen-dev-workflow` 改 user-invoked | frontmatter 加 `disable-model-invocation: true`，13 行 description 砍成 1 行 | 極低 | 提案 |
-| 3 | **C3** `.out-of-scope/` 拒絕決議 KB | 每個否決提案獨立一檔，STAGE 0a 先查 | 低 | 提案 |
+| 1 | **C1** `GLOSSARY.md` 領域詞彙表（原 `CONTEXT.md`） | repo 根目錄新建 `GLOSSARY.md`（隨上游 v1.3.0 `006a52b` 更名，避免與 Context Window 混淆），採 `**Term**: 定義` + `_Avoid_: 禁用同義詞` 格式，收攏 `mergedTimeline`／緩衝型 vs 即時查詢型／`onMutate` 唯一變更通道／鏈推斷 等既有黑話 | 低 | 提案（2026-10-25 隨上游更名校準） |
+| 2 | **C2** `gen-dev-workflow` 改 user-invoked + 跨 skill 呼叫不變式 | frontmatter 加 `disable-model-invocation: true`，13 行 description 砍成 1 行；同時遵守上游 PR #878 / #880 不變式：model-invoked skill 統一以 `Call the Skill tool with "<name>"` 顯式觸發，且**嚴禁任何 skill 透過 Skill tool 呼叫 `user-invoked` skill** | 極低 | 提案（2026-10-25 擴充不變式） |
+| 3 | **C3** `.out-of-scope/` 拒絕決議 KB | 每個否決提案獨立一檔，STAGE 0a 先查（上游新增 `.out-of-scope/subagent-recursion.md` `4d04daa` 與 `lazy-load-writing-for-agents.md` `8267225` 為範例） | 低 | 提案 |
 | 4 | **C4** STAGE 0a 前插 grilling 關卡 | 新增一問一答 skill，盤問到需求收斂才進 planner | 中 | ✅ 已完成（2026-09-18，PR #167）|
-| 5 | **C5** `retro` + mechanical/judgement 二分 | 加 retro skill；規則先問「能不能做成 lint/hook」，能就別寫進文件 | 中 | 提案 |
+| 5 | **C5** `retro` + mechanical/judgement 二分 | 加 retro skill（上游 v1.3.0 `2aecca1` 已正式畢業入列 `engineering/` 並接在 `code-review` 後）；規則先問「能不能做成 lint/hook」，能就別寫進文件 | 中 | 🟡 PR 審查中（Issue #222 / PR #223） |
 | 6 | ~~**C6** coding standard 移交 reviewer~~ | ~~風格規則從 implementer 派發模板移到 verifier/reviewer~~ — ❌ 不排程（2026-09-25）：前提不成立。原構想借鑑人類團隊分工（developer 內化規範、reviewer 把關），但 LLM agent 無持久記憶——不在 context 裡 = 不存在。implementer 不載入 style guide 就會違反規範，reviewer 退回後重做的總 token 消耗反而更高。`always_on` 是正確選擇，implementer 需要在寫 code 的當下就知道規範，不能事後補救。PR #174 實測確認，已關閉 | ~~中~~ | ❌ |
-| 7 | **C7** negation → positive 重寫 | SKILL.md 裡「絕不 X」「禁止 X」改寫成正面目標 | 中 | 提案 |
+| 7 | **C7** negation → positive 重寫 | SKILL.md 裡「絕不 X」「禁止 X」改寫成正面目標（結合 §2.7 S5：可砍散文贅字，但須保留抗壓反駁理由於表格內） | 中 | 提案 |
 | 8 | **C8** 版號一致性自動檢查 | 一支 script 檢查 4 處版號（與 §8.5 的 B6 同源，已於 B6 完成） | 低 | ✅ 已完成（2026-09-24，PR #173）|
 | 9 | **C9** 核心 skill 補 `agents/openai.yaml` | 目前 61 個 skill 僅 5 個有（branch-diff-code-review、branch-ticket-issue-doc、branch-ticket-solution-advisor、issue-spec-prep、gen-dev-worktree），gen-dev-workflow 本體無 | 中 | 提案 |
 | 10 | **C10** `wayfinder` fog of war | 超大需求用 issue tracker 當地圖、decision ticket 逐一解 | 高 | 提案 |
+| 11 | **C11** `grilling` 預設同意問法（Yes-default framing） | 上游 `95249b0` / `85f83d3`：問題措辭設計成**使用者回 `yes` 即直接採納推薦選項 `➡️`**，且多題/追問以 `---` 分隔。補 2 行至 `.claude/skills/gen-grill/SKILL.md` | 極低 | 提案（2026-10-25 新增） |
+| 12 | **C12** `diagnosing-bugs` 強制突變 diff 證明與敏感資訊遮罩 | 上游 `f3fc563` / `efce423`：若為重現紅燈而手動改壞代碼或 fixture，**必須先與乾淨版本 `diff` 證明突變確實落地**才信紅燈；擷取 log 寫入報告時強制將 secret 遮罩為 `<REDACTED>` | 極低 | 提案（2026-10-25 新增） |
+| 13 | **C13** `tdd` 測試接縫（Seam）雙向標註 | 上游 `3f59913`：提議測試邊界時，每個 seam 強制附一行**「能抓到什麼／會漏掉什麼（what it catches and what it misses）」**，消滅「有寫測試但測錯層」的盲區 | 極低 | 提案（2026-10-25 新增） |
+| 14 | **C14** `chief-of-staff` 歷史事實標記紀律（消滅狀態欄漂移） | 上游 `5beb35b`：**"Write history, not the present: never write 'currently', 'now' or 'is' about code without a date or commit beside it."** 強制所有架構與腦力激盪文件描述程式碼現況時必帶日期或 `commit SHA`，從根源根治本文件累計發生 7 次的「狀態欄漂移」 | 極低 | 提案（2026-10-25 新增） |
 
 > **⚠️ C9 的命名陷阱**：`skills/<name>/agents/openai.yaml` 是**該 skill 的 Codex UI metadata**
 > （`interface.display_name`／`short_description`／`policy.allow_implicit_invocation`），
@@ -2745,13 +2795,20 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 
 | 上游有、我們不採用 | 理由 |
 |:---|:---|
-| prose-only 流程強制 | 我們的腳本棘輪嚴格更強，採用等於**退化** |
+| prose-only 流程強制 | 我們的腳本棘輪嚴格更強，採用等於**退化**（上游 `.out-of-scope/subagent-recursion.md` `4d04daa` 亦正式承認：阻止 subagent 遞迴是 harness 的責任，不該靠 skill 散文約束） |
 | `handoff` 寫到 /tmp 靠人工轉貼 | 我們的 state 檔 + jump mode 是上位替代 |
 | 無 worktree 隔離 | 我們的並行隔離是硬需求，不可回退 |
 | issue tracker 當 wayfinder 地圖（全面採用） | 本專案單人單 repo，C10 僅在真遇到超大需求時才值得 |
+| 專用 `resolving-merge-conflicts` skill | 上游於 `daa01d8` 自行刪除該 skill，證實原生 agent 即可處理 git merge 衝突，無須浪費專屬 skill |
 
-> **📌 C1–C10 共 10 項，截至 2026-09-24 已完成 2 項（C4, C8/B6），其餘 8 項仍是提案。**
+> **📌 C1–C14 共 14 項，截至 2026-10-25 已完成 2 項（C4, C8/B6）、1 項不排程（C6）、1 項 PR 審查中（C5，PR #223），其餘 10 項為提案（含 2026-10-25 新增之 C11–C14）。**
 > 任一項落地後應立即回寫本表。C8 與 §8.5 的 B6 同源，已於 2026-09-24 透過 PR #173 合併落地完成。
+>
+> **📌 2026-10-25 追蹤更新（基準 `c55ee46` [2026-09-18] → 最新 `v1.3.1` `5beb35b` [2026-10-19]，+74 commits）**：
+> 1. **`CONTEXT.md` 全面更名為 `GLOSSARY.md` / `GLOSSARY-MAP.md`**（v1.3.0 PR #1120 `006a52b`）：已同步更新上方 §6.3.2 與 **C1**。
+> 2. **`retro`、`pr`、`implement-spec` 正式畢業移入 `engineering/`**（v1.3.0 `2aecca1`，v1.3.1 PR #1121 將 `retro` 串入 `code-review` 與 `diagnosing-bugs` 收尾），並刪除多餘的 `resolving-merge-conflicts`（`daa01d8`）。
+> 3. **跨 Skill 呼叫語法與 User-Invoked 邊界鎖定**（PR #878 `e3e547b`、PR #880 `1dab982`）與 **YAML Frontmatter 冒號解析踩坑**（PR #911 `4f28947`）：已同步併入 **C2** 與 **§8.2 A1**。
+> 4. **四項極低成本微設計（C11–C14）**：從 `grilling`、`diagnosing-bugs`、`tdd` 與新增之 `chief-of-staff` 提煉入表。
 >
 > **C4 的落地形式與原提案有出入**：實作前實查證偽了「需缺一問一答機制」這個前提——
 > `brainstorming` 早已具備一次一問的提問紀律，真正的缺口是 `gen-dev-workflow` 對它**零引用**。
@@ -2817,10 +2874,17 @@ LLM 在具備 Subagent 能力後常出現「懶惰化派發」現象：連讀取
 都下意識啟動子進程，導致浪費數萬 Token 與數十秒的冷啟動延遲。
 現已於 `SKILL.md` 與 `delegation-and-parallel.md` 嵌入「派發煞車」硬門檻：規範單檔 ≤ 20 行且無公共 API 變更之微任務**必須留在主進程原地修改與跑測**，嚴禁派發子進程。
 
-#### 3.3 驗收三值契約 (`CONFIRMED / REFUTED / INCONCLUSIVE`)
+#### 3.3 驗收三值契約 (`CONFIRMED / REFUTED / INCONCLUSIVE`) — 🟡 PR 審查中（Issue #218 / PR #219）
 現行 Verifier 報告常以長篇 Markdown 呈現，結論隱含在文字中，容易使主指揮產生誤判。
 pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代碼**（只做反駁與測試驗證），
 杜絕「球員兼裁判」與結論模糊。
+
+#### 3.4 逐次派發動態 `effort` 覆寫 + Reviewer 下限鎖定（Floor）+ `"Explicit instruction:"` 觸發前綴（2026-10-25 新增 · 上游 v1.5.0 #98）
+Claude Code ≥ 2.1.292 在 `Agent` 工具新增了執行期 `effort` 參數（修正本文件 §8.2 B5 於 2026-10-03 記錄「CLI 不支援執行期 `effort` 參數」之歷史限制）。
+pilotfish v1.5.0（commit `44a2140`）透過 `benchmarks/effort-selection/` 實測揭露三個關鍵事實：
+1. **工具描述閘門（Prompt Gate）**：因為 Claude Code 內建 `Agent` 工具說明寫著「僅在明確指示時才傳遞 `effort`」，一般策略句子只讓主模型在 **1/14** 次派發中帶上 `effort`；但只要加上字面錨點 `"Explicit instruction: on each <role> call pass Agent effort per task difficulty/ambiguity/risk; role effort=default; floor: verifiers medium, security-reviewer high"`，觸發率立刻從 1/14 躍升至 **16/16（Plugin）與 17/17（Template）**。
+2. **Reviewer 下限鎖定（Reviewer Floor）**：允許主指揮依任務難度動態調整 executor 的 `effort`，但對審查角色強制鎖死下限（`verifier` / `plan-verifier` ≥ `medium`、`security-reviewer` ≥ `high`），防止主指揮為省錢把驗收守門員一起降智。
+3. **A/B 成本效益實測**：在 40 題 Aider Polyglot + 20 題 SWE-bench Verified 中等難度題目上，動態 `effort` 與固定 frontmatter 預設值同為 **55/60** 通過、成本僅差 **1.1%**——證明 **Agent frontmatter 預設值（§8.2 B5）已吃下 99% 基本盤**，動態 `effort` 僅需作為極簡單/極高風險任務的微調手段。
 
 ### 4. 我們的關鍵優勢（他沒有的）
 
@@ -2833,20 +2897,135 @@ pilotfish 強制 Verifier 以三值狀態開頭，且**嚴禁 Verifier 修改代
 4. **全生命週期閉環**：涵蓋需求盤問（Grill）、任務拆分、TDD 實作、五視角審查、PR 產出、
    PR Review 意見自動回覆（Stage 5）與合併後 Worktree 清理與文件回寫（Stage 6）。
 
-### 5. 建議借鏡（待優化項目，D1–D3）
+### 5. 建議借鏡（待優化項目，D1–D4）
 
 | 順位 | 借鏡項 | 做法 | effort | 狀態 |
 |:---:|:---|:---|:---:|:---|
 | 1 | **D1** STAGE 0b Plan 機器對抗初審 (`plan-verifier`) | Plan 產出後、問人確認前，自動起獨立 Opus 審查資料結構與回滾邊界，輸出 `READY`/`REVISE` | 中 | ✅ 已完成（2026-09-27 · Issue #181） |
 | 2 | **D2** STAGE 2 引入「派發煞車」硬門檻 (`Dispatch Brake`) | 明定單檔 ≤ 20 行且無公共 API 變更之微任務強制主進程原地修改，不派發 subagent | 低 | ✅ 已完成（2026-10-01 · Issue #187） |
-| 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | 提案 |
+| 3 | **D3** Verifier 驗收契約標準化為三值狀態 | 規範 STAGE 2/3 Verifier 必須以 `CONFIRMED / REFUTED / INCONCLUSIVE` 開頭且嚴禁修改代碼 | 低 | 🟡 PR 審查中（Issue #218 / PR #219） |
+| 4 | **D4** `Agent` 執行期 `effort` 動態覆寫 + Reviewer 下限鎖定（Floor） | 在 `delegation-and-parallel.md` 補充 Claude Code ≥ 2.1.292 之 `Agent` runtime `effort` 觸發句式（`"Explicit instruction: ..."`）與 Verifier/Reviewer 不可降級之 Floor 鐵律（2026-10-25 新增） | 極低 | 提案 |
 
 ### 6. 刻意不學（保持 Good Taste 的底線）
 
 | 上游有、我們不採用 | 理由 |
 |:---|:---|
-| **STAGE 0a 解除 Haiku 封印（`scout` 偵察兵）** | **實用主義否決「偽效益 (False Economy)」**。STAGE 0a 是整條流水線的根（Root），Haiku 錯誤自我修正差、缺乏深層語意邊界推斷能力，需要極度繁複的 fallback prompt「伺候」。首端一旦漏查依賴或誤判型別契約，送入有缺陷的事實，下游 Planner（即便用 Opus）也會產出錯誤計畫，導致 STAGE 2/3 頻繁退回重做。「在首端省錢，是全系統最貴的省錢方式」，堅守 Sonnet/Opus 高可信度。 |
+| **STAGE 0a 解除 Haiku 封印（`scout` 偵察兵）** | **實用主義否決「偽效益 (False Economy)」，但隨 Haiku 5.5 實測數據精確化邊界**。<br>• **原判準（對跨模組架構探索仍成立）**：STAGE 0a 是整條流水線的根（Root），首端一旦漏查依賴或誤判型別契約，下游 Planner（即便用 Opus）也會產出錯誤計畫。<br>• **📌 2026-10-25 實測校準（上游 v1.4.2 → v1.4.3 #96 `168e5cd`）**：上游其實在 v1.4.2（`3bcefac`）也因幻覺報告一度將 `scout` 改回 Sonnet；直到 Claude Code ≥ 2.1.293 將 `haiku` 別名升級至 `claude-haiku-5-5` 後，上游建立 `benchmarks/scout-haiku-probe/`（20 道只讀 `Read/Glob/Grep` 定位題 × 2 輪）：**Haiku 5.5 在 `effort: low` 下拿到 40/40 全對、0 捏造行號**（反觀 Haiku 4.5 錯 2 題、Sonnet 5.5 `low` 錯 1 題，且調高 Haiku 5.5 effort 不增加準確率只耗時）。<br>• **我們的結論**：對於「已知符號或檔案路徑的純機械定位」，Haiku 5.5（`effort: low`）已具備實證可靠性；但本專案 STAGE 0a 的 `explorer` 同時承擔「既有覆蓋實查與跨檔案架構綜整」，仍維持 Sonnet 保底。 |
 | 放棄 Worktree 走向單一工作目錄 | 多任務並行與 PR Review 迭代時，實體 Worktree 是防止代碼污染的唯一正解。 |
 | 放棄狀態機走向純 Prompt 軟約束 | Prompt 的道德勸說在生產環境終會破防，作業系統級的 Exit 2 阻斷與磁碟原子狀態才是真防線。 |
 
-> **📌 D3 剩 1 項待優化提案（D1 於 2026-09-27、D2 於 2026-10-01 落地），落地後應即時回寫本表。**
+> **📌 D1–D4 共 4 項：截至 2026-10-25 已完成 2 項（D1 於 2026-09-27、D2 於 2026-10-01 落地）、1 項 PR 審查中（D3，PR #219）、1 項為 2026-10-25 新增提案（D4）。**
+>
+> **📌 2026-10-25 追蹤更新（基準 `v1.4.2` `aa595da` [2026-09-26] → 最新 `v1.5.0` `40d170e` [2026-10-10]，+14 commits）**：
+> 1. **v1.4.3（PR #96 `168e5cd`）**：完成 Haiku 5.5 `scout` 實證基準測試（40/40），已更新於 §7.6。
+> 2. **v1.5.0（PR #98 `44a2140`、PR #99 `efbf386`）**：支援 Claude Code ≥ 2.1.292 逐次派發 `effort` 參數、Reviewer Floor 與 `"Explicit instruction:"` 觸發前綴（已收錄為 **D4** 並回補 §8.2 B5 註記）；macOS/Linux Plugin 移除 beta 標籤正式 GA。
+
+---
+
+## 🟣 第八部分：cursor/plugins/pstack (`poteto-mode`) 深度工程與跨模型對抗體系比對 (2026-10-25)
+
+> **來源**：<https://github.com/cursor/plugins/tree/main/pstack>（作者：Lauren Tan `@poteto`，Cursor 核心工程師、React Core / React Compiler 團隊成員）
+> **查證基準**：`v0.15.32`（commit `9580c23696ac8d7abed0c166f2f9918800afb819`，`2026-10-23`）。以 `git clone --depth 1` 下載完整原始碼樹，逐檔實讀 `plugin.json`、`README.md`、`docs/harness/claude-code.md`、`skills/poteto-mode/SKILL.md`、23 份 playbooks、關鍵情境 skills（`interrogate`、`correct`、`reflect`、`blast-radius`、`architect`、`arena`、`swarm`、`show-me-your-work`、`no-comments`、`benchmark-checklist`、`statechart`、`ketchup`、`sharpen`、`why`）與隨附腳本（`check-plan.mjs`、`worktree-audit.sh`、`log.sh`）。
+>
+> **定位與前幾部分的差異**：
+> - §5 `addyosmani/agent-skills` 比的是**橫向廣度與 CI 規範**（25 通用 skills + `skill-lint.js`）。
+> - §6 `mattpocock/skills` 比的是**啟動前的需求對齊與認知預算**（`grilling`、`GLOSSARY.md`、`retro`）。
+> - §7 `Nanako0129/pilotfish` 比的是**單一 Session 內的微觀成本路由與派發煞車**（`plan-verifier`、`Dispatch Brake`、三態契約）。
+> - 本部分 `pstack` 則是**「Go deep first, fearless parallelism, anti-slop & cross-model verification」的深度工程實戰體系**：開宗明義反對 AI Slop 與追求 LOC 產量（_"the goal is not to maximize loc, in fact it's the opposite. pstack helps you write less, but higher quality code"_），與本專案的 **Linus 模式 + Ponytail 極簡紀律** 在哲學底層高度共鳴，且在**跨模型家族對抗（Opus 5.5 + Grok 4.7）**、**錯誤根因結構化防禦升級（`/correct`）**、**爆炸半徑實證階梯（`/blast-radius`）**與**長任務決策軌跡稽核（`/show-me-your-work`）**上給出了極具工程品味的具體解法。
+
+### 1. 系統概覽
+
+**`cursor/plugins/pstack`（`v0.15.32`）**：共 162 個檔案，由五大模組構成：
+1. **單一主入口路由器（`/poteto-mode`）+ 23 份 Playbooks**：使用者日常只需輸入 `/poteto-mode <任務>`，自動匹配 23 種標準作業劇本（`investigation`、`bug-fix`、`perf-issue`、`hillclimb`、`runtime-forensics`、`trace-forensics`、`feature`、`refactoring`、`prototype`、`visual-parity`、`authoring-a-skill`、`eval`、`babysit`、`shipping`、`autonomous-run`、`orchestrate`、`autopilot-full`、`autopilot-stack`、`session-pickup`、`pause-safely`、`multi-phase-plan`、`worktree-cleanup`、`opening-a-pr`），將步驟逐字複製為 todo list 後依序調用底層 skill。
+2. **34 個情境化 Skills**：涵蓋理解與考古（`/how`、`/why`、`/recall`、`/teach`）、設計與試作（`/architect`、`/arena`、`/sharpen`、`/in-your-own-words`）、多模型驗收與壓力測試（`/interrogate`、`/swarm`、`/blast-radius`、`/benchmark-checklist`、`/statechart`）、反 Slop 與註解獵殺（`/unslop`、`/no-comments`、`/technical-writing`、`/bro`）、以及長任務治理與環境演化（`/show-me-your-work`、`/reflect`、`/correct`、`/ketchup`）。
+3. **24 個原子化工程原則（`skills/principle-*/SKILL.md`）**：分屬 Core（10）、Architecture（6）、Verification（5）、Delegation（2）、Meta（1）。`poteto-mode` 內嵌完整索引，要求回覆時**點名本次決策實際引用的原則與它改變的具體選擇**（且只准引用本 session 真的讀過全文的 leaf principle）。
+4. **2 個專用 Subagents**：`poteto-agent`（所有執行派發的強制包裝器，起手先讀 `poteto-mode` 確保原則不漂移）與 `comment-sicko`（唯讀的極端註解獵殺者）。
+5. **雙 Harness 轉接層（`docs/harness/claude-code.md`）**：提供 Cursor 與 Claude Code 的完整語義映射表（工具名、subagent 欄位、模型設定檔 `~/.claude/rules/pstack-models.md`、transcript 路徑轉換），並由 CI 腳本 `generate-pstack-harness-trees.mjs` 鎖死同步。
+
+### 2. 機制對位矩陣
+
+| 面向 | `cursor/plugins/pstack` (`v0.15.32`) | `gen-dev-workflow`（本專案） | 判定 |
+|:---|:---|:---|:---|
+| **核心哲學** | Write less, higher quality code (`laziness-protocol` + `subtract-before-you-add` + `foundational-thinking`) | Linus 模式（資料結構優先、消滅特殊情況）+ Ponytail（YAGNI、最短 diff） | **高度同構**（英雄所見略同） |
+| **入口體驗（UX）** | 單一 `/poteto-mode` 動詞入口 → 自動匹配 23 份 Playbooks 展開 todo list | `/gen-dev-workflow` 單一 6-stage 主線 + 60 個獨立功能型 skills | **他勝在劇本豐富度**（含 `hillclimb`、`runtime-forensics`、`babysit` 等特化劇本） |
+| **強制力機制（Guide vs Sensor）** | 以高密度 Prompt 紀律為主，輔以局部腳本（`check-plan.mjs` 205 行、`worktree-audit.sh` 134 行、`log.sh`）；**無 PreToolUse 阻斷 Hook** | `wf-state.sh` 421 行原子狀態機 + 2 支 `exit 2` Pre/PostToolUse 阻斷與 Git 差集 Sensor | **我們完勝於系統級阻斷** |
+| **多模型對抗審查** | **原生跨模型家族**（預設 `claude-opus-5-5-xhigh` + `grok-4.7-xhigh-fast`），`/interrogate` 產出 Agreement Map 與四桶裁決 | 支援透過 `gemini-mcp-tool` 委派外部模型，但 STAGE 3 預設仍在 Claude 家族內（Opus 審 Sonnet） | **他大勝**（直接落地本文件 §3.5 R1 跨訓練分佈對抗） |
+| **提問與自主權邊界** | 提問前強制「經驗性分叉分類」：可跑代碼觀測的事實嚴禁問人，直接寫 prototype 實測；僅不可逆操作暫停 | STAGE 0·grill 五項判準盤問 + `pause_level` 三檔棘輪 | **互補**（他的「可觀測事實不准問人」極值得學） |
+| **長任務決策軌跡與稽核** | `/show-me-your-work`：append-only `decisions.tsv` + 收尾強制對照 session JSONL transcript 稽核 + 跨模型掃描 | `workflow-state` JSON 記錄階段與 task 進度，尚無決策級 TSV 與自動對照 transcript 稽核 | **他勝**（完美實作本文件 §3.6 R9） |
+| **環境自我演化（Retro）** | 雙軌制：`/reflect`（3 平行 lens 讀 transcript 改 skill）+ **`/correct`**（歷史錯誤分群 → 四層防禦升級 → 規則↔強制器配對表） | `retro` skill（PR #223，mechanical vs judgement 二分） | **他的 `/correct` 四層階梯與配對表更精準** |
+| **註解與文風治理** | `/no-comments`（`comment-sicko` 獵殺辯解註解並標記 `MUST KILL` 重構目標）+ `/unslop`（禁長破折號、禁句中冒號） | `flutter-styles.md` §4（公開 API 必寫 `///`，內部與測試免寫） | **他的「長篇辯解註解 = 爛代碼自白書」洞見極佳** |
+
+### 3. 他的關鍵設計（我們沒有或可深化的）
+
+#### 3.1 `/correct` 四層防禦升級階梯 + 「規則 ↔ 強制器」配對表（`skills/correct/SKILL.md`）
+比 `mattpocock/skills` 的 `retro`（mechanical vs. judgement 二分）更進一步，`/correct` 假設「每個貢獻者都是只看當前打開的檔案、照抄最近範例、走最短編譯路徑的 agent」，要求搜集近期 commits / reverts / review comments 中出現 ≥ 2 次的錯誤類別，並強制按**四層優先序由高到低**封殺：
+1. **架構消除（Architecture）**：給每個狀態唯一擁有者、刪掉會被 agent 照抄的舊寫法與死代碼、隱藏內部模組讓錯誤 import 直接失敗。
+2. **型別與 Linter 封殺（Types & Lint）**：用型別讓非法狀態無法編譯；若仍能編譯，寫一條**錯誤訊息直接點名正確替代檔案/函式**的 lint 或 CI 檢查（且必須在過去真實錯誤上證明會 fail）。
+3. **行為測試（Behavior Tests）**：修補或刪除「行為壞了還綠」或「只改內部就紅」的脆弱測試。
+4. **文件與規則墊底（Docs Last）**：只有前三層都做不到的 judgement call 才准寫進規則檔。
+最精彩的是最後一步：在規則檔維護一張**「規則 ↔ 強制器（Rule ↔ Enforcer）」配對表**——若使用者再次糾正某條已在表上、但沒有強制器的規則，證明文字無效，**當次變更必須同時將其升級為前 3 層**；一旦架構已讓該錯誤不可能發生，**直接把該條規則從文件刪掉**（讓 `CLAUDE.md` 有退場機制，不會無限膨脹）。
+
+#### 3.2 `/blast-radius` 爆炸半徑的「單一安全事實」與 5 級實證階梯（`skills/blast-radius/SKILL.md`）
+一針見血指出：「列出 callers 不是爆炸半徑分析——`grep` 一秒就跑完了；真正的爆炸半徑是 `grep` 找不到的跨邊界影響（microtask 時序、dispose/teardown、序列化格式、三跳下游）」。
+為了防止 agent 交出一篇「讀起來頭頭是道但全是腦補」的風險報告，它強制要求找出**「讓這個改動安全的唯一關鍵事實（The one fact it's safe because of）」**，並沿 **5 級實證階梯**向下推進並誠實標註停在哪一級：
+1. **Level 1（口頭宣稱）**：毫無價值。
+2. **Level 2（指出 `file:line`）**：指向真實原始碼或第三方庫定版原始碼。
+3. **Level 3（逐步推演不可達）**：走完失敗路徑證明條件無法成立。
+4. **Level 4（寫腳本/測試跑真實代碼）**：匯入真實模組呼叫目標函式，若錯即大聲 fail。
+5. **Level 5（在執行中 App 重現）**：端到端實證。
+若無法推進到實證層，強制標記為 `unproven`。
+
+#### 3.3 `/show-me-your-work` Append-Only TSV 決策軌跡 + 跨模型 Transcript 對照稽核（`skills/show-me-your-work/SKILL.md`）
+針對長任務或無人值守執行，設計了極輕量的 `decisions.tsv`（由 20 行 `scripts/log.sh` 寫入 `ts | phase | decision | why | evidence | result` 六欄，自動跳脫 tab/換行並以單引號防範 `=+-@` 公式注入）：
+- **證據欄禁散文**：`evidence` 只准填 commit SHA、PR 編號、`file:line` 或測試產物路徑。
+- **多輪續接邊界（`phase=start`）**：新 session 接手時先讀檔尾，寫入一列 `phase=start` 標記前一個 run 的時間範圍與當前 agent ID。
+- **收尾雙重稽核（直接落地本文件 §3.5 R1 + §3.6 R9）**：
+  1. **對照磁碟 Transcript 自審**：讀取當前 workspace 的 session `.jsonl`，核對每一列決策是否真實發生、證據路徑是否可解析，並**補記被遺漏的失敗嘗試與方向轉折**（嚴禁塗改舊列，只能新增列覆寫）。
+  2. **跨模型家族複審**：派發**不同模型家族**的 subagent 對照 `decisions.tsv` 與 `.jsonl` transcript，專門掃描「證據薄弱的決策」與「宣稱已驗證但 transcript 無執行紀錄的跳步」，於回覆末段強制附上 `reviewed by <model>` 的 `Attention` 清單。
+
+#### 3.4 提問前「經驗性分叉（Empirical Fork）分類器」與「禁用 Subagent Resume」（`skills/poteto-mode/SKILL.md:20,101`）
+`poteto-mode` 有兩條極度務實的硬規定：
+1. **經驗性分叉不准問人（`:20`）**：當 agent 準備呼叫 `AskQuestion` 問「該選哪個方案／這會怎麼運作」前，必須先分類——**若答案是跑一下程式就能觀測到的客觀事實（行為、耗時、排版、輸出），那不是人類該回答的問題**，強制走 `Prototype` 劇本自己跑出結果來決定；只把「任何實驗都無法裁決的產品/偏好選擇」留給人類。
+2. **預設一律派全新 Subagent，禁用 Resume（`:101`）**：實戰發現 **"Interrupt-chained resumes silently drop directives"**（對既有 subagent 連續 resume 追加指令，會靜默遺失中間的約束條件）。因此無論是修復輪（fix round）、重試或下一階段，除非舊 subagent 握有極昂貴的未提交環境（如正在跑的 simulator 或 dev server），否則**一律派發全新 subagent 並傳入整併後的完整 brief**。
+
+#### 3.5 `principle-attack-the-premise`「兩敗質疑前提」熔斷律（`skills/principle-attack-the-premise/SKILL.md`）
+當**兩個以上共享同一前提（premise）的修復方案在同一個驗收閘門失敗**時，嚴禁再寫第三個假設同一前提的 fix。必須先停下來：(1) 用一句話寫下這兩個失敗 fix 共同假設的前提；(2) 設計一個若前提為假就會產生不同觀測結果的直接測試並執行它。這直接切中 LLM debug 時最常見的「在錯的假設上連改 3 次症狀補丁」死穴。
+
+#### 3.6 `worktree-audit.sh` 唯讀 5 桶安全盤點與 `bugbot-triage.md` 機器審查誤報模式庫
+- **`worktree-audit.sh`（134 行 Bash）**：不刪任何檔案，一次聯集查詢 `git worktree`、`gh pr list`（解決 squash-merge 在 git history 中非 ancestor 的誤判）、`git status --porcelain`（精確區分 `wip:<N>` 已追蹤修改與 `scratch:<N>` 未追蹤暫存檔）以及**反查最近 4 天是否有 session `.jsonl` 出現該 worktree 路徑**，自動歸入 `hold-wip` / `hold-open-pr` / `verify-recent-chat` / `safe` / `review` 五桶。
+- **`bugbot-triage.md`**：為 PR 自動化審查留言建立 `fix / dismiss / ask` 三態分流與結構化模式庫（`Confidence: candidate | recurring | strong` + `Skip when` / `Do not skip when`），收錄了「契約測試漂移先跑測試再判（1 秒定真偽）」與「刻意窄化的錯誤條件（如 `ENOENT`）不可盲目放寬為 catch-all」等實戰結晶。
+
+#### 3.7 `/no-comments`（`comment-sicko`）與 `/why` 五級歷史認識論（`epistemics.md`）
+- **`comment-sicko`**：將「解釋自家代碼為何這麼怪的長篇註解」定性為**爛設計的自白書（_"A long justification without a proven keep-list exception is a confession"_）**，刪除註解並將該符號標記為 `MUST KILL` 逼迫重構；遇到 `// IMPORTANT: do not remove` 則強制提議轉化為型別、測試或 lint。
+- **`why/references/epistemics.md`**：嚴格禁止「拿代碼現狀當作作者當年意圖的證據」，將考古結論強制分為五級（`Direct` / `Supported` / `Inferred` / `Speculative` / `Unknown`），禁用 `"obviously"` / `"clearly"` / `"just"`，並防範順從使用者假設的「逢迎陷阱（Sycophancy Trap）」。
+
+### 4. 我們的關鍵優勢（他沒有的）
+
+1. **作業系統級 Exit 2 阻斷與 Git 差集 Sensor vs 純散文契約**：`pstack` 雖有 `check-plan.mjs` 與 `worktree-audit.sh` 等輔助腳本，但**零 PreToolUse/PostToolUse Hook**；在 Claude Code 中跑 Read-Only Explore 時也只能靠在 brief 寫 `"do not edit files"` 事後人工 `git status`（見 `docs/harness/claude-code.md:21`）。我們的 `wf-guard-stage-check.sh` 與 `wf-guard-delegate-cwd.sh` 則是在工具呼叫前後自動觸發的確定性硬閘門。
+2. **確定性狀態機（`wf-state.sh`）vs 對話內 Todo List**：他的進度追蹤依賴對話內的 `TodoWrite` 與離線時手寫 `/tmp/<slug>-resume.md`（`playbooks/pause-safely.md:8`）；我們的 `wf-state.sh` 則是磁碟原子寫入的 JSON 狀態機，天然抗 compaction 與 crash。
+3. **前置規劃與架構規格文件沉澱**：他主張 `"personally, i don't believe in planning. the best spec is code"`（`README.md:271`），預設跳過獨立計畫檔直接寫碼；我們則透過 `docs/plans/` + `plan-verifier`（Opus 對抗初審）+ STAGE 0b 人類確認，在動手前攔截架構方向錯誤。
+
+### 5. 建議借鏡（按投報比排序，E1–E9）
+
+| 順位 | 借鏡項 | 做法 | effort | 狀態 |
+|:---:|:---|:---|:---:|:---|
+| 1 | **E4** 提問前「經驗性分叉分類器」+ 禁用 Subagent Resume | (1) 在 `gen-grill` 與 `planner.md` 加入：「可透過跑代碼/測試觀測到的客觀事實，嚴禁問人類，自行實測決定」；(2) 在 `delegation-and-parallel.md` 明定修復輪一律派全新 subagent 並傳入合併 brief，避免 resume 靜默掉指令 | 極低 | 提案 |
+| 2 | **E5** `attack-the-premise`「兩敗質疑前提」熔斷律 | 在 STAGE 2/3 重試規範（`SKILL.md` / `implementer.md`）加入：同一閘門若連續 2 次共享同一前提的修復失敗，禁止直接寫第 3 個 fix，必須先寫下前提並跑觀測實驗證偽 | 極低 | 提案 |
+| 3 | **E1** `/correct` 四層防禦升級階梯 + 規則↔強制器配對表 | 擴充 C5 `retro` skill：將重複錯誤升級路徑細化為「架構消除 → 型別/指路型 Lint → 行為測試 → 文件規則墊底」，並在 `CLAUDE.md` 試辦「規則 ↔ 強制器」配對表與規則退場機制 | 低 | 提案 |
+| 4 | **E2** `/blast-radius` 單一安全事實 + 5 級實證階梯 | 嵌入 STAGE 3 `回歸風險` lens（`workflow-parallel.md` / `reviewer.md`）：要求點出「讓此變更安全的唯一關鍵事實」並標註驗證到第幾級（1 口頭 → 2 行號 → 3 推演 → 4 跑測試/腳本 → 5 實機），未達第 4 級標 `unproven` | 低 | 提案 |
+| 5 | **E6** `worktree-audit.sh` 唯讀 5 桶安全盤點技巧 | 升級 `worktree-close-cleanup` 與 `list-work-dir`：(1) 區分 `wip:<N>` 與 `scratch:<N>`；(2) 結合 `gh pr list` 識別 squash-merged 分支；(3) 反查 `~/.claude/projects/` 最近 4 天是否有活躍 session 引用該 worktree 路徑防誤砍 | 低 | 提案 |
+| 6 | **E7** `bugbot-triage.md` 機器審查三態分流與誤報模式庫 | 嵌入 STAGE 5（`gen-pr-reply`）：建立 `fix / dismiss / ask` 判準與「契約測試漂移先跑測試 1 秒驗真偽」、「刻意窄化錯誤條件（如 `ENOENT`）不盲目放寬」等判準 | 低 | 提案 |
+| 7 | **E8** `epistemics.md` 歷史考古五級證據標記與反逢迎 | 嵌入 STAGE 0a `explorer` 與 `context-collector`：區分代碼行為與作者意圖，結論標註五級證據（`Direct / Supported / Inferred / Speculative / Unknown`），禁用 `obviously / clearly / just` | 極低 | 提案 |
+| 8 | **E3** `/show-me-your-work` Append-Only TSV 決策軌跡 + Transcript 稽核 | 為 `autonomous` 模式引入輕量 `decisions.tsv`（`log.sh` 20 行）與收尾對照 session `.jsonl` 稽核（落地 §3.6 R9） | 低 | 提案 |
+| 9 | **E9** `comment-sicko`「長篇辯解註解 = `MUST KILL` 重構訊號」 | 與 `flutter-styles.md` §4.1 調合（保留公開 API `///`），在 STAGE 3 code review 加入：凡為自家怪異邏輯寫長篇行內辯解註解者標為重構目標，`IMPORTANT: do not remove` 強制轉為測試或型別約束 | 低 | 提案 |
+
+### 6. 刻意不學（保持 Good Taste 的底線）
+
+| 上游有、我們不採用 | 理由 |
+|:---|:---|
+| **「不相信規劃，最好的規格就是程式碼」（預設跳過獨立 Plan 檔）** | `poteto-mode` 在單一功能開發預設不落盤 plan 檔直接動工，這依賴作者本人的即時監控與短回饋迴圈；本專案面對跨 session 續接與 150k context 上限，STAGE 0b 的計畫檔與 `plan-verifier` 對抗初審是防止方向走偏的最高槓桿。況且 `pstack` 在超大型任務（`autopilot-full`）也寫了 205 行 `check-plan.mjs` 強制檢查計畫結構，證明規模放大後計畫檔不可或缺。 |
+| **`principle-never-block-on-the-human` 預設全自動推進外部操作** | 他預設連發訊息、改 ticket、直接實作都不暫停問人；我們的 `pause_level` 三檔（預設 `balanced` 守住 0b 計畫、2 實作、4 發 PR 三關）把自主權開放程度交給使用者決定，安全邊界更清晰。 |
+| **把 24 條工程原則拆成 24 個獨立 `skills/principle-*/SKILL.md` 目錄** | 在本專案會導致 `.claude/skills/` 從 60 個暴增至 84 個目錄，造成檔案樹碎片化與檢索雜訊。本專案的原則已高度內聚於 `.agents/rules/expert-rules.md` 與 `flutter-styles.md`，只需將具體觸發器（如 E5 `attack-the-premise`）內嵌至對應 stage。 |
+| **`statechart` 完整 TLA+ / TLC 形式化驗證工具鏈（19 支 `.mjs` + 自動下載 305MB Java/TLC）** | 對分散式協定或共識演算法極有價值，但本 package 為單機記憶體內 Flutter debug 工具，引入 305MB Java/TLC 屬於過度工程（Over-engineering），以 Dart 單元測試與狀態機測試覆蓋即可。 |
+
+> **📌 E1–E9 共 9 項為 2026-10-25 新增提案，其中 E4、E5、E8 為極低成本（幾行文字即可嵌入既有 skill/agent），落地後應即時回寫本表。**
