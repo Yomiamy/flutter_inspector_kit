@@ -88,8 +88,8 @@ PASS
 ## 3. 適用範圍與邊界（Scope）
 
 1. **適用範圍**：
-   - STAGE 2 實作完成後，逐任務由主流程委派的獨立 `verifier` subagent。
-   - STAGE 3 多 angle 對抗審查中，由 Claude Workflow 或序列派發的平行 verifier。
+   - **STAGE 2 任務驗收（核心適用）**：實作完成後，逐任務委派獨立 `verifier` 執行兩階段驗收，首行輸出階層式狀態（`PASS` / `FAIL: CODE` / `FAIL: INFRA`）。
+   - **STAGE 3 多 Angle 審查相容**：當 STAGE 3 委派 verifier 作為特定 lens 審查時，若指定了 `schema: FINDING_SCHEMA`，則依 schema 回傳結構化 findings；若該 lens 因環境異常（如逾時）受阻，回報包含環境受阻說明的 finding，供 Reviewer 識別並處理，絕不把環境中斷誤判為零缺陷通過。
 2. **不變的既有規則**：
    - 兩階段驗收流程不變（`Spec compliance` → `Code quality`）。
    - 證據形狀（Evidence Shape）硬性引述契約不變（必須引述終端實際輸出與 606 測試基準）。
