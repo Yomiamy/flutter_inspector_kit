@@ -109,8 +109,8 @@ description: |
     │       • 否則 → 🔴 序列逐任務                      │
     │  → 逐任務選 model：機械性→快/便宜｜整合→標準     │
     │     ｜設計判斷/跨層→最強                         │
-    │  → 委派實作任務，verifier 兩階段三態驗收       │
-    │     （首行 CONFIRMED / REFUTED / INCONCLUSIVE； │
+    │  → 委派實作任務，verifier 兩階段階層式驗收     │
+    │     （首行 PASS / FAIL: CODE / FAIL: INFRA；  │
     │      見 references/delegation-and-parallel.md） │
     │  🪶 Ponytail：派發模板必附〈規則塊〉，驗收把  │
     │     計畫外抽象/依賴/防禦分支當品質不佳退回    │
