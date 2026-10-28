@@ -217,6 +217,39 @@ void main() {
         expect(report, isNot(contains('users')));
       },
     );
+
+    test(
+      'serializes non-primitive data (DateTime, custom objects) without throwing (§Z1-2)',
+      () {
+        final report = _report(
+          db: [
+            DatabaseEntry(
+              operation: DatabaseOperation.insert,
+              tableName: 'users',
+              timestamp: _minutesAgo(1),
+              data: {
+                'id': 1,
+                'name': 'Alice',
+                'createdAt': DateTime(2026, 10, 29, 12, 0, 0),
+                'uri': Uri.parse('https://example.com/profile'),
+                'custom': const _CustomData('sample'),
+                'nested': {
+                  'timestamp': DateTime(2026, 10, 29, 12, 0, 0),
+                },
+              },
+            ),
+          ],
+          sections: {TimelineSource.db},
+        );
+
+        expect(report, contains('## Database'));
+        expect(report, contains('users'));
+        expect(report, contains('"createdAt": "2026-10-29 12:00:00.000"'));
+        expect(report, contains('"uri": "https://example.com/profile"'));
+        expect(report, contains('"custom": "CustomData(sample)"'));
+        expect(report, contains('"timestamp": "2026-10-29 12:00:00.000"'));
+      },
+    );
   });
 
   group('redaction red line (AC-15, AC-16, AC-18)', () {
@@ -681,4 +714,12 @@ void main() {
       expect(out.contains('\n'), isFalse);
     });
   });
+}
+
+class _CustomData {
+  const _CustomData(this.value);
+  final String value;
+
+  @override
+  String toString() => 'CustomData($value)';
 }

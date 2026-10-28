@@ -149,7 +149,7 @@ String buildDiagnosticReport({
       if (data != null) {
         final payload = redact ? redactHeaders(data) : data;
         row +=
-            '\n${_fenced(const JsonEncoder.withIndent('  ').convert(payload))}';
+            '\n${_fenced(JsonEncoder.withIndent('  ', (o) => o.toString()).convert(payload))}';
       }
       return row;
     });
