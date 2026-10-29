@@ -24,14 +24,14 @@ inspector.logNetwork(completedEntry, replaces: pending);
 ```
 
 但在真實世界的 Flutter 專案中：
-1. **gRPC 串接**：開發者需要一個具體的 `ClientInterceptor` 實作範例，了解如何在 `interceptUnary` 與 `interceptStreaming` 中發起 pending 記錄、在回應到達時以 `replaces` 覆蓋、以及如何捕獲 `GrpcError`。
+1. **gRPC 串接**：開發者需要一個具體的 `ClientInterceptor` 實作範例，了解如何在 `interceptUnary` 中發起 pending 記錄、在回應到達時以 `replaces` 覆蓋、以及如何捕獲 `GrpcError`。
 2. **WebSocket 串接**：WebSocket 是持續性的長連線雙向串流，與短暫的 Request-Response 請求不同。開發者常疑惑「該用 `logNetwork` 還是 `log`」，需要推薦的最佳實踐（連線建立、連線關閉與異常時記錄到 Console，或將連線生命週期登錄至 Network）。
 3. **兩大關鍵陷阱（Gotchas）**：
    - **協定狀態碼不可放進 `statusCode`**：`NetworkEntry.isFailed` 判定規則為 `(statusCode ?? 0) >= 400 || error != null || errorType != null`。
      - gRPC 的狀態碼為 0 到 16（如 0=OK, 1=CANCELLED, 16=UNAUTHENTICATED），若直接塞進 `statusCode`，由於全小於 400，失敗呼叫（如 CANCELLED）將無法被 `isFailed` 標記為錯誤！
      - WebSocket 的標準關閉碼為 1000..4999（如 1000=Normal Closure），若塞進 `statusCode`，因為 `1000 >= 400`，正常的連線關閉反而會被判定為失敗！
      - 此外，Network Tab 的狀態篩選晶片（2xx/3xx/4xx/5xx）是以 HTTP 為標準，非 HTTP 數值會破壞篩選邏輯。
-   - **切勿擴充 `NetworkOrigin` enum**：`NetworkOrigin` 是公開列舉（目前僅有 `dio` 與 `webview`）。若嘗試新增 `grpc` 或 `websocket`，會破壞宿主 App 對 enum 的窮舉 `switch`（違反 Never break userspace）。非 Dio/WebView 流量維持預設值或不額外指定即可。
+   - **切勿擴充 `NetworkOrigin` enum**：`NetworkOrigin` 是公開列舉（目前僅有 `dio` 與 `webview`）。若嘗試新增 `grpc` 或 `websocket`，會破壞宿主 App 對 enum 的窮舉 `switch`（違反 Never break userspace）。`origin` 無「未指定」值，預設為 `dio`；非 Dio/WebView 流量維持預設值即可（詳情頁 Origin 欄會顯示 `dio`，屬現行 API 限制，文件需如實說明）。
 4. **保持純淨**：本套件堅持純 Dart 與零多餘相依性，`lib/` 原始碼不需要也不應該新增任何 gRPC 或 WebSocket 專屬邏輯，純靠優質文件指導宿主端完成對接。
 
 ---

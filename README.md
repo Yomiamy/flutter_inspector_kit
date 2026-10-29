@@ -213,7 +213,6 @@ class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
     CallOptions options,
     ClientUnaryInvoker<Q, R> invoker,
   ) {
-    final stopwatch = Stopwatch()..start();
     // 1. Log pending invocation
     final pending = inspector.logNetwork(
       NetworkEntry(
@@ -225,41 +224,39 @@ class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
     );
 
     final responseFuture = invoker(method, request, options);
+    // 2. Settle the pending entry; the caller still gets the original future
+    _settle(responseFuture, pending, Stopwatch()..start());
+    return responseFuture;
+  }
 
-    // 2. Log resolution on completion or error
-    responseFuture.then((response) {
-      stopwatch.stop();
+  Future<void> _settle<R>(
+    ResponseFuture<R> future,
+    NetworkEntry pending,
+    Stopwatch stopwatch,
+  ) async {
+    try {
+      final response = await future;
+      // copyWith keeps pending.timestamp (request start time)
       inspector.logNetwork(
-        NetworkEntry(
-          method: 'gRPC',
-          url: method.path,
+        pending.copyWith(
           duration: stopwatch.elapsed,
-          requestHeaders: options.metadata,
-          requestBody: request.toString(),
+          isComplete: true,
           responseBody: response.toString(),
         ),
         replaces: pending,
       );
-    }).catchError((Object error, StackTrace stackTrace) {
-      stopwatch.stop();
-      final errorMessage = error is GrpcError
-          ? '[${error.codeName}] ${error.message ?? error.toString()}'
-          : error.toString();
-
+    } on Exception catch (e) {
+      // gRPC status goes into headers, never into statusCode (see Gotchas)
       inspector.logNetwork(
-        NetworkEntry(
-          method: 'gRPC',
-          url: method.path,
+        pending.copyWith(
           duration: stopwatch.elapsed,
-          requestHeaders: options.metadata,
-          requestBody: request.toString(),
-          error: errorMessage,
+          isComplete: true,
+          error: e is GrpcError ? '[${e.codeName}] ${e.message ?? e}' : '$e',
+          responseHeaders: e is GrpcError ? {'grpc-status': '${e.code}'} : null,
         ),
         replaces: pending,
       );
-    });
-
-    return responseFuture;
+    }
   }
 
   @override
@@ -288,20 +285,28 @@ final client = GreeterClient(channel, interceptors: [
 WebSocket connections are persistent, bidirectional streams rather than discrete request-response round-trips. The recommended recipe is to log connection lifecycle events to the **Console** tab via `inspector.log`:
 
 ```dart
-// Connection established
-inspector.log('WebSocket connected: $wsUrl', level: LogLevel.info);
+final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
-// Connection closed
-channel.sink.done.then((_) {
-  final closeCode = channel.closeCode;
-  final closeReason = channel.closeReason;
-  inspector.log(
-    'WebSocket disconnected: code=$closeCode reason=$closeReason',
-    level: LogLevel.info,
-  );
-}).catchError((Object error) {
-  inspector.log('WebSocket error: $error', level: LogLevel.error);
-});
+// Connection established: only once the handshake has actually completed
+try {
+  await channel.ready;
+  inspector.log('WebSocket connected: $wsUrl');
+} on Exception catch (e) {
+  inspector.log('WebSocket connect failed: $e', level: LogLevel.error);
+  return;
+}
+
+// Reuse your existing listener: a channel stream is single-subscription,
+// so do not add a second one just for logging.
+channel.stream.listen(
+  onMessage,
+  onError: (Object e) =>
+      inspector.log('WebSocket error: $e', level: LogLevel.error),
+  onDone: () => inspector.log(
+    'WebSocket disconnected: code=${channel.closeCode} '
+    'reason=${channel.closeReason}',
+  ),
+);
 ```
 
 #### Gotchas: Protocol Status Codes & NetworkOrigin
@@ -319,7 +324,7 @@ When integrating non-HTTP or non-Dio protocols manually, beware of two critical 
    - **Solution**: Leave `statusCode` as `null` for non-HTTP protocols. Pass error descriptions to `error:` (which sets `isFailed = true`), and record protocol codes inside `responseHeaders` (e.g. `{'grpc-status': '${error.code}'}`) or the body.
 
 2. **Never add or expect custom `NetworkOrigin` enum values**:
-   `NetworkOrigin` is a public enum (`dio`, `webview`). Host applications frequently use exhaustive `switch (entry.origin)` expressions. Adding new values like `grpc` or `websocket` would break exhaustive matching at compile time (`Never break userspace`). Leave `origin` at its default (`NetworkOrigin.dio` / unspecified) for custom network entries.
+   `NetworkOrigin` is a public enum (`dio`, `webview`). Host applications frequently use exhaustive `switch (entry.origin)` expressions. Adding new values like `grpc` or `websocket` would break exhaustive matching at compile time (`Never break userspace`). `origin` has no "unspecified" value: it defaults to `NetworkOrigin.dio`, so custom entries will show `dio` in the detail view's Origin row. Treat this as a known limitation of the current API (do not set `webview` either, as that would mislabel the entry).
 
 ### Inside the Network tab
 
