@@ -213,6 +213,10 @@ class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
     CallOptions options,
     ClientUnaryInvoker<Q, R> invoker,
   ) {
+    // Invoke first: a synchronous throw (e.g. from a downstream interceptor)
+    // then leaves no pending entry stuck forever.
+    final responseFuture = invoker(method, request, options);
+
     // 1. Log pending invocation
     final pending = inspector.logNetwork(
       NetworkEntry(
@@ -223,7 +227,6 @@ class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
       ),
     );
 
-    final responseFuture = invoker(method, request, options);
     // 2. Settle the pending entry; the caller still gets the original future
     _settle(responseFuture, pending, Stopwatch()..start());
     return responseFuture;
