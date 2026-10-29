@@ -217,10 +217,6 @@ class FlutterInspectorGrpcInterceptor extends ClientInterceptor {
     CallOptions options,
     ClientUnaryInvoker<Q, R> invoker,
   ) {
-    // Invoke first: a synchronous throw (e.g. from a downstream interceptor)
-    // then leaves no pending entry stuck forever.
-    final responseFuture = invoker(method, request, options);
-
     // 1. Log pending invocation
     final pending = inspector.logNetwork(
       NetworkEntry(
@@ -230,6 +226,15 @@ class FlutterInspectorGrpcInterceptor extends ClientInterceptor {
         requestBody: _encode(request),
       ),
     );
+
+    final ResponseFuture<R> responseFuture;
+    try {
+      responseFuture = invoker(method, request, options);
+    } on Exception catch (e, st) {
+      // A downstream interceptor may throw synchronously: record it, rethrow
+      _logFailure(pending, e, st);
+      rethrow;
+    }
 
     // 2. Settle the pending entry; the caller still gets the original future
     _settle(responseFuture, pending);
@@ -249,18 +254,22 @@ class FlutterInspectorGrpcInterceptor extends ClientInterceptor {
         replaces: pending,
       );
     } on Exception catch (e, st) {
-      // gRPC status goes into headers, never into statusCode (see Gotchas)
-      inspector.logNetwork(
-        pending.copyWith(
-          duration: DateTime.now().difference(pending.timestamp),
-          isComplete: true,
-          error: e is GrpcError ? '[${e.codeName}] ${e.message ?? e}' : '$e',
-          errorStackTrace: st.toString(),
-          responseHeaders: e is GrpcError ? {'grpc-status': '${e.code}'} : null,
-        ),
-        replaces: pending,
-      );
+      _logFailure(pending, e, st);
     }
+  }
+
+  void _logFailure(NetworkEntry pending, Exception e, StackTrace st) {
+    // gRPC status goes into headers, never into statusCode (see Gotchas)
+    inspector.logNetwork(
+      pending.copyWith(
+        duration: DateTime.now().difference(pending.timestamp),
+        isComplete: true,
+        error: e is GrpcError ? '[${e.codeName}] ${e.message ?? e}' : '$e',
+        errorStackTrace: st.toString(),
+        responseHeaders: e is GrpcError ? {'grpc-status': '${e.code}'} : null,
+      ),
+      replaces: pending,
+    );
   }
 
   // Proto3 JSON renders as a tree in the Network detail view;
