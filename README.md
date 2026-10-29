@@ -200,6 +200,7 @@ For gRPC services using `package:grpc`, extend `ClientInterceptor` to record una
 ```dart
 import 'dart:convert';
 
+// Requires `grpc` and `protobuf` in your app's pubspec.yaml.
 import 'package:grpc/grpc.dart';
 import 'package:protobuf/protobuf.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
@@ -247,13 +248,14 @@ class FlutterInspectorGrpcInterceptor extends ClientInterceptor {
         ),
         replaces: pending,
       );
-    } on Exception catch (e) {
+    } on Exception catch (e, st) {
       // gRPC status goes into headers, never into statusCode (see Gotchas)
       inspector.logNetwork(
         pending.copyWith(
           duration: DateTime.now().difference(pending.timestamp),
           isComplete: true,
           error: e is GrpcError ? '[${e.codeName}] ${e.message ?? e}' : '$e',
+          errorStackTrace: st.toString(),
           responseHeaders: e is GrpcError ? {'grpc-status': '${e.code}'} : null,
         ),
         replaces: pending,
