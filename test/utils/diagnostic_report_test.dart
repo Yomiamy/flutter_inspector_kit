@@ -280,7 +280,25 @@ void main() {
       );
 
       expect(report, contains('## Database'));
-      expect(report, contains('(unserializable: cyclic data)'));
+      expect(report, contains('(unserializable data)'));
+    });
+
+    // SDK wraps a toJson-induced cycle in JsonUnsupportedObjectError, not
+    // JsonCyclicError — pins the catch type.
+    test('falls back to a placeholder for cycles via toJson', () {
+      final report = _report(
+        db: [
+          DatabaseEntry(
+            operation: DatabaseOperation.insert,
+            tableName: 'users',
+            timestamp: _minutesAgo(1),
+            data: {'ref': _SelfRef()},
+          ),
+        ],
+        sections: {TimelineSource.db},
+      );
+
+      expect(report, contains('(unserializable data)'));
     });
   });
 
@@ -764,4 +782,8 @@ class _JsonModel {
 
   @override
   String toString() => 'JsonModel($id)';
+}
+
+class _SelfRef {
+  Map<String, dynamic> toJson() => {'me': this};
 }

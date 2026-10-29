@@ -163,8 +163,9 @@ String _encodeDbPayload(Object payload) {
   try {
     return const JsonEncoder.withIndent('  ', _toEncodable).convert(payload);
   } on JsonUnsupportedObjectError {
-    // Cyclic structure (JsonCyclicError) — nothing safe to print.
-    return '(unserializable: cyclic data)';
+    // Cycles (incl. via toJson, wrapped by the SDK), a toJson result that is
+    // still not encodable, or a throwing toString — nothing safe to print.
+    return '(unserializable data)';
   }
 }
 
