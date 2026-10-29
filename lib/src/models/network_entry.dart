@@ -130,11 +130,19 @@ class NetworkEntry implements TimestampedEntry {
       duration ?? (isComplete ? Duration.zero : now.difference(timestamp));
 
   /// Truncates [body] to [kNetworkBodyMaxLength] characters, appending
-  /// [kTruncatedMarker] when truncation occurs. Returns `null` for `null` input.
+  /// [kTruncatedMarker] when truncation occurs. If the boundary falls on a
+  /// high surrogate (first unit of a UTF-16 surrogate pair), the truncation
+  /// backs up by one code unit to avoid creating an orphaned surrogate.
+  /// Returns `null` for `null` input.
   static String? truncateBody(String? body) {
     if (body == null) return null;
     if (body.length <= kNetworkBodyMaxLength) return body;
-    return body.substring(0, kNetworkBodyMaxLength) + kTruncatedMarker;
+    var end = kNetworkBodyMaxLength;
+    final unit = body.codeUnitAt(end - 1);
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      end--;
+    }
+    return body.substring(0, end) + kTruncatedMarker;
   }
 
   /// Returns a copy of this entry with the given fields replaced.
