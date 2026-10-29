@@ -195,13 +195,16 @@ inspector.logNetwork(completedEntry, replaces: pending);
 
 #### With gRPC (`ClientInterceptor`)
 
-For gRPC services using `package:grpc`, implement a `ClientInterceptor` to record RPC invocations into the Network tab:
+For gRPC services using `package:grpc`, extend `ClientInterceptor` to record unary RPC invocations into the Network tab (streaming calls pass through via the base class):
 
 ```dart
+import 'dart:convert';
+
 import 'package:grpc/grpc.dart';
+import 'package:protobuf/protobuf.dart';
 import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
 
-class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
+class FlutterInspectorGrpcInterceptor extends ClientInterceptor {
   FlutterInspectorGrpcInterceptor(this.inspector);
 
   final FlutterInspector inspector;
@@ -223,28 +226,24 @@ class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
         method: 'gRPC',
         url: method.path,
         requestHeaders: options.metadata,
-        requestBody: request.toString(),
+        requestBody: _encode(request),
       ),
     );
 
     // 2. Settle the pending entry; the caller still gets the original future
-    _settle(responseFuture, pending, Stopwatch()..start());
+    _settle(responseFuture, pending);
     return responseFuture;
   }
 
-  Future<void> _settle<R>(
-    ResponseFuture<R> future,
-    NetworkEntry pending,
-    Stopwatch stopwatch,
-  ) async {
+  Future<void> _settle<R>(ResponseFuture<R> future, NetworkEntry pending) async {
     try {
       final response = await future;
       // copyWith keeps pending.timestamp (request start time)
       inspector.logNetwork(
         pending.copyWith(
-          duration: stopwatch.elapsed,
+          duration: DateTime.now().difference(pending.timestamp),
           isComplete: true,
-          responseBody: response.toString(),
+          responseBody: _encode(response),
         ),
         replaces: pending,
       );
@@ -252,7 +251,7 @@ class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
       // gRPC status goes into headers, never into statusCode (see Gotchas)
       inspector.logNetwork(
         pending.copyWith(
-          duration: stopwatch.elapsed,
+          duration: DateTime.now().difference(pending.timestamp),
           isComplete: true,
           error: e is GrpcError ? '[${e.codeName}] ${e.message ?? e}' : '$e',
           responseHeaders: e is GrpcError ? {'grpc-status': '${e.code}'} : null,
@@ -262,16 +261,11 @@ class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
     }
   }
 
-  @override
-  ResponseStream<R> interceptStreaming<Q, R>(
-    ClientMethod<Q, R> method,
-    Stream<Q> requests,
-    CallOptions options,
-    ClientStreamingInvoker<Q, R> invoker,
-  ) {
-    // For streaming calls, log the start or wire stream listeners as needed
-    return invoker(method, requests, options);
-  }
+  // Proto3 JSON renders as a tree in the Network detail view;
+  // protobuf's toString() is text format, not JSON.
+  String _encode(Object? message) => message is GeneratedMessage
+      ? jsonEncode(message.toProto3Json())
+      : '$message';
 }
 ```
 
@@ -305,9 +299,13 @@ channel.stream.listen(
   onMessage,
   onError: (Object e) =>
       inspector.log('WebSocket error: $e', level: LogLevel.error),
+  // closeCode / closeReason come from the server's close frame; they are null
+  // when the client closed the connection itself or it dropped abruptly.
   onDone: () => inspector.log(
-    'WebSocket disconnected: code=${channel.closeCode} '
-    'reason=${channel.closeReason}',
+    channel.closeCode == null
+        ? 'WebSocket disconnected (no close frame from server)'
+        : 'WebSocket disconnected: code=${channel.closeCode} '
+            'reason=${channel.closeReason}',
   ),
 );
 ```
