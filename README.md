@@ -179,19 +179,147 @@ This guarantees that replaying a request in the Network detail view uses the exa
 
 #### With other HTTP clients
 
-Build a `NetworkEntry` yourself and pass it in:
+Build a `NetworkEntry` yourself and pass it to `inspector.logNetwork`:
 
 ```dart
 inspector.logNetwork(entry);
 ```
 
-To show an in-flight request that later resolves, log the pending entry first, then log the completed one with `replaces` so it updates in place instead of duplicating:
+To display an in-flight request that later resolves, log a pending entry first, then log the completed entry with `replaces` so it updates in place instead of duplicating:
 
 ```dart
 final pending = inspector.logNetwork(NetworkEntry(method: 'GET', url: url));
 // ...after the response arrives:
 inspector.logNetwork(completedEntry, replaces: pending);
 ```
+
+#### With gRPC (`ClientInterceptor`)
+
+For gRPC services using `package:grpc`, implement a `ClientInterceptor` to record RPC invocations into the Network tab:
+
+```dart
+import 'package:grpc/grpc.dart';
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+
+class FlutterInspectorGrpcInterceptor implements ClientInterceptor {
+  FlutterInspectorGrpcInterceptor(this.inspector);
+
+  final FlutterInspector inspector;
+
+  @override
+  ResponseFuture<R> interceptUnary<Q, R>(
+    ClientMethod<Q, R> method,
+    Q request,
+    CallOptions options,
+    ClientUnaryInvoker<Q, R> invoker,
+  ) {
+    final stopwatch = Stopwatch()..start();
+    // 1. Log pending invocation
+    final pending = inspector.logNetwork(
+      NetworkEntry(
+        method: 'gRPC',
+        url: method.path,
+        requestHeaders: options.metadata,
+        requestBody: request.toString(),
+      ),
+    );
+
+    final responseFuture = invoker(method, request, options);
+
+    // 2. Log resolution on completion or error
+    responseFuture.then((response) {
+      stopwatch.stop();
+      inspector.logNetwork(
+        NetworkEntry(
+          method: 'gRPC',
+          url: method.path,
+          duration: stopwatch.elapsed,
+          requestHeaders: options.metadata,
+          requestBody: request.toString(),
+          responseBody: response.toString(),
+        ),
+        replaces: pending,
+      );
+    }).catchError((Object error, StackTrace stackTrace) {
+      stopwatch.stop();
+      final errorMessage = error is GrpcError
+          ? '[${error.codeName}] ${error.message ?? error.toString()}'
+          : error.toString();
+
+      inspector.logNetwork(
+        NetworkEntry(
+          method: 'gRPC',
+          url: method.path,
+          duration: stopwatch.elapsed,
+          requestHeaders: options.metadata,
+          requestBody: request.toString(),
+          error: errorMessage,
+        ),
+        replaces: pending,
+      );
+    });
+
+    return responseFuture;
+  }
+
+  @override
+  ResponseStream<R> interceptStreaming<Q, R>(
+    ClientMethod<Q, R> method,
+    Stream<Q> requests,
+    CallOptions options,
+    ClientStreamingInvoker<Q, R> invoker,
+  ) {
+    // For streaming calls, log the start or wire stream listeners as needed
+    return invoker(method, requests, options);
+  }
+}
+```
+
+Attach it when creating your generated gRPC client stub:
+
+```dart
+final client = GreeterClient(channel, interceptors: [
+  FlutterInspectorGrpcInterceptor(inspector),
+]);
+```
+
+#### With WebSocket
+
+WebSocket connections are persistent, bidirectional streams rather than discrete request-response round-trips. The recommended recipe is to log connection lifecycle events to the **Console** tab via `inspector.log`:
+
+```dart
+// Connection established
+inspector.log('WebSocket connected: $wsUrl', level: LogLevel.info);
+
+// Connection closed
+channel.sink.done.then((_) {
+  final closeCode = channel.closeCode;
+  final closeReason = channel.closeReason;
+  inspector.log(
+    'WebSocket disconnected: code=$closeCode reason=$closeReason',
+    level: LogLevel.info,
+  );
+}).catchError((Object error) {
+  inspector.log('WebSocket error: $error', level: LogLevel.error);
+});
+```
+
+#### Gotchas: Protocol Status Codes & NetworkOrigin
+
+When integrating non-HTTP or non-Dio protocols manually, beware of two critical traps:
+
+1. **Never put protocol status codes into `NetworkEntry.statusCode`**:
+   `NetworkEntry.isFailed` determines failure via:
+   ```dart
+   bool get isFailed => (statusCode ?? 0) >= 400 || error != null || errorType != null;
+   ```
+   - **gRPC status codes** range from `0` (OK) to `16` (UNAUTHENTICATED). Because all gRPC codes are `< 400`, setting `statusCode: error.code` will **never** trigger `isFailed` (a cancelled or unauthenticated call would be classified as successful!).
+   - **WebSocket close codes** use `1000` for normal closure (`1000..4999`). If placed into `statusCode`, `1000 >= 400` evaluates to `true`, erroneously flagging healthy disconnections as failures!
+   - Furthermore, the Network tab filter chips (`2xx`, `3xx`, `4xx`, `5xx`) expect standard HTTP status codes.
+   - **Solution**: Leave `statusCode` as `null` for non-HTTP protocols. Pass error descriptions to `error:` (which sets `isFailed = true`), and record protocol codes inside `responseHeaders` (e.g. `{'grpc-status': '${error.code}'}`) or the body.
+
+2. **Never add or expect custom `NetworkOrigin` enum values**:
+   `NetworkOrigin` is a public enum (`dio`, `webview`). Host applications frequently use exhaustive `switch (entry.origin)` expressions. Adding new values like `grpc` or `websocket` would break exhaustive matching at compile time (`Never break userspace`). Leave `origin` at its default (`NetworkOrigin.dio` / unspecified) for custom network entries.
 
 ### Inside the Network tab
 
