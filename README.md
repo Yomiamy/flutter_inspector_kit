@@ -282,6 +282,10 @@ final client = GreeterClient(channel, interceptors: [
 WebSocket connections are persistent, bidirectional streams rather than discrete request-response round-trips. The recommended recipe is to log connection lifecycle events to the **Console** tab via `inspector.log`:
 
 ```dart
+// Requires `web_socket_channel` in your app's pubspec.yaml.
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+
 final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
 // Connection established: only once the handshake has actually completed
