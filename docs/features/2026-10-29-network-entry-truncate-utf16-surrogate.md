@@ -9,7 +9,7 @@
 ## 1. 使用者故事
 
 > 作為一位在宿主 App 中使用 Flutter Inspector Kit 排查網路請求的開發者，
-> 當 App 傳輸的請求或回應 Body 超過 10 KB（`kNetworkBodyMaxLength`），且截斷邊界恰好落在 UTF-16 Surrogate Pair（例如 Emoji 或四字節 Unicode 字元）中間時，
+> 當 App 傳輸的請求或回應 Body 超過 10,240 個 UTF-16 code unit（`kNetworkBodyMaxLength`），且截斷邊界恰好落在 UTF-16 Surrogate Pair（例如 Emoji 或四字節 Unicode 字元）中間時，
 > 我希望**套件在截斷時能自動退回前一個完整字元邊界，避免產生孤立的 High Surrogate（半個 Emoji）**，
 > 這樣截斷後的字串在進行 JSON 序列化、UTF-8 轉換、UI 渲染與複製時，不會產生亂碼（`\uFFFD`）或拋出非預期的字串處理例外。
 
@@ -47,7 +47,7 @@ Dart 的 `String` 底層是由 UTF-16 code units 組成。超出 Basic Multiling
 
 ### ❌ 不做
 
-- 不更動 `kNetworkBodyMaxLength` 上限數值（維持 10 KB）。
+- 不更動 `kNetworkBodyMaxLength` 上限數值（維持 10,240 個 UTF-16 code unit）。
 - 不引入外部 Unicode 庫（如 `characters` 套件），以最輕量、O(1) 的單一代碼檢查消除問題，避免對大字串產生額外配置與遍歷負擔。
 - 不更動 `truncateBody` 以外的任何邏輯。
 

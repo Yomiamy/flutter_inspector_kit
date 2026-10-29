@@ -33,7 +33,7 @@
      - **消滅邊界例外**：徹底杜絕殘留半個 Emoji 導致的 `FormatException` 或 `\uFFFD` 亂碼。
 2. **方案 B（不採用）：使用 `package:characters` 或 `runes` 走訪字元**
    - **缺點**：
-     - 若字串超過 10 KB，將整段本文轉換為 `characters` 或 `runes` 需完整遍歷並在記憶體中配置大量 Grapheme Cluster / Rune 物件，帶來嚴重的觀察者效應與效能損耗。
+     - 若字串超過 10,240 個 UTF-16 code unit，將整段本文轉換為 `characters` 或 `runes` 需完整遍歷並在記憶體中配置大量 Grapheme Cluster / Rune 物件，帶來嚴重的觀察者效應與效能損耗。
 3. **方案 C（不採用）：截斷後使用 `utf8.decode(utf8.encode(..., allowMalformed: true))` 修復**
    - **缺點**：引入兩次完整的 UTF-8 編碼與解碼配置，代價高昂且會把畸形字元轉為 `\uFFFD`，不如直接在截斷時完整丟棄該破損字元。
 
