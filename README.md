@@ -179,19 +179,168 @@ This guarantees that replaying a request in the Network detail view uses the exa
 
 #### With other HTTP clients
 
-Build a `NetworkEntry` yourself and pass it in:
+Build a `NetworkEntry` yourself and pass it to `inspector.logNetwork`:
 
 ```dart
 inspector.logNetwork(entry);
 ```
 
-To show an in-flight request that later resolves, log the pending entry first, then log the completed one with `replaces` so it updates in place instead of duplicating:
+To display an in-flight request that later resolves, log a pending entry first, then log the completed entry with `replaces` so it updates in place instead of duplicating:
 
 ```dart
 final pending = inspector.logNetwork(NetworkEntry(method: 'GET', url: url));
 // ...after the response arrives:
 inspector.logNetwork(completedEntry, replaces: pending);
 ```
+
+#### With gRPC (`ClientInterceptor`)
+
+For gRPC services using `package:grpc`, extend `ClientInterceptor` to record unary RPC invocations into the Network tab (streaming calls pass through via the base class):
+
+```dart
+import 'dart:convert';
+
+// Requires `grpc` and `protobuf` in your app's pubspec.yaml.
+import 'package:grpc/grpc.dart';
+import 'package:protobuf/protobuf.dart';
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+
+class FlutterInspectorGrpcInterceptor extends ClientInterceptor {
+  FlutterInspectorGrpcInterceptor(this.inspector);
+
+  final FlutterInspector inspector;
+
+  @override
+  ResponseFuture<R> interceptUnary<Q, R>(
+    ClientMethod<Q, R> method,
+    Q request,
+    CallOptions options,
+    ClientUnaryInvoker<Q, R> invoker,
+  ) {
+    // 1. Log pending invocation
+    final pending = inspector.logNetwork(
+      NetworkEntry(
+        method: 'gRPC',
+        url: method.path,
+        requestHeaders: options.metadata,
+        requestBody: _encode(request),
+      ),
+    );
+
+    final ResponseFuture<R> responseFuture;
+    try {
+      responseFuture = invoker(method, request, options);
+    } on Exception catch (e, st) {
+      // A downstream interceptor may throw synchronously: record it, rethrow
+      _logFailure(pending, e, st);
+      rethrow;
+    }
+
+    // 2. Settle the pending entry; the caller still gets the original future
+    _settle(responseFuture, pending);
+    return responseFuture;
+  }
+
+  Future<void> _settle<R>(ResponseFuture<R> future, NetworkEntry pending) async {
+    try {
+      final response = await future;
+      // copyWith keeps pending.timestamp (request start time)
+      inspector.logNetwork(
+        pending.copyWith(
+          duration: DateTime.now().difference(pending.timestamp),
+          isComplete: true,
+          responseBody: _encode(response),
+        ),
+        replaces: pending,
+      );
+    } on Exception catch (e, st) {
+      _logFailure(pending, e, st);
+    }
+  }
+
+  void _logFailure(NetworkEntry pending, Exception e, StackTrace st) {
+    // gRPC status goes into headers, never into statusCode (see Gotchas)
+    inspector.logNetwork(
+      pending.copyWith(
+        duration: DateTime.now().difference(pending.timestamp),
+        isComplete: true,
+        error: e is GrpcError ? '[${e.codeName}] ${e.message ?? e}' : '$e',
+        errorStackTrace: st.toString(),
+        responseHeaders: e is GrpcError ? {'grpc-status': '${e.code}'} : null,
+      ),
+      replaces: pending,
+    );
+  }
+
+  // Proto3 JSON renders as a tree in the Network detail view;
+  // protobuf's toString() is text format, not JSON.
+  String _encode(Object? message) => message is GeneratedMessage
+      ? jsonEncode(message.toProto3Json())
+      : '$message';
+}
+```
+
+Attach it when creating your generated gRPC client stub:
+
+```dart
+final client = GreeterClient(channel, interceptors: [
+  FlutterInspectorGrpcInterceptor(inspector),
+]);
+```
+
+#### With WebSocket
+
+WebSocket connections are persistent, bidirectional streams rather than discrete request-response round-trips. The recommended recipe is to log connection lifecycle events to the **Console** tab via `inspector.log`:
+
+```dart
+// Requires `web_socket_channel` in your app's pubspec.yaml.
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:flutter_inspector_kit/flutter_inspector_kit.dart';
+
+final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+
+// Connection established: only once the handshake has actually completed
+try {
+  await channel.ready;
+  inspector.log('WebSocket connected: $wsUrl');
+} on Exception catch (e) {
+  inspector.log('WebSocket connect failed: $e', level: LogLevel.error);
+  return;
+}
+
+// Reuse your existing listener: a channel stream is single-subscription,
+// so do not add a second one just for logging.
+channel.stream.listen(
+  onMessage,
+  onError: (Object e) =>
+      inspector.log('WebSocket error: $e', level: LogLevel.error),
+  // closeCode / closeReason come from the server's close frame; they are null
+  // when the client closed the connection itself or it dropped abruptly.
+  onDone: () => inspector.log(
+    channel.closeCode == null
+        ? 'WebSocket disconnected (no close frame from server)'
+        : 'WebSocket disconnected: code=${channel.closeCode} '
+            'reason=${channel.closeReason}',
+  ),
+);
+```
+
+#### Gotchas: Protocol Status Codes & NetworkOrigin
+
+When integrating non-HTTP or non-Dio protocols manually, beware of two critical traps:
+
+1. **Never put protocol status codes into `NetworkEntry.statusCode`**:
+   `NetworkEntry.isFailed` determines failure via:
+   ```dart
+   bool get isFailed => (statusCode ?? 0) >= 400 || error != null || errorType != null;
+   ```
+   - **gRPC status codes** range from `0` (OK) to `16` (UNAUTHENTICATED). Because all gRPC codes are `< 400`, setting `statusCode: error.code` will **never** trigger `isFailed` (a cancelled or unauthenticated call would be classified as successful!).
+   - **WebSocket close codes** use `1000` for normal closure (`1000..4999`). If placed into `statusCode`, `1000 >= 400` evaluates to `true`, erroneously flagging healthy disconnections as failures!
+   - Furthermore, the Network tab filter chips (`2xx`, `3xx`, `4xx`, `5xx`) expect standard HTTP status codes.
+   - **Solution**: Leave `statusCode` as `null` for non-HTTP protocols. Pass error descriptions to `error:` (which sets `isFailed = true`), and record protocol codes inside `responseHeaders` (e.g. `{'grpc-status': '${error.code}'}`) or the body.
+
+2. **Never add or expect custom `NetworkOrigin` enum values**:
+   `NetworkOrigin` is a public enum (`dio`, `webview`). Host applications frequently use exhaustive `switch (entry.origin)` expressions. Adding new values like `grpc` or `websocket` would break exhaustive matching at compile time (`Never break userspace`). `origin` has no "unspecified" value: it defaults to `NetworkOrigin.dio`, so custom entries will show `dio` in the detail view's Origin row. Treat this as a known limitation of the current API (do not set `webview` either, as that would mislabel the entry).
 
 ### Inside the Network tab
 
