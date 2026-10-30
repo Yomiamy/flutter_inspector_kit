@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_origin.dart';
@@ -262,6 +264,55 @@ void main() {
           'a' * kNetworkBodyMaxLength,
         );
       });
+
+      test(
+        'backs up by one code unit when boundary splits a UTF-16 surrogate pair',
+        () {
+          // '😀' is composed of high surrogate 0xD83D and low surrogate 0xDE00.
+          // Place it right at the boundary so the high surrogate sits at index
+          // kNetworkBodyMaxLength - 1 (10239), which would otherwise be severed.
+          const emoji = '😀';
+          final prefix = 'a' * (kNetworkBodyMaxLength - 1);
+          final body = '$prefix$emoji${'b' * 50}';
+
+          final result = NetworkEntry.truncateBody(body)!;
+
+          // Truncation should back up 1 code unit to avoid splitting the surrogate pair.
+          expect(
+            result.length,
+            kNetworkBodyMaxLength - 1 + kTruncatedMarker.length,
+          );
+          expect(result.endsWith(kTruncatedMarker), isTrue);
+          final content = result.substring(0, kNetworkBodyMaxLength - 1);
+          expect(content, prefix);
+          expect(content.contains(emoji), isFalse);
+
+          // Result must be safely UTF-8 encodable and JSON encodable.
+          expect(() => utf8.encode(result), returnsNormally);
+          expect(() => jsonEncode(result), returnsNormally);
+        },
+      );
+
+      test(
+        'preserves entire surrogate pair when low surrogate falls on boundary',
+        () {
+          // Place emoji so its low surrogate sits exactly at index kNetworkBodyMaxLength - 1 (10239).
+          const emoji = '😀';
+          final prefix = 'a' * (kNetworkBodyMaxLength - 2);
+          final body = '$prefix$emoji${'b' * 50}';
+
+          final result = NetworkEntry.truncateBody(body)!;
+
+          // Entire pair is within the limit, so full limit is retained.
+          expect(result.length, kNetworkBodyMaxLength + kTruncatedMarker.length);
+          expect(result.endsWith(kTruncatedMarker), isTrue);
+          final content = result.substring(0, kNetworkBodyMaxLength);
+          expect(content, '$prefix$emoji');
+
+          expect(() => utf8.encode(result), returnsNormally);
+          expect(() => jsonEncode(result), returnsNormally);
+        },
+      );
     });
 
     group('TimestampedEntry contract', () {
