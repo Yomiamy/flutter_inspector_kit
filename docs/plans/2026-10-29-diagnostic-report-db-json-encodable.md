@@ -2,7 +2,7 @@
 
 - **日期**：2026-10-29
 - **規格**：[`docs/features/2026-10-29-diagnostic-report-db-json-encodable.md`](../features/2026-10-29-diagnostic-report-db-json-encodable.md)
-- **來源**：`docs/brainstorm/2026-10-22-features-brainstorm.md` §Z1-2
+- **來源**：`docs/brainstorm/2026-10-31-features-brainstorm.md` §Z1-2
 - **Effort**：trivial
 
 ---

@@ -1,7 +1,7 @@
 # 功能規格：匯出診斷報告時 DatabaseEntry JSON 序列化型別容錯（§Z1-2）
 
 - **日期**：2026-10-29
-- **來源**：`docs/brainstorm/2026-10-22-features-brainstorm.md` §Z1 第 2 項（既有缺陷 · 匯出報告時 DatabaseEntry.data 以 JsonEncoder.withIndent 編碼且無 toEncodable 導致崩潰）
+- **來源**：`docs/brainstorm/2026-10-31-features-brainstorm.md` §Z1 第 2 項（既有缺陷 · 匯出報告時 DatabaseEntry.data 以 JsonEncoder.withIndent 編碼且無 toEncodable 導致崩潰）
 - **Effort**：trivial ｜ **排查價值**：⭐⭐⭐
 
 ---
