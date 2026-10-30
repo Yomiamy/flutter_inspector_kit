@@ -2,7 +2,7 @@
 
 - **日期**：2026-10-29
 - **規格**：[`docs/features/2026-10-29-readme-non-dio-transport-recipes.md`](../features/2026-10-29-readme-non-dio-transport-recipes.md)
-- **來源**：`docs/brainstorm/2026-10-22-features-brainstorm.md` §Z4-3
+- **來源**：`docs/brainstorm/2026-10-31-features-brainstorm.md` §Z4-3
 - **Effort**：low
 
 ---
