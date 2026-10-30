@@ -217,6 +217,89 @@ void main() {
         expect(report, isNot(contains('users')));
       },
     );
+
+    test('serializes non-primitive data without throwing (§Z1-2)', () {
+      final report = _report(
+        db: [
+          DatabaseEntry(
+            operation: DatabaseOperation.insert,
+            tableName: 'users',
+            timestamp: _minutesAgo(1),
+            data: {
+              'id': 1,
+              'name': 'Alice',
+              'createdAt': DateTime(2026, 10, 29, 12, 0, 0),
+              'uri': Uri.parse('https://example.com/profile'),
+              'custom': const _CustomData('sample'),
+              'nested': {'timestamp': DateTime(2026, 10, 29, 12, 0, 0)},
+            },
+          ),
+        ],
+        sections: {TimelineSource.db},
+      );
+
+      expect(report, contains('## Database'));
+      expect(report, contains('users'));
+      expect(report, contains('"createdAt": "2026-10-29 12:00:00.000"'));
+      expect(report, contains('"uri": "https://example.com/profile"'));
+      expect(report, contains('"custom": "CustomData(sample)"'));
+      expect(report, contains('"timestamp": "2026-10-29 12:00:00.000"'));
+    });
+
+    test('keeps toJson() output for models that provide it', () {
+      final report = _report(
+        db: [
+          DatabaseEntry(
+            operation: DatabaseOperation.insert,
+            tableName: 'users',
+            timestamp: _minutesAgo(1),
+            data: {'model': const _JsonModel(7)},
+          ),
+        ],
+        sections: {TimelineSource.db},
+      );
+
+      expect(report, contains('"model": {'));
+      expect(report, contains('"id": 7'));
+      expect(report, isNot(contains('JsonModel(')));
+    });
+
+    test('falls back to a placeholder for cyclic data', () {
+      final cyclic = <String, dynamic>{};
+      cyclic['self'] = cyclic;
+      final report = _report(
+        db: [
+          DatabaseEntry(
+            operation: DatabaseOperation.insert,
+            tableName: 'users',
+            timestamp: _minutesAgo(1),
+            data: cyclic,
+          ),
+        ],
+        sections: {TimelineSource.db},
+      );
+
+      expect(report, contains('## Database'));
+      expect(report, contains('(unserializable data)'));
+    });
+
+    // SDK wraps a toJson-induced cycle in JsonUnsupportedObjectError, not
+    // JsonCyclicError — pins the catch type.
+    test('falls back to a placeholder for cycles via toJson', () {
+      final report = _report(
+        db: [
+          DatabaseEntry(
+            operation: DatabaseOperation.insert,
+            tableName: 'users',
+            timestamp: _minutesAgo(1),
+            data: {'ref': _SelfRef()},
+          ),
+        ],
+        sections: {TimelineSource.db},
+      );
+
+      expect(report, contains('(unserializable data)'));
+    });
   });
 
   group('redaction red line (AC-15, AC-16, AC-18)', () {
@@ -681,4 +764,26 @@ void main() {
       expect(out.contains('\n'), isFalse);
     });
   });
+}
+
+class _CustomData {
+  const _CustomData(this.value);
+  final String value;
+
+  @override
+  String toString() => 'CustomData($value)';
+}
+
+class _JsonModel {
+  const _JsonModel(this.id);
+  final int id;
+
+  Map<String, dynamic> toJson() => {'id': id};
+
+  @override
+  String toString() => 'JsonModel($id)';
+}
+
+class _SelfRef {
+  Map<String, dynamic> toJson() => {'me': this};
 }

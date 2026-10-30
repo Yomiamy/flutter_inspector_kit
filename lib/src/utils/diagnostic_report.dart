@@ -148,14 +148,36 @@ String buildDiagnosticReport({
       final data = e.data;
       if (data != null) {
         final payload = redact ? redactHeaders(data) : data;
-        row +=
-            '\n${_fenced(const JsonEncoder.withIndent('  ').convert(payload))}';
+        row += '\n${_fenced(_encodeDbPayload(payload))}';
       }
       return row;
     });
   }
 
   return b.toString();
+}
+
+/// Pretty-prints a DB payload without ever throwing: a report must be
+/// producible for any log content.
+String _encodeDbPayload(Object payload) {
+  try {
+    return const JsonEncoder.withIndent('  ', _toEncodable).convert(payload);
+  } on JsonUnsupportedObjectError {
+    // Cycles (incl. via toJson, wrapped by the SDK), a toJson result that is
+    // still not encodable, or a throwing toString — nothing safe to print.
+    return '(unserializable data)';
+  }
+}
+
+// Keeps JsonEncoder's default `toJson()` behaviour; only objects without a
+// usable `toJson()` fall back to `toString()` instead of aborting the report.
+Object? _toEncodable(Object? o) {
+  try {
+    return (o as dynamic).toJson();
+  } catch (_) {
+    // Any failure (no toJson, or toJson threw) degrades to toString.
+    return o.toString();
+  }
 }
 
 void _writeSection<T extends TimestampedEntry>(
