@@ -2,7 +2,7 @@
 
 - **日期**：2026-10-29
 - **規格**：[`docs/features/2026-10-29-network-entry-truncate-utf16-surrogate.md`](../features/2026-10-29-network-entry-truncate-utf16-surrogate.md)
-- **來源**：`docs/brainstorm/2026-10-22-features-brainstorm.md` §Z1-4
+- **來源**：`docs/brainstorm/2026-10-31-features-brainstorm.md` §Z1-4
 - **Effort**：trivial
 
 ---

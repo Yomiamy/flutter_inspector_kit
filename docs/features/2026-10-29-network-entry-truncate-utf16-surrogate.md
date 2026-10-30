@@ -1,7 +1,7 @@
 # 功能規格：`truncateBody` 截斷防護 UTF-16 Surrogate Pair（§Z1-4）
 
 - **日期**：2026-10-29
-- **來源**：`docs/brainstorm/2026-10-22-features-brainstorm.md` §Z1 第 4 項（既有缺陷 · `truncateBody` 以 `substring(0, kNetworkBodyMaxLength)` 截斷可能切斷 surrogate pair）
+- **來源**：`docs/brainstorm/2026-10-31-features-brainstorm.md` §Z1 第 4 項（既有缺陷 · `truncateBody` 以 `substring(0, kNetworkBodyMaxLength)` 截斷可能切斷 surrogate pair）
 - **Effort**：trivial ｜ **排查價值**：⭐⭐⭐
 
 ---
