@@ -1,7 +1,7 @@
 # 功能規格：README「非 Dio 傳輸」排查食譜（gRPC 與 WebSocket）（§Z4-3）
 
 - **日期**：2026-10-29
-- **來源**：`docs/brainstorm/2026-10-22-features-brainstorm.md` §Z4 第 3 項
+- **來源**：`docs/brainstorm/2026-10-31-features-brainstorm.md` §Z4 第 3 項
 - **Effort**：low ｜ **排查價值**：⭐⭐⭐
 
 ---

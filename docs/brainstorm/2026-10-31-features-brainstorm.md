@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-31**：**§Z4 README「非 Dio 傳輸」食譜完成**——PR #229 合入 main（issue #228），README 新增 gRPC（`ClientInterceptor`）與 WebSocket 排查食譜及協定狀態碼／`NetworkOrigin` 陷阱說明，`lib/` 零改動。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**§Z1-4 完成**——PR #227 合入 main（issue #226），`truncateBody` 截斷邊界落在 high surrogate 時退一個 code unit，不再產生孤立 surrogate。檔名日期前綴由 `2026-10-22` 更新至 `2026-10-31`。
 > * **2026-10-22**：**二度比對 zero_inspector_kit（追蹤至 v1.17.0）**——深入審查 v1.16.0 ~ v1.17.0 之 10 個核心 commit（PR #115 / #116）。對方修復的 9 項嚴重缺陷強烈驗證了本專案的架構定力：全域 hook 只 chain 不 teardown（對方因還原順序錯誤永久癱瘓宿主 Sentry/Crashlytics）、100% 純 Dart（對方 iOS `dup2` 重定向未還原導致 64KB 管道緩衝區寫滿、全 App 阻塞卡死）、純 NavigatorObserver 注入（對方重構 MaterialApp 漏拷貝 6 個 SDK 屬性且撞斷 Navigator 2.0）、拒絕落盤（對方落盤回放陷入重複行泥淖）。比對中查出本專案 1 項既有缺陷：**§Z1-6 剪貼簿操作缺乏例外防守與降級回饋（5 檔案、10 處裸呼叫與 fallback 連鎖崩潰，含 table_rows 卡死 bottom sheet）**。檔名日期前綴由 `2026-10-20` 更新至 `2026-10-22`。
 > * **2026-10-20**：**v2.8.0 發布**——PR #217 合入 main（issue #216），將 §P20、§P31、§Z1-1、§Z1-3、§Z1-5 與 §Z4 Replay 結果狀態碼打包為 v2.8.0，完成度總覽版本標記同步更新。檔名日期前綴維持 `2026-10-20`（已是今日）。
@@ -2110,7 +2111,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 |:---|:---|:---|:---:|
 | **Console 錯誤聚合** | Network 端 #7 錯誤聚合的 log 版：純函式 `aggregateLogErrors(List<LogEntry>)`，key = exception type + 簽章（優先用 PR #197 已解析的 `data['errorLocation']`，其次前 8 個非空 frame，再次「訊息中數字換 `#`」），顯示計數與首末次時間 | `utils/` 新增純函式 + `console_tab.dart` | low |
 | **Replay 結果顯示狀態碼** — ✅ 已完成（PR #213 / Issue #212 · 2026-10-20） | SnackBar 改顯示 `Resent → 200`／`Resent → 500`／`Resend failed: <type>`，不顯示 ms；同步改 `network_detail_view_test.dart` 三處字串斷言 | `network_detail_view.dart` | trivial |
-| **README「非 Dio 傳輸」食譜** | gRPC：呼叫開始 `logNetwork(NetworkEntry(method: 'gRPC', url: '/pkg.Svc/Method'))`、結束時 replace；WebSocket：只在 connect／close（含 closeCode）／error 時 `log()`。陷阱：協定狀態碼**不可**放進 `statusCode`（`isFailed` 以 ≥ 400 判斷會誤判）；**不要**新增 `NetworkOrigin` 值（公開 enum，會打破 host 的窮舉 switch）。`lib/` 零改動；實作時以 Context7 查證 grpc `ClientInterceptor` API | `README.md` | low |
+| **README「非 Dio 傳輸」食譜** — ✅ 已完成（PR #229 / Issue #228 · 2026-10-31） | gRPC：呼叫開始 `logNetwork(NetworkEntry(method: 'gRPC', url: '/pkg.Svc/Method'))`、結束時 replace；WebSocket：只在 connect／close（含 closeCode）／error 時 `log()`。陷阱：協定狀態碼**不可**放進 `statusCode`（`isFailed` 以 ≥ 400 判斷會誤判）；**不要**新增 `NetworkOrigin` 值（公開 enum，會打破 host 的窮舉 switch）。`lib/` 零改動；實作時以 Context7 查證 grpc `ClientInterceptor` API。**實作差異**：gRPC 落地為 `ClientInterceptor` 子類，先記 pending 再以 `copyWith` + `replaces` 原地結算，同步拋錯與非同步失敗共用同一記錄路徑；WebSocket 改為 `await channel.ready` 後於 stream 的 `onError`／`onDone` 記錄，無 close frame 時明示「no close frame from server」；README 註明 `origin` 無「未指定」值，自訂 entry 會顯示為 `dio`（現行 API 限制） | `README.md` | low |
 
 ### §Z5. 知識補記（純文件，不排程）
 
