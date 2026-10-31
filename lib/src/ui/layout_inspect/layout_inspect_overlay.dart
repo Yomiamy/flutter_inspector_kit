@@ -9,6 +9,13 @@ import '../../utils/share_text.dart';
 import '../theme/theme.dart';
 import 'layout_probe.dart';
 
+const double _loupeDiameter = 96;
+const double _loupeScale = 2;
+// Clearance between the fingertip and the loupe edge, so the finger never
+// covers the lens.
+const double _loupeGap = 32;
+const double _crosshairWidth = 1;
+
 /// Manages the tap-to-inspect layout overlay entry.
 abstract final class LayoutInspectOverlay {
   static OverlayEntry? _entry;
@@ -16,7 +23,12 @@ abstract final class LayoutInspectOverlay {
   /// Inserts the layout inspection overlay into [overlay].
   ///
   /// Repeated calls while the overlay is already active are ignored.
-  static void show(OverlayState overlay, {bool? mayBeObfuscated}) {
+  /// [showLoupe] defaults to `!kIsWeb`: the drag loupe is skipped on web.
+  static void show(
+    OverlayState overlay, {
+    bool? mayBeObfuscated,
+    bool? showLoupe,
+  }) {
     if (_entry != null) return;
     late final OverlayEntry entry;
     entry = OverlayEntry(
@@ -24,6 +36,7 @@ abstract final class LayoutInspectOverlay {
         child: _LayoutInspectLayer(
           entry: entry,
           mayBeObfuscated: mayBeObfuscated ?? !kDebugMode,
+          showLoupe: showLoupe ?? !kIsWeb,
         ),
       ),
     );
@@ -36,10 +49,12 @@ class _LayoutInspectLayer extends StatefulWidget {
   const _LayoutInspectLayer({
     required this.entry,
     required this.mayBeObfuscated,
+    required this.showLoupe,
   });
 
   final OverlayEntry entry;
   final bool mayBeObfuscated;
+  final bool showLoupe;
 
   @override
   State<_LayoutInspectLayer> createState() => _LayoutInspectLayerState();
@@ -145,6 +160,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
   @override
   Widget build(BuildContext context) {
     final level = _chain.isEmpty ? null : _chain[_index];
+    final aim = _aim;
     final screenHeight = MediaQuery.of(context).size.height;
     final alignTop =
         _chain.isNotEmpty && _chain.first.rect.center.dy > screenHeight / 2;
@@ -192,7 +208,67 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
             onClose: _onClose,
           ),
         ),
+        // Last child: the loupe magnifies what is painted before it,
+        // including the frame.
+        if (aim != null && widget.showLoupe) _Loupe(aim: aim),
       ],
+    );
+  }
+}
+
+class _Loupe extends StatelessWidget {
+  const _Loupe({required this.aim});
+
+  final Offset aim;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = _loupeDiameter / 2;
+    final screen = MediaQuery.sizeOf(context);
+    final safeTop = MediaQuery.paddingOf(context).top;
+    final above = aim.dy - _loupeGap - radius;
+    // shortcut: needs a screen >= 96 wide (clamp throws below that) and
+    // >= 256 tall below the safe area; guard both if tiny windows matter.
+    final center = Offset(
+      aim.dx.clamp(radius, screen.width - radius),
+      above - radius >= safeTop ? above : aim.dy + _loupeGap + radius,
+    );
+    return Positioned(
+      left: center.dx - radius,
+      top: center.dy - radius,
+      width: _loupeDiameter,
+      height: _loupeDiameter,
+      child: IgnorePointer(
+        child: RawMagnifier(
+          size: const Size.square(_loupeDiameter),
+          magnificationScale: _loupeScale,
+          focalPointOffset: aim - center,
+          decoration: const MagnifierDecoration(
+            shape: CircleBorder(
+              side: BorderSide(
+                color: ThemeColor.color2196F3,
+                width: ThemeSize.space2,
+              ),
+            ),
+          ),
+          // Crosshair: drawn over the lens, not magnified.
+          child: const Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: _crosshairWidth,
+                height: double.infinity,
+                child: ColoredBox(color: ThemeColor.color2196F3),
+              ),
+              SizedBox(
+                width: double.infinity,
+                height: _crosshairWidth,
+                child: ColoredBox(color: ThemeColor.color2196F3),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
