@@ -50,6 +50,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
   int _index = 0;
   bool _copied = false;
   Timer? _copiedTimer;
+  Offset? _aim;
 
   @override
   void dispose() {
@@ -60,10 +61,33 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     super.dispose();
   }
 
-  void _onTapUp(TapUpDetails details) {
+  void _onTapUp(TapUpDetails details) => _probeAt(details.globalPosition);
+
+  void _onPanStart(DragStartDetails details) => _aimAt(details.globalPosition);
+
+  void _onPanUpdate(DragUpdateDetails details) =>
+      _aimAt(details.globalPosition);
+
+  // Settles through the tap path at the last crosshair point, so a release
+  // gives exactly what a tap there would. The SDK also routes a pointer
+  // cancel of an accepted drag here, not to onPanCancel.
+  void _onPanEnd(DragEndDetails _) {
+    final aim = _aim;
+    setState(() => _aim = null);
+    if (aim != null) _probeAt(aim);
+  }
+
+  // shortcut: probes on every pointer move; throttle to once per frame if
+  // drag jank shows up on large widget trees.
+  void _aimAt(Offset globalPosition) {
+    setState(() => _aim = globalPosition);
+    _probeAt(globalPosition);
+  }
+
+  void _probeAt(Offset globalPosition) {
     final anchor = context.findRenderObject();
     if (anchor == null) return;
-    final hit = probeLayoutAt(anchor, details.globalPosition);
+    final hit = probeLayoutAt(anchor, globalPosition);
     if (hit.isEmpty) return;
     _copiedTimer?.cancel();
     setState(() {
@@ -131,6 +155,9 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapUp: _onTapUp,
+            onPanStart: _onPanStart,
+            onPanUpdate: _onPanUpdate,
+            onPanEnd: _onPanEnd,
             child: const SizedBox.expand(),
           ),
         ),
