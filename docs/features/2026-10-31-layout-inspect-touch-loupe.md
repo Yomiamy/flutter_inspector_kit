@@ -76,7 +76,7 @@
    - `flutter test` 全綠；`flutter analyze lib/ test/` 不超出既有 7 個 info。
 
 9. **文件同步**
-   - `CHANGELOG.md` 新增條目；`README.md:135` 的 Inspect layout 說明補上拖曳瞄準；`docs/architecture/overview.md:69` 與 `docs/architecture/file-reference.md:93` 的 `LayoutInspectOverlay` 描述同步更新。
+   - `CHANGELOG.md` 條目延至發版時寫入（`test/version_test.dart` 要求頂端標題等於 pubspec 版號，2026-11-01 裁決）；`README.md:135` 的 Inspect layout 說明補上拖曳瞄準；`docs/architecture/overview.md:69` 與 `docs/architecture/file-reference.md:93` 的 `LayoutInspectOverlay` 描述同步更新。
 
 ## 4. 範圍邊界 (Scope & Boundaries)
 

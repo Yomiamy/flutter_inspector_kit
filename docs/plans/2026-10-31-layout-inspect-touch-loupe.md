@@ -705,7 +705,7 @@ For small targets such as a 16×16 icon, press and drag instead of tapping. Once
 Values are a snapshot taken when you tap or release; if the layout changes, select again.
 ```
 
-- [ ] **Step 3：`CHANGELOG.md`**。在第 1 行 `## 2.8.0` 之前插入：
+- [x] **Step 3：`CHANGELOG.md`** — ❌ **STAGE 2 撤銷（2026-11-01，使用者裁決）**：`## Unreleased` 會讓 `test/version_test.dart:77-93`（#172 加入的守門：CHANGELOG 頂端標題必須等於 pubspec 版號）變紅；下方先例 `3f485c8`／`001d19c` 早於該守門，已過時。自 2.6.0 起 CHANGELOG 只在發版 commit 修改，故本條目**延至發版時由 `gen-update-publish-info` 以 `## <新版號>` 寫入**，本案不改 CHANGELOG。下方文字保留作為發版時的條目草稿：
 
 ```markdown
 ## Unreleased
