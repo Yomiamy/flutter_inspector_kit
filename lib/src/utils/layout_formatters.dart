@@ -1,5 +1,6 @@
 import 'package:flutter/rendering.dart';
 
+import '../ui/layout_inspect/gap_ruler_geometry.dart';
 import '../ui/layout_inspect/layout_probe.dart';
 
 String _formatNumber(double value) =>
@@ -42,5 +43,56 @@ String formatLayoutChain(
       ..writeln('   constraints: ${formatConstraints(level.constraints)}')
       ..writeln('   offset: ${formatOffset(level.rect.topLeft)}');
   }
+  return buffer.toString().trimRight();
+}
+
+/// Formats the measurement between reference [a] and target [b] with their [relation].
+String formatMeasurement({
+  required LayoutLevel a,
+  required LayoutLevel b,
+  required GapRelation relation,
+}) {
+  final buffer = StringBuffer()
+    ..writeln('=== Measurement (Gap Ruler) ===')
+    ..writeln(
+      'Reference A: ${a.widgetName != null ? "${a.widgetName} (${a.renderName})" : a.renderName} '
+      '[size: ${formatSize(a.size)}, offset: ${formatOffset(a.rect.topLeft)}]',
+    )
+    ..writeln(
+      'Target B: ${b.widgetName != null ? "${b.widgetName} (${b.renderName})" : b.renderName} '
+      '[size: ${formatSize(b.size)}, offset: ${formatOffset(b.rect.topLeft)}]',
+    );
+
+  switch (relation) {
+    case SeparatedRelation(:final gapX, :final gapY):
+      buffer.writeln('Relation: Separated');
+      if (gapX > 0) buffer.writeln('Horizontal Gap: ${_formatNumber(gapX)} px');
+      if (gapY > 0) buffer.writeln('Vertical Gap: ${_formatNumber(gapY)} px');
+    case ContainedRelation(
+        :final outerIsA,
+        :final top,
+        :final bottom,
+        :final left,
+        :final right,
+      ):
+      buffer.writeln(
+        'Relation: Contained (${outerIsA ? "A contains B" : "B contains A"})',
+      );
+      buffer.writeln(
+        'Insets: Top: ${_formatNumber(top)} px, '
+        'Bottom: ${_formatNumber(bottom)} px, '
+        'Left: ${_formatNumber(left)} px, '
+        'Right: ${_formatNumber(right)} px',
+      );
+    case OverlappingRelation(:final intersection):
+      buffer.writeln(
+        'Relation: Overlapping [intersection: ${formatSize(intersection.size)}]',
+      );
+    case AdjacentRelation(:final axis):
+      buffer.writeln(
+        'Relation: Adjacent (${axis == Axis.horizontal ? "horizontal" : "vertical"})',
+      );
+  }
+
   return buffer.toString().trimRight();
 }
