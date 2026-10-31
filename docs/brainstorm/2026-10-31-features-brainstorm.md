@@ -3,6 +3,8 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-31**：**zero_inspector_kit 2.0.0 全模組（10 大子系統）深度對齊與新借鏡提煉**——全面盤點 Log、Network、Routes、Storage/Database、FPS/Performance、Memory/Leak、Alerts & Rules、Widgets、Floating Button、Persistence & Export 等全部現行模組。確立本專案在 Active Stack 路由推演、Tap-to-Inspect Layout（支援 Release）、100% 純 Dart 零原生依賴、統一時間軸、AI Agent Prompt 等方面的全面領先；同時提煉 3 項務實借鏡與優化：(1) **§Z1-9 Dio `FormData` (Multipart) 上傳摘要化**（消除 `Instance of 'FormData'`，提取欄位與檔案檔名大小）；(2) **§Z1-10 日誌 ANSI Escape 顏色碼濾除**（消除終端彩色日誌在 UI 與報告中的亂碼跳脫字元）；(3) **§Z4 `NetworkDetailView` 單區塊一鍵複製**（Response Body / Headers 獨立複製按鈕，消滅觸控長按選取長文字的痛點）。檔名日期前綴維持 `2026-10-31`（已是今日）。
+> * **2026-10-31**：**三度比對 zero_inspector_kit（追蹤至 v2.0.0 / PR #117）**——深入審查 v2.0.0（46 檔案，+1128/-504 行）。對方發布 2.0.0 的主因是兩項破壞性變更（補齊 `RouteAction.remove` 與移除死代碼），並修復 20+ 項審查缺陷。核心發現：(1) **架構定力再度獲得強烈驗證**：對方在 v2.0.0 徹底刪除 iOS `dup2` 重定向與 Android logcat 原生代碼（官方承認未導出且帶不可逆全局副作用），徹底確立本專案堅持「100% 純 Dart」不可動搖的定力；對方落盤持久化爆發 `flush()` 在 `commit()` 前清空導致整批日誌靜默遺失、`dispose()` 與在途 `init()` 競態留下孤兒 Timer，陷入堆疊 5 次重試降級記憶體模式的泥淖，再度驗證 Anti-Feature #2（拒絕本機落盤）；(2) **本專案領先特性**：本專案自始即支援 `NavigatorAction.remove`、報告匯出依時間窗而非錯誤切片最舊、FAB 採直覺位移（54 行）杜絕了對方的 AnimationController 監聽器洩漏與小球抖動爭搶；(3) **借鏡改善提案**：自查查出 2 項可借鏡優化——**§Z1-7 熱路徑 RegExp 靜態編譯與常數化**（`log_formatters` 與 `network_formatters` 消除每行/每次即時編譯正則的開銷）與 **§Z1-8 Dio `ResponseBody` (Stream) 友善佔位**（明確標示 `[stream response (ResponseBody)]`，消除 `Instance of 'ResponseBody'` 且絕不排空業務 stream）。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**§Z1-2 完成**——PR #225 合入 main（issue #224），匯出報告的 Database 區段不再因 host data 含非 JSON 型別而整份失敗：保留 `toJson()`、其餘退回 `toString()`，循環引用降級為 `(unserializable data)`。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**§Z4 README「非 Dio 傳輸」食譜完成**——PR #229 合入 main（issue #228），README 新增 gRPC（`ClientInterceptor`）與 WebSocket 排查食譜及協定狀態碼／`NetworkOrigin` 陷阱說明，`lib/` 零改動。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**§Z1-4 完成**——PR #227 合入 main（issue #226），`truncateBody` 截斷邊界落在 high surrogate 時退一個 code unit，不再產生孤立 surrogate。檔名日期前綴由 `2026-10-22` 更新至 `2026-10-31`。
@@ -1853,7 +1855,12 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | **§P9** Diagnostic Report JSON | 結構化 JSON 匯出格式 | med | ⬜ |
 | ~~**§P15** 鍵值儲存檢視器（KV Browser）~~ | `KeyValueBrowserSource` 介面 + **獨立 Storage tab**（非併入 Database Tab）+ 讀寫操作 + README 範例 — ✅ 已完成（PR #137） | medium | ✅ |
 | ~~**§P10** Rebuild 異常偵測~~ | ~~全清單唯一需逐 widget 接線，非 app層級 flag~~ | ~~med~~ | ❌ |
+| **§Z1-9** Dio `FormData` (Multipart) 上傳摘要化 | 消除 `Instance of 'FormData'`，提取 fields 與 files 檔名大小且不消耗 stream | trivial | ⬜ |
+| **§Z1-10** 日誌 ANSI Escape 顏色碼濾除 | `stripAnsi()` 濾除終端彩色跳脫序列，消滅 Console 與報告中的亂碼符號 | trivial | ⬜ |
+| **§Z4 (單區塊複製)** NetworkDetailView 區塊獨立複製 | Headers / Body 標題列獨立複製按鈕，消滅行動端長按拖拉選取痛點 | trivial | ⬜ |
 
+> **2026-10-31 zero_inspector_kit 2.0.0 全模組對齊新增**：自查查出 3 項高價值零破壞打磨待辦——**§Z1-9 Dio `FormData` 上傳摘要化**（trivial）、**§Z1-10 日誌 ANSI Escape 顏色碼濾除**（trivial）與 **§Z4 NetworkDetailView 區塊獨立複製**（trivial），均列入打磨排程。
+>
 > **§P8 已完成**（PR #111 / Issue #110，v1.9.0 週期）——閾值改為 `FlutterInspector.slowRequestThreshold`
 > 可設定（預設 2s）並顯示於 UI，且 NetworkTab 與 ConsoleTab 混合時間軸**兩處都標**。
 >
@@ -2015,9 +2022,9 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 ---
 
-## 🔬 第八部分：zero_inspector_kit 比對——記憶體／FPS 監控與可借鏡項（2026-10-22 追蹤至 v1.17.0）
+## 🔬 第八部分：zero_inspector_kit 比對——記憶體／FPS 監控與可借鏡項（2026-10-31 追蹤至 v2.0.0）
 
-> **來源**：<https://github.com/zero-labsco/zero_inspector_kit>（v1.15.0 基準，2026-10-22 二度追蹤至 v1.17.0 / PR #116，MPL-2.0——只借想法，不複製檔案）
+> **來源**：<https://github.com/zero-labsco/zero_inspector_kit>（v1.15.0 基準，2026-10-22 二度追蹤至 v1.17.0 / PR #116，2026-10-31 三度追蹤至 v2.0.0 / PR #117，MPL-2.0——只借想法，不複製檔案）
 >
 > **查證方式**：`git clone --depth 1` 後由 10 個 reader 分子系統逐檔深讀，整理出 87 個候選。fps-1～fps-7 由 4 個獨立視角（證據／量測有效性／既有裁決／價值）各自驗證；其餘 77 個因用量上限改由 10 個批次 agent 各以單一合併視角驗證，**獨立確認程度較低**。下文標「✅ 已親查」者為主對話親自讀原始碼核實。
 >
@@ -2027,7 +2034,22 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 **記憶體監控與 FPS 監控皆無可直接搬移者**。兩者的形狀都是「常駐 `Timer.periodic` 輪詢 + 即時儀表 + 原生 plugin（Android/iOS MethodChannel）」，與本專案的純 Dart package、不輪詢、離散事件進 `mergedTimeline` 三項定位正面衝突；Web 亦不可用（無條件 `import 'dart:io'`）。
 
-**它沒有解決 debug 誤報，反而佐證 AF#1 的死因**（✅ 已親查）：`fps_service.dart:322-335` 註解自承「debug/模擬器下一次簡單重繪常超過 16ms」，因此只在閒置判定改數幀數，掉幀率照算；v1.11.0 還把 120Hz 門檻收緊至 8.3ms，等於放大誤報。
+### 📊 zero_inspector_kit 2.0.0 全模組（10 大子系統）對齊矩陣
+
+經逐檔盤點 `zero_inspector_kit` v2.0.0 全部 77 個原始碼檔案與功能架構，與 `flutter_inspector` 進行全方位對齊：
+
+| 子系統 / 模組 | zero_inspector_kit 2.0.0 現行實作與機制 | flutter_inspector 現行架構與對照 | 對齊結論與借鏡決策 (Linus 模式審視) |
+|:---|:---|:---|:---|
+| **1. 日誌 (Logs)** | `InspectorLogInterceptor` 攔截異常與 print；支援 Level 篩選與搜尋（有緩存 bug）；v2.0.0 刪除 iOS `dup2` / Android logcat 原生代碼；異常與堆疊拆為 2 筆獨立日誌 | `UncaughtErrorHandler`（`identical` 去重，鏈式傳遞不 teardown，自動解析 RenderFlex 溢出上下文）；`mergedTimeline` 統一混合流；`LogDetailView` 支援 StackTrace concise (框架過濾)/raw 切換、`JsonTreeViewer` 樹狀展開；Agent Prompt 匯出 | **本專案領先**：因果關聯與智慧解析碾壓對方。**借鏡 §Z1-10**：濾除終端彩色 ANSI escape 序列 (`stripAnsi`)，避免第三方 logger 引入亂碼字符 |
+| **2. 網路 (Network)** | 全域 `HttpOverrides.global` 代理（`dart:io` 專用，Web/WASM 崩潰）；API Mocking (改 response)；Waterfall 瀑布圖；HAR 1.2 匯出；`InspectorReplayEditor` (改 query/body 重送)；WebSocket 監聽；v2.0.0 注入關聯頭 `x-inspector-request-id` | 純 Dart `DioInterceptor`（100% Web/WASM 相容）；README 提供 gRPC 與 WebSocket 零件化食譜；`_ErrorSummaryBanner` 智慧分組；🐢 SLOW 標籤；一鍵 cURL / Markdown / Agent Prompt 複製；原生狀態碼 Replay | **本專案領先**：堅持 Web 相容與零侵入（Mocking 撞 AF#4、瀑布圖撞 AF#1、關聯頭污染 HMAC）。**借鏡 §Z1-9**（Dio `FormData` 上傳欄位與檔案摘要化）與 **§Z4**（`NetworkDetailView` 區塊獨立一鍵複製按鈕） |
+| **3. 路由導航 (Routes)** | `RouteObserver`（v2.0.0 補齊 `RouteAction.remove`）；扁平式歷史列表記錄進出場耗時。曾試圖透過 `runAppWithInspector` 劫持 `MaterialApp` 導致屬性遺漏與 Navigator 2.0 斷裂 | 純 `FlutterInspectorNavigatorObserver` 零件化掛載；`NavigatorTab` + `NavigatorStackResolver`（**虛擬 Active Stack 即時推演**，呈現當前頁面之底層堆疊）；URL query 與 argument 參數分離；Console 混合流即時標記 `routeLabel` | **本專案完全領先**：Active Stack 推演遠勝扁平流水帳；參數分離清晰；零侵入。對方無可借鏡 |
+| **4. 資料庫與鍵值儲存 (Storage/Database)** | 依賴 `sqflite`、`path_provider`、`shared_preferences` 等原生外掛直接掃描本機檔案目錄；定時每 3 秒對所有 `.db` 跑 `PRAGMA` 與 `COUNT(*)` 產生頻繁 I/O 震盪；搜尋未接 `onChanged` 致完全無效；Web 不可用 | 純 Dart 主機注入介面（`DatabaseBrowserSource`、`KeyValueBrowserSource`），分為 `DatabaseTab` 與獨立 `StorageTab`；支援任意儲存引擎（SQLite、Hive、ObjectBox、SharedPreferences、SecureStorage）；支援即時增刪改清空；自動記錄稽核日誌與遮蔽；100% Web/WASM 相容 | **本專案完全領先**：對方為典型過度工程與反模式（高頻磁碟 I/O + 破壞 Web 相容）。本專案注入架構簡潔、通用且零原生負擔。對方無可借鏡 |
+| **5. 幀率與效能 (FPS/Performance)** | `FpsService`、`FpsViewer`、`BlockingWatchdogService`。常駐 1s Timer 算 FPS；500ms 重繪自身 UI 造成觀察者效應；100ms 週期 Watchdog 檢查 UI 阻塞，切背景引發假卡頓；公式混用單調時鐘與牆上時鐘 | 純 SDK `addTimingsCallback` 監聽；**離散事件模型**（`totalSpan >= 700ms` 凍結幀標準寫入 warning log 進既有時間軸）；連續凍結幀自動合併；主動排除自身 `reassembleApplication` 停頓；零常駐輪詢 Timer，零觀察者效應 | **本專案哲學獲勝**：消滅即時儀表（AF#1），堅持離散因果排查。對方實作缺陷頻生且造成嚴重觀察者效應，無可借鏡 |
+| **6. 記憶體與洩漏 (Memory/Leaks)** | `MemoryInspectorService`、`MemoryViewer`、`LeakTrackerBridge`。常駐 4 個定時器（500ms/3s/3s/2s）背景輪詢；嘗試連線 VM Service；v2.0.0 在離線/release 下超時即推測洩漏，產生海量 notGCed 假陽性 | `LifecycleHandler` 捕獲系統級記憶體警報（`didHaveMemoryPressure`）；純 Dart 零輪詢；§Z1-5 過濾 Android `TRIM_MEMORY_UI_HIDDEN` 切背景誤報；堅守核心決策三（拒絕 In-App 偽洩漏追蹤） | **本專案定力獲勝**：嚴守「沒有 GC 證明不猜測洩漏」；反向驗證本專案拒絕 In-App 記憶體輪詢的正確性。對方無可借鏡 |
+| **7. 元件與排版檢視 (Widgets/Layout)** | `WidgetTreeInspector`，遞迴巡訪整個 Element Tree 生成麵包屑導航；在 Release 下因 `debugCreator` 遺失直接崩潰；巡訪全樹記憶體消耗大（撞 AF#8） | `LayoutInspectOverlay` + `LayoutProbe` (§P31)，支援所有 build mode（含 Release）；**Tap-to-Inspect 點選探測**，即時呈現尺寸、constraints、global offset 與父鏈層級；以 `LayoutProbeShield` 隔離 kit 自身；AppBar 提供 `debugPaintSizeEnabled` 排版邊界切換 (§P28) | **本專案完全領先**：以「點選即查」取代「全樹展開」，好品味且在 Release 模式下完全可用，徹底碾壓對方的重型全樹巡訪。對方無可借鏡 |
+| **8. 告警與規則 (Alerts & Rules)** | `AlertService`、`AlertsViewer`、`RequestInterceptorRule`。自定義 URL 正則、狀態碼、耗時規則；命中時跳出頂部浮動 Toast 並寫入 SQLite。Toast 雙重 remove 崩潰，遮擋主畫面 | `AlertThrottler` 防風暴；`_ErrorSummaryBanner` 自動聚合；系統原生通知（`showCrashNotification` / `showNetworkNotification`）；前景提示走 FAB 未讀數 badge | **本專案領先**：排查工具應當開箱即用，讓開發者手動配置規則是嚴重過度工程。頂部 Toast 亦具強烈干擾與觀察者效應。本專案不借鏡（撞 AF#2/AF#6） |
+| **9. 懸浮按鈕 (Floating Button)** | `FloatingInspectorButton` 414 行代碼，使用 `AnimationController` 實現邊緣吸附動畫；v2.0.0 因未 `removeListener` 導致監聽器洩漏與小球抖動爭搶回跳 | `InspectorFab` 54 行斯巴達式純 Dart 代碼，`GestureDetector.onPanUpdate` 直覺位移，夾在螢幕安全邊界內；支援未讀 Badge 狀態更新；零 Controller、零監聽器洩漏 | **本專案品味勝出**：54 行斯巴達代碼消滅 414 行的所有邊界條件與洩漏風險。對方無可借鏡 |
+| **10. 持久化與報告匯出 (Persistence & Export)** | SQLite 磁碟落盤；跨 session 日誌回放；v2.0.0 `flush()` 在 `commit()` 前清空緩衝導致靜默掉資料，`dispose()` 競態留下孤兒 Timer，被逼增加 5 次重試降級記憶體模式；匯出 Bug 報告誤切最舊 N 條 | 純記憶體 `RingBuffer(500)`，零磁碟 I/O，零啟動阻塞；匯出支援 Markdown 診斷報告、結構化 `toEncodable` JSON (§P9 待辦)、以及專為 LLM 設計的 **AI Agent Prompt**（含完整因果鏈與 cURL） | **本專案定力獲勝**：純記憶體徹底避開落盤泥淖；AI Agent Prompt 引領了當前 AI 輔助排查的最新實踐。對方無可借鏡 |
 
 **對方的實作缺陷（勿重蹈）**：
 
@@ -2050,6 +2072,15 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | 磁碟緩衝區未依 ID 去重，多行日誌合併、網絡請求發送與響應、重複異常皆落多行，回放時記錄膨脹重複 | `persistence_service.dart:140-240` |
 | 數據庫查看器搜尋框未傳 `onChanged` 致搜尋完全失效；非同步查詢後未防守 `mounted` 導致切 Tab 拋 `setState after dispose` | `database_viewer.dart:200-240` |
 | Timeline 歸併短路條件 `!_dirty && _events.isNotEmpty` 導致空會話或全過濾時每次 build 全量重歸併 | `timeline_viewer.dart:75-85` |
+| **(v2.0.0)** Bug 報告切片取最舊 N 條（`sublist(length - N)` 取到會話開頭最舊記錄，因列表由 `addFirst` 倒序維護） | `export_service.dart:400-420` |
+| **(v2.0.0)** 持久化刷盤在 `batch.commit()` 之前清空緩衝，寫盤失敗時整批日誌/網絡/異常被靜默丟棄毫無痕跡 | `persistence_service.dart:300-340` |
+| **(v2.0.0)** `PersistenceService.dispose()` 與在途 `init()` 競態，留下永不取消的 2s 刷盤 Timer 和無人關閉的 DB handle | `persistence_service.dart:55-170` |
+| **(v2.0.0)** 懸浮按鈕吸附動畫未 `removeListener`，每次拖動松手都在共享 AnimationController 疊加 listener，導致小球抖動回跳與記憶體洩漏 | `floating_button.dart:124-300` |
+| **(v2.0.0)** 記憶體洩漏分析在無 VM Service（release/真機）時單純等待超時即判 `leaked`，在使用者未操作/VM 未 GC 時引發海量假陽性誤報 | `memory_inspector_service.dart:1676-1690` |
+| **(v2.0.0)** 儲存統計每 3 秒調用 `getDatabases()` 全量建連並對所有 `.db` 跑 PRAGMA+COUNT(*)，造成高頻定時磁碟 I/O 震盪 | `sqlite_provider.dart:47-90` / `memory_inspector_service.dart:1419` |
+| **(v2.0.0)** Dio 攔截器曾非同步 listen 排空 `ResponseBody.stream`，導致 SSE/大文件下載業務方拿到空流崩潰（v2.0.0 改為佔位說明） | `dio_interceptor.dart:136-165` |
+| **(v2.0.0)** 只掛 Dio 攔截器時向出站請求注入關聯頭 `x-inspector-request-id`，污染 HMAC 簽名並觸發 CORS 預檢 | `dio_interceptor.dart:71-85` |
+| **(v2.0.0)** WebP 魔數嗅探在 build 期間執行但長度守衛只擋 `< 8`（WebP 需讀到 `[11]`），遇到 8~11 節點拋 RangeError 崩潰網絡詳情頁 | `inspector_image_preview.dart:51-65` |
 
 ### §Z1. 既有缺陷（不需裁決，可直接排程）
 
@@ -2063,6 +2094,10 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | 4 | `truncateBody` 以 `substring(0, kNetworkBodyMaxLength)` 截斷，可能切斷 surrogate pair（emoji）— ✅ 已完成（PR #227 / Issue #226 · 2026-10-31） | `network_entry.dart:131` | 末位為 high surrogate（`0xD800–0xDBFF`）時 `end--`，補一個測試 | trivial |
 | 5 | **§P21 在 Android 切背景即誤報**：engine `FlutterActivityAndFragmentDelegate.java:1067-1070`（SDK 3.47.1）只要 `level >= TRIM_MEMORY_RUNNING_LOW` 就送 memory pressure，`TRIM_MEMORY_UI_HIDDEN`（切背景）也在其內；加上 Google 已將 `onTrimMemory` 多數 callback deprecated、只留 `UI_HIDDEN` 與 `BACKGROUND`——**現代 Android 上 §P21 記到的多半只是「切到背景」**— ✅ 已完成（PR #205 / Issue #204 · 2026-10-19） | `lifecycle_handler.dart`（`didHaveMemoryPressure`） | ~~純 Dart：記錄時若 `WidgetsBinding.instance.lifecycleState` 非 `resumed`，訊息附上當下狀態（如 `(app hidden)`），讓讀者分辨「切背景觸發」與「前景真壓力」；不轉 plugin、不加等級~~ **2026-10-19 改為**：`lifecycleState` 為 `hidden` / `paused` / `detached` 時**直接丟棄不記**（`inactive` 因 App 仍可見、如 iOS 來電，保留記錄）——加修飾後仍是 warning，誤報照樣進過濾與 badge；背景事件亦無排查價值（App 被殺則時間軸一併消失）。不整個移除 §P21：iOS 前景 `didReceiveMemoryWarning` 是真訊號。不轉 plugin、不加旗標 | trivial |
 | 6 | 剪貼簿操作缺乏例外防守與降級回饋：全套件 5 個檔案、10 處裸呼叫 `Clipboard.setData` 或 shareText 降級路徑（未防守 `PlatformException`）。在 Web 無使用者手勢/權限受限、桌面端或 headless 測試環境下拋錯，會導致未捕獲非同步例外；`table_rows_view` 更因此卡死底層 bottom sheet（`Navigator.pop` 在其後）；`shareText` 拋錯後降級裸呼叫剪貼簿更構成二次連鎖崩潰 | `network_detail_view.dart:280,294,301,314`、`log_detail_view.dart:191,197,207`、`layout_inspect_overlay.dart:92,110`、`json_tree_viewer.dart:388`、`table_rows_view.dart:215`（另標準化 `export_report_sheet.dart:95`） | 於 `lib/src/utils/` 提煉 `Future<bool> safeCopyToClipboard(String text)` 工具函式包覆 try-catch；呼叫端依回傳值展示成功或「Copy failed — clipboard unavailable」；消滅 10 處裸呼叫與連鎖崩潰，並標準化既有防禦 | trivial |
+| 7 | **(v2.0.0 借鏡)** 熱路徑 RegExp 即時編譯開銷：`log_formatters.dart`（`normalizeStackTrace` 對堆疊每行即時建構 `RegExp(r'[\s\(]package:flutter/')` 與 `RegExp(r'[\s\(]dart:')`；`buildLogOneLiner` 即時建構換行正則）與 `network_formatters.dart`（`buildNetworkOneLiner` 即時建構 `[?#]` 與 `[\r\n]`），高頻呼叫下反覆編譯相同正則並產生短命物件 GC 壓力 | `log_formatters.dart:22,38-39,121-122`、`network_formatters.dart:87`、`agent_prompt.dart:222,242` | 提煉為頂層 `final RegExp` 靜態編譯常量，消滅格式化熱路徑上的重複編譯開銷 | trivial |
+| 8 | **(v2.0.0 借鏡)** Dio `ResponseBody` (Stream) 佔位友善化：當發起大文件下載或 SSE 時，Dio 的 `response.data` 為 `ResponseBody`。目前走 `toString()` 輸出為 `Instance of 'ResponseBody'`，不夠直觀 | `dio_interceptor.dart:20-34` | 於 `_stringifyData` 增設 `data is ResponseBody` 判斷，回傳 `'[stream response (ResponseBody)]'` 佔位符，明確揭示流式回應且與 binary 佔位風格一致，同時堅持絕不 listen 排空業務 stream | trivial |
+| 9 | **(v2.0.0 借鏡)** Dio `FormData` (Multipart) 上傳摘要化：當發起多部件上傳時，Dio 的 `request.data` 為 `FormData`。目前走 `_stringifyData` 輸出為 `'Instance of \'FormData\''`，在 Network 列表與詳情中完全無法得知包含哪些欄位與檔案 | `dio_interceptor.dart:20-34`、`network_formatters.dart` | 於 `_stringifyData` 增設 `data is FormData` 判斷，走訪 `fields` (key/val) 與 `files` (key, filename, byte length)，格式化為 `[FormData: key1=val1, file1=avatar.png (1024 B)]$kTruncatedMarker`；空表單輸出 `[FormData: empty]$kTruncatedMarker`；`filename` 防守 nullable（`${e.value.filename ?? '<unnamed>'}`）；結尾**強制附帶 `$kTruncatedMarker`** 使 `isRequestTruncated == true`，自動停用 Replay（比照 §Z1-1，防止將摘要字串作為 payload 重送）；堅持純讀取 metadata，絕不呼叫 `finalize()` 消耗 stream | trivial |
+| 10 | **(v2.0.0 借鏡)** 日誌 ANSI Escape 顏色碼濾除 (`stripAnsi`)：使用第三方 logger（如 `package:logger` 的 `PrettyPrinter`）或終端彩色字串時，字串內含 `\x1B[38;5;196m` 等 ANSI escape codes，在 `ConsoleTab`、`LogDetailView` 與報告中顯示為亂碼跳脫字元 | `flutter_inspector.dart`（攝入入口）、`utils/log_formatters.dart` | 提煉靜態正則 `RegExp(r'\x1B\[[0-9;]*[A-Za-z]')` 與純函式 `stripAnsi(String text)`，以 `indexOf('\x1B') < 0` 快速返回；**洗滌時機鎖定在攝入邊界（`FlutterInspector.log` 入口處）**，一處清洗使記憶體 RingBuffer、關鍵字搜尋、Console 列表、LogDetailView、Agent Prompt 與報告匯出全部乾淨，杜絕展示端重複運算 | trivial |
 
 > **附帶一處註解修正（併入 #5）**：`lifecycle_handler.dart:66-67` 寫「the actual RSS figure needs a platform channel」不精確——`dart:io` 的 `ProcessInfo.currentRss` 不需 channel，但本套件刻意不用（Web 不支援且公開承諾不碰 `dart:io`）；Google 定義的 anonymous RSS+Swap 則確實沒有 in-app API。
 
@@ -2113,6 +2148,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | **Console 錯誤聚合** | Network 端 #7 錯誤聚合的 log 版：純函式 `aggregateLogErrors(List<LogEntry>)`，key = exception type + 簽章（優先用 PR #197 已解析的 `data['errorLocation']`，其次前 8 個非空 frame，再次「訊息中數字換 `#`」），顯示計數與首末次時間 | `utils/` 新增純函式 + `console_tab.dart` | low |
 | **Replay 結果顯示狀態碼** — ✅ 已完成（PR #213 / Issue #212 · 2026-10-20） | SnackBar 改顯示 `Resent → 200`／`Resent → 500`／`Resend failed: <type>`，不顯示 ms；同步改 `network_detail_view_test.dart` 三處字串斷言 | `network_detail_view.dart` | trivial |
 | **README「非 Dio 傳輸」食譜** — ✅ 已完成（PR #229 / Issue #228 · 2026-10-31） | gRPC：呼叫開始 `logNetwork(NetworkEntry(method: 'gRPC', url: '/pkg.Svc/Method'))`、結束時 replace；WebSocket：只在 connect／close（含 closeCode）／error 時 `log()`。陷阱：協定狀態碼**不可**放進 `statusCode`（`isFailed` 以 ≥ 400 判斷會誤判）；**不要**新增 `NetworkOrigin` 值（公開 enum，會打破 host 的窮舉 switch）。`lib/` 零改動；實作時以 Context7 查證 grpc `ClientInterceptor` API。**實作差異**：gRPC 落地為 `ClientInterceptor` 子類，先記 pending 再以 `copyWith` + `replaces` 原地結算，同步拋錯與非同步失敗共用同一記錄路徑；WebSocket 改為 `await channel.ready` 後於 stream 的 `onError`／`onDone` 記錄，無 close frame 時明示「no close frame from server」；README 註明 `origin` 無「未指定」值，自訂 entry 會顯示為 `dio`（現行 API 限制） | `README.md` | low |
+| **NetworkDetailView 區塊獨立複製（Body / Headers）** | 在行動裝置小螢幕上，長按選取幾千字 JSON Body 或多行 Headers 極度痛苦且容易誤觸全選；目前只能整筆複製（Agent Prompt / cURL）。於各區塊（Request Headers、Request Body、Response Headers、Response Body）標題右側提供獨立複製按鈕，點擊透過 §Z1-6 的 `safeCopyToClipboard` 僅複製該區塊內容並提供 SnackBar 回饋；**Headers 複製時格式化為標準 HTTP 標頭語法（`key: value\n`）**，方便直接貼入 cURL 或 API 測試工具（如 Postman），而非印出 Dart Map 字串 | `network_detail_view.dart` | trivial |
 
 ### §Z5. 知識補記（純文件，不排程）
 
@@ -2126,6 +2162,11 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 - **原生 POSIX 管道攔截的災難（v1.17.0 實證）**：iOS `dup2` 重定向未還原造成 64KB 管道緩衝區填滿，任何寫入 stdout/stderr 的執行緒直接阻塞卡死，引發 iOS Watchdog 斬殺（`0x8badf00d`）。強化本專案堅持「100% 純 Dart package、零 native plugin、不干涉進程底層 fd」的核心定力。
 - **UI 快取失效的對稱反模式（v1.17.0 實證）**：zero_inspector_kit 呈現了絕妙的對稱反模式——日誌端以 `identical && length` 作為快取命中條件，在 RingBuffer(500) 滿載時恆真，造成過濾結果永久凍結；網絡端 getter 每次返回新 `UnmodifiableListView` 導致 `identical` 恆假，造成快取永不命中、每幀全量重算。500 筆資料直接純函式及時運算僅需 <0.2ms；若真需快取，唯一合法依據為單調自增的 `InspectorRegistry.revision`，絕不在 UI 側自行宣告 ad-hoc 緩存。
 - **MaterialApp 裝飾器屬性遺漏陷阱**：以 `runAppWithInspector` 重新實例化 `MaterialApp` 會隨 SDK 更新持續遺漏新屬性（如無障礙、主題動畫、返回通知），且直接撞斷 Navigator 2.0。強化本專案純 `FlutterInspectorNavigatorObserver` 零件化注入的優越性。
+- **原生 POSIX 管道攔截與 Logcat 的徹底退場（v2.0.0 實證）**：zero_inspector_kit 在 v2.0.0 徹底刪除 Swift `dup2` 重定向與 Kotlin logcat 程式碼。官方註解承認其位於 `lib/src/` 未導出、消費方無法調用且包內零呼叫，卻帶來一旦開啟就無法還原的進程級全局副作用（iOS 64KB 緩衝區耗盡卡死）。這直接印證了本專案堅持「100% 純 Dart package、零 native plugin、不干涉底層 fd」的架構定力。
+- **本機落盤（Persistence）的無休止維護泥淖（v2.0.0 實證）**：對方在 v2.0.0 暴露了持久化重大缺陷——`flush()` 在 `commit()` 之前清空緩衝導致寫入失敗時整批數據靜默遺失，且 `dispose()` 與在途 `init()` 競態留下無人取消的 2s 刷盤 Timer 與未關閉的 DB handle。為此對方不得不疊加「失敗放回緩衝、連續失敗 5 次降級純內存模式、`_disposed` 狀態保護」等大量複雜邏輯。這再次強烈佐證了本專案 Anti-Feature #2「拒絕本機落盤」的英明決策。
+- **無 GC 證明的離線記憶體洩漏分析災難（v2.0.0 實證）**：對方在 v2.0.0 將 `verifying -> leaked` 的 VM Service 依賴解除，在 release 包超時即判洩漏。這恰恰落入「沒有 GC 證明就盲目推測」的陷阱，在使用者暫停操作、Dart VM 尚未觸發 Full GC 時會引發海量假陽性誤報（notGCed 誤報），再度佐證本專案核心決策三（拒絕 In-App 記憶體洩漏分析）。
+- **`NavigatorAction.remove` 與 Dart 3 窮盡性（v2.0.0 實證）**：對方直到 2.0.0 才將 `didRemove` 從 `pop` 糾正為 `remove`，並因 Dart 3 窮盡 switch 被迫發布 major 破壞性更新；而本專案從一開始即完整支援 `NavigatorAction.remove`。
+- **FAB 拖動狀態管理與過度工程（v2.0.0 實證）**：對方懸浮按鈕因使用 AnimationController 吸附動畫卻未在重新拖動時 `removeListener`，導致監聽器洩漏與小球抖動爭搶；本專案斯巴達式的 `onPanUpdate` 直覺位移（54 行代碼）再次證明「簡潔永遠優於複雜的動畫」。
 
 ### §Z6. 不借鏡（附撞到的裁決）
 
@@ -2133,7 +2174,8 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 |:---|:---|
 | 即時 FPS 數字、趨勢圖、低 FPS 告警、閒置判定、記憶體儀表、絕對門檻告警、用量著色 | AF#1；§P20 已定「不做當前 FPS 數字」 |
 | 只看 raster 相判定、依刷新率換算預算、shader warm-up 標籤、路由到首幀延遲、阻塞統計摘要 | 不回應 debug 誤報死因，或屬 §P20 子集／衍生值 |
-| 洩漏追蹤、app 內自連 VM Service（手寫 JSON-RPC）、`obj.trackMemoryLeak()` | 核心決策三（leak_tracker 否決）；對方實作本身亦證明不成立 |
+| 洩漏追蹤、app 內自連 VM Service（手寫 JSON-RPC）、`obj.trackMemoryLeak()`、**離線超時推測洩漏 (v2.0.0)** | 核心決策三（leak_tracker 否決）；對方無 VM Service 超時判 leak 會產生海量 notGCed 誤報 |
+| 跨 Session 本機持久化重試降級機制 (5 次失敗退回記憶體模式, v2.0.0) | AF#2；本專案本即 100% 純記憶體 RingBuffer，完全不需要承擔落盤帶來的複雜度與失敗降級負擔 |
 | 原生 memory pressure 等級（EventChannel） | 須轉成 plugin，違反純 Dart 定位；切背景誤報改以 §Z1-5 純 Dart 解 |
 | 告警持久化、資料驅動規則清單、時間軸 ALERT 軌道、頂部 toast | AF#2、AF#6、觀察者效應 |
 | ±N 秒時間窗過濾 | 與已否決的 §D3 同形；agent prompt 的路由邊界回溯已是正確替代 |
@@ -2144,5 +2186,5 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | 把 network buffer 匯出成 HAR 1.2 | AF#3（2026-10-16 修訂後不再保留 HAR 匯出）；結構化匯出走 §P9 JSON |
 | 網絡請求跨 session 落盤回放 (`enableNetworkReplay`) | 撞 Anti-Feature #2。歷史與實時請求混排易誤判，落盤需維護複雜的 ID 去重與資料庫遷移，拖慢啟動 |
 | 專用第三方異常轉發回調 (`onErrorReport`) | 既有基建已透明 chain `FlutterError.onError`，Sentry/Crashlytics 原生即可收到，中途多開轉發通道會造成重複上報並遺失原始堆疊 |
-| 原生 stdout/stderr 管道劫持 (`dup2`) | 違反 100% 純 Dart 原則；有 Darwin 64KB 緩衝區耗盡導致全進程卡死的極高風險 |
-| MaterialApp 根組件代構 (`runAppWithInspector`) | 侵入宿主根組件、破壞屬性傳遞、阻斷 Navigator 2.0 / GoRouter |
+| 原生 stdout/stderr 管道劫持 (`dup2`) | 違反 100% 純 Dart 原則；有 Darwin 64KB 緩衝區耗盡導致全進程卡死的極高風險（對方已於 v2.0.0 徹底移除） |
+| MaterialApp 根組件代構 (`runAppWithInspector`) | 侵入宿主根組件、破壞屬性傳遞、阻斷 Navigator 2.0 / GoRouter（對方已於 v2.0.0 移除） |
