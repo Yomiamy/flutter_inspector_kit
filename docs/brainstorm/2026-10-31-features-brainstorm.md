@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-10-31**：**Flutter In-App 除錯工具開源生態全景調研完成（12 大工具族群）**——廣泛檢索 pub.dev 與 GitHub 上所有與 `zero_inspector_kit` 類似的 In-App 開發除錯套件（涵蓋 `talker_flutter`、`alice` 系列、`chucker_flutter`、`requests_inspector`、`flutter_ume`、`pluto_inspector` / `ispect`、`flutter_flipperkit`、`f_logs`、`cr_logger`、`logger`、`leak_tracker` 等 12 大工具族群），產出獨立全景報告 `docs/brainstorm/2026-10-31-inspector-ecosystem-research.md`。確立 AF-1 ~ AF-10 十大反模式拒絕清單；正視外圍 `share_plus` 與通知套件現狀並訂立純 Dart 解耦路線圖；正式將 10 項高排查價值借鏡打磨提案（§P32 ~ §P41）納入待辦清單（含雙元件間距標尺、觸控放大鏡、純 Dart 環境快照、Dio 攔截器 Fail-Safe 防衛、呼叫堆疊智慧折疊、動態篩選計數徽章等）。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**zero_inspector_kit 2.0.0 全模組（10 大子系統）深度對齊與新借鏡提煉**——全面盤點 Log、Network、Routes、Storage/Database、FPS/Performance、Memory/Leak、Alerts & Rules、Widgets、Floating Button、Persistence & Export 等全部現行模組。確立本專案在 Active Stack 路由推演、Tap-to-Inspect Layout（支援 Release）、100% 純 Dart 零原生依賴、統一時間軸、AI Agent Prompt 等方面的全面領先；同時提煉 3 項務實借鏡與優化：(1) **§Z1-9 Dio `FormData` (Multipart) 上傳摘要化**（消除 `Instance of 'FormData'`，提取欄位與檔案檔名大小）；(2) **§Z1-10 日誌 ANSI Escape 顏色碼濾除**（消除終端彩色日誌在 UI 與報告中的亂碼跳脫字元）；(3) **§Z4 `NetworkDetailView` 單區塊一鍵複製**（Response Body / Headers 獨立複製按鈕，消滅觸控長按選取長文字的痛點）。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**三度比對 zero_inspector_kit（追蹤至 v2.0.0 / PR #117）**——深入審查 v2.0.0（46 檔案，+1128/-504 行）。對方發布 2.0.0 的主因是兩項破壞性變更（補齊 `RouteAction.remove` 與移除死代碼），並修復 20+ 項審查缺陷。核心發現：(1) **架構定力再度獲得強烈驗證**：對方在 v2.0.0 徹底刪除 iOS `dup2` 重定向與 Android logcat 原生代碼（官方承認未導出且帶不可逆全局副作用），徹底確立本專案堅持「100% 純 Dart」不可動搖的定力；對方落盤持久化爆發 `flush()` 在 `commit()` 前清空導致整批日誌靜默遺失、`dispose()` 與在途 `init()` 競態留下孤兒 Timer，陷入堆疊 5 次重試降級記憶體模式的泥淖，再度驗證 Anti-Feature #2（拒絕本機落盤）；(2) **本專案領先特性**：本專案自始即支援 `NavigatorAction.remove`、報告匯出依時間窗而非錯誤切片最舊、FAB 採直覺位移（54 行）杜絕了對方的 AnimationController 監聽器洩漏與小球抖動爭搶；(3) **借鏡改善提案**：自查查出 2 項可借鏡優化——**§Z1-7 熱路徑 RegExp 靜態編譯與常數化**（`log_formatters` 與 `network_formatters` 消除每行/每次即時編譯正則的開銷）與 **§Z1-8 Dio `ResponseBody` (Stream) 友善佔位**（明確標示 `[stream response (ResponseBody)]`，消除 `Instance of 'ResponseBody'` 且絕不排空業務 stream）。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**§Z1-2 完成**——PR #225 合入 main（issue #224），匯出報告的 Database 區段不再因 host data 含非 JSON 型別而整份失敗：保留 `toJson()`、其餘退回 `toString()`，循環引用降級為 `(unserializable data)`。檔名日期前綴維持 `2026-10-31`（已是今日）。
@@ -1855,10 +1856,19 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | **§P9** Diagnostic Report JSON | 結構化 JSON 匯出格式 | med | ⬜ |
 | ~~**§P15** 鍵值儲存檢視器（KV Browser）~~ | `KeyValueBrowserSource` 介面 + **獨立 Storage tab**（非併入 Database Tab）+ 讀寫操作 + README 範例 — ✅ 已完成（PR #137） | medium | ✅ |
 | ~~**§P10** Rebuild 異常偵測~~ | ~~全清單唯一需逐 widget 接線，非 app層級 flag~~ | ~~med~~ | ❌ |
-| **§Z1-9** Dio `FormData` (Multipart) 上傳摘要化 | 消除 `Instance of 'FormData'`，提取 fields 與 files 檔名大小且不消耗 stream | trivial | ⬜ |
-| **§Z1-10** 日誌 ANSI Escape 顏色碼濾除 | `stripAnsi()` 濾除終端彩色跳脫序列，消滅 Console 與報告中的亂碼符號 | trivial | ⬜ |
-| **§Z4 (單區塊複製)** NetworkDetailView 區塊獨立複製 | Headers / Body 標題列獨立複製按鈕，消滅行動端長按拖拉選取痛點 | trivial | ⬜ |
+| **§P32** 日誌 ANSI Escape 顏色碼濾除 | `stripAnsi()` 濾除終端彩色跳脫序列，消滅 Console 與報告中的亂碼符號（同 §Z1-10） | trivial | ⬜ |
+| **§P33** Dio `FormData` (Multipart) 上傳摘要化 | 消除 `Instance of 'FormData'`，提取欄位與檔案檔名大小，附 `$kTruncatedMarker` 禁用重送（同 §Z1-9） | trivial | ⬜ |
+| **§P34** Dio `ResponseBody` 串流安全佔位 | 友善提示 `[stream response]` 佔位，絕不排空業務 stream（同 §Z1-8） | trivial | ⬜ |
+| **§P35** 細節區塊獨立一鍵複製 | Headers / Body 標題列獨立複製按鈕，引入 `safeCopyToClipboard` 安全防護（同 §Z4 單區塊複製） | trivial~low | ⬜ |
+| **§P36** 雙元件間距標尺與像素測距 | 【UI 探測】1D 區間投影距離算法計算兩元件相對間距與四周 padding，Canvas 虛線標尺 | low~med | ⬜ |
+| **§P37** 高精準度觸控取樣放大鏡 | 【UI 探測】Flutter 原生 `RawMagnifier` + `IgnorePointer` 局部放大，Web 條件降級 | low | ⬜ |
+| **§P38** 純 Dart 系統環境自動快照 | 【系統環境】`PlatformDispatcher.instance.views.firstOrNull` 空安全防禦，榨乾純 Dart 元數據補齊報告 | low | ⬜ |
+| **§P39** Dio 攔截器 Fail-Safe 雙重防禦 | 【網路防禦】`on Object catch` 防止 Error 逃逸 + boolean guard 確保 `handler.next()` 單次保證執行 | trivial | ⬜ |
+| **§P40** 呼叫堆疊框架智慧折疊 | 【日誌排查】Concise Stack Trace 框架黑名單排除法，剩餘 0 行自動 raw 回退 | low | ⬜ |
+| **§P41** 篩選標籤動態數量徽章 | 【控制台互動】ConsoleTab FilterChip 動態統計事件計數徽章（純無狀態投影） | trivial | ⬜ |
 
+> **2026-10-31 開源生態全景調研新增（§P32 ~ §P41）**：檢索 12 大 In-App 工具族群（`talker_flutter`、`alice`、`chucker_flutter`、`pluto_inspector` / `ispect` 等），確立 10 項符合純 Dart 微核心硬約束的借鏡打磨待辦（詳細調研見 `docs/brainstorm/2026-10-31-inspector-ecosystem-research.md`）。其中 §P32 ~ §P35 對齊前次 zero_inspector_kit 提煉之 §Z1-8、§Z1-9、§Z1-10、§Z4，§P36 ~ §P41 為生態全新借鏡。
+>
 > **2026-10-31 zero_inspector_kit 2.0.0 全模組對齊新增**：自查查出 3 項高價值零破壞打磨待辦——**§Z1-9 Dio `FormData` 上傳摘要化**（trivial）、**§Z1-10 日誌 ANSI Escape 顏色碼濾除**（trivial）與 **§Z4 NetworkDetailView 區塊獨立複製**（trivial），均列入打磨排程。
 >
 > **§P8 已完成**（PR #111 / Issue #110，v1.9.0 週期）——閾值改為 `FlutterInspector.slowRequestThreshold`
@@ -2019,6 +2029,166 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **寫入路徑**：`lib/src/ui/dashboard/dashboard_modal.dart`（AppBar 按鈕）、新增選取模式的攔截層與資訊卡（如 `lib/src/ui/layout_inspect/`）、`lib/src/core/inspector_overlay_manager.dart`（視上方必查結論）、`example/` 無需新增示範頁（既有 RenderFlex 溢出示範頁即可驗收）。
 * **Effort**：Medium ｜ **排查價值**：⭐⭐⭐⭐
 * **✅ 實作現況（PR #211 · 2026-10-20 合入 main，issue #210）**：Dashboard AppBar 新增所有 build mode 皆顯示的 `Inspect layout` 按鈕，按下關閉 dashboard 並插入選取模式；資訊卡顯示 widget／render 型別名、size、constraints、global offset 與層級 `i / N`，框線標出目前層級，可上下切換父鏈，複製／分享輸出整條父鏈純文字（target 在前）。新增 `layout_probe.dart`（探測）、`layout_inspect_overlay.dart`（攔截層與資訊卡）、`utils/layout_formatters.dart`（純文字 formatter）。與提案的差異：**(1) overlay 另立而非擴充 `InspectorOverlayManager`**——`LayoutInspectOverlay` 是靜態單一 `OverlayEntry`，插入 root `Overlay`，重複呼叫忽略；**(2) hit test 入口**不用 `renderViews`／`hitTestInView`，而是從錨點 render object 往上找所屬 `RenderView` 後呼叫 `view.hitTest`；**(3) kit 自身對探測透明**以 `LayoutProbeShield`（`RenderProxyBox`，探測期間 `hitTest` 回傳 false）包住 FAB 與攔截層，一般觸控不受影響；**(4) 點擊當下快照**成不可變的 `LayoutLevel`（不持有 render object、不進 buffer），而非提案的「顯示當下讀取」，畫面變動須重新點選；**(5) 命中路徑無已 layout 的 `RenderBox` 時不顯示卡片**、維持選取模式，而非提案的「只顯示型別名」；**(6) 混淆標註預設 `!kDebugMode`**，profile 亦標註。零新相依。
+
+### §P32 日誌終端 ANSI Escape 顏色碼濾除 (`stripAnsi` 洗滌) — 待辦（同 §Z1-10）
+> **痛點**：宿主使用 `package:logger`（`PrettyPrinter`）或終端彩色日誌時，字串嵌入 `\x1B[38;5;196m` 等色彩跳脫序列，在 ConsoleTab、LogDetailView、報告與搜尋中顯示為大量刺眼跳脫亂碼，干擾關鍵字比對。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P32），對齊 §Z1-10。
+* **好品味設計（核心洞察）**：
+  > 洗滌時機鎖定在「資料攝入邊界（Ingestion Boundary）」——在 `FlutterInspector.log` 入口處一次洗淨，下游 RingBuffer、關鍵字搜尋、Console 列表、LogDetailView、Agent Prompt 與報告匯出全部乾淨，杜絕在各 UI 展示端重複正則清洗。
+* **Linus 模式五層評估**：
+  - **資料結構**：零新模型、零額外緩衝。直接在 `LogEntry` 建立前以純函式清洗 `message`。
+  - **特殊情況**：使用標準 CSI 全集正則 `RegExp(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')`，涵蓋帶參數字元 `?` 的終端私有模式（如 `\x1B[?25h`）與 2-byte 序列；以 `!text.contains('\x1B')` 快速短路（無跳脫碼字串耗時 < 1µs）。
+  - **複雜度**：Trivial。單一頂層靜態常數正則 + 一個純函式。
+  - **破壞性**：零破壞。彩色跳脫碼在非 ANSI 終端本為亂碼，濾除完全還原純文字語意。
+  - **實用性**：高。消滅第三方 logger 在 UI 與匯出中的亂碼噪音。
+* **寫入路徑**：`lib/src/utils/log_formatters.dart`（`stripAnsi`）、`lib/src/core/flutter_inspector.dart`（`log` 入口洗滌）。
+* **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐
+
+### §P33 Dio `FormData` 多部分上傳摘要化與脫敏 — 待辦（同 §Z1-9）
+> **痛點**：發送 Multipart 表單請求時，Dio 的 `requestOptions.data` 為 `FormData`，既有邏輯直接 `toString()` 輸出為無意義的 `'Instance of \'FormData\''`，在 Network 列表與詳情中完全無法得知包含哪些文字欄位與上傳檔案；且密碼等敏感資料可能外洩。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P33），對齊 §Z1-9。
+* **好品味設計（核心洞察）**：
+  > 於 `_stringifyData` 判定 `data is FormData`，走訪 `fields`（key/val）與 `files`（key, filename, byte length），並自動接入現有的 `redactSensitiveData` 脫敏遮罩規則；堅持純讀取 metadata，絕不呼叫 `finalize()` 消耗 stream。
+* **Linus 模式五層評估**：
+  - **資料結構**：純字串摘要輸出，格式為 `[FormData: key1=val1, file1=avatar.png (1024 B)]$kTruncatedMarker`。
+  - **特殊情況（向後相容鐵律）**：
+    1. **強制附帶 `$kTruncatedMarker`**：`NetworkEntry.isRequestTruncated` 的判定為 `requestBody?.endsWith(kTruncatedMarker)`，附帶標記可確保自動停用 Replay 重送按鈕（比照 §Z1-1），防止使用者點擊重送時將摘要字串作為 payload 打向後端產生髒資料。
+    2. 空表單情境輸出 `[FormData: empty]$kTruncatedMarker`。
+    3. `MultipartFile.filename` 防守 nullable（`${e.value.filename ?? '<unnamed>'}`）。
+  - **複雜度**：Trivial。
+  - **破壞性**：零破壞。
+  - **實用性**：極高。消滅檔案上傳排查盲區，保障資安脫敏。
+* **寫入路徑**：`lib/src/inspectors/dio_interceptor.dart`（`_stringifyData`）、`lib/src/utils/network_formatters.dart`。
+* **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐⭐
+
+### §P34 Dio `ResponseBody` 與原始 `Stream` 安全友善佔位 — 待辦（同 §Z1-8）
+> **痛點**：大檔下載或 SSE 串流時，Dio 的 `response.data` 為 `ResponseBody` 或 `Stream<List<int>>`。呼叫 `toString()` 輸出 `Instance of 'ResponseBody'`，若嘗試讀取串流更會排空（Drain）業務下載流導致下載中斷崩潰。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P34），對齊 §Z1-8。
+* **好品味設計（核心洞察）**：
+  > 判定 `data is ResponseBody || data is Stream` 時，直接返回友好佔位符 `[stream response]`（若為 ResponseBody 則補充安全狀態碼），嚴禁調用任何 Stream 讀取方法，守護 Never break userspace。
+* **Linus 模式五層評估**：
+  - **資料結構**：純靜態字串佔位，零新模型。
+  - **特殊情況**：全面防守 `ResponseBody` 與任意未特化的 `Stream` 型別。
+  - **複雜度**：Trivial。單行型別判斷。
+  - **破壞性**：零破壞。
+  - **實用性**：高。避免業務下載流被意外中斷。
+* **寫入路徑**：`lib/src/inspectors/dio_interceptor.dart`。
+* **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐
+
+### §P35 `NetworkDetailView` 與 `LogDetailView` 獨立區塊一鍵複製 — 待辦（同 §Z4 單區塊複製）
+> **痛點**：在行動裝置觸控螢幕上，長按選取幾千字的 JSON Response Body 或數十行 Headers 極為痛苦且易誤觸全選；目前只能整筆複製（Agent Prompt / cURL）。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P35），對齊 §Z4。
+* **好品味設計（核心洞察）**：
+  > 於各區塊（Request Headers、Request Body、Response Headers、Response Body、StackTrace）標題右側提供獨立複製按鈕；在 `lib/src/utils/` 建立統一的安全工具 `safeCopyToClipboard(BuildContext context, String text)`，以 try-catch 包覆杜絕 Web/Headless 剪貼簿異常崩潰。
+* **Linus 模式五層評估**：
+  - **資料結構**：無新狀態。
+  - **特殊情況**：
+    1. **Headers 複製格式**：格式化為標準 HTTP 標頭語法（`key: value\n`），方便直接貼入 cURL 或 Postman，避免輸出 Dart Map 字串 `{host: ...}`。
+    2. 剪貼簿受限環境展示 SnackBar「Copy failed — clipboard unavailable」友善降級。
+  - **複雜度**：Trivial~Low。
+  - **破壞性**：零破壞。
+  - **實用性**：極高。大幅提升行動端現場排查操作手感。
+* **寫入路徑**：`lib/src/utils/clipboard_utils.dart`（新）、`lib/src/ui/dashboard/network_detail_view.dart`、`lib/src/ui/dashboard/log_detail_view.dart`。
+* **Effort**：Trivial~Low ｜ **排查價值**：⭐⭐⭐⭐
+
+### §P36 【UI 探測】雙元件間距標尺與像素測距 (Widget Gap / Distance Ruler) — 待辦
+> **痛點**：QA 實機核對設計稿時，最常見的問題是「按鈕與文字之間差了多少 padding」或「兩個相鄰元件距離多少 px」。目前 §P31 點選元件僅能查看自身 rect，無法直接得知兩個組件的相對間距。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P36，借鏡 `pluto_inspector` / `ispect` 並重構幾何算法）。
+* **好品味設計（核心洞察）**：
+  > 捨棄生態中錯誤的單向絕對值減法（先點右後點左時會將總跨距誤算為間距，實測誤差高達 500%），改採具備交換律對稱的 **1D 區間投影距離算法**：
+  > `compute1DGap(aStart, aEnd, bStart, bEnd) => math.max(0.0, math.max(aStart, bStart) - math.min(aEnd, bEnd))`
+  > 點選順序無關、自動處理重疊；當兩元件存在包含關係時，自動切換至 Inset 邊距分析模式（四周 padding）。以 CustomPainter 繪製虛線箭頭標尺與像素數值。
+* **Linus 模式五層評估**：
+  - **資料結構**：零新 buffer、不進時間軸。探測退出即丟棄，零狀態負擔。
+  - **特殊情況**：
+    1. **任意點選順序**：先點 A 後點 B 與先點 B 後點 A 算出之距離恆等。
+    2. **包含與重疊**：任一維度重疊（gap == 0.0）時切換為 Inset 模式（計算四周 padding 差值）。
+    3. **跨層級/不同 View**：透過 global offset 統一換算至根畫布座標系。
+  - **複雜度**：Low~Medium。純 Dart 幾何計算與 Canvas 繪製。
+  - **破壞性**：零破壞。opt-in 工具，不影響宿主排版與手勢。
+  - **實用性**：極高。實機測距神器，消滅開發與設計間的口頭推測。
+* **寫入路徑**：`lib/src/ui/layout_inspect/layout_probe.dart`、`lib/src/ui/layout_inspect/gap_ruler_painter.dart`（新）。
+* **Effort**：Low~Medium ｜ **排查價值**：⭐⭐⭐⭐⭐
+
+### §P37 【UI 探測】高精準度觸控取樣放大鏡 (Touch Loupe / Magnifier) — 待辦
+> **痛點**：在高解析度螢幕上，手指往往會遮擋住小圖示（如 16x16 padding）的精確邊界，導致命中測試點選不精確。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P37）。
+* **好品味設計（核心洞察）**：
+  > 採用 Flutter 3.7+ 原生內建的 `RawMagnifier` / `Magnifier`，在長按拖曳探測時展示直徑 80px 的局部放大視窗；外層**強制包裹 `IgnorePointer`** 杜絕放大鏡自身的 RenderObject 攔截手勢事件，確保底層 LayoutProbe 獲得平滑連續的拖曳命中測試。
+* **Linus 模式五層評估**：
+  - **資料結構**：暫態 overlay 元件，隨手勢結束銷毀。
+  - **特殊情況**：Web 平台 HTML 渲染器或不支援 BackdropFilter 的環境條件降級（不呼叫 RawMagnifier，維持高亮外框）。
+  - **複雜度**：Low。100% 官方內建元件，零第三方依賴。
+  - **破壞性**：零破壞。
+  - **實用性**：高。提升小元件點選探測精度。
+* **寫入路徑**：`lib/src/ui/layout_inspect/layout_inspect_overlay.dart`。
+* **Effort**：Low ｜ **排查價值**：⭐⭐⭐⭐
+
+### §P38 【系統環境】純 Dart 環境與設備元數據自動快照 (PlatformDispatcher Snapshot) — 待辦
+> **痛點**：匯出報告依賴宿主手動提供 `DiagnosticInfoSource`。若宿主未配置，報告 Header 只能顯示 `N/A`。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P38）。
+* **好品味設計（核心洞察）**：
+  > 不引入原生 `device_info_plus`，而是直接榨乾 Flutter 核心與 `dart:ui` 內建的純 Dart 元數據：`defaultTargetPlatform`、`locales`、`PlatformDispatcher.instance.views.firstOrNull`（**嚴禁使用 `.views.first`**，防守 Headless/無 View 環境下拋 `StateError: Bad state: No element`）、`physicalSize`、`devicePixelRatio`、`imageCache` 水位。宿主未配置時自動填充，消滅空值。
+* **Linus 模式五層評估**：
+  - **資料結構**：純字串 Map 填充。
+  - **特殊情況**：空安全防守 `.views.firstOrNull`，多 View 環境安全取主 View。
+  - **複雜度**：Low。
+  - **破壞性**：零破壞。
+  - **實用性**：中高。診斷報告環境資訊開箱即用。
+* **寫入路徑**：`lib/src/utils/diagnostic_report.dart`。
+* **Effort**：Low ｜ **排查價值**：⭐⭐⭐
+
+### §P39 【網路防禦】Dio 攔截器全生命週期 Fail-Safe 雙重防禦 — 待辦
+> **痛點**：攔截器內部的任何非預期例外（如自訂資料模型之 `toString()` 拋出 `StateError`、或二進位解碼格式錯誤）會中斷宿主的網路連線管線；若僅寫 `on Exception catch`，Dart `Error` 逃逸會導致 `handler.next()` 未執行，業務請求**永久掛死（Hang）**。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P39）。
+* **好品味設計（核心洞察）**：
+  > 擴大異常捕獲為 `on Object catch (e, s)`，搭配 boolean guard 旗標與 `finally` 區塊，保證 `handler.next()` 必定單次執行，徹底落實 Never break userspace。
+* **Linus 模式五層評估**：
+  - **資料結構**：`bool handled = false` 局部守衛變數。
+  - **特殊情況**：捕獲 `Error` 與 `Exception` 兩種非同步中斷分支；避免正常與異常路徑重複調用觸發 `DioException: handler.next() called more than once`。
+  - **複雜度**：Trivial。
+  - **破壞性**：零破壞。
+  - **實用性**：極高（守護底線穩定性）。
+* **寫入路徑**：`lib/src/inspectors/dio_interceptor.dart`。
+* **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐⭐⭐
+
+### §P40 【日誌排查】呼叫堆疊框架智慧折疊 (Concise Stack Trace Demangling) — 待辦
+> **痛點**：原始堆疊 30~50 行中 80% 是 `package:flutter/` 或 `dart:async` 框架內部代碼，遮蔽了真正發生問題的業務代碼。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P40）。
+* **好品味設計（核心洞察）**：
+  > 在 `LogDetailView` 提供 `Concise` / `Raw` 切換。採用框架黑名單排除法（過濾包含 `package:flutter/`、`package:flutter_test/`、`dart:async`、`dart:ui`、`package:flutter_inspector/` 的行）；**若過濾後剩餘 0 行（例如錯誤全發生於 framework layout 內部），無條件 fallback 顯示原始完整堆疊**，絕不呈現空白畫面。
+* **Linus 模式五層評估**：
+  - **資料結構**：純字串格式化轉換。
+  - **特殊情況**：黑名單過濾為空時的 fallback 保底防禦。
+  - **複雜度**：Low。
+  - **破壞性**：零破壞。
+  - **實用性**：高。顯著縮短排查視覺尋找時間。
+* **寫入路徑**：`lib/src/utils/log_formatters.dart`、`lib/src/ui/dashboard/log_detail_view.dart`。
+* **Effort**：Low ｜ **排查價值**：⭐⭐⭐⭐
+
+### §P41 【控制台互動】篩選標籤動態數量徽章 (Filter Dynamic Counter Badges) — 待辦
+> **痛點**：在大量混合事件中，排查者希望直觀得知當前緩衝區有多少 Error、多少 Network 請求、多少 Navigation，而無需逐一切換過濾。
+
+* **來源**：開源生態調研（`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md` §P41）。
+* **好品味設計（核心洞察）**：
+  > ConsoleTab 頂部的 FilterChip 顯示動態數量徽章（如 `All (50)`、`Errors (3)`、`Network (12)`）。直接在 Widget `build` 時透過純記憶體無狀態投影計算，零額外 State 欄位、零計時器、零記憶體負擔。
+* **Linus 模式五層評估**：
+  - **資料結構**：無狀態投影，由既有 RingBuffer 快照直接 `.where().length` 衍生。
+  - **特殊情況**：緩衝區為空時顯示 `(0)`。
+  - **複雜度**：Trivial。
+  - **破壞性**：零破壞。
+  - **實用性**：中高。一目了然得知各類別異常數量。
+* **寫入路徑**：`lib/src/ui/dashboard/tabs/console_tab.dart`。
+* **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐
 
 ---
 
@@ -2188,3 +2358,93 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | 專用第三方異常轉發回調 (`onErrorReport`) | 既有基建已透明 chain `FlutterError.onError`，Sentry/Crashlytics 原生即可收到，中途多開轉發通道會造成重複上報並遺失原始堆疊 |
 | 原生 stdout/stderr 管道劫持 (`dup2`) | 違反 100% 純 Dart 原則；有 Darwin 64KB 緩衝區耗盡導致全進程卡死的極高風險（對方已於 v2.0.0 徹底移除） |
 | MaterialApp 根組件代構 (`runAppWithInspector`) | 侵入宿主根組件、破壞屬性傳遞、阻斷 Navigator 2.0 / GoRouter（對方已於 v2.0.0 移除） |
+
+---
+
+## 🌐 第九部分：Flutter In-App 除錯工具開源生態全景調研重點（2026-10-31）
+
+> **來源報告**：完整 785 行詳細調研、原始碼評級與基準測試請參閱獨立報告 [`docs/brainstorm/2026-10-31-inspector-ecosystem-research.md`](file:///Users/yomiry/StudioWorkspace/flutter_inspector/docs/brainstorm/2026-10-31-inspector-ecosystem-research.md)。
+>
+> **調研對象**：全面盤點 pub.dev 與 GitHub 上 12 大主流 In-App 除錯與診斷工具族群：
+> 1. **日誌與異常**：`talker_flutter`、`f_logs` / `flutter_logs`、`logger`
+> 2. **網路檢查**：`alice` 系列 (`alice_lightweight`, `nirikshak`)、`chucker_flutter`、`requests_inspector`
+> 3. **UI 與系統工具**：`flutter_ume`、`pluto_inspector` / `ispect` (`ispect_layout`)、`flutter_flipperkit`、`cr_file_saver` / `cr_logger`、`leak_tracker`
+> 4. **綜合基準**：`zero_inspector_kit` (v2.0.0 基準) vs `flutter_inspector`
+>
+> **核心結論**：多數開源除錯工具在長期維護中衰敗或引發災難，並非功能不足，而是**缺乏克制力**——陷入「單體全家桶原生綁定」、「本地資料庫落盤導致 I/O Jank」與「入侵性 Mocking 篡改請求」三大通病。`flutter_inspector` 的微核心約束（100% 純 Dart、純記憶體 RingBuffer、零輪詢、離散事件統一時序軸、Release/WASM 相容）在本次生態對比中獲得了壓倒性的架構驗證。
+
+### 9.1 12 大工具族群橫向技術對比矩陣
+
+| 工具名稱 / 家族 | 主要定位類別 | 100% 純 Dart | 原生 Plugin 依賴 | 儲存機制 / 淘汰演算法 | 定時輪詢開銷 | 因果時序軸 | Web / WASM 相容性 | Linus 品味評級 | 處置策略 |
+|---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **`talker_flutter`** | 日誌與狀態全家桶 | 🔴 否 | `share_plus`, `path_provider` | 記憶體 List (`removeAt(0)`) | 🟢 無 | 🟡 僅自身 Log+Net | 🟡 需降級 | 🟡 湊合 | 借鏡 UI 標籤互動；拒絕全家桶原生綁定 |
+| **`alice` (原版)** | HTTP 檢查器 | 🔴 否 | notifications, sensors | 記憶體 List / ObjectBox | 🟢 無 | ⚪ 無 (純網路) | 🔴 不相容 | 🟡 湊合 | 借鏡區塊複製；拒絕原生通知與感應器 |
+| **`alice_lightweight`** | 輕量 HTTP 檢查 | 🟢 是 | 零原生依賴 | 記憶體 List / Stream | 🟢 無 | ⚪ 無 (純網路) | 🟢 相容 | 🟡 湊合 | 維護停滯，無借鏡價值 |
+| **`chucker_flutter`** | HTTP 檢查器 | 🔴 否 | `shared_preferences` 等 | **`SharedPreferences` (全量 JSON)** | 🔴 刷盤 I/O | ⚪ 無 (純網路) | 🟡 受限 | 🔴 垃圾 | **堅決拒絕 (儲存反模式，每次寫入 141ms Jank)** |
+| **`requests_inspector`**| 網路與 Mocking | 🔴 否 | `shake` (`sensors_plus`) | 記憶體 List (上限 100) | 🟢 無 | ⚪ 無 (純網路) | 🔴 不相容 | 🟡 湊合 | 肯定多協定排查價值；堅決拒絕 Mocking 越界 |
+| **`flutter_ume`** | 插件化 DevTools | 🔴 否 | `device_info_plus` 等 | 各插件自行維護 State | 🔴 輪詢 VM Service | ⚪ 無 (插件孤立) | 🔴 依賴斷裂 | 🔴 垃圾 | **堅決拒絕整體架構 (官方已歸檔廢棄)** |
+| **`ispect` (`ispect_layout`)**| UI 測距與診斷 | 🟢 是 | 零 (分模組純 Dart) | 純記憶體暫態集合 | 🟢 點擊事件 | ⚪ 獨立 UI 探測 | 🟢 支援 | 🟢 好品味 | **採納** 雙點標尺測距 (§P36) 與觸控放大鏡 (§P37) |
+| **`flutter_flipperkit`**| 桌面端橋接器 | 🔴 否 | C++ 本地動態庫, JNI | Socket 跨進程推播 | 🔴 序列化開銷 | ⚪ 依賴桌面端 | ❌ 完全不相容 | 🔴 垃圾 | **堅決拒絕 (Meta 官方已廢棄淘汰)** |
+| **`f_logs` / `flutter_logs`**| 離線日誌儲存庫 | 🔴 否 | `path_provider`, Java/Swift | **Sembast / SQLite / 檔案** | 🔴 磁碟 I/O | ⚪ 無 (純日誌流) | ❌ 不相容 | 🔴 垃圾 | **堅決拒絕 (磁碟落盤導致 I/O 阻塞與壞庫)** |
+| **`cr_file_saver` / `cr_logger`**| 檔案落盤與日誌 | 🔴 否 | MediaStore / 外部儲存權限 | 實體檔案寫入 | 🟢 無 | ⚪ 無 (純日誌流) | ❌ 不相容 | 🔴 差 | **堅決拒絕 (申請外部儲存敏感權限)** |
+| **`logger`** | 控制台日誌格式化 | 🟢 是 | 零 (僅 `clock`, `meta`) | 無狀態 (純 Output 流) | 🟢 無 | ⚪ 無 (純字串輸出) | 🟢 完美相容 | 🟢 好品味 | 維持 Adapter 輕量轉譯；補齊 ANSI 洗滌 (§P32) |
+| **`leak_tracker`** | 官方記憶體分析 | 🟡 框架緊密 | 零原生 (但依賴 vm_service) | 6 個無界生命週期集合 | 🔴 forceGC Jank | ⚪ 無 | ❌ Web 恆為 null | 🔴 In-App 垃圾 | **堅決拒絕 In-App 內建整合 (維持核心決策三)** |
+| **`zero_inspector_kit`**| 全功能除錯套件 | 🟡 混合 | `sqflite`, `shared_pref` | SQLite 落盤 + 記憶體暫存 | 🔴 4 個定時 Timer | 🟡 粗糙 Timeline | ❌ 不相容 | 🔴 垃圾 | 避開其快取凍結與刷盤掉資料所有缺陷 |
+| **`flutter_inspector`** | **因果排查診斷核心** | 🟢 **核心純 Dart** | 🟡 **現況外圍相依（推進零原生）**：過渡依賴 `share_plus` / 通知（Web 隔離；已訂定解耦路線圖） | **斯巴達式 `RingBuffer(500)`** | 🟢 **零輪詢定時器** | 🟢 **4 源歸併統一因果軸** | 🟢 **完美相容 (含 WASM)** | 🟢 **好品味** | **架構標竿基準線** |
+
+### 9.2 十大反模式拒絕清單 (Anti-Features Catalog, AF-1 ~ AF-10)
+
+調研正式確立 10 項開源社群常見的過度工程與架構反模式，堅決不予採納：
+
+1. **AF-1：除錯日誌本機 SQLite / 磁碟全量落盤**
+   * *實證*：Chucker 每次 API 寫入 SharedPreferences 耗時 141ms 導致 8~17 幀卡頓；`zero_inspector_kit` 刷盤競態掉整批資料。
+   * *邊界*：**In-App Inspector 是「暫態互動即時排查工具」，不是「事後死因遙測 APM」**。進程遭遇系統斬殺 (LMK / SIGKILL) 時非同步落盤隊列根本來不及寫盤；事後遙測應恪守邊界交由線上 APM（Sentry / Crashlytics）負責。
+2. **AF-2：核心執行期強綁定原生 Plugin 外掛**
+   * *實證*：引入 `path_provider`、`sensors_plus` 等原生外掛直接深植於核心執行期，導致 Flutter SDK 升級時 Gradle/CocoaPods 頻繁編譯衝突，破壞 Web/WASM 相容性。
+3. **AF-3：常駐定時器輪詢系統指標 (`Timer.periodic`)**
+   * *實證*：背景輪詢造成觀察者效應（除錯器自身重繪干擾 App 幀率）與背景耗電。堅持全事件被動驅動。
+4. **AF-4：全樹遞迴遍歷與狀態修改 (State Inspector)**
+   * *實證*：全樹漫遊記憶體代價高，在 Release 模式下因缺少 `debugCreator` 直接崩潰。本專案以 §P31 點選探測 (Tap-to-Inspect) 完勝。
+5. **AF-5：入侵性全域硬體手勢監聽 (如搖一搖呼出)**
+   * *實證*：強依賴加速度計外掛，背景持續喚醒，且易與宿主業務手勢衝突。
+6. **AF-6：In-App API Mocking 與動態請求改寫 (Stopper)**
+   * *實證*：在單一 UI Isolate 中暫停非同步 Future 等待 Modal 點擊，一旦使用者切換頁面或發生死鎖，宿主業務網路請求永久掛死。除錯器必須是「純被動觀測者」。
+7. **AF-7：出站網路請求強行注入自定義標頭**
+   * *實證*：注入 `x-inspector-request-id` 撞斷後端 HMAC 簽名與 Web CORS 預檢。
+8. **AF-8：任意覆蓋/未配對還原全域 Hook**
+   * *實證*：Teardown 還原順序錯誤會將宿主原有回調置換為死回調，徹底癱瘓 Crashlytics。堅持「錯誤 hook 為 app-scoped，只 chain、不 restore、不 teardown」。
+9. **AF-9：手寫 JSON-RPC 連線 Dart VM Service 猜測洩漏**
+   * *實證*：Release 模式下 VM Service 預設關閉；無 GC 證明等待超時即判洩漏會引發海量 notGCed 假陽性誤報。
+10. **AF-10：侵入式代構 `MaterialApp` 根元件**
+    * *實證*：以 `runAppWithInspector` 劫持根元件會遺漏 SDK 新增屬性，並直接撞斷 Navigator 2.0 / GoRouter。堅持純 Observer 零件化注入。
+
+### 9.3 資料結構與效能基準實證 (Benchmark Evidence)
+
+針對儲存與淘汰機制的微基準測試（見 `test/benchmark_storage_test.dart`）：
+* **純記憶體 `RingBuffer(500)`**：指針循環覆寫，寫入 500 筆僅耗時 **125 µs (0.125 ms)**。
+* **`talker_flutter` 式 `List.removeAt(0)`**：前端刪除迫使後續元素指針全部平移，寫入 5,000 筆耗時 3 ms（比 RingBuffer 慢約 8 倍）。
+* **`chucker_flutter` 式全量 SharedPreferences 序列化落盤**：寫入 500 筆網路資料耗時高達 **141 ms**，在單一 UI Isolate 中引發 8~17 幀卡頓！
+
+### 9.4 外圍原生依賴解耦演進路線圖 (Peripheral Plugin Decoupling Roadmap)
+
+本專案以 Linus 模式進行自我審查，坦誠面對自身現況：`pubspec.yaml` 現存有外圍輔助插件 `share_plus` 與 `flutter_local_notifications`（雖然 Web 端已透過條件編譯隔離）。為徹底消除雙重標準，達成 100% 純 Dart 的微核心定位，確立兩階段解耦路線：
+
+1. **Phase 1（近期 v2.9.0）**：
+   - 實裝純 Dart 剪貼簿安全封裝（`safeCopyToClipboard`，§P35）與 Web Data URI 導出；
+   - 原生分享降級為可選路徑：若無原生環境，預設一鍵寫入剪貼簿，提供零報錯體驗。
+2. **Phase 2（次版 v3.0.0 破壞性架構淨化）**：
+   - 自根目錄 `pubspec.yaml` 徹底移除 `share_plus` 與 `flutter_local_notifications` 依賴；
+   - 採用 **Host Callback Injection（宿主回調注入）**：
+     ```dart
+     FlutterInspector.init(
+       onShareText: (context, text) => Share.share(text), // 宿主自行決定是否接入原生 share_plus
+     );
+     ```
+   - 或提供獨立外圍適配套件 `flutter_inspector_share_bridge`。核心套件達成名實相符的 **0 原生外掛、0 Gradle、0 CocoaPods、0 原生權限**！
+
+### 9.5 借鏡提案與優先序矩陣索引
+
+本次生態調研所提煉出的 10 項具體借鏡與打磨提案，已全數登錄於本文件之「Tier 4 · 打磨清單」與規格章節中：
+- **第一優先（即刻落地 · Trivial / High ROI）**：§P32 (ANSI 跳脫碼濾除)、§P33 (FormData 摘要化)、§P34 (串流安全佔位)、§P39 (Dio 攔截器 Fail-Safe 防護)
+- **第二優先（近期排程 · Low / High UX）**：§P35 (細節區塊一鍵複製)、§P38 (純 Dart 環境快照)、§P40 (呼叫堆疊智慧折疊)、§P41 (篩選標籤動態數量徽章)
+- **第三優先（次版規劃 · Medium / Advanced UI）**：§P36 (雙元件間距標尺與像素測距)、§P37 (高精準度觸控放大鏡)
