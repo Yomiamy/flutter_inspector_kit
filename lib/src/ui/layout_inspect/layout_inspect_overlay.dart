@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import '../../utils/layout_formatters.dart';
 import '../../utils/share_text.dart';
 import '../theme/theme.dart';
+import 'gap_ruler_geometry.dart';
+import 'gap_ruler_painter.dart';
 import 'layout_probe.dart';
 
 const double _loupeDiameter = 96;
@@ -63,6 +65,7 @@ class _LayoutInspectLayer extends StatefulWidget {
 class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
   List<LayoutLevel> _chain = const [];
   int _index = 0;
+  LayoutLevel? _lockedA;
   bool _copied = false;
   Timer? _copiedTimer;
   Offset? _aim;
@@ -129,6 +132,17 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     });
   }
 
+  void _onToggleRuler() {
+    if (_chain.isEmpty) return;
+    setState(() {
+      if (_lockedA == null) {
+        _lockedA = _chain[_index];
+      } else {
+        _lockedA = null;
+      }
+    });
+  }
+
   void _onParent() {
     if (_index >= _chain.length - 1) return;
     setState(() => _index++);
@@ -139,13 +153,28 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     setState(() => _index--);
   }
 
+  String _buildExportText() {
+    final chainText = formatLayoutChain(
+      _chain,
+      mayBeObfuscated: widget.mayBeObfuscated,
+    );
+    if (_lockedA != null && _chain.isNotEmpty) {
+      final b = _chain[_index];
+      final model = buildRulerDisplayModel(_lockedA!.rect, b.rect);
+      final measurementText = formatMeasurement(
+        a: _lockedA!,
+        b: b,
+        relation: model.relation,
+      );
+      return '$chainText\n\n$measurementText';
+    }
+    return chainText;
+  }
+
   Future<void> _onCopy() async {
     if (_chain.isEmpty) return;
     final currentChain = _chain;
-    final text = formatLayoutChain(
-      currentChain,
-      mayBeObfuscated: widget.mayBeObfuscated,
-    );
+    final text = _buildExportText();
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted || !listEquals(_chain, currentChain)) return;
     _copiedTimer?.cancel();
@@ -157,10 +186,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
 
   Future<void> _onShare() async {
     if (_chain.isEmpty) return;
-    final text = formatLayoutChain(
-      _chain,
-      mayBeObfuscated: widget.mayBeObfuscated,
-    );
+    final text = _buildExportText();
     try {
       await shareText(text);
     } on Object catch (_) {
@@ -183,6 +209,10 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     final alignTop =
         _chain.isNotEmpty && _chain.first.rect.center.dy > screenHeight / 2;
 
+    final rulerModel = (_lockedA != null && level != null)
+        ? buildRulerDisplayModel(_lockedA!.rect, level.rect)
+        : null;
+
     return Stack(
       children: [
         Positioned.fill(
@@ -195,7 +225,15 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
             child: const SizedBox.expand(),
           ),
         ),
-        if (level != null)
+        if (rulerModel != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: GapRulerPainter(model: rulerModel),
+              ),
+            ),
+          )
+        else if (level != null)
           Positioned.fromRect(
             rect: level.rect.shift(-_stackOffset),
             child: const IgnorePointer(
@@ -217,10 +255,13 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
             level: level,
             index: _index,
             total: _chain.length,
+            lockedA: _lockedA,
+            rulerModel: rulerModel,
             mayBeObfuscated: widget.mayBeObfuscated,
             copied: _copied,
             onParent: _index < _chain.length - 1 ? _onParent : null,
             onChild: _index > 0 ? _onChild : null,
+            onToggleRuler: level != null ? _onToggleRuler : null,
             onCopy: _onCopy,
             onShare: _onShare,
             onClose: _onClose,
@@ -331,10 +372,13 @@ class _LayoutInfoCard extends StatelessWidget {
     required this.level,
     required this.index,
     required this.total,
+    required this.lockedA,
+    required this.rulerModel,
     required this.mayBeObfuscated,
     required this.copied,
     required this.onParent,
     required this.onChild,
+    required this.onToggleRuler,
     required this.onCopy,
     required this.onShare,
     required this.onClose,
@@ -343,17 +387,37 @@ class _LayoutInfoCard extends StatelessWidget {
   final LayoutLevel? level;
   final int index;
   final int total;
+  final LayoutLevel? lockedA;
+  final RulerDisplayModel? rulerModel;
   final bool mayBeObfuscated;
   final bool copied;
   final VoidCallback? onParent;
   final VoidCallback? onChild;
+  final VoidCallback? onToggleRuler;
   final VoidCallback onCopy;
   final VoidCallback onShare;
   final VoidCallback onClose;
 
+  String _formatRulerSummary(GapRelation relation) => switch (relation) {
+    SeparatedRelation(:final gapX, :final gapY) =>
+      gapX > 0 && gapY > 0
+          ? 'Gap: ${formatDistance(gapX)} (H), ${formatDistance(gapY)} (V)'
+          : gapX > 0
+              ? 'Gap: ${formatDistance(gapX)} (horizontal)'
+              : 'Gap: ${formatDistance(gapY)} (vertical)',
+    ContainedRelation(:final top, :final bottom, :final left, :final right) =>
+      'Insets: T:${formatDistance(top)} B:${formatDistance(bottom)} L:${formatDistance(left)} R:${formatDistance(right)}',
+    OverlappingRelation(:final intersection) =>
+      'Overlapping: ${formatDistance(intersection.width)} × ${formatDistance(intersection.height)}',
+    AdjacentRelation(:final axis) =>
+      'Adjacent (${axis == Axis.horizontal ? "horizontal" : "vertical"})',
+  };
+
   @override
   Widget build(BuildContext context) {
     final current = level;
+    final isRulerActive = lockedA != null;
+
     return SafeArea(
       child: Padding(
         padding: ThemePadding.paddingAll12,
@@ -378,6 +442,19 @@ class _LayoutInfoCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (isRulerActive)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: ThemeSize.space4),
+                            child: Text(
+                              'Measuring against: '
+                              '${lockedA!.widgetName ?? lockedA!.renderName}',
+                              style: const TextStyle(
+                                color: ThemeColor.color2196F3,
+                                fontWeight: FontWeight.bold,
+                                fontSize: ThemeFontSize.fontSize12,
+                              ),
+                            ),
+                          ),
                         Row(
                           children: [
                             Expanded(
@@ -412,6 +489,18 @@ class _LayoutInfoCard extends StatelessWidget {
                                 onPressed: onChild,
                               ),
                               IconButton(
+                                icon: Icon(
+                                  Icons.straighten,
+                                  color: isRulerActive
+                                      ? ThemeColor.color2196F3
+                                      : null,
+                                ),
+                                tooltip: isRulerActive
+                                    ? 'Exit ruler'
+                                    : 'Measure distance',
+                                onPressed: onToggleRuler,
+                              ),
+                              IconButton(
                                 icon: const Icon(Icons.copy),
                                 tooltip: 'Copy layout chain',
                                 onPressed: onCopy,
@@ -429,6 +518,19 @@ class _LayoutInfoCard extends StatelessWidget {
                             ],
                           ),
                         ),
+                        if (rulerModel != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: ThemeSize.space4),
+                            child: Text(
+                              _formatRulerSummary(rulerModel!.relation),
+                              style: const TextStyle(
+                                color: ThemeColor.colorFF9800,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace',
+                                fontSize: ThemeFontSize.fontSize12,
+                              ),
+                            ),
+                          ),
                         Text(
                           'size: ${formatSize(current.size)}',
                           style: ThemeTextStyle.monospaceStyle,
