@@ -90,7 +90,7 @@
 | [`lib/src/ui/dashboard/tabs/database_tab.dart`](../../lib/src/ui/dashboard/tabs/database_tab.dart) | `DatabaseTab` | 數據庫瀏覽器 Tab。支援動態下拉切換不同的 `DatabaseBrowserSource`。 |
 | [`lib/src/ui/dashboard/tabs/database/table_rows_view.dart`](../../lib/src/ui/dashboard/tabs/database/table_rows_view.dart) | `TableRowsView` | 表格二維數據瀏覽器。支援動態加載（Load More）、點擊單元格查看，以及點擊表頭排序。 |
 | [`lib/src/ui/dashboard/export_report_sheet.dart`](../../lib/src/ui/dashboard/export_report_sheet.dart) | `ExportReportSheet` | **[新增]** 診斷報告導出與分享 Dialog (Bottom Sheet)。包含 Include 篩選、時間區間與 errors-only 選項，並實現了 Clipboard 降級 fallback 分享容錯機制。 |
-| [`lib/src/ui/layout_inspect/layout_inspect_overlay.dart`](../../lib/src/ui/layout_inspect/layout_inspect_overlay.dart) | `LayoutInspectOverlay` | **[新增]** 點選元件查看尺寸與 constraints 的選取模式：全螢幕攔截層、框線標示、資訊卡（父鏈上下切換、複製／分享）。單一 `OverlayEntry`，不寫 buffer、不進時間軸。 |
+| [`lib/src/ui/layout_inspect/layout_inspect_overlay.dart`](../../lib/src/ui/layout_inspect/layout_inspect_overlay.dart) | `LayoutInspectOverlay` | **[新增]** 點選元件查看尺寸與 constraints 的選取模式：全螢幕攔截層、框線標示、資訊卡（父鏈上下切換、複製／分享）；按住拖曳可瞄準，手指上方（靠近上緣時改到下方）顯示 `RawMagnifier` 放大鏡與十字準星（Web 不顯示）。單一 `OverlayEntry`，不寫 buffer、不進時間軸。 |
 | [`lib/src/ui/layout_inspect/layout_probe.dart`](../../lib/src/ui/layout_inspect/layout_probe.dart) | `LayoutLevel`<br>`LayoutProbeShield`<br>`probeLayoutAt()` | **[新增]** 以 hit test 取點擊位置的 `RenderBox` 父鏈並快照成不可變 `LayoutLevel`；`LayoutProbeShield` 讓包住的子樹在探測期間不被命中。 |
 | [`lib/src/ui/widgets/inspector_fab.dart`](../../lib/src/ui/widgets/inspector_fab.dart) | `InspectorFab` | 安全區域內可拖曳的懸浮按鈕（以 `LayoutProbeShield` 包住，對 layout 探測透明）。 |
 | [`lib/src/ui/widgets/magical_tap.dart`](../../lib/src/ui/widgets/magical_tap.dart) | `FlutterInspectorMagicalTap` | 靜默手勢防護罩，用於隱藏 FAB 時藉由快速連擊喚醒控制台。 |
