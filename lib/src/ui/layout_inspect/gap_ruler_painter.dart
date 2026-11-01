@@ -75,7 +75,11 @@ class GapRulerPainter extends CustomPainter {
     if (diff.distance <= 0) return;
     final normal = Offset(-diff.dy, diff.dx) / diff.distance;
     const tickHalf = 3.5;
-    canvas.drawLine(start - normal * tickHalf, start + normal * tickHalf, paint);
+    canvas.drawLine(
+      start - normal * tickHalf,
+      start + normal * tickHalf,
+      paint,
+    );
     canvas.drawLine(end - normal * tickHalf, end + normal * tickHalf, paint);
   }
 
@@ -109,14 +113,15 @@ class GapRulerPainter extends CustomPainter {
     final bgPaint = Paint()
       ..color = const Color(0xE6212121)
       ..style = PaintingStyle.fill;
-    final rrect = RRect.fromRectAndRadius(badgeRect, const Radius.circular(3.0));
+    final rrect = RRect.fromRectAndRadius(
+      badgeRect,
+      const Radius.circular(3.0),
+    );
     canvas.drawRRect(rrect, bgPaint);
 
-    final textOffset = Offset(
-      badgeRect.left + padH,
-      badgeRect.top + padV,
-    );
+    final textOffset = Offset(badgeRect.left + padH, badgeRect.top + padV);
     textPainter.paint(canvas, textOffset);
+    textPainter.dispose();
   }
 
   @override

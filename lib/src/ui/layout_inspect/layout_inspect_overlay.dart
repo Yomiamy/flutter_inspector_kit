@@ -171,10 +171,10 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     return chainText;
   }
 
-  Future<void> _onCopy() async {
-    if (_chain.isEmpty) return;
+  Future<void> _onCopy([String? prebuiltText]) async {
+    if (_chain.isEmpty && prebuiltText == null) return;
     final currentChain = _chain;
-    final text = _buildExportText();
+    final text = prebuiltText ?? _buildExportText();
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted || !listEquals(_chain, currentChain)) return;
     _copiedTimer?.cancel();
@@ -190,7 +190,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     try {
       await shareText(text);
     } on Object catch (_) {
-      await _onCopy();
+      await _onCopy(text);
     }
   }
 
@@ -230,9 +230,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
         if (rulerModel != null)
           Positioned.fill(
             child: IgnorePointer(
-              child: CustomPaint(
-                painter: GapRulerPainter(model: rulerModel),
-              ),
+              child: CustomPaint(painter: GapRulerPainter(model: rulerModel)),
             ),
           )
         else if (level != null)
@@ -405,8 +403,8 @@ class _LayoutInfoCard extends StatelessWidget {
       gapX > 0 && gapY > 0
           ? 'Gap: ${formatDistance(gapX)} (H), ${formatDistance(gapY)} (V)'
           : gapX > 0
-              ? 'Gap: ${formatDistance(gapX)} (horizontal)'
-              : 'Gap: ${formatDistance(gapY)} (vertical)',
+          ? 'Gap: ${formatDistance(gapX)} (horizontal)'
+          : 'Gap: ${formatDistance(gapY)} (vertical)',
     ContainedRelation(:final top, :final bottom, :final left, :final right) =>
       'Insets: T:${formatDistance(top)} B:${formatDistance(bottom)} L:${formatDistance(left)} R:${formatDistance(right)}',
     OverlappingRelation(:final intersection) =>
@@ -419,7 +417,8 @@ class _LayoutInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = level;
     final isRulerActive = lockedA != null;
-    final isWaitingForB = isRulerActive && (current == null || lockedA == current);
+    final isWaitingForB =
+        isRulerActive && (current == null || lockedA == current);
 
     return SafeArea(
       child: Padding(
@@ -459,7 +458,11 @@ class _LayoutInfoCard extends StatelessWidget {
                           )
                         else if (isRulerActive)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: ThemeSize.space4),
+                        else if (isRulerActive)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: ThemeSize.space4,
+                            ),
                             child: Text(
                               'Measuring against: '
                               '${lockedA!.widgetName ?? lockedA!.renderName}',
@@ -535,7 +538,9 @@ class _LayoutInfoCard extends StatelessWidget {
                         ),
                         if (rulerModel != null)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: ThemeSize.space4),
+                            padding: const EdgeInsets.only(
+                              bottom: ThemeSize.space4,
+                            ),
                             child: Text(
                               _formatRulerSummary(rulerModel!.relation),
                               style: const TextStyle(

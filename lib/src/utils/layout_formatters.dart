@@ -66,15 +66,15 @@ String formatMeasurement({
   switch (relation) {
     case SeparatedRelation(:final gapX, :final gapY):
       buffer.writeln('Relation: Separated');
-      if (gapX > 0) buffer.writeln('Horizontal Gap: ${_formatNumber(gapX)} px');
-      if (gapY > 0) buffer.writeln('Vertical Gap: ${_formatNumber(gapY)} px');
+      buffer.writeln('Horizontal Gap: ${_formatNumber(gapX)} px');
+      buffer.writeln('Vertical Gap: ${_formatNumber(gapY)} px');
     case ContainedRelation(
-        :final outerIsA,
-        :final top,
-        :final bottom,
-        :final left,
-        :final right,
-      ):
+      :final outerIsA,
+      :final top,
+      :final bottom,
+      :final left,
+      :final right,
+    ):
       buffer.writeln(
         'Relation: Contained (${outerIsA ? "A contains B" : "B contains A"})',
       );

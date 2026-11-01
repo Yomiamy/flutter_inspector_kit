@@ -100,12 +100,17 @@ void main() {
         await tester.pump();
 
         // Target B is selected, ruler summary is displayed
-        expect(find.textContaining('Measuring against: ColoredBox'), findsOneWidget);
+        expect(
+          find.textContaining('Measuring against: ColoredBox'),
+          findsOneWidget,
+        );
         expect(find.textContaining('Gap: 20 px (vertical)'), findsOneWidget);
 
         // GapRulerPainter is in tree
         final customPaint = tester.widget<CustomPaint>(
-          find.byWidgetPredicate((w) => w is CustomPaint && w.painter is GapRulerPainter),
+          find.byWidgetPredicate(
+            (w) => w is CustomPaint && w.painter is GapRulerPainter,
+          ),
         );
         expect(customPaint.painter, isA<GapRulerPainter>());
 
@@ -115,8 +120,30 @@ void main() {
         await tester.tap(parentBtn);
         await tester.pump();
 
-        expect(find.textContaining('SizedBox (RenderConstrainedBox)'), findsOneWidget);
+        expect(
+          find.textContaining('SizedBox (RenderConstrainedBox)'),
+          findsOneWidget,
+        );
         expect(find.textContaining('Gap: 20 px (vertical)'), findsOneWidget);
+
+        // Navigate back down to child (Comment 11)
+        final childBtn = find.byTooltip('Child');
+        expect(childBtn, findsOneWidget);
+        await tester.tap(childBtn);
+        await tester.pump();
+        expect(
+          find.textContaining('ColoredBox (_RenderColoredBox)'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Gap: 20 px (vertical)'), findsOneWidget);
+
+        // Return to SizedBox for next assertions
+        await tester.tap(parentBtn);
+        await tester.pump();
+        expect(
+          find.textContaining('SizedBox (RenderConstrainedBox)'),
+          findsOneWidget,
+        );
 
         // 6. Copy layout chain and measurement
         await tester.tap(find.byTooltip('Copy layout chain'));
@@ -136,7 +163,9 @@ void main() {
         expect(find.textContaining('Measuring against:'), findsNothing);
         expect(find.byTooltip('Measure distance'), findsOneWidget);
         expect(
-          find.byWidgetPredicate((w) => w is CustomPaint && w.painter is GapRulerPainter),
+          find.byWidgetPredicate(
+            (w) => w is CustomPaint && w.painter is GapRulerPainter,
+          ),
           findsNothing,
         );
         expect(find.textContaining('SizedBox'), findsOneWidget);
@@ -149,7 +178,9 @@ void main() {
       },
     );
 
-    testWidgets('contained widgets display insets in info card', (tester) async {
+    testWidgets('contained widgets display insets in info card', (
+      tester,
+    ) async {
       final outerKey = GlobalKey();
       final innerKey = GlobalKey();
 
@@ -183,7 +214,8 @@ void main() {
       await tester.pump();
 
       // Tap outer container at top-left corner (avoiding inner widget at center)
-      final outerCorner = tester.getTopLeft(find.byKey(outerKey)) + const Offset(10, 10);
+      final outerCorner =
+          tester.getTopLeft(find.byKey(outerKey)) + const Offset(10, 10);
       await tester.tapAt(outerCorner);
       await tester.pump();
 
@@ -201,6 +233,56 @@ void main() {
       expect(find.textContaining('B:70 px'), findsOneWidget);
       expect(find.textContaining('L:60 px'), findsOneWidget);
       expect(find.textContaining('R:60 px'), findsOneWidget);
+    });
+
+    testWidgets('tapping reference widget A again does not self-measure', (
+      tester,
+    ) async {
+      final btnAKey = GlobalKey();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                key: btnAKey,
+                width: 100,
+                height: 100,
+                child: const ColoredBox(color: Colors.red),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final overlay = Overlay.of(
+        tester.element(find.byType(Scaffold)),
+        rootOverlay: true,
+      );
+      LayoutInspectOverlay.show(overlay);
+      await tester.pump();
+
+      // Tap widget A and lock it
+      final centerA = tester.getCenter(find.byKey(btnAKey));
+      await tester.tapAt(centerA);
+      await tester.pump();
+      await tester.tap(find.byTooltip('Measure distance'));
+      await tester.pump();
+
+      expect(find.text('Tap another widget to measure gap'), findsOneWidget);
+
+      // Tap widget A again
+      await tester.tapAt(centerA);
+      await tester.pump();
+
+      // Should still prompt to tap another widget, NOT build a self-measuring ruler
+      expect(find.text('Tap another widget to measure gap'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.painter is GapRulerPainter,
+        ),
+        findsNothing,
+      );
     });
   });
 }

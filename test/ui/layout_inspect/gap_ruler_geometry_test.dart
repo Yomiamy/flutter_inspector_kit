@@ -11,11 +11,14 @@ void main() {
       expect(containsRect(rect, rect), isTrue);
     });
 
-    test('returns true when inner touches right and bottom borders (padding 0)', () {
-      const outer = Rect.fromLTWH(0, 0, 100, 100);
-      const inner = Rect.fromLTWH(20, 20, 80, 80); // right: 100, bottom: 100
-      expect(containsRect(outer, inner), isTrue);
-    });
+    test(
+      'returns true when inner touches right and bottom borders (padding 0)',
+      () {
+        const outer = Rect.fromLTWH(0, 0, 100, 100);
+        const inner = Rect.fromLTWH(20, 20, 80, 80); // right: 100, bottom: 100
+        expect(containsRect(outer, inner), isTrue);
+      },
+    );
 
     test('returns true when inner is strictly inside', () {
       const outer = Rect.fromLTWH(0, 0, 100, 100);
@@ -172,13 +175,24 @@ void main() {
 
     test('Overlapping: partial intersection without containment', () {
       const a = Rect.fromLTWH(0, 0, 60, 60);
-      const b = Rect.fromLTWH(30, 30, 60, 60); // intersection: (30, 30, 60, 60), size 30x30
+      const b = Rect.fromLTWH(
+        30,
+        30,
+        60,
+        60,
+      ); // intersection: (30, 30, 60, 60), size 30x30
       final model = buildRulerDisplayModel(a, b);
 
       expect(model.relation, isA<OverlappingRelation>());
       final rel = model.relation as OverlappingRelation;
       expect(rel.intersection, const Rect.fromLTWH(30, 30, 30, 30));
       expect(model.segments.length, 2);
+      expect(model.segments[0].start, const Offset(30, 45));
+      expect(model.segments[0].end, const Offset(60, 45));
+      expect(model.segments[0].label, '30 px');
+      expect(model.segments[1].start, const Offset(45, 30));
+      expect(model.segments[1].end, const Offset(45, 60));
+      expect(model.segments[1].label, '30 px');
     });
 
     test('Adjacent: touching along vertical border', () {
@@ -221,6 +235,7 @@ void main() {
       expect(text, contains('Target B: TargetWidget (RenderBox)'));
       expect(text, contains('Relation: Separated'));
       expect(text, contains('Horizontal Gap: 20.0 px'));
+      expect(text, contains('Vertical Gap: 0.0 px'));
     });
 
     test('formats Contained measurement correctly', () {
@@ -237,7 +252,12 @@ void main() {
       );
 
       expect(text, contains('Relation: Contained (A contains B)'));
-      expect(text, contains('Insets: Top: 10.0 px, Bottom: 20.0 px, Left: 15.0 px, Right: 25.0 px'));
+      expect(
+        text,
+        contains(
+          'Insets: Top: 10.0 px, Bottom: 20.0 px, Left: 15.0 px, Right: 25.0 px',
+        ),
+      );
     });
   });
 }

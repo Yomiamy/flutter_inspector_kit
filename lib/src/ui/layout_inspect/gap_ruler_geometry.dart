@@ -28,12 +28,7 @@ bool containsRect(Rect outer, Rect inner) =>
 ///
 /// Returns `0.0` if the intervals overlap or touch. Commutative:
 /// `compute1DGap(a1, a2, b1, b2) == compute1DGap(b1, b2, a1, a2)`.
-double compute1DGap(
-  double aStart,
-  double aEnd,
-  double bStart,
-  double bEnd,
-) =>
+double compute1DGap(double aStart, double aEnd, double bStart, double bEnd) =>
     math.max(0.0, math.max(aStart, bStart) - math.min(aEnd, bEnd));
 
 /// Represents the exhaustive geometric relationship between two rectangles.
@@ -54,9 +49,7 @@ final class SeparatedRelation extends GapRelation {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is SeparatedRelation &&
-          other.gapX == gapX &&
-          other.gapY == gapY;
+      other is SeparatedRelation && other.gapX == gapX && other.gapY == gapY;
 
   @override
   int get hashCode => Object.hash(gapX, gapY);
@@ -126,8 +119,7 @@ final class AdjacentRelation extends GapRelation {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AdjacentRelation && other.axis == axis;
+      identical(this, other) || other is AdjacentRelation && other.axis == axis;
 
   @override
   int get hashCode => axis.hashCode;
@@ -184,144 +176,96 @@ class RulerDisplayModel {
           listEquals(other.segments, segments);
 
   @override
-  int get hashCode => Object.hash(
-        rectA,
-        rectB,
-        relation,
-        Object.hashAll(segments),
-      );
+  int get hashCode =>
+      Object.hash(rectA, rectB, relation, Object.hashAll(segments));
 }
 
 /// Analyzes the spatial relationship between [a] and [b] and computes
 /// all ruler line segments, labels, and geometric relations.
 RulerDisplayModel buildRulerDisplayModel(Rect a, Rect b) {
-  // 1. Check containment (using closed intervals)
-  if (containsRect(a, b)) {
-    final top = b.top - a.top;
-    final bottom = a.bottom - b.bottom;
-    final left = b.left - a.left;
-    final right = a.right - b.right;
-    final relation = ContainedRelation(
-      outerIsA: true,
-      top: top,
-      bottom: bottom,
-      left: left,
-      right: right,
-    );
+  if (containsRect(a, b)) return _buildContainedModel(a, b, true);
+  if (containsRect(b, a)) return _buildContainedModel(a, b, false);
+  if (a.overlaps(b)) return _buildOverlappingModel(a, b);
 
-    final segments = <RulerSegment>[];
-    if (top > 0) {
-      segments.add(
-        RulerSegment(
-          start: Offset(b.center.dx, a.top),
-          end: Offset(b.center.dx, b.top),
-          label: formatDistance(top),
-        ),
-      );
-    }
-    if (bottom > 0) {
-      segments.add(
-        RulerSegment(
-          start: Offset(b.center.dx, b.bottom),
-          end: Offset(b.center.dx, a.bottom),
-          label: formatDistance(bottom),
-        ),
-      );
-    }
-    if (left > 0) {
-      segments.add(
-        RulerSegment(
-          start: Offset(a.left, b.center.dy),
-          end: Offset(b.left, b.center.dy),
-          label: formatDistance(left),
-        ),
-      );
-    }
-    if (right > 0) {
-      segments.add(
-        RulerSegment(
-          start: Offset(b.right, b.center.dy),
-          end: Offset(a.right, b.center.dy),
-          label: formatDistance(right),
-        ),
-      );
-    }
-    return RulerDisplayModel(
-      rectA: a,
-      rectB: b,
-      relation: relation,
-      segments: segments,
+  final gapX = compute1DGap(a.left, a.right, b.left, b.right);
+  final gapY = compute1DGap(a.top, a.bottom, b.top, b.bottom);
+  if (gapX == 0.0 && gapY == 0.0) return _buildAdjacentModel(a, b);
+
+  return _buildSeparatedModel(a, b, gapX, gapY);
+}
+
+RulerDisplayModel _buildContainedModel(Rect a, Rect b, bool outerIsA) {
+  final outer = outerIsA ? a : b;
+  final inner = outerIsA ? b : a;
+  final top = inner.top - outer.top;
+  final bottom = outer.bottom - inner.bottom;
+  final left = inner.left - outer.left;
+  final right = outer.right - inner.right;
+  final relation = ContainedRelation(
+    outerIsA: outerIsA,
+    top: top,
+    bottom: bottom,
+    left: left,
+    right: right,
+  );
+
+  final segments = <RulerSegment>[];
+  if (top > 0) {
+    segments.add(
+      RulerSegment(
+        start: Offset(inner.center.dx, outer.top),
+        end: Offset(inner.center.dx, inner.top),
+        label: formatDistance(top),
+      ),
     );
   }
-
-  if (containsRect(b, a)) {
-    final top = a.top - b.top;
-    final bottom = b.bottom - a.bottom;
-    final left = a.left - b.left;
-    final right = b.right - a.right;
-    final relation = ContainedRelation(
-      outerIsA: false,
-      top: top,
-      bottom: bottom,
-      left: left,
-      right: right,
-    );
-
-    final segments = <RulerSegment>[];
-    if (top > 0) {
-      segments.add(
-        RulerSegment(
-          start: Offset(a.center.dx, b.top),
-          end: Offset(a.center.dx, a.top),
-          label: formatDistance(top),
-        ),
-      );
-    }
-    if (bottom > 0) {
-      segments.add(
-        RulerSegment(
-          start: Offset(a.center.dx, a.bottom),
-          end: Offset(a.center.dx, b.bottom),
-          label: formatDistance(bottom),
-        ),
-      );
-    }
-    if (left > 0) {
-      segments.add(
-        RulerSegment(
-          start: Offset(b.left, a.center.dy),
-          end: Offset(a.left, a.center.dy),
-          label: formatDistance(left),
-        ),
-      );
-    }
-    if (right > 0) {
-      segments.add(
-        RulerSegment(
-          start: Offset(a.right, a.center.dy),
-          end: Offset(b.right, a.center.dy),
-          label: formatDistance(right),
-        ),
-      );
-    }
-    return RulerDisplayModel(
-      rectA: a,
-      rectB: b,
-      relation: relation,
-      segments: segments,
+  if (bottom > 0) {
+    segments.add(
+      RulerSegment(
+        start: Offset(inner.center.dx, inner.bottom),
+        end: Offset(inner.center.dx, outer.bottom),
+        label: formatDistance(bottom),
+      ),
     );
   }
-
-  // 2. Check partial intersection (neither contains the other)
-  if (a.overlaps(b)) {
-    final intersection = Rect.fromLTRB(
-      math.max(a.left, b.left),
-      math.max(a.top, b.top),
-      math.min(a.right, b.right),
-      math.min(a.bottom, b.bottom),
+  if (left > 0) {
+    segments.add(
+      RulerSegment(
+        start: Offset(outer.left, inner.center.dy),
+        end: Offset(inner.left, inner.center.dy),
+        label: formatDistance(left),
+      ),
     );
-    final relation = OverlappingRelation(intersection: intersection);
-    final segments = [
+  }
+  if (right > 0) {
+    segments.add(
+      RulerSegment(
+        start: Offset(inner.right, inner.center.dy),
+        end: Offset(outer.right, inner.center.dy),
+        label: formatDistance(right),
+      ),
+    );
+  }
+  return RulerDisplayModel(
+    rectA: a,
+    rectB: b,
+    relation: relation,
+    segments: segments,
+  );
+}
+
+RulerDisplayModel _buildOverlappingModel(Rect a, Rect b) {
+  final intersection = Rect.fromLTRB(
+    math.max(a.left, b.left),
+    math.max(a.top, b.top),
+    math.min(a.right, b.right),
+    math.min(a.bottom, b.bottom),
+  );
+  return RulerDisplayModel(
+    rectA: a,
+    rectB: b,
+    relation: OverlappingRelation(intersection: intersection),
+    segments: [
       RulerSegment(
         start: intersection.centerLeft,
         end: intersection.centerRight,
@@ -332,73 +276,56 @@ RulerDisplayModel buildRulerDisplayModel(Rect a, Rect b) {
         end: intersection.bottomCenter,
         label: formatDistance(intersection.height),
       ),
-    ];
-    return RulerDisplayModel(
-      rectA: a,
-      rectB: b,
-      relation: relation,
-      segments: segments,
-    );
-  }
+    ],
+  );
+}
 
-  // 3. Compute 1D gaps
-  final gapX = compute1DGap(a.left, a.right, b.left, b.right);
-  final gapY = compute1DGap(a.top, a.bottom, b.top, b.bottom);
-
-  // 4. Check adjacent (gap == 0 on both axes, touching edge)
-  if (gapX == 0.0 && gapY == 0.0) {
-    final isHorizontal = a.right == b.left || b.right == a.left;
-    final relation = AdjacentRelation(
+RulerDisplayModel _buildAdjacentModel(Rect a, Rect b) {
+  final isHorizontal = a.right == b.left || b.right == a.left;
+  return RulerDisplayModel(
+    rectA: a,
+    rectB: b,
+    relation: AdjacentRelation(
       axis: isHorizontal ? Axis.horizontal : Axis.vertical,
-    );
-    return RulerDisplayModel(
-      rectA: a,
-      rectB: b,
-      relation: relation,
-      segments: const [],
-    );
-  }
+    ),
+    segments: const [],
+  );
+}
 
-  // 5. Separated
-  final relation = SeparatedRelation(gapX: gapX, gapY: gapY);
+RulerDisplayModel _buildSeparatedModel(
+  Rect a,
+  Rect b,
+  double gapX,
+  double gapY,
+) {
   final segments = <RulerSegment>[];
-
   if (gapX > 0.0 && gapY == 0.0) {
-    // Pure horizontal separation (vertical range overlaps)
     final yStart = math.max(a.top, b.top);
     final yEnd = math.min(a.bottom, b.bottom);
     final midY = (yStart + yEnd) / 2;
-    final xStart = math.min(a.right, b.right);
-    final xEnd = math.max(a.left, b.left);
     segments.add(
       RulerSegment(
-        start: Offset(xStart, midY),
-        end: Offset(xEnd, midY),
+        start: Offset(math.min(a.right, b.right), midY),
+        end: Offset(math.max(a.left, b.left), midY),
         label: formatDistance(gapX),
       ),
     );
   } else if (gapY > 0.0 && gapX == 0.0) {
-    // Pure vertical separation (horizontal range overlaps)
     final xStart = math.max(a.left, b.left);
     final xEnd = math.min(a.right, b.right);
     final midX = (xStart + xEnd) / 2;
-    final yStart = math.min(a.bottom, b.bottom);
-    final yEnd = math.max(a.top, b.top);
     segments.add(
       RulerSegment(
-        start: Offset(midX, yStart),
-        end: Offset(midX, yEnd),
+        start: Offset(midX, math.min(a.bottom, b.bottom)),
+        end: Offset(midX, math.max(a.top, b.top)),
         label: formatDistance(gapY),
       ),
     );
   } else {
-    // Diagonal separation (both gaps > 0)
     final xStart = math.min(a.right, b.right);
     final xEnd = math.max(a.left, b.left);
     final yStart = math.min(a.bottom, b.bottom);
     final yEnd = math.max(a.top, b.top);
-
-    // Horizontal segment at yStart
     segments.add(
       RulerSegment(
         start: Offset(xStart, yStart),
@@ -406,8 +333,6 @@ RulerDisplayModel buildRulerDisplayModel(Rect a, Rect b) {
         label: formatDistance(gapX),
       ),
     );
-
-    // Vertical segment at xEnd
     segments.add(
       RulerSegment(
         start: Offset(xEnd, yStart),
@@ -416,11 +341,10 @@ RulerDisplayModel buildRulerDisplayModel(Rect a, Rect b) {
       ),
     );
   }
-
   return RulerDisplayModel(
     rectA: a,
     rectB: b,
-    relation: relation,
+    relation: SeparatedRelation(gapX: gapX, gapY: gapY),
     segments: segments,
   );
 }

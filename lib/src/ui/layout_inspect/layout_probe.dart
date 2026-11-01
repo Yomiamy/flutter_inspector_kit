@@ -30,6 +30,20 @@ class LayoutLevel {
 
   /// The bounding rectangle in global screen coordinates.
   final Rect rect;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LayoutLevel &&
+          other.widgetName == widgetName &&
+          other.renderName == renderName &&
+          other.size == size &&
+          other.constraints == constraints &&
+          other.rect == rect;
+
+  @override
+  int get hashCode =>
+      Object.hash(widgetName, renderName, size, constraints, rect);
 }
 
 bool _probing = false;
