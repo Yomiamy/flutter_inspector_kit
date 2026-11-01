@@ -1,6 +1,6 @@
 ---
 name: gen-update-publish-info
-description: 當使用者要為已合入 main 的變更發布新版本——更新版號（pubspec.yaml / lib/src/version.dart / README.md / CHANGELOG.md）、把使用者可見的新功能同步進 README、補上 CHANGELOG、並打 git tag 推上去時使用。觸發語如「更新版本資訊」、「bump 版號」、「調整版號為 vX.Y.Z 下 tag push」、「release vX.Y.Z」、「gen-update-publish-info vX.Y.Z」。
+description: 當使用者要為已合入 main 的變更發布新版本——更新版號（pubspec.yaml / lib/src/version.dart / README.md / README.zh-TW.md / CHANGELOG.md）、把使用者可見的新功能同步進 README（英繁雙語）、補上 CHANGELOG、並打 git tag 推上去時使用。觸發語如「更新版本資訊」、「bump 版號」、「調整版號為 vX.Y.Z 下 tag push」、「release vX.Y.Z」、「gen-update-publish-info vX.Y.Z」。
 ---
 
 # Gen Update & Publish Info
@@ -41,12 +41,12 @@ Issue 內容格式參考 `gen-gh-issue` 的五區段格式（用繁體中文撰�
 需要發布新版本 $VERSION，將最近合併入 main 的核心變更打包，並更新版本號與說明文件。
 
 ## 根本原因（已驗證）(Root cause - verified)
-目前的 `pubspec.yaml` 版本為 <舊版>，未包含最新變更，且 `README.md` 及 `CHANGELOG.md` 尚未同步最新 API 變動。
+目前的 `pubspec.yaml` 版本為 <舊版>，未包含最新變更，且 `README.md`、`README.zh-TW.md` 及 `CHANGELOG.md` 尚未同步最新 API 變動。
 
 ## 修復方案 (Fix)
 - **A** `pubspec.yaml`：升級 `version` 至 `$VERSION`。
 - **B** `lib/src/version.dart`：更新 `packageVersion` 為 `'$VERSION'`（確保 `FlutterInspector.version` 輸出正確版號）。
-- **C** `README.md`：同步最新安裝版號，並更新用法說明（特別是 Dio 攔截器變更）。
+- **C** `README.md` & `README.zh-TW.md`：同步最新安裝版號，並更新雙語用法說明（特別是 Dio 攔截器變更與新功能對齊）。
 - **D** `CHANGELOG.md`：新增 `$VERSION` 的 Added/Changed/Fixed 異動清單。
 
 ## 排除範圍 (Out of scope)
@@ -73,27 +73,31 @@ git checkout -b release/$DATE/release-$VERSION main
 
 > **禁止**直接在 main 上 commit 版號變更——一律走分支 + PR。
 
-### 3. 更新四處版本資訊
+### 3. 更新版本資訊（四處 / 繁中文檔存在時為五處）
 
 | 檔案 | 改什麼 |
 |------|--------|
 | `pubspec.yaml` | `version: <舊版>` → `version: $VERSION` |
 | `lib/src/version.dart` | `const String packageVersion = '<舊版>';` → `const String packageVersion = '$VERSION';` |
 | `README.md` | (a) 安裝範例 `flutter_inspector_kit: ^<舊版>` → `^$VERSION`（依實際 package 名）；(b) 把本次 release 影響「怎麼用」的新功能同步進對應章節（見步驟 4） |
+| `README.zh-TW.md` | (a) 若專案存在此檔，安裝範例同步為 `^$VERSION`；(b) 全面以繁體中文同步與 `README.md` 對應的功能表格與用法章節 |
 | `CHANGELOG.md` | 在最上方新增 `## $VERSION` 區塊（見步驟 5） |
 
-### 4. 同步 README 的功能描述
+### 4. 同步 README 與 README.zh-TW.md 的功能描述
 
-版號改完後，檢查本次 release 是否有功能需要在 README 反映。**範圍：只同步會影響使用者「怎麼用」的改動**——新 API、新建構子參數、新 Usage 步驟、既有用法的行為變更。
+版號改完後，檢查本次 release 是否有功能需要在 README 與 README.zh-TW.md 反映。**範圍：只同步會影響使用者「怎麼用」的改動**——新 API、新建構子參數、新 Usage 步驟、既有用法的行為變更。
 
 ```bash
 git log --oneline <上個 tag 或 main 分歧點>..HEAD   # 對照本次 release 的 commits
 grep -n "^## \|^### " README.md                     # 盤點 README 既有章節結構
 ```
 
+> [!IMPORTANT]
+> **繁中說明文件同步義務**：若專案包含 `README.zh-TW.md`，必須在更新 `README.md` 的同時，以對應的繁體中文語系同步更新 `README.zh-TW.md` 的功能清單與用法章節，保持雙語文檔內容 1:1 對齊，嚴禁繁中文檔落後於英文版。
+
 #### 特別要求：多 Dio 實例接線說明
 > [!IMPORTANT]
-> 如果本次 Release 涉及網路攔截器（`FlutterInspectorDioInterceptor`）的用法變更，**在 `README.md` 中必須特別強調並示範「多個不同 Dio 實例」的接線情況**（例如 `authDio` 與 `publicDio`），說明如何傳入各自的 `sourceDio`，避免文檔只示範單一 Dio 實例而造成使用者誤解。
+> 如果本次 Release 涉及網路攔截器（`FlutterInspectorDioInterceptor`）的用法變更，**在 `README.md` 與 `README.zh-TW.md` 中必須特別強調並示範「多個不同 Dio 實例」的接線情況**（例如 `authDio` 與 `publicDio`），說明如何傳入各自的 `sourceDio`，避免文檔只示範單一 Dio 實例而造成使用者誤解。
 
 逐項判斷與落點：
 - **新 API / 新參數**：在 README 對應的 Usage / Features 章節補上用法（程式碼範例 + 一句說明）。若 README 有頂部 Features 清單，也補一行。
@@ -120,20 +124,21 @@ PR 描述格式必須嚴格遵循 `gen-pr` skill 的規範，以繁體中文撰�
 [#$ISSUE_ID](https://github.com/Yomiamy/flutter_inspector_kit/issues/$ISSUE_ID) Release: Version $VERSION
 
 **[修正問題]**
-發布新版 `$VERSION`，整合最近合併入 `main` 的網路請求重放（Network Replay）等變更，並同步更新 `pubspec.yaml`、說明文檔與變更日誌。
+發布新版 `$VERSION`，整合最近合併入 `main` 的變更，並同步更新 `pubspec.yaml`、雙語說明文件與變更日誌。
 
 **[修正方式]**
 1. **`pubspec.yaml`**：更新版本號為 `$VERSION`。
 2. **`lib/src/version.dart`**：更新 `packageVersion` 為 `'$VERSION'`。
-3. **`README.md`**：更新安裝版號為 `^$VERSION`，新增多 Dio 實例的攔截器接線說明與 Replay 功能用法。
-4. **`CHANGELOG.md`**：新增 `$VERSION` 的版本日誌，分類記錄各項 Added/Changed/Fixed 異動。
+3. **`README.md`**：更新安裝版號為 `^$VERSION`，新增相關功能用法說明與多 Dio 實例接線示範。
+4. **`README.zh-TW.md`**：同步更新安裝版號至 `^$VERSION`，並以繁體中文完整對齊最新章節與功能說明（若專案存在）。
+5. **`CHANGELOG.md`**：新增 `$VERSION` 的版本日誌，分類記錄各項 Added/Changed/Fixed 異動。
 ```
 
 #### 6.2 暫停與發布
 1. **暫停點**：展示 PR 描述草稿，詢問使用者是否確認。
 2. **建立 PR**：使用者確認後，執行以下指令將分支推送到 remote 並建立 PR：
    ```bash
-   git add pubspec.yaml lib/src/version.dart README.md CHANGELOG.md
+   git add pubspec.yaml lib/src/version.dart README.md CHANGELOG.md $([ -f README.zh-TW.md ] && echo README.zh-TW.md)
    git commit -m "chore(release): bump version to $VERSION"
    git push -u origin release/$DATE/release-$VERSION
    gh pr create --base main --head release/$DATE/release-$VERSION --title "chore(release): bump version to $VERSION" --body "<上述生成的 PR Body Markdown>"
@@ -165,7 +170,7 @@ git ls-remote --tags origin $TAG  # 驗證 tag 已上 remote
 |------|---------|------|
 | 建立 Issue | 以 `gen-gh-issue` 五區段格式用 `gh issue create` 建立 release 追蹤 issue | 必先有 issue 記錄任務 |
 | 開分支 | `release/$DATE/release-$VERSION` from main | 不在 main 直接工作 |
-| 改版號 | pubspec / lib/src/version.dart / README 安裝版號 / CHANGELOG | 四處都要改（CLAUDE.md §4 規範） |
+| 改版號與雙語文檔 | pubspec / lib/src/version.dart / README / README.zh-TW.md / CHANGELOG | 確保繁中文檔不落後，與英文版同步 |
 | 多 Dio 示範 | 在 README 特別強調多個不同 Dio 實例的攔截器配置 | 確保文檔能對應真實的多 Dio 情境 |
 | PR | 用 `gen-pr` 格式（Summary / 修正問題 / 修正方式）建 PR 且關聯 Issue | 確保 PR 的雙向關聯 |
 | tag | 合併後打在 merge commit、push | **先合併才打 tag** |

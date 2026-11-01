@@ -1,3 +1,16 @@
+## 2.9.0
+
+### Added
+* **Widget gap and distance ruler**: In Layout Inspect mode, tap the **Measure distance** ruler button (`Icons.straighten`) on the inspector card to lock reference widget A (blue border). Tapping any other widget selects target B (orange border), immediately drawing real-time ruler guidelines and numeric distance badges. Measurements display dual units — logical pixels (`dp`) and physical device pixels (`px`). Target B seamlessly reuses the existing ancestor hierarchy navigation (↑ / ↓), so padding against enclosing parent containers can be inspected without re-selecting. Copy and share exports include the full measurement metrics (dimensions, offsets, horizontal and vertical gaps, and insets).
+* **Touch loupe with crosshair for drag-to-aim**: In Layout Inspect mode, press and drag across the screen to aim at small targets (such as 16×16 icons). A 2× magnified circular loupe with a crosshair appears above your finger (or automatically flips below near the top screen edge to stay within safe areas), avoiding finger obstruction. Releasing selects the widget under the crosshair with identical settlement semantics to tapping.
+
+### Fixed
+* **Prevent UTF-16 surrogate pair truncation**: `truncateBody` in Network entries now guards against splitting 4-byte Unicode characters (such as emojis) across UTF-16 surrogate pairs, avoiding malformed string exceptions when truncating large network payloads.
+* **Database payload non-primitive JSON serialization**: In Diagnostic Report exports, database records containing non-primitive types or circular structures now fall back to a safe placeholder rather than throwing a serialization error.
+
+### Docs
+* **gRPC and WebSocket transport recipes**: Added step-by-step recipes to the README demonstrating how to wire a `ClientInterceptor` for unary gRPC calls and log WebSocket lifecycle events, along with critical gotchas regarding protocol status codes and `NetworkOrigin`.
+
 ## 2.8.0
 
 ### Added
