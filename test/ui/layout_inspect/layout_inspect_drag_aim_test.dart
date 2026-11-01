@@ -253,5 +253,89 @@ void main() {
       await tester.pump();
       expect(find.text('size: 60.0 × 60.0'), findsOneWidget);
     });
+
+    testWidgets(
+      'clears selection frame and returns to prompt when probe hits nothing',
+      (tester) async {
+        await _pumpInspect(tester);
+
+        // Drag over target A to select it.
+        final gesture = await tester.startGesture(_Data.rectA.center);
+        await gesture.moveBy(const Offset(kTouchSlop + 2, 0));
+        await tester.pump();
+        expect(_frameRect(tester), _Data.rectA);
+        expect(find.text('size: 120.0 × 40.0'), findsOneWidget);
+
+        // Move outside view bounds where probeLayoutAt returns empty.
+        await gesture.moveTo(const Offset(-50, -50));
+        await tester.pump();
+
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is DecoratedBox && w.decoration == _Data.frame,
+          ),
+          findsNothing,
+        );
+        expect(find.text('Tap a widget to inspect'), findsOneWidget);
+
+        await gesture.up();
+        await tester.pump();
+        expect(find.text('Tap a widget to inspect'), findsOneWidget);
+      },
+    );
+
+    testWidgets('normalizes coordinates when overlay has an offset', (
+      tester,
+    ) async {
+      const overlayOffset = Offset(40, 80);
+      const targetRect = Rect.fromLTWH(100, 150, 80, 50);
+
+      final overlayKey = GlobalKey<OverlayState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned.fromRect(
+                  rect: targetRect,
+                  child: const ColoredBox(color: Color(0xFF00AA55)),
+                ),
+                Positioned(
+                  left: overlayOffset.dx,
+                  top: overlayOffset.dy,
+                  width: 500,
+                  height: 400,
+                  child: Overlay(key: overlayKey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final overlay = overlayKey.currentState!;
+      LayoutInspectOverlay.show(overlay, showLoupe: true);
+      await tester.pump();
+
+      // Drag over target widget.
+      final gesture = await tester.startGesture(const Offset(200, 200));
+      await gesture.moveTo(targetRect.center);
+      await tester.pump();
+
+      // The blue frame must align with targetRect on screen.
+      expect(_frameRect(tester), targetRect);
+
+      // The loupe crosshair must target the global aim point.
+      final rect = tester.getRect(_loupe);
+      final magnifier = tester.widget<RawMagnifier>(_loupe);
+      expect(
+        rect.center + magnifier.focalPointOffset,
+        offsetMoreOrLessEquals(targetRect.center),
+      );
+
+      await gesture.up();
+      await tester.pump();
+      expect(_frameRect(tester), targetRect);
+    });
   });
 }

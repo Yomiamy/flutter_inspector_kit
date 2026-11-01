@@ -66,6 +66,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
   bool _copied = false;
   Timer? _copiedTimer;
   Offset? _aim;
+  Offset _stackOffset = Offset.zero;
 
   @override
   void dispose() {
@@ -76,12 +77,20 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     super.dispose();
   }
 
-  void _onTapUp(TapUpDetails details) => _probeAt(details.globalPosition);
+  void _onTapUp(TapUpDetails details) {
+    _stackOffset = details.globalPosition - details.localPosition;
+    _probeAt(details.globalPosition);
+  }
 
-  void _onPanStart(DragStartDetails details) => _aimAt(details.globalPosition);
+  void _onPanStart(DragStartDetails details) {
+    _stackOffset = details.globalPosition - details.localPosition;
+    _aimAt(details.globalPosition);
+  }
 
-  void _onPanUpdate(DragUpdateDetails details) =>
-      _aimAt(details.globalPosition);
+  void _onPanUpdate(DragUpdateDetails details) {
+    _stackOffset = details.globalPosition - details.localPosition;
+    _aimAt(details.globalPosition);
+  }
 
   // Settles through the tap path at the last crosshair point, so a release
   // gives exactly what a tap there would. The SDK also routes a pointer
@@ -103,7 +112,15 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     final anchor = context.findRenderObject();
     if (anchor == null) return;
     final hit = probeLayoutAt(anchor, globalPosition);
-    if (hit.isEmpty) return;
+    if (hit.isEmpty) {
+      _copiedTimer?.cancel();
+      setState(() {
+        _chain = const [];
+        _index = 0;
+        _copied = false;
+      });
+      return;
+    }
     _copiedTimer?.cancel();
     setState(() {
       _chain = hit;
@@ -179,7 +196,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
         ),
         if (level != null)
           Positioned.fromRect(
-            rect: level.rect,
+            rect: level.rect.shift(-_stackOffset),
             child: const IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -210,7 +227,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
         ),
         // Last child: the loupe magnifies what is painted before it,
         // including the frame.
-        if (aim != null && widget.showLoupe) _Loupe(aim: aim),
+        if (aim != null && widget.showLoupe) _Loupe(aim: aim - _stackOffset),
       ],
     );
   }
