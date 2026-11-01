@@ -1860,7 +1860,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | **§P33** Dio `FormData` (Multipart) 上傳摘要化 | 消除 `Instance of 'FormData'`，提取欄位與檔案檔名大小，附 `$kTruncatedMarker` 禁用重送（源自 §Z1-9） | trivial | ⬜ |
 | **§P34** Dio `ResponseBody` 串流安全佔位 | 友善提示 `[stream response]` 佔位，絕不排空業務 stream（源自 §Z1-8） | trivial | ⬜ |
 | **§P35** 細節區塊獨立一鍵複製 | Headers / Body 標題列獨立複製按鈕，引入 `safeCopyToClipboard` 安全防護（源自 §Z4 單區塊複製） | trivial~low | ⬜ |
-| **§P36** 雙元件間距標尺與像素測距 | 【UI 探測】1D 區間投影距離算法計算兩元件相對間距與四周 padding，Canvas 虛線標尺 | low~med | ⬜ |
+| ~~**§P36** 雙元件間距標尺與像素測距~~ | 【UI 探測】1D 區間投影距離算法計算兩元件相對間距與四周 padding，雙單位 (dp + px) 標尺與文字導出 — ✅ 已完成（PR #233 / Issue #232） | low~med | ✅ |
 | ~~**§P37** 高精準度觸控取樣放大鏡~~ | 【UI 探測】Flutter 原生 `RawMagnifier` + `IgnorePointer` 局部放大，Web 條件降級 — ✅ 已完成（PR #231 / Issue #230） | low | ✅ |
 | **§P38** 純 Dart 系統環境自動快照 | 【系統環境】`PlatformDispatcher.instance.views.firstOrNull` 空安全防禦，榨乾純 Dart 元數據補齊報告 | low | ⬜ |
 | **§P39** Dio 攔截器 Fail-Safe 雙重防禦 | 【網路防禦】`on Object catch` 防止 Error 逃逸 + boolean guard 確保 `handler.next()` 單次保證執行 | trivial | ⬜ |
@@ -2095,10 +2095,14 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **寫入路徑**：`lib/src/utils/clipboard_utils.dart`（新）、`lib/src/ui/dashboard/network_detail_view.dart`、`lib/src/ui/dashboard/log_detail_view.dart`。
 * **Effort**：Trivial~Low ｜ **排查價值**：⭐⭐⭐⭐
 
-### §P36 【UI 探測】雙元件間距標尺與像素測距 (Widget Gap / Distance Ruler) — 待辦
+### §P36 【UI 探測】雙元件間距標尺與像素測距 (Widget Gap / Distance Ruler) — ✅ 已完成（PR #233 / Issue #232）
 > **痛點**：QA 實機核對設計稿時，最常見的問題是「按鈕與文字之間差了多少 padding」或「兩個相鄰元件距離多少 px」。目前 §P31 點選元件僅能查看自身 rect，無法直接得知兩個組件的相對間距。
 
 * **來源**：開源生態調研（第九部分 · §P36，借鏡 `pluto_inspector` / `ispect` 並重構幾何算法）。
+* **落地成果**：
+  - **幾何模型與算法**：`gap_ruler_geometry.dart` 實作具交換律對稱的 1D 區間投影演算法 `compute1DGap`，以及 `containsRect`、`buildRulerDisplayModel`，自動判定 Separated / Contained / Overlapping / Adjacent 四種幾何關係。
+  - **Canvas 標尺繪製器**：`GapRulerPainter` 支援實線/虛線投影導引線、端點箭頭與距離標籤繪製，支援自適應標籤翻轉防出界。
+  - **互動與資訊卡**：`LayoutInspectOverlay` 新增直尺按鈕（`Icons.straighten`）鎖定 Target A，隨後點選或拖曳選取 Target B 即時量測間距；資訊卡與匯出字串同步展示 `xdp (opx)` 雙單位與量測摘要。
 * **好品味設計（核心洞察）**：
   > 捨棄生態中錯誤的單向絕對值減法（先點右後點左時會將總跨距誤算為間距，實測誤差高達 500%），改採具備交換律對稱的 **1D 區間投影距離算法**：
   > `compute1DGap(aStart, aEnd, bStart, bEnd) => math.max(0.0, math.max(aStart, bStart) - math.min(aEnd, bEnd))`
@@ -2452,4 +2456,4 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 本次生態調研所提煉出的 10 項具體借鏡與打磨提案，已全數登錄於本文件之「Tier 4 · 打磨清單」與規格章節中：
 - **第一優先（即刻落地 · Trivial / High ROI）**：§P32 (ANSI 跳脫碼濾除)、§P33 (FormData 摘要化)、§P34 (串流安全佔位)、§P39 (Dio 攔截器 Fail-Safe 防護)
 - **第二優先（近期排程 · Low / High UX）**：§P35 (細節區塊一鍵複製)、§P38 (純 Dart 環境快照)、§P40 (呼叫堆疊智慧折疊；🟡 主體已由 §P19 完成，僅剩 0 行 fallback)、§P41 (篩選標籤動態數量徽章)
-- **第三優先（次版規劃 · Medium / Advanced UI）**：§P36 (雙元件間距標尺與像素測距)、~~§P37 (高精準度觸控放大鏡)~~（✅ PR #231 已完成）
+- **第三優先（次版規劃 · Medium / Advanced UI）**：~~§P36 (雙元件間距標尺與像素測距)~~（✅ PR #233 已完成）、~~§P37 (高精準度觸控放大鏡)~~（✅ PR #231 已完成）
