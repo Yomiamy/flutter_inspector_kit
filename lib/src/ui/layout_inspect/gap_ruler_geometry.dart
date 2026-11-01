@@ -3,13 +3,26 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-/// Formats a distance [value] as a readable pixel string.
+/// Formats a distance [value] in logical pixels (dp) as a readable string.
 String formatDistance(double value) {
-  if (value.isInfinite) return '∞ px';
+  if (value.isInfinite) return '∞ dp';
   if (value % 1 == 0) {
-    return '${value.toInt()} px';
+    return '${value.toInt()}dp';
   }
-  return '${value.toStringAsFixed(1)} px';
+  return '${value.toStringAsFixed(1)}dp';
+}
+
+/// Formats a distance [value] as dual units: `xdp (opx)` where `px = value * devicePixelRatio`.
+String formatDualDistance(double value, double devicePixelRatio) {
+  if (value.isInfinite) return '∞ dp';
+  final dpPart = (value % 1 == 0)
+      ? '${value.toInt()}dp'
+      : '${value.toStringAsFixed(1)}dp';
+  final pxValue = value * devicePixelRatio;
+  final pxPart = (pxValue % 1 == 0)
+      ? '${pxValue.toInt()}px'
+      : '${pxValue.toStringAsFixed(1)}px';
+  return '$dpPart ($pxPart)';
 }
 
 /// Checks whether [outer] completely encloses [inner] using closed intervals.

@@ -104,7 +104,10 @@ void main() {
           find.textContaining('Measuring against: ColoredBox'),
           findsOneWidget,
         );
-        expect(find.textContaining('Gap: 20 px (vertical)'), findsOneWidget);
+        expect(
+          find.textContaining('Gap: 20dp (60px) (vertical)'),
+          findsOneWidget,
+        );
 
         // GapRulerPainter is in tree
         final customPaint = tester.widget<CustomPaint>(
@@ -124,7 +127,10 @@ void main() {
           find.textContaining('SizedBox (RenderConstrainedBox)'),
           findsOneWidget,
         );
-        expect(find.textContaining('Gap: 20 px (vertical)'), findsOneWidget);
+        expect(
+          find.textContaining('Gap: 20dp (60px) (vertical)'),
+          findsOneWidget,
+        );
 
         // Navigate back down to child (Comment 11)
         final childBtn = find.byTooltip('Child');
@@ -135,7 +141,10 @@ void main() {
           find.textContaining('ColoredBox (_RenderColoredBox)'),
           findsOneWidget,
         );
-        expect(find.textContaining('Gap: 20 px (vertical)'), findsOneWidget);
+        expect(
+          find.textContaining('Gap: 20dp (60px) (vertical)'),
+          findsOneWidget,
+        );
 
         // Return to SizedBox for next assertions
         await tester.tap(parentBtn);
@@ -153,7 +162,10 @@ void main() {
         expect(clipboardText, contains('=== Measurement (Gap Ruler) ==='));
         expect(clipboardText, contains('Reference A: ColoredBox'));
         expect(clipboardText, contains('Target B: SizedBox'));
-        expect(clipboardText, contains('Vertical Gap: 20.0 px'));
+        expect(
+          clipboardText,
+          contains('Vertical Gap: 20.0 dp (60.0 px @3.0x)'),
+        );
 
         // 7. Exit ruler mode
         await tester.tap(find.byTooltip('Exit ruler'));
@@ -227,12 +239,12 @@ void main() {
       await tester.tapAt(tester.getCenter(find.byKey(innerKey)));
       await tester.pump();
 
-      // Should show insets: T:70 B:70 L:60 R:60
+      // Should show insets: T:70dp (210px) B:70dp (210px) L:60dp (180px) R:60dp (180px)
       expect(find.textContaining('Insets:'), findsOneWidget);
-      expect(find.textContaining('T:70 px'), findsOneWidget);
-      expect(find.textContaining('B:70 px'), findsOneWidget);
-      expect(find.textContaining('L:60 px'), findsOneWidget);
-      expect(find.textContaining('R:60 px'), findsOneWidget);
+      expect(find.textContaining('T:70dp (210px)'), findsOneWidget);
+      expect(find.textContaining('B:70dp (210px)'), findsOneWidget);
+      expect(find.textContaining('L:60dp (180px)'), findsOneWidget);
+      expect(find.textContaining('R:60dp (180px)'), findsOneWidget);
     });
 
     testWidgets('tapping reference widget A again does not self-measure', (

@@ -46,11 +46,22 @@ String formatLayoutChain(
   return buffer.toString().trimRight();
 }
 
+String _formatDpr(double dpr) =>
+    dpr % 1 == 0 ? '${dpr.toInt()}.0x' : '${dpr.toStringAsFixed(1)}x';
+
+String _formatDualNumber(double value, double dpr) {
+  if (value.isInfinite) return '∞ dp';
+  final dpStr = _formatNumber(value);
+  final pxStr = _formatNumber(value * dpr);
+  return '$dpStr dp ($pxStr px @${_formatDpr(dpr)})';
+}
+
 /// Formats the measurement between reference [a] and target [b] with their [relation].
 String formatMeasurement({
   required LayoutLevel a,
   required LayoutLevel b,
   required GapRelation relation,
+  double devicePixelRatio = 1.0,
 }) {
   final buffer = StringBuffer()
     ..writeln('=== Measurement (Gap Ruler) ===')
@@ -66,8 +77,12 @@ String formatMeasurement({
   switch (relation) {
     case SeparatedRelation(:final gapX, :final gapY):
       buffer.writeln('Relation: Separated');
-      buffer.writeln('Horizontal Gap: ${_formatNumber(gapX)} px');
-      buffer.writeln('Vertical Gap: ${_formatNumber(gapY)} px');
+      buffer.writeln(
+        'Horizontal Gap: ${_formatDualNumber(gapX, devicePixelRatio)}',
+      );
+      buffer.writeln(
+        'Vertical Gap: ${_formatDualNumber(gapY, devicePixelRatio)}',
+      );
     case ContainedRelation(
       :final outerIsA,
       :final top,
@@ -79,10 +94,10 @@ String formatMeasurement({
         'Relation: Contained (${outerIsA ? "A contains B" : "B contains A"})',
       );
       buffer.writeln(
-        'Insets: Top: ${_formatNumber(top)} px, '
-        'Bottom: ${_formatNumber(bottom)} px, '
-        'Left: ${_formatNumber(left)} px, '
-        'Right: ${_formatNumber(right)} px',
+        'Insets: Top: ${_formatDualNumber(top, devicePixelRatio)}, '
+        'Bottom: ${_formatDualNumber(bottom, devicePixelRatio)}, '
+        'Left: ${_formatDualNumber(left, devicePixelRatio)}, '
+        'Right: ${_formatDualNumber(right, devicePixelRatio)}',
       );
     case OverlappingRelation(:final intersection):
       buffer.writeln(

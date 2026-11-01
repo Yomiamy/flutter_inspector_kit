@@ -161,10 +161,12 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     if (_lockedA != null && _chain.isNotEmpty && _lockedA != _chain[_index]) {
       final b = _chain[_index];
       final model = buildRulerDisplayModel(_lockedA!.rect, b.rect);
+      final dpr = MediaQuery.devicePixelRatioOf(context);
       final measurementText = formatMeasurement(
         a: _lockedA!,
         b: b,
         relation: model.relation,
+        devicePixelRatio: dpr,
       );
       return '$chainText\n\n$measurementText';
     }
@@ -398,17 +400,20 @@ class _LayoutInfoCard extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback onClose;
 
-  String _formatRulerSummary(GapRelation relation) => switch (relation) {
+  String _formatRulerSummary(
+    GapRelation relation,
+    double dpr,
+  ) => switch (relation) {
     SeparatedRelation(:final gapX, :final gapY) =>
       gapX > 0 && gapY > 0
-          ? 'Gap: ${formatDistance(gapX)} (H), ${formatDistance(gapY)} (V)'
+          ? 'Gap: ${formatDualDistance(gapX, dpr)} (H), ${formatDualDistance(gapY, dpr)} (V)'
           : gapX > 0
-          ? 'Gap: ${formatDistance(gapX)} (horizontal)'
-          : 'Gap: ${formatDistance(gapY)} (vertical)',
+          ? 'Gap: ${formatDualDistance(gapX, dpr)} (horizontal)'
+          : 'Gap: ${formatDualDistance(gapY, dpr)} (vertical)',
     ContainedRelation(:final top, :final bottom, :final left, :final right) =>
-      'Insets: T:${formatDistance(top)} B:${formatDistance(bottom)} L:${formatDistance(left)} R:${formatDistance(right)}',
+      'Insets: T:${formatDualDistance(top, dpr)} B:${formatDualDistance(bottom, dpr)} L:${formatDualDistance(left, dpr)} R:${formatDualDistance(right, dpr)}',
     OverlappingRelation(:final intersection) =>
-      'Overlapping: ${formatDistance(intersection.width)} × ${formatDistance(intersection.height)}',
+      'Overlapping: ${formatDualDistance(intersection.width, dpr)} × ${formatDualDistance(intersection.height, dpr)}',
     AdjacentRelation(:final axis) =>
       'Adjacent (${axis == Axis.horizontal ? "horizontal" : "vertical"})',
   };
@@ -416,6 +421,7 @@ class _LayoutInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = level;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     final isRulerActive = lockedA != null;
     final isWaitingForB =
         isRulerActive && (current == null || lockedA == current);
@@ -542,7 +548,7 @@ class _LayoutInfoCard extends StatelessWidget {
                               bottom: ThemeSize.space4,
                             ),
                             child: Text(
-                              _formatRulerSummary(rulerModel!.relation),
+                              _formatRulerSummary(rulerModel!.relation, dpr),
                               style: const TextStyle(
                                 color: ThemeColor.colorFF9800,
                                 fontWeight: FontWeight.bold,

@@ -73,10 +73,10 @@ void main() {
 
       // 4 inset segments
       expect(model.segments.length, 4);
-      expect(model.segments.any((s) => s.label == '15 px'), isTrue);
-      expect(model.segments.any((s) => s.label == '45 px'), isTrue);
-      expect(model.segments.any((s) => s.label == '10 px'), isTrue);
-      expect(model.segments.any((s) => s.label == '30 px'), isTrue);
+      expect(model.segments.any((s) => s.label == '15dp'), isTrue);
+      expect(model.segments.any((s) => s.label == '45dp'), isTrue);
+      expect(model.segments.any((s) => s.label == '10dp'), isTrue);
+      expect(model.segments.any((s) => s.label == '30dp'), isTrue);
     });
 
     test('Contained: B contains A (symmetric insets)', () {
@@ -105,7 +105,7 @@ void main() {
 
       expect(model.segments.length, 1);
       final segment = model.segments.first;
-      expect(segment.label, '30 px');
+      expect(segment.label, '30dp');
       expect(segment.start.dx, 50.0);
       expect(segment.end.dx, 80.0);
       expect(segment.start.dy, segment.end.dy); // horizontal line
@@ -123,7 +123,7 @@ void main() {
 
       expect(model.segments.length, 1);
       final segment = model.segments.first;
-      expect(segment.label, '25 px');
+      expect(segment.label, '25dp');
       expect(segment.start.dy, 40.0);
       expect(segment.end.dy, 65.0);
       expect(segment.start.dx, segment.end.dx); // vertical line
@@ -140,8 +140,8 @@ void main() {
       expect(rel.gapY, 40.0);
 
       expect(model.segments.length, 2);
-      final segH = model.segments.firstWhere((s) => s.label == '20 px');
-      final segV = model.segments.firstWhere((s) => s.label == '40 px');
+      final segH = model.segments.firstWhere((s) => s.label == '20dp');
+      final segV = model.segments.firstWhere((s) => s.label == '40dp');
 
       expect(segH.start, const Offset(50, 50));
       expect(segH.end, const Offset(70, 50));
@@ -163,8 +163,8 @@ void main() {
       expect(rel.gapY, 30.0);
 
       expect(model.segments.length, 2);
-      final segH = model.segments.firstWhere((s) => s.label == '20 px');
-      final segV = model.segments.firstWhere((s) => s.label == '30 px');
+      final segH = model.segments.firstWhere((s) => s.label == '20dp');
+      final segV = model.segments.firstWhere((s) => s.label == '30dp');
 
       expect(segH.start, const Offset(50, 50));
       expect(segH.end, const Offset(70, 50));
@@ -189,10 +189,10 @@ void main() {
       expect(model.segments.length, 2);
       expect(model.segments[0].start, const Offset(30, 45));
       expect(model.segments[0].end, const Offset(60, 45));
-      expect(model.segments[0].label, '30 px');
+      expect(model.segments[0].label, '30dp');
       expect(model.segments[1].start, const Offset(45, 30));
       expect(model.segments[1].end, const Offset(45, 60));
-      expect(model.segments[1].label, '30 px');
+      expect(model.segments[1].label, '30dp');
     });
 
     test('Adjacent: touching along vertical border', () {
@@ -204,6 +204,21 @@ void main() {
       final rel = model.relation as AdjacentRelation;
       expect(rel.axis, Axis.horizontal);
     });
+  });
+
+  group('formatDualDistance', () {
+    test(
+      'formats whole numbers and decimals correctly across different DPR',
+      () {
+        expect(formatDualDistance(20, 1.0), '20dp (20px)');
+        expect(formatDualDistance(20, 2.0), '20dp (40px)');
+        expect(formatDualDistance(20, 3.0), '20dp (60px)');
+        expect(formatDualDistance(15.5, 2.0), '15.5dp (31px)');
+        expect(formatDualDistance(10, 2.625), '10dp (26.3px)');
+        expect(formatDualDistance(0, 3.0), '0dp (0px)');
+        expect(formatDualDistance(double.infinity, 3.0), '∞ dp');
+      },
+    );
   });
 
   group('formatMeasurement', () {
@@ -228,14 +243,15 @@ void main() {
         a: a,
         b: b,
         relation: const SeparatedRelation(gapX: 20, gapY: 0),
+        devicePixelRatio: 2.0,
       );
 
       expect(text, contains('=== Measurement (Gap Ruler) ==='));
       expect(text, contains('Reference A: ReferenceWidget (RenderParagraph)'));
       expect(text, contains('Target B: TargetWidget (RenderBox)'));
       expect(text, contains('Relation: Separated'));
-      expect(text, contains('Horizontal Gap: 20.0 px'));
-      expect(text, contains('Vertical Gap: 0.0 px'));
+      expect(text, contains('Horizontal Gap: 20.0 dp (40.0 px @2.0x)'));
+      expect(text, contains('Vertical Gap: 0.0 dp (0.0 px @2.0x)'));
     });
 
     test('formats Contained measurement correctly', () {
@@ -249,13 +265,17 @@ void main() {
           left: 15,
           right: 25,
         ),
+        devicePixelRatio: 3.0,
       );
 
       expect(text, contains('Relation: Contained (A contains B)'));
       expect(
         text,
         contains(
-          'Insets: Top: 10.0 px, Bottom: 20.0 px, Left: 15.0 px, Right: 25.0 px',
+          'Insets: Top: 10.0 dp (30.0 px @3.0x), '
+          'Bottom: 20.0 dp (60.0 px @3.0x), '
+          'Left: 15.0 dp (45.0 px @3.0x), '
+          'Right: 25.0 dp (75.0 px @3.0x)',
         ),
       );
     });
