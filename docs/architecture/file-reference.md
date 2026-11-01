@@ -64,7 +64,7 @@
 | 檔案路徑 | 關鍵類別/列舉 | 單一職責 (Single Responsibility) |
 | :--- | :--- | :--- |
 | [`lib/src/utils/agent_prompt.dart`](../../lib/src/utils/agent_prompt.dart) | `buildAgentPrompt` | **[新增]** 把單筆事件與同路由的稍早事件組成交接給 coding agent 的 Markdown 提示。純函式，回溯以 `activeRoute` 為界並在觸頂時揭露截斷。 |
-| [`lib/src/utils/layout_formatters.dart`](../../lib/src/utils/layout_formatters.dart) | `formatLayoutChain` | **[新增]** 將 size／constraints／offset 與整條 `LayoutLevel` 父鏈格式化為純文字（`∞` 表示無上限），供 layout inspect 複製／分享。 |
+| [`lib/src/utils/layout_formatters.dart`](../../lib/src/utils/layout_formatters.dart) | `formatLayoutChain`<br>`formatMeasurement` | **[新增]** 將 size／constraints／offset、整條 `LayoutLevel` 父鏈及雙點間距標尺（含 `xdp (opx)` 雙單位）格式化為純文字，供 layout inspect 複製／分享。 |
 | [`lib/src/utils/log_formatters.dart`](../../lib/src/utils/log_formatters.dart) | - | 將日誌資料模型格式化為單行與純文字的工具方法。 |
 | [`lib/src/utils/network_formatters.dart`](../../lib/src/utils/network_formatters.dart) | `ReplayRequest` | 提供網絡格式化功能，包含 `buildCurl` 產生 cURL 指令與 `prettyJson` 縮排工具。 |
 | [`lib/src/utils/network_utils.dart`](../../lib/src/utils/network_utils.dart) | `NetworkStatusGroup`<br>`NetworkFilter` | 提供網絡搜尋、過濾邏輯與狀態碼 Chip 對應常數。 |
@@ -90,8 +90,10 @@
 | [`lib/src/ui/dashboard/tabs/database_tab.dart`](../../lib/src/ui/dashboard/tabs/database_tab.dart) | `DatabaseTab` | 數據庫瀏覽器 Tab。支援動態下拉切換不同的 `DatabaseBrowserSource`。 |
 | [`lib/src/ui/dashboard/tabs/database/table_rows_view.dart`](../../lib/src/ui/dashboard/tabs/database/table_rows_view.dart) | `TableRowsView` | 表格二維數據瀏覽器。支援動態加載（Load More）、點擊單元格查看，以及點擊表頭排序。 |
 | [`lib/src/ui/dashboard/export_report_sheet.dart`](../../lib/src/ui/dashboard/export_report_sheet.dart) | `ExportReportSheet` | **[新增]** 診斷報告導出與分享 Dialog (Bottom Sheet)。包含 Include 篩選、時間區間與 errors-only 選項，並實現了 Clipboard 降級 fallback 分享容錯機制。 |
-| [`lib/src/ui/layout_inspect/layout_inspect_overlay.dart`](../../lib/src/ui/layout_inspect/layout_inspect_overlay.dart) | `LayoutInspectOverlay` | **[新增]** 點選元件查看尺寸與 constraints 的選取模式：全螢幕攔截層、框線標示、資訊卡（父鏈上下切換、複製／分享）；按住拖曳可瞄準，手指上方（靠近上緣時改到下方）顯示 `RawMagnifier` 放大鏡與十字準星（Web 不顯示）。單一 `OverlayEntry`，不寫 buffer、不進時間軸。 |
+| [`lib/src/ui/layout_inspect/layout_inspect_overlay.dart`](../../lib/src/ui/layout_inspect/layout_inspect_overlay.dart) | `LayoutInspectOverlay` | **[新增]** 點選元件查看尺寸與 constraints 的選取模式：全螢幕攔截層、框線標示、資訊卡（父鏈上下切換、直尺測距切換、複製／分享）；按住拖曳可瞄準，手指上方（靠近上緣時改到下方）顯示 `RawMagnifier` 放大鏡與十字準星（Web 不顯示）。支援雙點鎖定間距標尺（Gap Ruler）。單一 `OverlayEntry`，不寫 buffer、不進時間軸。 |
 | [`lib/src/ui/layout_inspect/layout_probe.dart`](../../lib/src/ui/layout_inspect/layout_probe.dart) | `LayoutLevel`<br>`LayoutProbeShield`<br>`probeLayoutAt()` | **[新增]** 以 hit test 取點擊位置的 `RenderBox` 父鏈並快照成不可變 `LayoutLevel`；`LayoutProbeShield` 讓包住的子樹在探測期間不被命中。 |
+| [`lib/src/ui/layout_inspect/gap_ruler_geometry.dart`](../../lib/src/ui/layout_inspect/gap_ruler_geometry.dart) | `GapRelation`<br>`RulerDisplayModel`<br>`compute1DGap()`<br>`buildRulerDisplayModel()` | **[新增]** 佈局標尺幾何模型與演算法。以交換律對稱的 1D 區間投影計算 A/B 兩元件幾何關係（Separated, Contained, Overlapping, Adjacent），支援雙單位格式化。 |
+| [`lib/src/ui/layout_inspect/gap_ruler_painter.dart`](../../lib/src/ui/layout_inspect/gap_ruler_painter.dart) | `GapRulerPainter` | **[新增]** Canvas 標尺繪製器。繪製雙元件外框、間距標尺箭頭線段、虛線投影導引線與雙單位（dp + px）距離文字標籤。 |
 | [`lib/src/ui/widgets/inspector_fab.dart`](../../lib/src/ui/widgets/inspector_fab.dart) | `InspectorFab` | 安全區域內可拖曳的懸浮按鈕（以 `LayoutProbeShield` 包住，對 layout 探測透明）。 |
 | [`lib/src/ui/widgets/magical_tap.dart`](../../lib/src/ui/widgets/magical_tap.dart) | `FlutterInspectorMagicalTap` | 靜默手勢防護罩，用於隱藏 FAB 時藉由快速連擊喚醒控制台。 |
 | [`lib/src/ui/widgets/key_value_table.dart`](../../lib/src/ui/widgets/key_value_table.dart) | `KeyValueTable` | 通用的緊湊二欄式鍵值表格組件。 |
