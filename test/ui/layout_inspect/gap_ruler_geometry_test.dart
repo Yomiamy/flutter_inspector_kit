@@ -279,5 +279,34 @@ void main() {
         ),
       );
     });
+
+    test('formats Overlapping measurement correctly with dual units', () {
+      final text = formatMeasurement(
+        a: a,
+        b: b,
+        relation: const OverlappingRelation(
+          intersection: Rect.fromLTWH(0, 0, 30, 40),
+        ),
+        devicePixelRatio: 2.0,
+      );
+
+      expect(
+        text,
+        contains(
+          'Relation: Overlapping [intersection: 30.0 dp (60.0 px @2.0x) × 40.0 dp (80.0 px @2.0x)]',
+        ),
+      );
+    });
+
+    test('preserves exact fractional DPR without premature rounding', () {
+      final text = formatMeasurement(
+        a: a,
+        b: b,
+        relation: const SeparatedRelation(gapX: 20, gapY: 0),
+        devicePixelRatio: 2.625,
+      );
+
+      expect(text, contains('Horizontal Gap: 20.0 dp (52.5 px @2.625x)'));
+    });
   });
 }

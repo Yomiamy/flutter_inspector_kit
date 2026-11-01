@@ -46,8 +46,13 @@ String formatLayoutChain(
   return buffer.toString().trimRight();
 }
 
-String _formatDpr(double dpr) =>
-    dpr % 1 == 0 ? '${dpr.toInt()}.0x' : '${dpr.toStringAsFixed(1)}x';
+String _formatDpr(double dpr) {
+  if (dpr == dpr.roundToDouble()) {
+    return '${dpr.toInt()}.0x';
+  }
+  final str = dpr.toString();
+  return '${str.contains('.') ? str.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '') : str}x';
+}
 
 String _formatDualNumber(double value, double dpr) {
   if (value.isInfinite) return '∞ dp';
@@ -101,7 +106,7 @@ String formatMeasurement({
       );
     case OverlappingRelation(:final intersection):
       buffer.writeln(
-        'Relation: Overlapping [intersection: ${formatSize(intersection.size)}]',
+        'Relation: Overlapping [intersection: ${_formatDualNumber(intersection.width, devicePixelRatio)} × ${_formatDualNumber(intersection.height, devicePixelRatio)}]',
       );
     case AdjacentRelation(:final axis):
       buffer.writeln(
