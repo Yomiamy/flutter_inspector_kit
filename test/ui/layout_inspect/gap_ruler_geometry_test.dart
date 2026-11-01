@@ -126,7 +126,7 @@ void main() {
       expect(segment.start.dx, segment.end.dx); // vertical line
     });
 
-    test('Separated: Diagonal separation', () {
+    test('Separated: Diagonal separation Top-Left and Bottom-Right', () {
       const a = Rect.fromLTWH(0, 0, 50, 50);
       const b = Rect.fromLTWH(70, 90, 40, 40); // gapX = 20, gapY = 40
       final model = buildRulerDisplayModel(a, b);
@@ -136,8 +136,38 @@ void main() {
       expect(rel.gapX, 20.0);
       expect(rel.gapY, 40.0);
 
-      expect(model.segments.any((s) => s.label == '20 px'), isTrue);
-      expect(model.segments.any((s) => s.label == '40 px'), isTrue);
+      expect(model.segments.length, 2);
+      final segH = model.segments.firstWhere((s) => s.label == '20 px');
+      final segV = model.segments.firstWhere((s) => s.label == '40 px');
+
+      expect(segH.start, const Offset(50, 50));
+      expect(segH.end, const Offset(70, 50));
+
+      expect(segV.start, const Offset(70, 50));
+      expect(segV.end, const Offset(70, 90));
+    });
+
+    test('Separated: Diagonal separation Top-Right and Bottom-Left', () {
+      const a = Rect.fromLTWH(70, 10, 40, 40); // right: 110, bottom: 50
+      const b = Rect.fromLTWH(10, 80, 40, 40); // right: 50, bottom: 120
+      // gapX = 70 - 50 = 20
+      // gapY = 80 - 50 = 30
+      final model = buildRulerDisplayModel(a, b);
+
+      expect(model.relation, isA<SeparatedRelation>());
+      final rel = model.relation as SeparatedRelation;
+      expect(rel.gapX, 20.0);
+      expect(rel.gapY, 30.0);
+
+      expect(model.segments.length, 2);
+      final segH = model.segments.firstWhere((s) => s.label == '20 px');
+      final segV = model.segments.firstWhere((s) => s.label == '30 px');
+
+      expect(segH.start, const Offset(50, 50));
+      expect(segH.end, const Offset(70, 50));
+
+      expect(segV.start, const Offset(70, 50));
+      expect(segV.end, const Offset(70, 80));
     });
 
     test('Overlapping: partial intersection without containment', () {

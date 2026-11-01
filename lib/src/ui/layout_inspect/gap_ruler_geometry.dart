@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 /// Formats a distance [value] as a readable pixel string.
@@ -172,6 +173,23 @@ class RulerDisplayModel {
   final Rect rectB;
   final GapRelation relation;
   final List<RulerSegment> segments;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RulerDisplayModel &&
+          other.rectA == rectA &&
+          other.rectB == rectB &&
+          other.relation == relation &&
+          listEquals(other.segments, segments);
+
+  @override
+  int get hashCode => Object.hash(
+        rectA,
+        rectB,
+        relation,
+        Object.hashAll(segments),
+      );
 }
 
 /// Analyzes the spatial relationship between [a] and [b] and computes
@@ -397,21 +415,6 @@ RulerDisplayModel buildRulerDisplayModel(Rect a, Rect b) {
         label: formatDistance(gapY),
       ),
     );
-
-    // Dashed projection extension lines if needed
-    if (a.top > yStart || b.top > yStart) {
-      // Connect to the lower rect
-      final lowerLeft = a.top > yStart ? a.left : b.left;
-      final lowerTop = math.max(a.top, b.top);
-      segments.add(
-        RulerSegment(
-          start: Offset(xEnd, yStart),
-          end: Offset(lowerLeft, lowerTop),
-          label: '',
-          isDashed: true,
-        ),
-      );
-    }
   }
 
   return RulerDisplayModel(

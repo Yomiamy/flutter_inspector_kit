@@ -158,7 +158,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
       _chain,
       mayBeObfuscated: widget.mayBeObfuscated,
     );
-    if (_lockedA != null && _chain.isNotEmpty) {
+    if (_lockedA != null && _chain.isNotEmpty && _lockedA != _chain[_index]) {
       final b = _chain[_index];
       final model = buildRulerDisplayModel(_lockedA!.rect, b.rect);
       final measurementText = formatMeasurement(
@@ -209,7 +209,9 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     final alignTop =
         _chain.isNotEmpty && _chain.first.rect.center.dy > screenHeight / 2;
 
-    final rulerModel = (_lockedA != null && level != null)
+    final hasDistinctTarget =
+        _lockedA != null && level != null && _lockedA != level;
+    final rulerModel = hasDistinctTarget
         ? buildRulerDisplayModel(_lockedA!.rect, level.rect)
         : null;
 
@@ -417,6 +419,7 @@ class _LayoutInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = level;
     final isRulerActive = lockedA != null;
+    final isWaitingForB = isRulerActive && (current == null || lockedA == current);
 
     return SafeArea(
       child: Padding(
@@ -442,7 +445,19 @@ class _LayoutInfoCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (isRulerActive)
+                        if (isWaitingForB)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: ThemeSize.space4),
+                            child: Text(
+                              'Tap another widget to measure gap',
+                              style: TextStyle(
+                                color: ThemeColor.color2196F3,
+                                fontWeight: FontWeight.bold,
+                                fontSize: ThemeFontSize.fontSize12,
+                              ),
+                            ),
+                          )
+                        else if (isRulerActive)
                           Padding(
                             padding: const EdgeInsets.only(bottom: ThemeSize.space4),
                             child: Text(

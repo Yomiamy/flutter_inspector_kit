@@ -62,19 +62,24 @@ void main() {
       expect(find.byType(CustomPaint), findsWidgets);
     });
 
-    test('shouldRepaint delegates equality to model', () {
+    test('shouldRepaint delegates value equality to model across distinct instances', () {
       const a = Rect.fromLTWH(0, 0, 50, 50);
       const b1 = Rect.fromLTWH(80, 0, 50, 50);
       const b2 = Rect.fromLTWH(100, 0, 50, 50);
 
       final model1 = buildRulerDisplayModel(a, b1);
+      final model1Clone = buildRulerDisplayModel(a, b1);
       final model2 = buildRulerDisplayModel(a, b2);
 
-      final painter1 = GapRulerPainter(model: model1);
-      final painter2 = GapRulerPainter(model: model2);
-      final painter1Copy = GapRulerPainter(model: model1);
+      // Verify they are distinct objects in memory but value-equal
+      expect(identical(model1, model1Clone), isFalse);
+      expect(model1 == model1Clone, isTrue);
 
-      expect(painter1.shouldRepaint(painter1Copy), isFalse);
+      final painter1 = GapRulerPainter(model: model1);
+      final painter1Clone = GapRulerPainter(model: model1Clone);
+      final painter2 = GapRulerPainter(model: model2);
+
+      expect(painter1.shouldRepaint(painter1Clone), isFalse);
       expect(painter1.shouldRepaint(painter2), isTrue);
     });
   });

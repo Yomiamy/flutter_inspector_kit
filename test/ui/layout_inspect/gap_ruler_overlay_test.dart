@@ -90,8 +90,8 @@ void main() {
         await tester.tap(rulerBtn);
         await tester.pump();
 
-        // Now measuring against A
-        expect(find.textContaining('Measuring against: ColoredBox'), findsOneWidget);
+        // Prompt guides user to tap second widget
+        expect(find.text('Tap another widget to measure gap'), findsOneWidget);
         expect(find.byTooltip('Exit ruler'), findsOneWidget);
 
         // 4. Tap Widget B
