@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 /// Formats a distance [value] in logical pixels (dp) as a readable string.
 String formatDistance(double value) {
   if (value.isInfinite) return '∞ dp';
+  // 在 double 浮點數中，`% 1` 取出小數部分；若為 0 表示為整數，格式化時省略冗餘的 `.0`
   if (value % 1 == 0) {
     return '${value.toInt()}dp';
   }
@@ -15,6 +16,7 @@ String formatDistance(double value) {
 /// Formats a distance [value] as dual units: `xdp (opx)` where `px = value * devicePixelRatio`.
 String formatDualDistance(double value, double devicePixelRatio) {
   if (value.isInfinite) return '∞ dp';
+  // 在 double 浮點數中，`% 1` 取出小數部分；若為 0 表示為整數，格式化時省略冗餘的 `.0`
   final dpPart = (value % 1 == 0)
       ? '${value.toInt()}dp'
       : '${value.toStringAsFixed(1)}dp';

@@ -464,8 +464,6 @@ class _LayoutInfoCard extends StatelessWidget {
                           )
                         else if (isRulerActive)
                           Padding(
-                        else if (isRulerActive)
-                          Padding(
                             padding: const EdgeInsets.only(
                               bottom: ThemeSize.space4,
                             ),
