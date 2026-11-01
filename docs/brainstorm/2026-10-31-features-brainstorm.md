@@ -1861,7 +1861,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | **§P34** Dio `ResponseBody` 串流安全佔位 | 友善提示 `[stream response]` 佔位，絕不排空業務 stream（源自 §Z1-8） | trivial | ⬜ |
 | **§P35** 細節區塊獨立一鍵複製 | Headers / Body 標題列獨立複製按鈕，引入 `safeCopyToClipboard` 安全防護（源自 §Z4 單區塊複製） | trivial~low | ⬜ |
 | **§P36** 雙元件間距標尺與像素測距 | 【UI 探測】1D 區間投影距離算法計算兩元件相對間距與四周 padding，Canvas 虛線標尺 | low~med | ⬜ |
-| **§P37** 高精準度觸控取樣放大鏡 | 【UI 探測】Flutter 原生 `RawMagnifier` + `IgnorePointer` 局部放大，Web 條件降級 | low | ⬜ |
+| ~~**§P37** 高精準度觸控取樣放大鏡~~ | 【UI 探測】Flutter 原生 `RawMagnifier` + `IgnorePointer` 局部放大，Web 條件降級 — ✅ 已完成（PR #231 / Issue #230） | low | ✅ |
 | **§P38** 純 Dart 系統環境自動快照 | 【系統環境】`PlatformDispatcher.instance.views.firstOrNull` 空安全防禦，榨乾純 Dart 元數據補齊報告 | low | ⬜ |
 | **§P39** Dio 攔截器 Fail-Safe 雙重防禦 | 【網路防禦】`on Object catch` 防止 Error 逃逸 + boolean guard 確保 `handler.next()` 單次保證執行 | trivial | ⬜ |
 | **§P40** 呼叫堆疊框架智慧折疊 | 【日誌排查】主體（Concise/Raw 切換 + 框架折疊）已由 §P19 完成（PR #149，`log_formatters.dart:95` `normalizeStackTrace`）；剩餘缺口僅「折疊後 0 行時退回 raw」，縮為對既有函式的小修補 | trivial | 🟡 |
@@ -2115,12 +2115,16 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **寫入路徑**：`lib/src/ui/layout_inspect/layout_probe.dart`、`lib/src/ui/layout_inspect/gap_ruler_painter.dart`（新）。
 * **Effort**：Low~Medium ｜ **排查價值**：⭐⭐⭐⭐⭐
 
-### §P37 【UI 探測】高精準度觸控取樣放大鏡 (Touch Loupe / Magnifier) — 待辦
+### §P37 【UI 探測】高精準度觸控取樣放大鏡 (Touch Loupe / Magnifier) — ✅ 已完成（PR #231 / Issue #230）
 > **痛點**：在高解析度螢幕上，手指往往會遮擋住小圖示（如 16x16 padding）的精確邊界，導致命中測試點選不精確。
 
 * **來源**：開源生態調研（第九部分 · §P37）。
+* **落地成果**：
+  - 於 `LayoutInspectOverlay` 支援拖曳瞄準手勢（移動超過 `kTouchSlop` 啟動）。
+  - 手指上方動態顯示 `_Loupe`（內建 `RawMagnifier` 1.5x 放大、48dp 半徑、20dp 間隙與十字準星 `_CrosshairPainter`）；上方空間不足時自動翻轉至手指下方。
+  - 邊界嚴密防護：全螢幕安全區域邊界 clamp、狹小螢幕上下空間不足時 clamp 於視窗內、Web 平台條件降級為純十字準星瞄準。
 * **好品味設計（核心洞察）**：
-  > 採用 Flutter 3.7+ 原生內建的 `RawMagnifier` / `Magnifier`，在長按拖曳探測時展示直徑 80px 的局部放大視窗；外層**強制包裹 `IgnorePointer`** 杜絕放大鏡自身的 RenderObject 攔截手勢事件，確保底層 LayoutProbe 獲得平滑連續的拖曳命中測試。
+  > 採用 Flutter 3.7+ 原生內建的 `RawMagnifier` / `Magnifier`，在長按拖曳探測時展示直徑 96dp 的局部放大視窗；外層**強制包裹 `IgnorePointer`** 杜絕放大鏡自身的 RenderObject 攔截手勢事件，確保底層 LayoutProbe 獲得平滑連續的拖曳命中測試。
 * **Linus 模式五層評估**：
   - **資料結構**：暫態 overlay 元件，隨手勢結束銷毀。
   - **特殊情況**：Web 平台 HTML 渲染器或不支援 BackdropFilter 的環境條件降級（不呼叫 RawMagnifier，維持高亮外框）。
@@ -2448,4 +2452,4 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 本次生態調研所提煉出的 10 項具體借鏡與打磨提案，已全數登錄於本文件之「Tier 4 · 打磨清單」與規格章節中：
 - **第一優先（即刻落地 · Trivial / High ROI）**：§P32 (ANSI 跳脫碼濾除)、§P33 (FormData 摘要化)、§P34 (串流安全佔位)、§P39 (Dio 攔截器 Fail-Safe 防護)
 - **第二優先（近期排程 · Low / High UX）**：§P35 (細節區塊一鍵複製)、§P38 (純 Dart 環境快照)、§P40 (呼叫堆疊智慧折疊；🟡 主體已由 §P19 完成，僅剩 0 行 fallback)、§P41 (篩選標籤動態數量徽章)
-- **第三優先（次版規劃 · Medium / Advanced UI）**：§P36 (雙元件間距標尺與像素測距)、§P37 (高精準度觸控放大鏡)
+- **第三優先（次版規劃 · Medium / Advanced UI）**：§P36 (雙元件間距標尺與像素測距)、~~§P37 (高精準度觸控放大鏡)~~（✅ PR #231 已完成）
