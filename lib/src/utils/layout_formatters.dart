@@ -1,5 +1,6 @@
 import 'package:flutter/rendering.dart';
 
+import '../ui/layout_inspect/gap_ruler_geometry.dart';
 import '../ui/layout_inspect/layout_probe.dart';
 
 String _formatNumber(double value) =>
@@ -42,5 +43,76 @@ String formatLayoutChain(
       ..writeln('   constraints: ${formatConstraints(level.constraints)}')
       ..writeln('   offset: ${formatOffset(level.rect.topLeft)}');
   }
+  return buffer.toString().trimRight();
+}
+
+String _formatDpr(double dpr) {
+  if (dpr == dpr.roundToDouble()) {
+    return '${dpr.toInt()}.0x';
+  }
+  final str = dpr.toString();
+  return '${str.contains('.') ? str.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '') : str}x';
+}
+
+String _formatDualNumber(double value, double dpr) {
+  if (value.isInfinite) return '∞ dp';
+  final dpStr = _formatNumber(value);
+  final pxStr = _formatNumber(value * dpr);
+  return '$dpStr dp ($pxStr px @${_formatDpr(dpr)})';
+}
+
+/// Formats the measurement between reference [a] and target [b] with their [relation].
+String formatMeasurement({
+  required LayoutLevel a,
+  required LayoutLevel b,
+  required GapRelation relation,
+  double devicePixelRatio = 1.0,
+}) {
+  final buffer = StringBuffer()
+    ..writeln('=== Measurement (Gap Ruler) ===')
+    ..writeln(
+      'Reference A: ${a.widgetName != null ? "${a.widgetName} (${a.renderName})" : a.renderName} '
+      '[size: ${formatSize(a.size)}, offset: ${formatOffset(a.rect.topLeft)}]',
+    )
+    ..writeln(
+      'Target B: ${b.widgetName != null ? "${b.widgetName} (${b.renderName})" : b.renderName} '
+      '[size: ${formatSize(b.size)}, offset: ${formatOffset(b.rect.topLeft)}]',
+    );
+
+  switch (relation) {
+    case SeparatedRelation(:final gapX, :final gapY):
+      buffer.writeln('Relation: Separated');
+      buffer.writeln(
+        'Horizontal Gap: ${_formatDualNumber(gapX, devicePixelRatio)}',
+      );
+      buffer.writeln(
+        'Vertical Gap: ${_formatDualNumber(gapY, devicePixelRatio)}',
+      );
+    case ContainedRelation(
+      :final outerIsA,
+      :final top,
+      :final bottom,
+      :final left,
+      :final right,
+    ):
+      buffer.writeln(
+        'Relation: Contained (${outerIsA ? "A contains B" : "B contains A"})',
+      );
+      buffer.writeln(
+        'Insets: Top: ${_formatDualNumber(top, devicePixelRatio)}, '
+        'Bottom: ${_formatDualNumber(bottom, devicePixelRatio)}, '
+        'Left: ${_formatDualNumber(left, devicePixelRatio)}, '
+        'Right: ${_formatDualNumber(right, devicePixelRatio)}',
+      );
+    case OverlappingRelation(:final intersection):
+      buffer.writeln(
+        'Relation: Overlapping [intersection: ${_formatDualNumber(intersection.width, devicePixelRatio)} × ${_formatDualNumber(intersection.height, devicePixelRatio)}]',
+      );
+    case AdjacentRelation(:final axis):
+      buffer.writeln(
+        'Relation: Adjacent (${axis == Axis.horizontal ? "horizontal" : "vertical"})',
+      );
+  }
+
   return buffer.toString().trimRight();
 }
