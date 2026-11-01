@@ -268,10 +268,10 @@ class _Loupe extends StatelessWidget {
     final double cx;
     final double cy;
 
-    if (above >= minCy) {
+    if (above >= minCy && above <= maxCy) {
       cy = above;
       cx = aim.dx.clamp(minCx, maxCx);
-    } else if (below <= maxCy) {
+    } else if (below >= minCy && below <= maxCy) {
       cy = below;
       cx = aim.dx.clamp(minCx, maxCx);
     } else if (rightSide >= minCx && rightSide <= maxCx) {

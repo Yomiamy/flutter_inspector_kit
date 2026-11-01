@@ -377,6 +377,18 @@ void main() {
         await tester.pump();
         expect(_loupe, findsNothing);
 
+        // Drag to both dx & dy far outside viewport: all candidate placements fail and loupe hides safely
+        await gesture.moveTo(const Offset(-100, 500));
+        await tester.pump();
+        expect(_loupe, findsNothing);
+
+        // Drag to (160, 500): above/below candidates exceed maxCy, so rightSide candidate is used within safe bounds
+        await gesture.moveTo(const Offset(160, 500));
+        await tester.pump();
+        final rectBottom = tester.getRect(_loupe);
+        expect(rectBottom.top, greaterThanOrEqualTo(90.0));
+        expect(rectBottom.bottom, lessThanOrEqualTo(270.0));
+
         // Drag back: loupe reappears safely
         await gesture.moveTo(aim);
         await tester.pump();
