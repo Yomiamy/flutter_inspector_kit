@@ -52,9 +52,9 @@
 |---|---|---|
 |<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_database_browse.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_shared_preference.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_diagnotic_report.png?raw=true"/>|
 
-|Info Sharing|||
+|Info Sharing|觸控放大鏡（Drag-to-aim）|元件間距與尺規測量|
 |---|---|---|
-|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_info_sharing.png?raw=true"/>|||
+|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_info_sharing.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_layout_inspect_loupe.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_layout_inspect_ruler.png?raw=true"/>|
 
 ## 🪚 使用方式
 

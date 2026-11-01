@@ -52,9 +52,9 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 |---|---|---|
 |<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_database_browse.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_shared_preference.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_diagnotic_report.png?raw=true"/>|
 
-|Info Sharing|||
+|Info Sharing|Touch Loupe (Drag-to-aim)|Gap & Distance Ruler|
 |---|---|---|
-|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_info_sharing.png?raw=true"/>|||
+|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_info_sharing.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_layout_inspect_loupe.png?raw=true"/>|<img width="200" src="https://github.com/Yomiamy/flutter_inspector_kit/blob/main/doc/screenshots/Screenshot_layout_inspect_ruler.png?raw=true"/>|
 
 ## 🪚 Usage
 
