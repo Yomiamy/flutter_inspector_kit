@@ -368,7 +368,19 @@ void main() {
         final rect = tester.getRect(_loupe);
         expect(rect.top, greaterThanOrEqualTo(90.0));
         expect(rect.bottom, lessThanOrEqualTo(270.0));
+        expect(rect.left, greaterThanOrEqualTo(0.0));
+        expect(rect.right, lessThanOrEqualTo(360.0));
         expect(rect.contains(aim), isFalse, reason: 'covers finger at $aim');
+
+        // Drag to negative dx outside viewport: loupe hides safely without clipping
+        await gesture.moveTo(const Offset(-100, 160));
+        await tester.pump();
+        expect(_loupe, findsNothing);
+
+        // Drag back: loupe reappears safely
+        await gesture.moveTo(aim);
+        await tester.pump();
+        expect(_loupe, findsOneWidget);
 
         await gesture.up();
         await tester.pump();

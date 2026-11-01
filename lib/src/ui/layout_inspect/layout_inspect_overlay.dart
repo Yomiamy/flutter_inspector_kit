@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -244,44 +243,45 @@ class _Loupe extends StatelessWidget {
   Widget build(BuildContext context) {
     const radius = _loupeDiameter / 2;
     final screen = MediaQuery.sizeOf(context);
-    if (screen.width < _loupeDiameter || screen.height < _loupeDiameter) {
-      return const SizedBox.shrink();
-    }
     final padding = MediaQuery.paddingOf(context);
-    final safeTop = padding.top;
-    final safeBottom = padding.bottom;
     final safeLeft = padding.left;
     final safeRight = padding.right;
+    final safeTop = padding.top;
+    final safeBottom = padding.bottom;
+
+    final safeWidth = screen.width - safeLeft - safeRight;
+    final safeHeight = screen.height - safeTop - safeBottom;
+    if (safeWidth < _loupeDiameter || safeHeight < _loupeDiameter) {
+      return const SizedBox.shrink();
+    }
+
+    final minCx = safeLeft + radius;
+    final maxCx = screen.width - safeRight - radius;
+    final minCy = safeTop + radius;
+    final maxCy = screen.height - safeBottom - radius;
 
     final above = aim.dy - _loupeGap - radius;
     final below = aim.dy + _loupeGap + radius;
-    final leftSide = aim.dx - _loupeGap - radius;
     final rightSide = aim.dx + _loupeGap + radius;
+    final leftSide = aim.dx - _loupeGap - radius;
 
     final double cx;
     final double cy;
 
-    if (above - radius >= safeTop) {
+    if (above >= minCy) {
       cy = above;
-      cx = aim.dx.clamp(radius, math.max(radius, screen.width - radius));
-    } else if (below + radius <= screen.height - safeBottom) {
+      cx = aim.dx.clamp(minCx, maxCx);
+    } else if (below <= maxCy) {
       cy = below;
-      cx = aim.dx.clamp(radius, math.max(radius, screen.width - radius));
-    } else if (rightSide + radius <= screen.width - safeRight) {
+      cx = aim.dx.clamp(minCx, maxCx);
+    } else if (rightSide >= minCx && rightSide <= maxCx) {
       cx = rightSide;
-      final minCy = safeTop + radius;
-      final maxCy = math.max(minCy, screen.height - safeBottom - radius);
       cy = aim.dy.clamp(minCy, maxCy);
-    } else if (leftSide - radius >= safeLeft) {
+    } else if (leftSide >= minCx && leftSide <= maxCx) {
       cx = leftSide;
-      final minCy = safeTop + radius;
-      final maxCy = math.max(minCy, screen.height - safeBottom - radius);
       cy = aim.dy.clamp(minCy, maxCy);
     } else {
-      final minCy = safeTop + radius;
-      final maxCy = math.max(minCy, screen.height - safeBottom - radius);
-      cy = above.clamp(minCy, maxCy);
-      cx = aim.dx.clamp(radius, math.max(radius, screen.width - radius));
+      return const SizedBox.shrink();
     }
 
     final center = Offset(cx, cy);
