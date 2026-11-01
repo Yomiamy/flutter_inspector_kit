@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -141,12 +142,13 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
 
   Future<void> _onCopy() async {
     if (_chain.isEmpty) return;
+    final currentChain = _chain;
     final text = formatLayoutChain(
-      _chain,
+      currentChain,
       mayBeObfuscated: widget.mayBeObfuscated,
     );
     await Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) return;
+    if (!mounted || !listEquals(_chain, currentChain)) return;
     _copiedTimer?.cancel();
     setState(() => _copied = true);
     _copiedTimer = Timer(const Duration(seconds: 2), () {
@@ -242,14 +244,27 @@ class _Loupe extends StatelessWidget {
   Widget build(BuildContext context) {
     const radius = _loupeDiameter / 2;
     final screen = MediaQuery.sizeOf(context);
+    if (screen.width < _loupeDiameter || screen.height < _loupeDiameter) {
+      return const SizedBox.shrink();
+    }
     final safeTop = MediaQuery.paddingOf(context).top;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
     final above = aim.dy - _loupeGap - radius;
-    // shortcut: needs a screen >= 96 wide (clamp throws below that) and
-    // >= 256 tall below the safe area; guard both if tiny windows matter.
-    final center = Offset(
-      aim.dx.clamp(radius, screen.width - radius),
-      above - radius >= safeTop ? above : aim.dy + _loupeGap + radius,
-    );
+    final below = aim.dy + _loupeGap + radius;
+
+    final double cy;
+    if (above - radius >= safeTop) {
+      cy = above;
+    } else if (below + radius <= screen.height - safeBottom) {
+      cy = below;
+    } else {
+      final minCy = safeTop + radius;
+      final maxCy = math.max(minCy, screen.height - safeBottom - radius);
+      cy = above.clamp(minCy, maxCy);
+    }
+
+    final maxCx = math.max(radius, screen.width - radius);
+    final center = Offset(aim.dx.clamp(radius, maxCx), cy);
     return Positioned(
       left: center.dx - radius,
       top: center.dy - radius,
@@ -337,94 +352,96 @@ class _LayoutInfoCard extends StatelessWidget {
                       ),
                     ],
                   )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              current.widgetName != null
-                                  ? '${current.widgetName} '
-                                        '(${current.renderName})'
-                                  : current.renderName,
-                              style: ThemeTextStyle.boldStyle,
-                            ),
-                          ),
-                          const SizedBox(width: ThemeSize.space8),
-                          Text(
-                            '${index + 1} / $total',
-                            style: ThemeTextStyle.mutedSmallStyle,
-                          ),
-                        ],
-                      ),
-                      SizedBox(
-                        width: double.infinity,
-                        child: Wrap(
-                          alignment: WrapAlignment.end,
+                : SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.arrow_upward),
-                              tooltip: 'Parent',
-                              onPressed: onParent,
+                            Expanded(
+                              child: Text(
+                                current.widgetName != null
+                                    ? '${current.widgetName} '
+                                          '(${current.renderName})'
+                                    : current.renderName,
+                                style: ThemeTextStyle.boldStyle,
+                              ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.arrow_downward),
-                              tooltip: 'Child',
-                              onPressed: onChild,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.copy),
-                              tooltip: 'Copy layout chain',
-                              onPressed: onCopy,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.share),
-                              tooltip: 'Share layout chain',
-                              onPressed: onShare,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close),
-                              tooltip: 'Close layout inspector',
-                              onPressed: onClose,
+                            const SizedBox(width: ThemeSize.space8),
+                            Text(
+                              '${index + 1} / $total',
+                              style: ThemeTextStyle.mutedSmallStyle,
                             ),
                           ],
                         ),
-                      ),
-                      Text(
-                        'size: ${formatSize(current.size)}',
-                        style: ThemeTextStyle.monospaceStyle,
-                      ),
-                      Text(
-                        'constraints: '
-                        '${formatConstraints(current.constraints)}',
-                        style: ThemeTextStyle.monospaceStyle,
-                      ),
-                      Text(
-                        'offset: ${formatOffset(current.rect.topLeft)}',
-                        style: ThemeTextStyle.monospaceStyle,
-                      ),
-                      if (mayBeObfuscated)
-                        const Padding(
-                          padding: EdgeInsets.only(top: ThemeSize.space4),
-                          child: Text(
-                            'names may be obfuscated',
-                            style: ThemeTextStyle.mutedSmallStyle,
+                        SizedBox(
+                          width: double.infinity,
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_upward),
+                                tooltip: 'Parent',
+                                onPressed: onParent,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.arrow_downward),
+                                tooltip: 'Child',
+                                onPressed: onChild,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy),
+                                tooltip: 'Copy layout chain',
+                                onPressed: onCopy,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.share),
+                                tooltip: 'Share layout chain',
+                                onPressed: onShare,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                tooltip: 'Close layout inspector',
+                                onPressed: onClose,
+                              ),
+                            ],
                           ),
                         ),
-                      if (copied)
-                        const Padding(
-                          padding: EdgeInsets.only(top: ThemeSize.space4),
-                          child: Text(
-                            'Copied',
-                            style: TextStyle(
-                              color: ThemeColor.color4CAF50,
-                              fontSize: ThemeFontSize.fontSize12,
+                        Text(
+                          'size: ${formatSize(current.size)}',
+                          style: ThemeTextStyle.monospaceStyle,
+                        ),
+                        Text(
+                          'constraints: '
+                          '${formatConstraints(current.constraints)}',
+                          style: ThemeTextStyle.monospaceStyle,
+                        ),
+                        Text(
+                          'offset: ${formatOffset(current.rect.topLeft)}',
+                          style: ThemeTextStyle.monospaceStyle,
+                        ),
+                        if (mayBeObfuscated)
+                          const Padding(
+                            padding: EdgeInsets.only(top: ThemeSize.space4),
+                            child: Text(
+                              'names may be obfuscated',
+                              style: ThemeTextStyle.mutedSmallStyle,
                             ),
                           ),
-                        ),
-                    ],
+                        if (copied)
+                          const Padding(
+                            padding: EdgeInsets.only(top: ThemeSize.space4),
+                            child: Text(
+                              'Copied',
+                              style: TextStyle(
+                                color: ThemeColor.color4CAF50,
+                                fontSize: ThemeFontSize.fontSize12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
           ),
         ),

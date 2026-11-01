@@ -206,6 +206,18 @@ void main() {
           offsetMoreOrLessEquals(p),
           reason: 'crosshair misses $p',
         );
+        // Verify crosshair is drawn at the center of the magnifier lens.
+        final crosshairStack = find.descendant(
+          of: _loupe,
+          matching: find.byWidgetPredicate(
+            (w) => w is Stack && w.alignment == Alignment.center,
+          ),
+        );
+        expect(
+          tester.getCenter(crosshairStack.first),
+          rect.center,
+          reason: 'crosshair is not centered in loupe',
+        );
       }
 
       await gesture.up();
@@ -337,5 +349,35 @@ void main() {
       await tester.pump();
       expect(_frameRect(tester), targetRect);
     });
+
+    testWidgets(
+      'loupe stays within viewport in short viewport when neither above nor below has full clearance',
+      (tester) async {
+        tester.view.physicalSize =
+            const Size(360, 300) * tester.view.devicePixelRatio;
+        tester.view.padding = FakeViewPadding(
+          top: 90 * tester.view.devicePixelRatio,
+          bottom: 30 * tester.view.devicePixelRatio,
+        );
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetPadding();
+        });
+
+        await _pumpInspect(tester);
+        const aim = Offset(160, 160);
+
+        final gesture = await tester.startGesture(const Offset(150, 70));
+        await gesture.moveTo(aim);
+        await tester.pump();
+
+        final rect = tester.getRect(_loupe);
+        expect(rect.top, greaterThanOrEqualTo(90.0));
+        expect(rect.bottom, lessThanOrEqualTo(270.0));
+
+        await gesture.up();
+        await tester.pump();
+      },
+    );
   });
 }
