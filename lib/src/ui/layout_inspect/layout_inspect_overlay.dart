@@ -247,24 +247,44 @@ class _Loupe extends StatelessWidget {
     if (screen.width < _loupeDiameter || screen.height < _loupeDiameter) {
       return const SizedBox.shrink();
     }
-    final safeTop = MediaQuery.paddingOf(context).top;
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final padding = MediaQuery.paddingOf(context);
+    final safeTop = padding.top;
+    final safeBottom = padding.bottom;
+    final safeLeft = padding.left;
+    final safeRight = padding.right;
+
     final above = aim.dy - _loupeGap - radius;
     final below = aim.dy + _loupeGap + radius;
+    final leftSide = aim.dx - _loupeGap - radius;
+    final rightSide = aim.dx + _loupeGap + radius;
 
+    final double cx;
     final double cy;
+
     if (above - radius >= safeTop) {
       cy = above;
+      cx = aim.dx.clamp(radius, math.max(radius, screen.width - radius));
     } else if (below + radius <= screen.height - safeBottom) {
       cy = below;
+      cx = aim.dx.clamp(radius, math.max(radius, screen.width - radius));
+    } else if (rightSide + radius <= screen.width - safeRight) {
+      cx = rightSide;
+      final minCy = safeTop + radius;
+      final maxCy = math.max(minCy, screen.height - safeBottom - radius);
+      cy = aim.dy.clamp(minCy, maxCy);
+    } else if (leftSide - radius >= safeLeft) {
+      cx = leftSide;
+      final minCy = safeTop + radius;
+      final maxCy = math.max(minCy, screen.height - safeBottom - radius);
+      cy = aim.dy.clamp(minCy, maxCy);
     } else {
       final minCy = safeTop + radius;
       final maxCy = math.max(minCy, screen.height - safeBottom - radius);
       cy = above.clamp(minCy, maxCy);
+      cx = aim.dx.clamp(radius, math.max(radius, screen.width - radius));
     }
 
-    final maxCx = math.max(radius, screen.width - radius);
-    final center = Offset(aim.dx.clamp(radius, maxCx), cy);
+    final center = Offset(cx, cy);
     return Positioned(
       left: center.dx - radius,
       top: center.dy - radius,
@@ -285,6 +305,7 @@ class _Loupe extends StatelessWidget {
           ),
           // Crosshair: drawn over the lens, not magnified.
           child: const Stack(
+            key: ValueKey('loupe_crosshair'),
             alignment: Alignment.center,
             children: [
               SizedBox(

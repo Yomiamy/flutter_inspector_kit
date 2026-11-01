@@ -207,14 +207,8 @@ void main() {
           reason: 'crosshair misses $p',
         );
         // Verify crosshair is drawn at the center of the magnifier lens.
-        final crosshairStack = find.descendant(
-          of: _loupe,
-          matching: find.byWidgetPredicate(
-            (w) => w is Stack && w.alignment == Alignment.center,
-          ),
-        );
         expect(
-          tester.getCenter(crosshairStack.first),
+          tester.getCenter(find.byKey(const ValueKey('loupe_crosshair'))),
           rect.center,
           reason: 'crosshair is not centered in loupe',
         );
@@ -374,6 +368,7 @@ void main() {
         final rect = tester.getRect(_loupe);
         expect(rect.top, greaterThanOrEqualTo(90.0));
         expect(rect.bottom, lessThanOrEqualTo(270.0));
+        expect(rect.contains(aim), isFalse, reason: 'covers finger at $aim');
 
         await gesture.up();
         await tester.pump();
