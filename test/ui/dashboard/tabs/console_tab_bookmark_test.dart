@@ -29,7 +29,9 @@ void main() {
       expect(inspector.bookmarkedEntries.length, 1);
 
       // Tap Bookmarks FilterChip
-      await tester.tap(find.text('📌 Bookmarks'));
+      await tester.ensureVisible(find.textContaining('📌 Bookmarks'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('📌 Bookmarks'));
       await tester.pumpAndSettle();
 
       expect(find.text('Test message 1'), findsOneWidget);
@@ -63,13 +65,17 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enable bookmarks filter
-      await tester.tap(find.text('📌 Bookmarks'));
+      await tester.ensureVisible(find.textContaining('📌 Bookmarks'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('📌 Bookmarks'));
       await tester.pumpAndSettle();
 
       expect(find.text('Test message 2'), findsNothing);
 
       // Tap All chip
-      await tester.tap(find.text('All'));
+      await tester.ensureVisible(find.textContaining('All'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('All'));
       await tester.pumpAndSettle();
 
       // Verify filter is reset and message 2 is visible again

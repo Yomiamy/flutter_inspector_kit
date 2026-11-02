@@ -158,10 +158,51 @@ class _ConsoleTabState extends State<ConsoleTab> {
 
   @override
   Widget build(BuildContext context) {
-    var entries = widget.inspector.mergedTimeline(sources: _selected);
+    final rawEntries = widget.inspector.mergedTimeline(sources: _all);
+    var entries = _isAll
+        ? rawEntries
+        : widget.inspector.mergedTimeline(sources: _selected);
     entries = applyConsoleFilter(entries, _filter);
     if (_showOnlyBookmarks) {
       entries = entries.where((e) => widget.inspector.isBookmarked(e)).toList();
+    }
+
+    int bookmarkCount = 0;
+    int errorCount = 0;
+    final sourceCounts = <TimelineSource, int>{
+      for (final s in TimelineSource.values) s: 0,
+    };
+    final levelCounts = <LogLevel, int>{
+      for (final l in logLevelLabels.keys) l: 0,
+    };
+
+    for (final entry in rawEntries) {
+      if (widget.inspector.isBookmarked(entry)) {
+        bookmarkCount++;
+      }
+      switch (entry) {
+        case final LogEntry e:
+          sourceCounts[TimelineSource.log] =
+              (sourceCounts[TimelineSource.log] ?? 0) + 1;
+          if (e.level == LogLevel.warning || e.level == LogLevel.error) {
+            errorCount++;
+          }
+          if (levelCounts.containsKey(e.level)) {
+            levelCounts[e.level] = (levelCounts[e.level] ?? 0) + 1;
+          }
+        case final NetworkEntry e:
+          sourceCounts[TimelineSource.network] =
+              (sourceCounts[TimelineSource.network] ?? 0) + 1;
+          if (e.isFailed) {
+            errorCount++;
+          }
+        case NavigatorEntry():
+          sourceCounts[TimelineSource.nav] =
+              (sourceCounts[TimelineSource.nav] ?? 0) + 1;
+        case DatabaseEntry():
+          sourceCounts[TimelineSource.db] =
+              (sourceCounts[TimelineSource.db] ?? 0) + 1;
+      }
     }
 
     return Column(
@@ -176,21 +217,23 @@ class _ConsoleTabState extends State<ConsoleTab> {
                   children: [
                     const SizedBox(width: ThemeSize.space8),
                     FilterChip(
-                      label: const Text('All'),
+                      label: Text('All (${rawEntries.length})'),
                       selected: _isAll,
                       onSelected: (_) => _selectAll(),
                     ),
                     for (final source in TimelineSource.values) ...[
                       const SizedBox(width: ThemeSize.space8),
                       FilterChip(
-                        label: Text(_sourceLabels[source] ?? ''),
+                        label: Text(
+                          '${_sourceLabels[source] ?? ''} (${sourceCounts[source] ?? 0})',
+                        ),
                         selected: !_isAll && _selected.contains(source),
                         onSelected: (_) => _selectOnly(source),
                       ),
                     ],
                     const SizedBox(width: ThemeSize.space8),
                     FilterChip(
-                      label: const Text('📌 Bookmarks'),
+                      label: Text('📌 Bookmarks ($bookmarkCount)'),
                       selected: _showOnlyBookmarks,
                       onSelected: (_) => setState(() {
                         _showOnlyBookmarks = !_showOnlyBookmarks;
@@ -198,14 +241,16 @@ class _ConsoleTabState extends State<ConsoleTab> {
                     ),
                     const SizedBox(width: ThemeSize.space8),
                     FilterChip(
-                      label: const Text('⚡ Errors only'),
+                      label: Text('⚡ Errors only ($errorCount)'),
                       selected: _filter.errorsOnly,
                       onSelected: (_) => _toggleErrorsOnly(),
                     ),
                     for (final entry in logLevelLabels.entries) ...[
                       const SizedBox(width: ThemeSize.space8),
                       FilterChip(
-                        label: Text(entry.value),
+                        label: Text(
+                          '${entry.value} (${levelCounts[entry.key] ?? 0})',
+                        ),
                         selected: _filter.levels.contains(entry.key),
                         onSelected: (_) => _toggleLevel(entry.key),
                       ),
