@@ -2791,7 +2791,7 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 | 8 | **C8** 版號一致性自動檢查 | 一支 script 檢查 4 處版號（與 §8.5 的 B6 同源，已於 B6 完成） | 低 | ✅ 已完成（2026-09-24，PR #173）|
 | 9 | **C9** 核心 skill 補 `agents/openai.yaml` | 目前 61 個 skill 僅 5 個有（branch-diff-code-review、branch-ticket-issue-doc、branch-ticket-solution-advisor、issue-spec-prep、gen-dev-worktree），gen-dev-workflow 本體無 | 中 | 提案 |
 | 10 | **C10** `wayfinder` fog of war | 超大需求用 issue tracker 當地圖、decision ticket 逐一解 | 高 | 提案 |
-| 11 | **C11** `grilling` 預設同意問法（Yes-default framing） | 上游 `95249b0` / `85f83d3`：問題措辭設計成**使用者回 `yes` 即直接採納推薦選項 `➡️`**，且多題/追問以 `---` 分隔。補 2 行至 `.claude/skills/gen-grill/SKILL.md` | 極低 | 提案（2026-10-25 新增） |
+| 11 | **C11** `grilling` 預設同意問法（Yes-default framing） | 上游 `95249b0` / `85f83d3`：問題措辭設計成**使用者回 `yes` 即直接採納推薦選項 `➡️`**，且多題/追問以 `---` 分隔。已於 `d8bd1b8` 引入，並經 Issue #240 明文化與正面防護落實 | 極低 | ✅ 已完成（2026-11-03，Issue #240） |
 | 12 | **C12** `diagnosing-bugs` 強制突變 diff 證明與敏感資訊遮罩 | 上游 `f3fc563` / `efce423`：若為重現紅燈而手動改壞代碼或 fixture，**必須先與乾淨版本 `diff` 證明突變確實落地**才信紅燈；擷取 log 寫入報告時強制將 secret 遮罩為 `<REDACTED>` | 極低 | 提案（2026-10-25 新增） |
 | 13 | **C13** `tdd` 測試接縫（Seam）雙向標註 | 上游 `3f59913`：提議測試邊界時，每個 seam 強制附一行**「能抓到什麼／會漏掉什麼（what it catches and what it misses）」**，消滅「有寫測試但測錯層」的盲區 | 極低 | 提案（2026-10-25 新增） |
 | 14 | **C14** `chief-of-staff` 歷史事實標記紀律（消滅狀態欄漂移） | 上游 `5beb35b`：**"Write history, not the present: never write 'currently', 'now' or 'is' about code without a date or commit beside it."** 強制所有架構與腦力激盪文件描述程式碼現況時必帶日期或 `commit SHA`，從根源根治本文件累計發生 7 次的「狀態欄漂移」 | 極低 | 提案（2026-10-25 新增） |
@@ -2811,8 +2811,8 @@ vs **Out of scope**（超出目的地，永不畢業）的明確二分。
 | issue tracker 當 wayfinder 地圖（全面採用） | 本專案單人單 repo，C10 僅在真遇到超大需求時才值得 |
 | 專用 `resolving-merge-conflicts` skill | 上游於 `daa01d8` 自行刪除該 skill，證實原生 agent 即可處理 git merge 衝突，無須浪費專屬 skill |
 
-> **📌 C1–C14 共 14 項，截至 2026-10-25 已完成 3 項（C4, C5, C8/B6）、1 項不排程（C6），其餘 10 項為提案（含 2026-10-25 新增之 C11–C14）。**
-> 任一項落地後應立即回寫本表。C8 與 §8.5 的 B6 同源，已於 2026-09-24 透過 PR #173 合併落地完成；C5 於 2026-10-23 透過 PR #223 完成。
+> **📌 C1–C14 共 14 項，截至 2026-11-03 已完成 4 項（C4, C5, C8/B6, C11）、1 項不排程（C6），其餘 9 項為提案（含 2026-10-25 新增之 C12–C14）。**
+> 任一項落地後應立即回寫本表。C8 與 §8.5 的 B6 同源，已於 2026-09-24 透過 PR #173 合併落地完成；C5 於 2026-10-23 透過 PR #223 完成；C11 於 2026-11-03 透過 Issue #240 完成。
 >
 > **📌 2026-10-25 追蹤更新（基準 `c55ee46` [2026-09-18] → 最新 `v1.3.1` `5beb35b` [2026-10-19]，+74 commits）**：
 > 1. **`CONTEXT.md` 全面更名為 `GLOSSARY.md` / `GLOSSARY-MAP.md`**（v1.3.0 PR #1120 `006a52b`）：已同步更新上方 §6.3.2 與 **C1**。
