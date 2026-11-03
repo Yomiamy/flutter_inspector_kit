@@ -51,7 +51,7 @@
    flutter analyze lib/ test/
    flutter test
    ```
-   確保純文件與 Skill 調整完全不影響 Dart 代碼庫。
+   確保純文件與 Skill 調整完全不影響 Dart 代碼庫，維持全套 797 項測試全數通過。
 2. 文本查核：
    檢查 `.claude/skills/gen-grill/SKILL.md` 與 `docs/brainstorm/2026-10-25-workflow-brainstorm.md` 內容。
 
