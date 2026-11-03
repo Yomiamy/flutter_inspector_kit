@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-11-04**：**§P41 完成**——PR #239 合入 main（issue #238），ConsoleTab 所有 FilterChip 顯示事件計數徽章，於 `build` 以全量時間軸單次走訪投影計算，隨既有重建時機更新。檔名日期前綴維持 `2026-11-04`（已是今日）。
 > * **2026-11-04**：**§P39 完成**——PR #237 合入 main（issue #236），Dio 攔截器三個回呼的觀測邏輯改為 `on Object catch` 防護、`handler.next` 為單一出口；序列化失敗時補完成 pending entry，不再滯留 Pending。檔名日期前綴由 `2026-10-31` 更新至 `2026-11-04`。
 > * **2026-10-31**：**Flutter In-App 除錯工具開源生態全景調研完成（12 大工具族群）**——廣泛檢索 pub.dev 與 GitHub 上所有與 `zero_inspector_kit` 類似的 In-App 開發除錯套件（涵蓋 `talker_flutter`、`alice` 系列、`chucker_flutter`、`requests_inspector`、`flutter_ume`、`pluto_inspector` / `ispect`、`flutter_flipperkit`、`f_logs`、`cr_logger`、`logger`、`leak_tracker` 等 12 大工具族群），產出獨立全景報告（**未入庫**，重點收錄於第九部分）。確立 AF-1 ~ AF-10 十大反模式拒絕清單；正視外圍 `share_plus` 與通知套件現狀並訂立純 Dart 解耦路線圖；正式將 10 項高排查價值借鏡打磨提案（§P32 ~ §P41）納入待辦清單（含雙元件間距標尺、觸控放大鏡、純 Dart 環境快照、Dio 攔截器 Fail-Safe 防衛、呼叫堆疊智慧折疊、動態篩選計數徽章等）。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**zero_inspector_kit 2.0.0 全模組（10 大子系統）深度對齊與新借鏡提煉**——全面盤點 Log、Network、Routes、Storage/Database、FPS/Performance、Memory/Leak、Alerts & Rules、Widgets、Floating Button、Persistence & Export 等全部現行模組。確立本專案在 Active Stack 路由推演、Tap-to-Inspect Layout（支援 Release）、100% 純 Dart 零原生依賴、統一時間軸、AI Agent Prompt 等方面的全面領先；同時提煉 3 項務實借鏡與優化：(1) **§Z1-9 Dio `FormData` (Multipart) 上傳摘要化**（消除 `Instance of 'FormData'`，提取欄位與檔案檔名大小）；(2) **§Z1-10 日誌 ANSI Escape 顏色碼濾除**（消除終端彩色日誌在 UI 與報告中的亂碼跳脫字元）；(3) **§Z4 `NetworkDetailView` 單區塊一鍵複製**（Response Body / Headers 獨立複製按鈕，消滅觸控長按選取長文字的痛點）。檔名日期前綴維持 `2026-10-31`（已是今日）。
@@ -1866,7 +1867,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | **§P38** 純 Dart 系統環境自動快照 | 【系統環境】`PlatformDispatcher.instance.views.firstOrNull` 空安全防禦，榨乾純 Dart 元數據補齊報告 | low | ⬜ |
 | ~~**§P39** Dio 攔截器 Fail-Safe 雙重防禦~~ | 【網路防禦】`on Object catch` 防止 Error 逃逸 + boolean guard 確保 `handler.next()` 單次保證執行 — ✅ 已完成（PR #237 / Issue #236；實作為 `handler.next` 移至 try-catch 後的單一出口，未用 boolean guard） | trivial | ✅ |
 | **§P40** 呼叫堆疊框架智慧折疊 | 【日誌排查】主體（Concise/Raw 切換 + 框架折疊）已由 §P19 完成（PR #149，`log_formatters.dart:95` `normalizeStackTrace`）；剩餘缺口僅「折疊後 0 行時退回 raw」，縮為對既有函式的小修補 | trivial | 🟡 |
-| **§P41** 篩選標籤動態數量徽章 | 【控制台互動】ConsoleTab FilterChip 動態統計事件計數徽章（純無狀態投影） | trivial | ⬜ |
+| ~~**§P41** 篩選標籤動態數量徽章~~ | 【控制台互動】ConsoleTab FilterChip 動態統計事件計數徽章（純無狀態投影） — ✅ 已完成（PR #239 / Issue #238；計數隨 ConsoleTab 重建更新，不另監聽 `revision`） | trivial | ✅ |
 
 > **2026-10-31 開源生態全景調研新增（§P32 ~ §P41）**：檢索 12 大 In-App 工具族群（`talker_flutter`、`alice`、`chucker_flutter`、`pluto_inspector` / `ispect` 等），確立 10 項符合純 Dart 微核心硬約束的借鏡打磨待辦（重點見第九部分；獨立報告未入庫）。其中 §P32 ~ §P35 與前次 zero_inspector_kit 提煉之 §Z1-10、§Z1-9、§Z1-8、§Z4 為**同一批項目，以 §P 為正式編號**（§Z 列僅保留來源與指向，勿重複排程），§P36 ~ §P41 為生態全新借鏡。
 >
@@ -2188,7 +2189,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **寫入路徑**：`lib/src/utils/log_formatters.dart`、`lib/src/ui/dashboard/log_detail_view.dart`。
 * **Effort**：Low ｜ **排查價值**：⭐⭐⭐⭐
 
-### §P41 【控制台互動】篩選標籤動態數量徽章 (Filter Dynamic Counter Badges) — 待辦
+### §P41 【控制台互動】篩選標籤動態數量徽章 (Filter Dynamic Counter Badges) — ✅ 已完成（PR #239 / Issue #238）
 > **痛點**：在大量混合事件中，排查者希望直觀得知當前緩衝區有多少 Error、多少 Network 請求、多少 Navigation，而無需逐一切換過濾。
 
 * **來源**：開源生態調研（第九部分 · §P41）。
@@ -2201,6 +2202,10 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   - **破壞性**：零破壞。
   - **實用性**：中高。一目了然得知各類別異常數量。
 * **寫入路徑**：`lib/src/ui/dashboard/tabs/console_tab.dart`。
+* **落地成果**：
+  - `build` 內以全來源 `mergedTimeline` 單次走訪算出所有計數（非逐項 `.where().length`），All、四個來源、📌 Bookmarks、⚡ Errors only 與各 LogLevel chip 皆顯示 `(n)`；計數基準為未套用任何過濾的全量時間軸。
+  - Errors 計數 = warning/error 等級的 log + `isFailed` 的 network。
+  - 計數隨 ConsoleTab 既有的 `setState` / `_refresh` 重建更新，不另外監聽 `registry.revision`，確保徽章數字與下方列表同步。
 * **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐
 
 ---
@@ -2459,5 +2464,5 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 本次生態調研所提煉出的 10 項具體借鏡與打磨提案，已全數登錄於本文件之「Tier 4 · 打磨清單」與規格章節中：
 - **第一優先（即刻落地 · Trivial / High ROI）**：§P32 (ANSI 跳脫碼濾除)、§P33 (FormData 摘要化)、§P34 (串流安全佔位)、~~§P39 (Dio 攔截器 Fail-Safe 防護)~~（✅ PR #237 已完成）
-- **第二優先（近期排程 · Low / High UX）**：§P35 (細節區塊一鍵複製)、§P38 (純 Dart 環境快照)、§P40 (呼叫堆疊智慧折疊；🟡 主體已由 §P19 完成，僅剩 0 行 fallback)、§P41 (篩選標籤動態數量徽章)
+- **第二優先（近期排程 · Low / High UX）**：§P35 (細節區塊一鍵複製)、§P38 (純 Dart 環境快照)、§P40 (呼叫堆疊智慧折疊；🟡 主體已由 §P19 完成，僅剩 0 行 fallback)、~~§P41 (篩選標籤動態數量徽章)~~（✅ PR #239 已完成）
 - **第三優先（次版規劃 · Medium / Advanced UI）**：~~§P36 (雙元件間距標尺與像素測距)~~（✅ PR #233 已完成）、~~§P37 (高精準度觸控放大鏡)~~（✅ PR #231 已完成）
