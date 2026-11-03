@@ -1,7 +1,7 @@
 # 功能規格：Inspect layout 拖曳瞄準與觸控放大鏡 (Drag-to-Aim & Touch Loupe)（§P37）
 
 - **日期**：2026-10-31
-- **來源**：[`docs/brainstorm/2026-10-31-features-brainstorm.md`](../brainstorm/2026-10-31-features-brainstorm.md) §P37（:2118-2131），延伸 §P31（:1996-2031，規格見 [`2026-10-17-tap-to-inspect-layout.md`](2026-10-17-tap-to-inspect-layout.md)）。需求 brief 已於 2026-10-31 與使用者逐項確認。
+- **來源**：[`docs/brainstorm/2026-11-04-features-brainstorm.md`](../brainstorm/2026-11-04-features-brainstorm.md) §P37（:2118-2131），延伸 §P31（:1996-2031，規格見 [`2026-10-17-tap-to-inspect-layout.md`](2026-10-17-tap-to-inspect-layout.md)）。需求 brief 已於 2026-10-31 與使用者逐項確認。
 - **Effort**：原估 Low；因 §P37 假設的拖曳探測實際不存在、需一併新增，上修為 **Low~Medium** ｜ **排查價值**：⭐⭐⭐⭐
 
 ---

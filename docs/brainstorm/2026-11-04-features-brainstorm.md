@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-11-04**：**§P39 完成**——PR #237 合入 main（issue #236），Dio 攔截器三個回呼的觀測邏輯改為 `on Object catch` 防護、`handler.next` 為單一出口；序列化失敗時補完成 pending entry，不再滯留 Pending。檔名日期前綴由 `2026-10-31` 更新至 `2026-11-04`。
 > * **2026-10-31**：**Flutter In-App 除錯工具開源生態全景調研完成（12 大工具族群）**——廣泛檢索 pub.dev 與 GitHub 上所有與 `zero_inspector_kit` 類似的 In-App 開發除錯套件（涵蓋 `talker_flutter`、`alice` 系列、`chucker_flutter`、`requests_inspector`、`flutter_ume`、`pluto_inspector` / `ispect`、`flutter_flipperkit`、`f_logs`、`cr_logger`、`logger`、`leak_tracker` 等 12 大工具族群），產出獨立全景報告（**未入庫**，重點收錄於第九部分）。確立 AF-1 ~ AF-10 十大反模式拒絕清單；正視外圍 `share_plus` 與通知套件現狀並訂立純 Dart 解耦路線圖；正式將 10 項高排查價值借鏡打磨提案（§P32 ~ §P41）納入待辦清單（含雙元件間距標尺、觸控放大鏡、純 Dart 環境快照、Dio 攔截器 Fail-Safe 防衛、呼叫堆疊智慧折疊、動態篩選計數徽章等）。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**zero_inspector_kit 2.0.0 全模組（10 大子系統）深度對齊與新借鏡提煉**——全面盤點 Log、Network、Routes、Storage/Database、FPS/Performance、Memory/Leak、Alerts & Rules、Widgets、Floating Button、Persistence & Export 等全部現行模組。確立本專案在 Active Stack 路由推演、Tap-to-Inspect Layout（支援 Release）、100% 純 Dart 零原生依賴、統一時間軸、AI Agent Prompt 等方面的全面領先；同時提煉 3 項務實借鏡與優化：(1) **§Z1-9 Dio `FormData` (Multipart) 上傳摘要化**（消除 `Instance of 'FormData'`，提取欄位與檔案檔名大小）；(2) **§Z1-10 日誌 ANSI Escape 顏色碼濾除**（消除終端彩色日誌在 UI 與報告中的亂碼跳脫字元）；(3) **§Z4 `NetworkDetailView` 單區塊一鍵複製**（Response Body / Headers 獨立複製按鈕，消滅觸控長按選取長文字的痛點）。檔名日期前綴維持 `2026-10-31`（已是今日）。
 > * **2026-10-31**：**三度比對 zero_inspector_kit（追蹤至 v2.0.0 / PR #117）**——深入審查 v2.0.0（46 檔案，+1128/-504 行）。對方發布 2.0.0 的主因是兩項破壞性變更（補齊 `RouteAction.remove` 與移除死代碼），並修復 20+ 項審查缺陷。核心發現：(1) **架構定力再度獲得強烈驗證**：對方在 v2.0.0 徹底刪除 iOS `dup2` 重定向與 Android logcat 原生代碼（官方承認未導出且帶不可逆全局副作用），徹底確立本專案堅持「100% 純 Dart」不可動搖的定力；對方落盤持久化爆發 `flush()` 在 `commit()` 前清空導致整批日誌靜默遺失、`dispose()` 與在途 `init()` 競態留下孤兒 Timer，陷入堆疊 5 次重試降級記憶體模式的泥淖，再度驗證 Anti-Feature #2（拒絕本機落盤）；(2) **本專案領先特性**：本專案自始即支援 `NavigatorAction.remove`、報告匯出依時間窗而非錯誤切片最舊、FAB 採直覺位移（54 行）杜絕了對方的 AnimationController 監聽器洩漏與小球抖動爭搶；(3) **借鏡改善提案**：自查查出 2 項可借鏡優化——**§Z1-7 熱路徑 RegExp 靜態編譯與常數化**（`log_formatters` 與 `network_formatters` 消除每行/每次即時編譯正則的開銷）與 **§Z1-8 Dio `ResponseBody` (Stream) 友善佔位**（明確標示 `[stream response (ResponseBody)]`，消除 `Instance of 'ResponseBody'` 且絕不排空業務 stream）。檔名日期前綴維持 `2026-10-31`（已是今日）。
@@ -48,7 +49,7 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-10-20 · v2.8.0）
+## 📊 完成度總覽（截至 2026-11-04 · v2.8.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
@@ -1863,7 +1864,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | ~~**§P36** 雙元件間距標尺與像素測距~~ | 【UI 探測】1D 區間投影距離算法計算兩元件相對間距與四周 padding，雙單位 (dp + px) 標尺與文字導出 — ✅ 已完成（PR #233 / Issue #232） | low~med | ✅ |
 | ~~**§P37** 高精準度觸控取樣放大鏡~~ | 【UI 探測】Flutter 原生 `RawMagnifier` + `IgnorePointer` 局部放大，Web 條件降級 — ✅ 已完成（PR #231 / Issue #230） | low | ✅ |
 | **§P38** 純 Dart 系統環境自動快照 | 【系統環境】`PlatformDispatcher.instance.views.firstOrNull` 空安全防禦，榨乾純 Dart 元數據補齊報告 | low | ⬜ |
-| **§P39** Dio 攔截器 Fail-Safe 雙重防禦 | 【網路防禦】`on Object catch` 防止 Error 逃逸 + boolean guard 確保 `handler.next()` 單次保證執行 | trivial | ⬜ |
+| ~~**§P39** Dio 攔截器 Fail-Safe 雙重防禦~~ | 【網路防禦】`on Object catch` 防止 Error 逃逸 + boolean guard 確保 `handler.next()` 單次保證執行 — ✅ 已完成（PR #237 / Issue #236；實作為 `handler.next` 移至 try-catch 後的單一出口，未用 boolean guard） | trivial | ✅ |
 | **§P40** 呼叫堆疊框架智慧折疊 | 【日誌排查】主體（Concise/Raw 切換 + 框架折疊）已由 §P19 完成（PR #149，`log_formatters.dart:95` `normalizeStackTrace`）；剩餘缺口僅「折疊後 0 行時退回 raw」，縮為對既有函式的小修補 | trivial | 🟡 |
 | **§P41** 篩選標籤動態數量徽章 | 【控制台互動】ConsoleTab FilterChip 動態統計事件計數徽章（純無狀態投影） | trivial | ⬜ |
 
@@ -2153,7 +2154,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 * **寫入路徑**：`lib/src/utils/diagnostic_report.dart`。
 * **Effort**：Low ｜ **排查價值**：⭐⭐⭐
 
-### §P39 【網路防禦】Dio 攔截器全生命週期 Fail-Safe 雙重防禦 — 待辦
+### §P39 【網路防禦】Dio 攔截器全生命週期 Fail-Safe 雙重防禦 — ✅ 已完成（PR #237 / Issue #236）
 > **痛點**：攔截器內部的任何非預期例外（如自訂資料模型之 `toString()` 拋出 `StateError`、或二進位解碼格式錯誤）會中斷宿主的網路連線管線；若僅寫 `on Exception catch`，Dart `Error` 逃逸會導致 `handler.next()` 未執行，業務請求**永久掛死（Hang）**。
 
 * **來源**：開源生態調研（第九部分 · §P39）。
@@ -2165,7 +2166,10 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   - **複雜度**：Trivial。
   - **破壞性**：零破壞。
   - **實用性**：極高（守護底線穩定性）。
-* **寫入路徑**：`lib/src/inspectors/dio_interceptor.dart`。
+* **寫入路徑**：`lib/src/interceptors/dio_interceptor.dart`。
+* **落地成果**：
+  - `onRequest` / `onResponse` / `onError` 的觀測邏輯包進 `on Object catch`；`handler.next(...)` 放在 try-catch 之後作為方法末尾的單一出口，結構上保證單次執行，因此不需要 boolean guard 與 `finally`。
+  - 序列化失敗時的 recovery 路徑會以 `pending.copyWith(isComplete: true)` 補完成 pending entry，避免面板滯留 Pending；`onError` recovery 只讀不會拋錯的欄位（`err.message ?? err.type.name`、`err.type`、`err.stackTrace`），不再呼叫可能因被包裹 error 的 `toString()` 拋錯的 `err.toString()`。
 * **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐⭐⭐
 
 ### §P40 【日誌排查】呼叫堆疊框架智慧折疊 (Concise Stack Trace Demangling) — 🟡 部分完成（主體即 §P19 · PR #149）
@@ -2454,6 +2458,6 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 ### 9.5 借鏡提案與優先序矩陣索引
 
 本次生態調研所提煉出的 10 項具體借鏡與打磨提案，已全數登錄於本文件之「Tier 4 · 打磨清單」與規格章節中：
-- **第一優先（即刻落地 · Trivial / High ROI）**：§P32 (ANSI 跳脫碼濾除)、§P33 (FormData 摘要化)、§P34 (串流安全佔位)、§P39 (Dio 攔截器 Fail-Safe 防護)
+- **第一優先（即刻落地 · Trivial / High ROI）**：§P32 (ANSI 跳脫碼濾除)、§P33 (FormData 摘要化)、§P34 (串流安全佔位)、~~§P39 (Dio 攔截器 Fail-Safe 防護)~~（✅ PR #237 已完成）
 - **第二優先（近期排程 · Low / High UX）**：§P35 (細節區塊一鍵複製)、§P38 (純 Dart 環境快照)、§P40 (呼叫堆疊智慧折疊；🟡 主體已由 §P19 完成，僅剩 0 行 fallback)、§P41 (篩選標籤動態數量徽章)
 - **第三優先（次版規劃 · Medium / Advanced UI）**：~~§P36 (雙元件間距標尺與像素測距)~~（✅ PR #233 已完成）、~~§P37 (高精準度觸控放大鏡)~~（✅ PR #231 已完成）
