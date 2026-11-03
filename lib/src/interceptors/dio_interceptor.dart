@@ -165,7 +165,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
             pending.copyWith(
               statusCode: err.response?.statusCode,
               duration: duration,
-              error: err.toString(),
+              error: err.message ?? err.type.name,
               errorType: err.type,
               isComplete: true,
             ),

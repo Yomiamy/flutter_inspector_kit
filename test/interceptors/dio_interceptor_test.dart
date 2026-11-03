@@ -642,7 +642,7 @@ void main() {
 
       test(
         'onResponse completes pending entry when serialization throws',
-        () {
+        () async {
           final options = RequestOptions(
             path: 'http://example.com/api',
             method: 'GET',
@@ -659,7 +659,8 @@ void main() {
           interceptor.onResponse(response, handler);
 
           // ignore: invalid_use_of_protected_member
-          expect(handler.future, completes);
+          final state = await handler.future;
+          expect(state.data, same(response));
           final entry = inspector.registry.network.entries.single;
           expect(entry.isComplete, true);
           expect(entry.statusCode, 200);
@@ -704,6 +705,44 @@ void main() {
           expect(entry.isComplete, true);
           expect(entry.isFailed, true);
           expect(entry.statusCode, 500);
+        },
+      );
+
+      test(
+        'onError completes pending entry when err.toString() throws',
+        () async {
+          final options = RequestOptions(
+            path: 'http://example.com/api',
+            method: 'GET',
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          expect(inspector.registry.network.entries.single.isComplete, false);
+
+          // DioException.toString() interpolates the wrapped error, so a
+          // throwing toString() on it makes err.toString() throw too.
+          final err = DioException(
+            requestOptions: options,
+            type: DioExceptionType.unknown,
+            error: _ThrowingData(),
+          );
+          final handler = ErrorInterceptorHandler();
+          interceptor.onError(err, handler);
+
+          await expectLater(
+            // ignore: invalid_use_of_protected_member
+            handler.future,
+            throwsA(
+              isA<dynamic>().having(
+                (e) => (e as dynamic).data,
+                'data',
+                same(err),
+              ),
+            ),
+          );
+
+          final entry = inspector.registry.network.entries.single;
+          expect(entry.isComplete, true);
+          expect(entry.errorType, DioExceptionType.unknown);
         },
       );
     });
