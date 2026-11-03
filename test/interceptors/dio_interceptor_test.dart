@@ -4,8 +4,21 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
+import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _ThrowingData {
+  @override
+  String toString() => throw StateError('custom toString failed');
+}
+
+class _ThrowingRequestHandler extends RequestInterceptorHandler {
+  @override
+  void next(RequestOptions requestOptions) {
+    throw StateError('downstream error');
+  }
+}
 
 void main() {
   group('FlutterInspectorDioInterceptor', () {
@@ -498,6 +511,241 @@ void main() {
         expect(entry.requestBody, '[137,80,78,71]');
         expect(entry.isRequestTruncated, isFalse);
       });
+    });
+
+    group('Fail-Safe error handling (§P39)', () {
+      test(
+        'onRequest forwards request and logs warning when inspector throws',
+        () async {
+          final options = RequestOptions(
+            path: 'http://example.com/api',
+            method: 'POST',
+            data: _ThrowingData(),
+          );
+          final handler = RequestInterceptorHandler();
+          interceptor.onRequest(options, handler);
+
+          // handler.next must have been called
+          // ignore: invalid_use_of_protected_member
+          expect(handler.future, completes);
+          final warningLogs = inspector.registry.log.entries
+              .where((l) => l.level == LogLevel.warning)
+              .toList();
+          expect(warningLogs.length, 1);
+          expect(
+            warningLogs.first.message,
+            contains('DioInterceptor.onRequest internal error:'),
+          );
+        },
+      );
+
+      test(
+        'onResponse forwards response and logs warning when inspector throws',
+        () async {
+          final options = RequestOptions(
+            path: 'http://example.com/api',
+            method: 'GET',
+          );
+          final response = Response(
+            requestOptions: options,
+            statusCode: 200,
+            data: _ThrowingData(),
+          );
+          final handler = ResponseInterceptorHandler();
+          interceptor.onResponse(response, handler);
+
+          // ignore: invalid_use_of_protected_member
+          expect(handler.future, completes);
+          final warningLogs = inspector.registry.log.entries
+              .where((l) => l.level == LogLevel.warning)
+              .toList();
+          expect(warningLogs.length, 1);
+          expect(
+            warningLogs.first.message,
+            contains('DioInterceptor.onResponse internal error:'),
+          );
+        },
+      );
+
+      test(
+        'onError forwards error and logs warning when inspector throws',
+        () async {
+          final options = RequestOptions(
+            path: 'http://example.com/api',
+            method: 'GET',
+          );
+          final err = DioException(
+            requestOptions: options,
+            type: DioExceptionType.badResponse,
+            response: Response(
+              requestOptions: options,
+              statusCode: 500,
+              data: _ThrowingData(),
+            ),
+          );
+          final handler = ErrorInterceptorHandler();
+          interceptor.onError(err, handler);
+
+          await expectLater(
+            // ignore: invalid_use_of_protected_member
+            handler.future,
+            throwsA(
+              isA<dynamic>().having(
+                (e) => (e as dynamic).data,
+                'data',
+                isA<DioException>().having(
+                  (e) => e.type,
+                  'type',
+                  DioExceptionType.badResponse,
+                ),
+              ),
+            ),
+          );
+
+          final warningLogs = inspector.registry.log.entries
+              .where((l) => l.level == LogLevel.warning)
+              .toList();
+          expect(warningLogs.length, 1);
+          expect(
+            warningLogs.first.message,
+            contains('DioInterceptor.onError internal error:'),
+          );
+        },
+      );
+
+      test(
+        'downstream synchronous exception from handler.next is not swallowed',
+        () {
+          final options = RequestOptions(
+            path: 'http://example.com/api',
+            method: 'GET',
+          );
+          final throwingHandler = _ThrowingRequestHandler();
+
+          expect(
+            () => interceptor.onRequest(options, throwingHandler),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                'downstream error',
+              ),
+            ),
+          );
+
+          final warningLogs = inspector.registry.log.entries
+              .where((l) => l.level == LogLevel.warning)
+              .toList();
+          expect(warningLogs, isEmpty);
+        },
+      );
+
+      test(
+        'onResponse completes pending entry when serialization throws',
+        () async {
+          final options = RequestOptions(
+            path: 'http://example.com/api',
+            method: 'GET',
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          expect(inspector.registry.network.entries.single.isComplete, false);
+
+          final response = Response(
+            requestOptions: options,
+            statusCode: 200,
+            data: _ThrowingData(),
+          );
+          final handler = ResponseInterceptorHandler();
+          interceptor.onResponse(response, handler);
+
+          // ignore: invalid_use_of_protected_member
+          final state = await handler.future;
+          expect(state.data, same(response));
+          final entry = inspector.registry.network.entries.single;
+          expect(entry.isComplete, true);
+          expect(entry.statusCode, 200);
+        },
+      );
+
+      test(
+        'onError completes pending entry when error serialization throws',
+        () async {
+          final options = RequestOptions(
+            path: 'http://example.com/api',
+            method: 'GET',
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          expect(inspector.registry.network.entries.single.isComplete, false);
+
+          final err = DioException(
+            requestOptions: options,
+            type: DioExceptionType.badResponse,
+            response: Response(
+              requestOptions: options,
+              statusCode: 500,
+              data: _ThrowingData(),
+            ),
+          );
+          final handler = ErrorInterceptorHandler();
+          interceptor.onError(err, handler);
+
+          await expectLater(
+            // ignore: invalid_use_of_protected_member
+            handler.future,
+            throwsA(
+              isA<dynamic>().having(
+                (e) => (e as dynamic).data,
+                'data',
+                isA<DioException>(),
+              ),
+            ),
+          );
+
+          final entry = inspector.registry.network.entries.single;
+          expect(entry.isComplete, true);
+          expect(entry.isFailed, true);
+          expect(entry.statusCode, 500);
+        },
+      );
+
+      test(
+        'onError completes pending entry when err.toString() throws',
+        () async {
+          final options = RequestOptions(
+            path: 'http://example.com/api',
+            method: 'GET',
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          expect(inspector.registry.network.entries.single.isComplete, false);
+
+          // DioException.toString() interpolates the wrapped error, so a
+          // throwing toString() on it makes err.toString() throw too.
+          final err = DioException(
+            requestOptions: options,
+            type: DioExceptionType.unknown,
+            error: _ThrowingData(),
+          );
+          final handler = ErrorInterceptorHandler();
+          interceptor.onError(err, handler);
+
+          await expectLater(
+            // ignore: invalid_use_of_protected_member
+            handler.future,
+            throwsA(
+              isA<dynamic>().having(
+                (e) => (e as dynamic).data,
+                'data',
+                same(err),
+              ),
+            ),
+          );
+
+          final entry = inspector.registry.network.entries.single;
+          expect(entry.isComplete, true);
+          expect(entry.errorType, DioExceptionType.unknown);
+          expect(entry.errorStackTrace, isNotNull);
+        },
+      );
     });
   });
 }
