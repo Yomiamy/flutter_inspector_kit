@@ -95,7 +95,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
                 as NetworkEntry?;
         if (pending != null) {
           final startTime =
-              response.requestOptions.extra['_inspector_start_time'] as DateTime?;
+              response.requestOptions.extra['_inspector_start_time']
+                  as DateTime?;
           final duration = startTime != null
               ? DateTime.now().difference(startTime)
               : null;
@@ -154,7 +155,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
     } on Object catch (e, st) {
       try {
         final pending =
-            err.requestOptions.extra['_inspector_pending_entry'] as NetworkEntry?;
+            err.requestOptions.extra['_inspector_pending_entry']
+                as NetworkEntry?;
         if (pending != null) {
           final startTime =
               err.requestOptions.extra['_inspector_start_time'] as DateTime?;
