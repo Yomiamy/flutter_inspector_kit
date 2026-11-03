@@ -169,6 +169,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
               duration: duration,
               error: err.message ?? err.type.name,
               errorType: err.type,
+              errorStackTrace: err.stackTrace.toString(),
               isComplete: true,
             ),
             replaces: pending,

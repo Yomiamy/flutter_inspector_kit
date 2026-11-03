@@ -745,6 +745,7 @@ void main() {
           expect(entry.errorType, DioExceptionType.unknown);
           // Pins the recovery path: normal path would store err.toString().
           expect(entry.error, DioExceptionType.unknown.name);
+          expect(entry.errorStackTrace, isNotNull);
         },
       );
     });
