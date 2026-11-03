@@ -17,7 +17,7 @@
    - 拒絕引入 `bool handled` 等狀態變數。
    - 職責徹底分離：Inspector 僅防護其「自身觀測與解析邏輯」，Dio 管道調度（`handler.next`）位於外部單一出口。
 2. **邊界情況消滅（Good Taste）**：
-   - **消滅下游異常吞噬**：若將 `handler.next` 包入 `try`，下游攔截器或傳輸層的同步異常會被 `on Object catch` 誤捕獲並靜默吞噬。將 `handler.next` 移至 `try-catch` 之後，徹底杜絕誤吞業務異常。
+   - **消滅職責耦合與同步調度干擾**：`handler.next` 為 Dio 管道調度，若將其包入 `try`，`handler.next` 自身的同步例外或斷言會被 Inspector 誤捕獲。將 `handler.next` 移至 `try-catch` 之後作為單一外部出口，確保除錯觀測與管道調度職責徹底分離。
    - **消滅狀態變數與雙調用點**：
      ```dart
      @override

@@ -90,6 +90,26 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       _inspector.logNetwork(entry, replaces: pending);
     } on Object catch (e, st) {
       try {
+        final pending =
+            response.requestOptions.extra['_inspector_pending_entry']
+                as NetworkEntry?;
+        if (pending != null) {
+          final startTime =
+              response.requestOptions.extra['_inspector_start_time'] as DateTime?;
+          final duration = startTime != null
+              ? DateTime.now().difference(startTime)
+              : null;
+          _inspector.logNetwork(
+            pending.copyWith(
+              statusCode: response.statusCode,
+              duration: duration,
+              isComplete: true,
+            ),
+            replaces: pending,
+          );
+        }
+      } catch (_) {}
+      try {
         _inspector.log(
           'DioInterceptor.onResponse internal error: $e',
           level: LogLevel.warning,
@@ -132,6 +152,27 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       );
       _inspector.logNetwork(entry, replaces: pending);
     } on Object catch (e, st) {
+      try {
+        final pending =
+            err.requestOptions.extra['_inspector_pending_entry'] as NetworkEntry?;
+        if (pending != null) {
+          final startTime =
+              err.requestOptions.extra['_inspector_start_time'] as DateTime?;
+          final duration = startTime != null
+              ? DateTime.now().difference(startTime)
+              : null;
+          _inspector.logNetwork(
+            pending.copyWith(
+              statusCode: err.response?.statusCode,
+              duration: duration,
+              error: err.toString(),
+              errorType: err.type,
+              isComplete: true,
+            ),
+            replaces: pending,
+          );
+        }
+      } catch (_) {}
       try {
         _inspector.log(
           'DioInterceptor.onError internal error: $e',

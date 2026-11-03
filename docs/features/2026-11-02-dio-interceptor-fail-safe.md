@@ -18,11 +18,11 @@
 1. 宿主傳入或後端回傳特殊的資料型別，在 `_stringifyData` 或格式化期間拋出非預期例外（如 `StateError`、`FormatException` 等）；
 2. 甚至是 Dart `Error`（例如二進位解碼溢位、型別轉換錯誤等）；
 
-當未捕獲的例外逃逸時，Dio 攔截器執行鏈會被中斷，**`handler.next()` 永遠不會被呼叫**。在 Dio 的設計中，攔截器既未呼叫 `next` 也未呼叫 `reject`/`resolve`，會導致該 HTTP 請求的 `Future` 永久無法完成（**永久掛起 / Hang**），使用者頁面陷入無窮等待轉圈。
+當未捕獲的例外逃逸時，Dio 攔截器執行鏈被中斷，未呼叫 `handler.next()`，攔截器的同步例外會使包裝它的 Future 失敗並以 `DioException` 返回給宿主，導致宿主請求因除錯工具內部異常而中斷失敗。
 
 為了解決此問題，必須明確切分「Inspector 觀測邏輯」與「Dio 管道調度（`handler.next`）」的職責邊界：
 - 僅對 Inspector 內部的 entry 建構、字串化與日誌寫入進行 `try-catch(Object)` 防禦；
-- `handler.next(...)` 位於保護區外作為全域唯一出口，絕不將 `handler.next` 包在 `try` 內（避免下游攔截器的正常錯誤被 Inspector 誤捕獲並靜默吞噬）；
+- `handler.next(...)` 位於保護區外作為全域唯一出口，絕不將 `handler.next` 包在 `try` 內（避免捕獲 `handler.next` 自身的同步例外，確保管道調度與除錯觀測職責分離）；
 - 消滅任何人為的狀態旗標（如 `handled`）與 `finally` 補丁，達成無條件單一出口與好品味架構。
 
 ---
