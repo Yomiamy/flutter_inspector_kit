@@ -225,7 +225,12 @@ void main() {
       expect(find.textContaining('https://api.test/x'), findsOneWidget);
 
       // Switch to Network filter.
-      await tester.tap(find.widgetWithText(FilterChip, 'Network'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(FilterChip),
+          matching: find.textContaining('Network'),
+        ),
+      );
       await tester.pump();
 
       expect(find.text('a log'), findsNothing);
@@ -526,13 +531,17 @@ void main() {
     /// viewport, so the level chips sit off-screen until scrolled to — same as
     /// a user dragging the row.
     Future<void> tapChip(WidgetTester tester, String label) async {
+      final chipFinder = find.descendant(
+        of: find.byType(FilterChip),
+        matching: find.textContaining(label),
+      );
       await tester.scrollUntilVisible(
-        find.widgetWithText(FilterChip, label),
+        chipFinder,
         200,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilterChip, label));
+      await tester.tap(chipFinder);
       await tester.pumpAndSettle();
     }
 
@@ -641,13 +650,34 @@ void main() {
         await pumpTab(tester, inspector);
 
         // The neighbouring level chips are still there...
-        expect(find.widgetWithText(FilterChip, 'Warning'), findsOneWidget);
-        expect(find.widgetWithText(FilterChip, 'Info'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FilterChip),
+            matching: find.textContaining('Warning'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(FilterChip),
+            matching: find.textContaining('Info'),
+          ),
+          findsOneWidget,
+        );
         // ...but the one that used to sit beside the shortcut and read as the
         // same filter is gone.
-        expect(find.widgetWithText(FilterChip, 'Error'), findsNothing);
         expect(
-          find.widgetWithText(FilterChip, '\u26a1 Errors only'),
+          find.descendant(
+            of: find.byType(FilterChip),
+            matching: find.textContaining(RegExp(r'^Error \(')),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(FilterChip),
+            matching: find.textContaining('Errors only'),
+          ),
           findsOneWidget,
         );
       },
