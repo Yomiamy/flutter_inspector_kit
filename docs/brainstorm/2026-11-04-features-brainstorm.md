@@ -3,6 +3,7 @@
 > **建立日期**：2026-06-25（原始檔名）
 >
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-11-04**：**四度比對 zero_inspector_kit（追蹤至 v2.1.0 / PR #119–#122）**——深入審查 v2.0.1 ~ v2.1.0 共 8 個核心 commit（PR #119 ~ #122）。核心發現：(1) **架構定力四度獲得驗證**：① 對方在 v2.1.0 新增 `enablePrintZoneCapture`（預設 `true`）試圖讓宿主逃離全局 `runZonedGuarded` 的 `Zone mismatch` 泥淖，其單元測試（`print_zone_opt_out_test.dart:5-17`）甚至自承無法在 `flutter_test` 中測試 Zone 分支（會撞斷 binding 與框架 debug 不變式）——直接印證本專案自始採用 `FlutterError.onError` + `PlatformDispatcher.instance.onError`、**絕不包裹全局 `Zone` 亦不劫持 `debugPrint`** 的零侵入設計；② 對方在 v2.1.0 新增按需「類別分配直方圖（Class Allocation Histogram）」，透過手寫 JSON-RPC 呼叫 VM Service `getAllocationProfile`，不僅撞上 AF#1 與 AF-9（僅 debug/profile 有效，與官方 DevTools 重疊），更將 VM Service `ClassHeapStats` 的 **shallow bytes 誤標為 retained bytes（假精度）**，且未觸發 GC 即把分代 GC 的 New Space 餘量當成「記憶體增長警告」，甚至被自身的巨量 JSON 解碼分配嚴重污染；③ 對方在 v2.0.1 修復「宿主自帶 `navigatorKey` 時懸浮球永久消失並引發每幀無限 `addPostFrameCallback` 重試迴圈」以及「裸 `OverlayEntry` 面板遮擋 `showModalBottomSheet` 迫使重寫第 2 套裸浮層 `_ReplayEditorOverlay`」，再次印證本專案拒絕代構 `MaterialApp`（AF-10）並以標準 `PopupRoute`（`showGeneralDialog`）呈現面板的品味優勢；④ 對方為支援 OpenHarmony 被迫開立獨立 `ohos/v2.0.1` 分支與手動同步 Runbook，再度突顯本專案純 Dart 微核心與 §9.4 外圍插件解耦路線的價值。(2) **反向自查提煉借鏡優化（§Z1-11 / §P42）**：受對方 v2.0.1 `navigatorKey` 與 `Overlay` 掛載失敗案例啟發，反向實查本專案 `InspectorOverlayManager.attach`（`inspector_overlay_manager.dart:13-22`）與 `FlutterInspector.attach`（`flutter_inspector.dart:437-439`），揪出兩處邊界缺陷——未傳 `rootOverlay: true`（在巢狀 Navigator 下掛錯內層 Overlay），以及當宿主依 `README.md:121-128` 在建立 `MaterialApp` 的根 `State.initState` 呼叫 `attach(context: context)` 時，因 `context` 位於 `MaterialApp` 之上導致 `Overlay.maybeOf(context)` 回傳 `null` 而靜默掛載失敗！正式提煉為 **§P42（源自 §Z1-11）FAB Overlay 根層解析與 `navigatorKey.currentState?.overlay` 自動退回**（`context` 改為可選，零破壞向後相容）。同時勘誤 §Z6 原先誤記「對方已於 v2.0.0 移除 `runAppWithInspector`」之事實（實際移除的是死代碼 `runInspectorApp`）。完成度總覽版本標記同步對齊 `pubspec.yaml` 之 `v2.9.0`。檔名日期前綴維持 `2026-11-04`（已是今日）。
 > * **2026-11-04**：**§P41 完成**——PR #239 合入 main（issue #238），ConsoleTab 所有 FilterChip 顯示事件計數徽章，於 `build` 以全量時間軸單次走訪投影計算，隨既有重建時機更新。檔名日期前綴維持 `2026-11-04`（已是今日）。
 > * **2026-11-04**：**§P39 完成**——PR #237 合入 main（issue #236），Dio 攔截器三個回呼的觀測邏輯改為 `on Object catch` 防護、`handler.next` 為單一出口；序列化失敗時補完成 pending entry，不再滯留 Pending。檔名日期前綴由 `2026-10-31` 更新至 `2026-11-04`。
 > * **2026-10-31**：**Flutter In-App 除錯工具開源生態全景調研完成（12 大工具族群）**——廣泛檢索 pub.dev 與 GitHub 上所有與 `zero_inspector_kit` 類似的 In-App 開發除錯套件（涵蓋 `talker_flutter`、`alice` 系列、`chucker_flutter`、`requests_inspector`、`flutter_ume`、`pluto_inspector` / `ispect`、`flutter_flipperkit`、`f_logs`、`cr_logger`、`logger`、`leak_tracker` 等 12 大工具族群），產出獨立全景報告（**未入庫**，重點收錄於第九部分）。確立 AF-1 ~ AF-10 十大反模式拒絕清單；正視外圍 `share_plus` 與通知套件現狀並訂立純 Dart 解耦路線圖；正式將 10 項高排查價值借鏡打磨提案（§P32 ~ §P41）納入待辦清單（含雙元件間距標尺、觸控放大鏡、純 Dart 環境快照、Dio 攔截器 Fail-Safe 防衛、呼叫堆疊智慧折疊、動態篩選計數徽章等）。檔名日期前綴維持 `2026-10-31`（已是今日）。
@@ -50,7 +51,7 @@
 
 ---
 
-## 📊 完成度總覽（截至 2026-11-04 · v2.8.0）
+## 📊 完成度總覽（截至 2026-11-04 · v2.9.0）
 
 > 以下狀態依實際 codebase 與 git history 核對標注。✅ 完成 ｜ 🟡 部分完成 ｜ ⬜ 未實作。
 >
@@ -1868,7 +1869,10 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | ~~**§P39** Dio 攔截器 Fail-Safe 雙重防禦~~ | 【網路防禦】`on Object catch` 防止 Error 逃逸 + boolean guard 確保 `handler.next()` 單次保證執行 — ✅ 已完成（PR #237 / Issue #236；實作為 `handler.next` 移至 try-catch 後的單一出口，未用 boolean guard） | trivial | ✅ |
 | **§P40** 呼叫堆疊框架智慧折疊 | 【日誌排查】主體（Concise/Raw 切換 + 框架折疊）已由 §P19 完成（PR #149，`log_formatters.dart:95` `normalizeStackTrace`）；剩餘缺口僅「折疊後 0 行時退回 raw」，縮為對既有函式的小修補 | trivial | 🟡 |
 | ~~**§P41** 篩選標籤動態數量徽章~~ | 【控制台互動】ConsoleTab FilterChip 動態統計事件計數徽章（純無狀態投影） — ✅ 已完成（PR #239 / Issue #238；計數隨 ConsoleTab 重建更新，不另監聽 `revision`） | trivial | ✅ |
+| **§P42** Overlay 掛載根層解析與安全退回 | 【掛載防禦】`attach([context])` 支援 `rootOverlay: true` 並在 context 位於根組件之上時退回 `navigatorKey.currentState?.overlay`，防禦掛載靜默失敗（源自 §Z1-11） | trivial~low | ⬜ |
 
+> **2026-11-04 zero_inspector_kit v2.1.0 調研與反向自查新增（§P42 / §Z1-11）**：針對 `InspectorOverlayManager.attach` 與 `FlutterInspector.attach` 自查，規劃掛載安全防禦規格：解決宿主在根組件 `initState` 呼叫 `attach(context)` 時因 `context` 位於 `MaterialApp` 之上導致 `Overlay.maybeOf(context)` 為 null 靜默失敗之問題，將 `context` 改為可選並優先以 `(context != null && context.mounted ? Overlay.maybeOf(context, rootOverlay: true) : null) ?? navigatorKey.currentState?.overlay` 解析 Overlay，未就緒時由 `addPostFrameCallback` 延遲掛載，確保向後相容。
+>
 > **2026-10-31 開源生態全景調研新增（§P32 ~ §P41）**：檢索 12 大 In-App 工具族群（`talker_flutter`、`alice`、`chucker_flutter`、`pluto_inspector` / `ispect` 等），確立 10 項符合純 Dart 微核心硬約束的借鏡打磨待辦（重點見第九部分；獨立報告未入庫）。其中 §P32 ~ §P35 與前次 zero_inspector_kit 提煉之 §Z1-10、§Z1-9、§Z1-8、§Z4 為**同一批項目，以 §P 為正式編號**（§Z 列僅保留來源與指向，勿重複排程），§P36 ~ §P41 為生態全新借鏡。
 >
 > **2026-10-31 zero_inspector_kit 2.0.0 全模組對齊新增**：自查查出 3 項高價值零破壞打磨待辦——**§Z1-9 Dio `FormData` 上傳摘要化**（trivial）、**§Z1-10 日誌 ANSI Escape 顏色碼濾除**（trivial）與 **§Z4 NetworkDetailView 區塊獨立複製**（trivial），均列入打磨排程。
@@ -2208,11 +2212,38 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
   - 計數隨 ConsoleTab 既有的 `setState` / `_refresh` 重建更新，不另外監聽 `registry.revision`，確保徽章數字與下方列表同步。
 * **Effort**：Trivial ｜ **排查價值**：⭐⭐⭐
 
+### §P42 【掛載防禦】FAB Overlay 根層解析與 NavigatorKey 自動退回 (Overlay Mount Defense) — 待辦（源自 §Z1-11）
+> **痛點**：宿主依照 `README.md:121-128` 範例在 App 根組件（如 `_AppState`）的 `initState` 中呼叫 `attach(context: context)`，此時 `context` 位於 `MaterialApp` 之上，`Overlay.maybeOf(context)` 回傳 `null`，導致懸浮按鈕（FAB）**靜默掛載失敗**且無任何提示；此外，若未傳 `rootOverlay: true`，在含有巢狀 `Navigator`（如 ShellRoute / 局部導航器）的宿主應用中，懸浮按鈕可能被錯誤插入內層 Overlay，當內層導航器 pop 或切換頁面時浮球消失或被局部裁切。
+
+* **來源**：zero_inspector_kit v2.0.1 借鏡與反向自審（第八部分 · §Z1-11）。
+* **根因分析**：
+  1. `lib/src/core/inspector_overlay_manager.dart:15` 直接調用 `final overlay = Overlay.maybeOf(context);`，預設 `rootOverlay: false`，僅搜尋最近的上層 Overlay；在巢狀路由或由根 Context 尋找時失敗。
+  2. `README.md` 食譜引導開發者在建立 `MaterialApp` 的根 State 之 `initState` + `addPostFrameCallback` 中調用 `inspector.attach(context: context)`，但該 `context` 是根 State 的 BuildContext，永遠在 `MaterialApp` 之上，即使用 post-frame callback 依然無法由該 context 向上找到 MaterialApp 內部創建的 Overlay。
+  3. `attach` API 簽章過於嚴苛，強制 `required BuildContext context`，未善用建構時即強制要求的 `navigatorKey`。
+* **好品味設計（核心洞察）**：
+  > 善用現有資料結構，消除邊界特殊情況。`FlutterInspector` 建構時已強制要求傳入 `navigatorKey`，故將 `context` 改為可選（`BuildContext? context`）。掛載時採雙層退回解析策略：
+  > ```dart
+  > final overlay = (context != null && context.mounted ? Overlay.maybeOf(context, rootOverlay: true) : null)
+  >     ?? navigatorKey?.currentState?.overlay;
+  > ```
+  > 1. 優先嘗試由傳入的 `context` 尋找 `rootOverlay: true`（防禦巢狀 Navigator 誤掛）。
+  > 2. 若 `context == null` 或其不在 Overlay 子樹內（根組件情境），自動退回使用 `navigatorKey.currentState?.overlay`。
+  > 3. 若調用當下兩者皆尚未就緒（如同步呼叫於首幀之前），透過 `WidgetsBinding.instance.addPostFrameCallback` 進行單次安全延遲重試，並以 `_pendingAttach` 旗標與 `detach()` 取消機制防禦競態。
+  > 4. 100% 向後相容：既有調用 `inspector.attach(context: context)` 程式碼無須修改，行為由「靜默掛載失敗」自動修復為「成功掛載」。
+* **Linus 模式五層評估**：
+  - **資料結構**：`GlobalKey<NavigatorState>` 既有欄位複用，新增 `bool _pendingAttach = false` 內部守衛旗標。
+  - **特殊情況**：消滅「呼叫時機在 MaterialApp 之前」、「傳入的 context 位於 MaterialApp 之上」、「巢狀 Navigator」等三個特殊情況，收斂為無條件的根層 Overlay 解析。
+  - **複雜度**：Trivial~Low。
+  - **破壞性**：零破壞（Never break userspace，舊有 `attach(context: context)` 完全無感升級）。
+  - **實用性**：極高（修復 README 官方範例在典型 App 中的掛載失敗暗坑）。
+* **寫入路徑**：`lib/src/core/inspector_overlay_manager.dart`、`lib/src/core/flutter_inspector.dart`、`README.md`。
+* **Effort**：Trivial~Low ｜ **排查價值**：⭐⭐⭐⭐⭐
+
 ---
 
-## 🔬 第八部分：zero_inspector_kit 比對——記憶體／FPS 監控與可借鏡項（2026-10-31 追蹤至 v2.0.0）
+## 🔬 第八部分：zero_inspector_kit 比對——記憶體／FPS 監控與可借鏡項（2026-11-04 追蹤至 v2.1.0）
 
-> **來源**：<https://github.com/zero-labsco/zero_inspector_kit>（v1.15.0 基準，2026-10-22 二度追蹤至 v1.17.0 / PR #116，2026-10-31 三度追蹤至 v2.0.0 / PR #117，MPL-2.0——只借想法，不複製檔案）
+> **來源**：<https://github.com/zero-labsco/zero_inspector_kit>（v1.15.0 基準，2026-10-22 二度追蹤至 v1.17.0 / PR #116，2026-10-31 三度追蹤至 v2.0.0 / PR #117，2026-11-04 四度追蹤至 v2.1.0 / PR #119–#122 / 8 個核心 commit，MPL-2.0——只借想法，不複製檔案）
 >
 > **查證方式**：`git clone --depth 1` 後由 10 個 reader 分子系統逐檔深讀，整理出 87 個候選。fps-1～fps-7 由 4 個獨立視角（證據／量測有效性／既有裁決／價值）各自驗證；其餘 77 個因用量上限改由 10 個批次 agent 各以單一合併視角驗證，**獨立確認程度較低**。下文標「✅ 已親查」者為主對話親自讀原始碼核實。
 >
@@ -2222,21 +2253,21 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 **記憶體監控與 FPS 監控皆無可直接搬移者**。兩者的形狀都是「常駐 `Timer.periodic` 輪詢 + 即時儀表 + 原生 plugin（Android/iOS MethodChannel）」，與本專案的純 Dart package、不輪詢、離散事件進 `mergedTimeline` 三項定位正面衝突；Web 亦不可用（無條件 `import 'dart:io'`）。
 
-### 📊 zero_inspector_kit 2.0.0 全模組（10 大子系統）對齊矩陣
+### 📊 zero_inspector_kit 2.0.0 / v2.1.0 全模組（10 大子系統）對齊矩陣
 
-經逐檔盤點 `zero_inspector_kit` v2.0.0 全部 77 個原始碼檔案與功能架構，與 `flutter_inspector` 進行全方位對齊：
+經逐檔盤點 `zero_inspector_kit` v2.0.0 / v2.1.0 全部原始碼檔案與功能架構，與 `flutter_inspector` 進行全方位對齊：
 
-| 子系統 / 模組 | zero_inspector_kit 2.0.0 現行實作與機制 | flutter_inspector 現行架構與對照 | 對齊結論與借鏡決策 (Linus 模式審視) |
+| 子系統 / 模組 | zero_inspector_kit 2.0.0 / v2.1.0 現行實作與機制 | flutter_inspector 現行架構與對照 | 對齊結論與借鏡決策 (Linus 模式審視) |
 |:---|:---|:---|:---|
-| **1. 日誌 (Logs)** | `InspectorLogInterceptor` 攔截異常與 print；支援 Level 篩選與搜尋（有緩存 bug）；v2.0.0 刪除 iOS `dup2` / Android logcat 原生代碼；異常與堆疊拆為 2 筆獨立日誌 | `UncaughtErrorHandler`（`identical` 去重，鏈式傳遞不 teardown，自動解析 RenderFlex 溢出上下文）；`mergedTimeline` 統一混合流；`LogDetailView` 支援 StackTrace concise (框架過濾)/raw 切換、`JsonTreeViewer` 樹狀展開；Agent Prompt 匯出 | **本專案領先**：因果關聯與智慧解析碾壓對方。**借鏡 §Z1-10**：濾除終端彩色 ANSI escape 序列 (`stripAnsi`)，避免第三方 logger 引入亂碼字符 |
-| **2. 網路 (Network)** | 全域 `HttpOverrides.global` 代理（`dart:io` 專用，Web/WASM 崩潰）；API Mocking (改 response)；Waterfall 瀑布圖；HAR 1.2 匯出；`InspectorReplayEditor` (改 query/body 重送)；WebSocket 監聽；v2.0.0 注入關聯頭 `x-inspector-request-id` | 純 Dart `DioInterceptor`（100% Web/WASM 相容）；README 提供 gRPC 與 WebSocket 零件化食譜；`_ErrorSummaryBanner` 智慧分組；🐢 SLOW 標籤；一鍵 cURL / Markdown / Agent Prompt 複製；原生狀態碼 Replay | **本專案領先**：堅持 Web 相容與零侵入（Mocking 撞 AF#4、瀑布圖撞 AF#1、關聯頭污染 HMAC）。**借鏡 §Z1-9**（Dio `FormData` 上傳欄位與檔案摘要化）與 **§Z4**（`NetworkDetailView` 區塊獨立一鍵複製按鈕） |
+| **1. 日誌 (Logs)** | `InspectorLogInterceptor` 攔截異常與 print；支援 Level 篩選與搜尋（有緩存 bug）；v2.0.0 刪除 iOS `dup2` / Android logcat 原生代碼；異常與堆疊拆為 2 筆獨立日誌；v2.1.0 `f6d567f` 因全局 Zone 撞斷宿主 binding 與 APM 新增 `enablePrintZoneCapture` opt-out 旗標（預設 true），官方單測自承在 `flutter_test` 無法測試 Zone 分支 | `UncaughtErrorHandler`（`identical` 去重，鏈式傳遞不 teardown，自動解析 RenderFlex 溢出上下文）；`mergedTimeline` 統一混合流；`LogDetailView` 支援 StackTrace concise (框架過濾)/raw 切換、`JsonTreeViewer` 樹狀展開；Agent Prompt 匯出 | **本專案領先**：因果關聯與智慧解析碾壓對方。**架構定力驗證**：對方新增 opt-out 印證全局 Zone 劫持是死胡同，本專案堅持零 Zone 侵入（鏈式 `FlutterError.onError` + `PlatformDispatcher.onError`）。**借鏡 §Z1-10**：濾除終端彩色 ANSI escape 序列 (`stripAnsi`)，避免第三方 logger 引入亂碼字符 |
+| **2. 網路 (Network)** | 全域 `HttpOverrides.global` 代理（`dart:io` 專用，Web/WASM 崩潰）；API Mocking (改 response)；Waterfall 瀑布圖；HAR 1.2 匯出；`InspectorReplayEditor` (改 query/body 重送)；WebSocket 監聽；v2.0.0 注入關聯頭 `x-inspector-request-id`；v2.0.1 `91213c8` 因面板遮擋 `showModalBottomSheet` 被迫將 Replay Editor 降級重寫為第 2 套裸浮層 `_ReplayEditorOverlay` | 純 Dart `DioInterceptor`（100% Web/WASM 相容）；README 提供 gRPC 與 WebSocket 零件化食譜；`_ErrorSummaryBanner` 智慧分組；🐢 SLOW 標籤；一鍵 cURL / Markdown / Agent Prompt 複製；原生狀態碼 Replay | **本專案領先**：堅持 Web 相容與零侵入（Mocking 撞 AF#4、瀑布圖撞 AF#1、關聯頭污染 HMAC）。對方用裸 `OverlayEntry` 浮層覆蓋 ModalBottomSheet 導致層級混亂，反觀本專案標準 `PopupRoute` (showGeneralDialog) 零層級倒置。**借鏡 §Z1-9**（Dio `FormData` 上傳欄位與檔案摘要化）與 **§Z4**（`NetworkDetailView` 區塊獨立一鍵複製按鈕） |
 | **3. 路由導航 (Routes)** | `RouteObserver`（v2.0.0 補齊 `RouteAction.remove`）；扁平式歷史列表記錄進出場耗時。曾試圖透過 `runAppWithInspector` 劫持 `MaterialApp` 導致屬性遺漏與 Navigator 2.0 斷裂 | 純 `FlutterInspectorNavigatorObserver` 零件化掛載；`NavigatorTab` + `NavigatorStackResolver`（**虛擬 Active Stack 即時推演**，呈現當前頁面之底層堆疊）；URL query 與 argument 參數分離；Console 混合流即時標記 `routeLabel` | **本專案完全領先**：Active Stack 推演遠勝扁平流水帳；參數分離清晰；零侵入。對方無可借鏡 |
 | **4. 資料庫與鍵值儲存 (Storage/Database)** | 依賴 `sqflite`、`path_provider`、`shared_preferences` 等原生外掛直接掃描本機檔案目錄；定時每 3 秒對所有 `.db` 跑 `PRAGMA` 與 `COUNT(*)` 產生頻繁 I/O 震盪；搜尋未接 `onChanged` 致完全無效；Web 不可用 | 純 Dart 主機注入介面（`DatabaseBrowserSource`、`KeyValueBrowserSource`），分為 `DatabaseTab` 與獨立 `StorageTab`；支援任意儲存引擎（SQLite、Hive、ObjectBox、SharedPreferences、SecureStorage）；支援即時增刪改清空；自動記錄稽核日誌與遮蔽；100% Web/WASM 相容 | **本專案完全領先**：對方為典型過度工程與反模式（高頻磁碟 I/O + 破壞 Web 相容）。本專案注入架構簡潔、通用且零原生負擔。對方無可借鏡 |
 | **5. 幀率與效能 (FPS/Performance)** | `FpsService`、`FpsViewer`、`BlockingWatchdogService`。常駐 1s Timer 算 FPS；500ms 重繪自身 UI 造成觀察者效應；100ms 週期 Watchdog 檢查 UI 阻塞，切背景引發假卡頓；公式混用單調時鐘與牆上時鐘 | 純 SDK `addTimingsCallback` 監聽；**離散事件模型**（`totalSpan >= 700ms` 凍結幀標準寫入 warning log 進既有時間軸）；連續凍結幀自動合併；主動排除自身 `reassembleApplication` 停頓；零常駐輪詢 Timer，零觀察者效應 | **本專案哲學獲勝**：消滅即時儀表（AF#1），堅持離散因果排查。對方實作缺陷頻生且造成嚴重觀察者效應，無可借鏡 |
-| **6. 記憶體與洩漏 (Memory/Leaks)** | `MemoryInspectorService`、`MemoryViewer`、`LeakTrackerBridge`。常駐 4 個定時器（500ms/3s/3s/2s）背景輪詢；嘗試連線 VM Service；v2.0.0 在離線/release 下超時即推測洩漏，產生海量 notGCed 假陽性 | `LifecycleHandler` 捕獲系統級記憶體警報（`didHaveMemoryPressure`）；純 Dart 零輪詢；§Z1-5 過濾 Android `TRIM_MEMORY_UI_HIDDEN` 切背景誤報；堅守核心決策三（拒絕 In-App 偽洩漏追蹤） | **本專案定力獲勝**：嚴守「沒有 GC 證明不猜測洩漏」；反向驗證本專案拒絕 In-App 記憶體輪詢的正確性。對方無可借鏡 |
+| **6. 記憶體與洩漏 (Memory/Leaks)** | `MemoryInspectorService`、`MemoryViewer`、`LeakTrackerBridge`。常駐 4 個定時器（500ms/3s/3s/2s）背景輪詢；嘗試連線 VM Service；v2.0.0 在離線/release 下超時即推測洩漏，產生海量 notGCed 假陽性；v2.1.0 `a82bbc8` 新增數值比對閒置跳過快照以降低輪詢開銷；v2.1.0 `1234e18` 新增 Class Allocation Histogram，手寫 JSON-RPC 呼叫 VM Service `getAllocationProfile` | `LifecycleHandler` 捕獲系統級記憶體警報（`didHaveMemoryPressure`）；純 Dart 零輪詢；§Z1-5 過濾 Android `TRIM_MEMORY_UI_HIDDEN` 切背景誤報；堅守核心決策三（拒絕 In-App 偽洩漏追蹤） | **本專案定力獲勝**：嚴守「沒有 GC 證明不猜測洩漏」；對方 Allocation Histogram 存在 shallow bytes 冒充 retained bytes（假精度）、未經 GC 誤報增長、巨量 JSON 解析自我污染三大硬傷；閒置跳過快照掩飾輪詢成本且遺漏背景任務洩漏。本專案反向驗證拒絕 In-App 記憶體輪詢的正確性，堅決不借鏡 |
 | **7. 元件與排版檢視 (Widgets/Layout)** | `WidgetTreeInspector`，遞迴巡訪整個 Element Tree 生成麵包屑導航；在 Release 下因 `debugCreator` 遺失直接崩潰；巡訪全樹記憶體消耗大（撞 AF#8） | `LayoutInspectOverlay` + `LayoutProbe` (§P31)，支援所有 build mode（含 Release）；**Tap-to-Inspect 點選探測**，即時呈現尺寸、constraints、global offset 與父鏈層級；以 `LayoutProbeShield` 隔離 kit 自身；AppBar 提供 `debugPaintSizeEnabled` 排版邊界切換 (§P28) | **本專案完全領先**：以「點選即查」取代「全樹展開」，好品味且在 Release 模式下完全可用，徹底碾壓對方的重型全樹巡訪。對方無可借鏡 |
 | **8. 告警與規則 (Alerts & Rules)** | `AlertService`、`AlertsViewer`、`RequestInterceptorRule`。自定義 URL 正則、狀態碼、耗時規則；命中時跳出頂部浮動 Toast 並寫入 SQLite。Toast 雙重 remove 崩潰，遮擋主畫面 | `AlertThrottler` 防風暴；`_ErrorSummaryBanner` 自動聚合；系統原生通知（`showCrashNotification` / `showNetworkNotification`）；前景提示走 FAB 未讀數 badge | **本專案領先**：排查工具應當開箱即用，讓開發者手動配置規則是嚴重過度工程。頂部 Toast 亦具強烈干擾與觀察者效應。本專案不借鏡（撞 AF#2/AF#6） |
-| **9. 懸浮按鈕 (Floating Button)** | `FloatingInspectorButton` 414 行代碼，使用 `AnimationController` 實現邊緣吸附動畫；v2.0.0 因未 `removeListener` 導致監聽器洩漏與小球抖動爭搶回跳 | `InspectorFab` 54 行斯巴達式純 Dart 代碼，`GestureDetector.onPanUpdate` 直覺位移，夾在螢幕安全邊界內；支援未讀 Badge 狀態更新；零 Controller、零監聽器洩漏 | **本專案品味勝出**：54 行斯巴達代碼消滅 414 行的所有邊界條件與洩漏風險。對方無可借鏡 |
+| **9. 懸浮按鈕 (Floating Button)** | `FloatingInspectorButton` 414 行代碼，使用 `AnimationController` 實現邊緣吸附動畫；v2.0.0 因未 `removeListener` 導致監聽器洩漏與小球抖動爭搶回跳；v2.0.1 `545386c` 因宿主自帶 `navigatorKey` 導致查找 Overlay 失敗、懸浮球永久消失並引發每幀無限重試迴圈，改為掛載至宿主 `navigatorKey` | `InspectorFab` 54 行斯巴達式純 Dart 代碼，`GestureDetector.onPanUpdate` 直覺位移，夾在螢幕安全邊界內；支援未讀 Badge 狀態更新；零 Controller、零監聽器洩漏 | **本專案品味勝出**：54 行斯巴達代碼消滅 414 行的所有邊界條件與洩漏風險。**借鏡反查 §P42 / §Z1-11**：受對方 `545386c` 啟發反向自查本專案 `attach(context)` 在根組件 context 下查找 Overlay 為 null 之缺陷，提煉雙重解析與安全退回機制（§P42） |
 | **10. 持久化與報告匯出 (Persistence & Export)** | SQLite 磁碟落盤；跨 session 日誌回放；v2.0.0 `flush()` 在 `commit()` 前清空緩衝導致靜默掉資料，`dispose()` 競態留下孤兒 Timer，被逼增加 5 次重試降級記憶體模式；匯出 Bug 報告誤切最舊 N 條 | 純記憶體 `RingBuffer(500)`，零磁碟 I/O，零啟動阻塞；匯出支援 Markdown 診斷報告、結構化 `toEncodable` JSON (§P9 待辦)、以及專為 LLM 設計的 **AI Agent Prompt**（含完整因果鏈與 cURL） | **本專案定力獲勝**：純記憶體徹底避開落盤泥淖；AI Agent Prompt 引領了當前 AI 輔助排查的最新實踐。對方無可借鏡 |
 
 **對方的實作缺陷（勿重蹈）**：
@@ -2269,6 +2300,11 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | **(v2.0.0)** Dio 攔截器曾非同步 listen 排空 `ResponseBody.stream`，導致 SSE/大文件下載業務方拿到空流崩潰（v2.0.0 改為佔位說明） | `dio_interceptor.dart:136-165` |
 | **(v2.0.0)** 只掛 Dio 攔截器時向出站請求注入關聯頭 `x-inspector-request-id`，污染 HMAC 簽名並觸發 CORS 預檢 | `dio_interceptor.dart:71-85` |
 | **(v2.0.0)** WebP 魔數嗅探在 build 期間執行但長度守衛只擋 `< 8`（WebP 需讀到 `[11]`），遇到 8~11 節點拋 RangeError 崩潰網絡詳情頁 | `inspector_image_preview.dart:51-65` |
+| **(v2.0.1)** 懸浮按鈕在宿主提供 `navigatorKey` 時因查找 Overlay 失敗導致懸浮球永久消失，且每幀無限觸發 `addPostFrameCallback` 重試迴圈（commit `545386c`） | `floating_button.dart:70-95` |
+| **(v2.0.1)** 裸 `OverlayEntry` 儀表板面板遮擋 `showModalBottomSheet`，被迫將 Replay Editor 降級重寫為第 2 套裸浮層 `_ReplayEditorOverlay`（commit `91213c8`），加劇浮層層級混亂與返回鍵焦點丟失 | `replay_editor.dart:45-80` |
+| **(v2.1.0)** 全域 `runZonedGuarded` 劫持 print 造成嚴重 Zone mismatch 衝突，新增 `enablePrintZoneCapture` opt-out 旗標（commit `f6d567f`），官方單元測試自承在 `flutter_test` 環境無法測試 Zone 分支（撞斷 Binding） | `print_zone_opt_out_test.dart:5-17` |
+| **(v2.1.0)** Class Allocation Histogram 假精度與記憶體污染：手寫 JSON-RPC 呼叫 VM Service `getAllocationProfile`（commit `1234e18`），將 `ClassHeapStats` shallow bytes 誤標為 retained bytes；未經 Full GC 即把 New Space 短命物件餘量誤報為記憶體增長；自身解析巨量 JSON 回傳造成 Dart Heap 嚴重污染 | `allocation_profile_service.dart:110-185` |
+| **(v2.1.0)** 記憶體快照閒置跳過（commit `a82bbc8`）以「使用者無操作」判定跳過快照，導致背景非同步任務（如大檔下載或 DB 批次寫入）引發的真實記憶體攀升被靜默忽略 | `memory_inspector_service.dart:610-630` |
 
 ### §Z1. 既有缺陷（不需裁決，可直接排程）
 
@@ -2286,6 +2322,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | 8 | **→ 已併入 §P34（正式編號，規格以該節為準）** **(v2.0.0 借鏡)** Dio `ResponseBody` (Stream) 佔位友善化：當發起大文件下載或 SSE 時，Dio 的 `response.data` 為 `ResponseBody`。目前走 `toString()` 輸出為 `Instance of 'ResponseBody'`，不夠直觀 | `dio_interceptor.dart:20-34` | 於 `_stringifyData` 增設 `data is ResponseBody` 判斷，回傳 `'[stream response (ResponseBody)]'` 佔位符，明確揭示流式回應且與 binary 佔位風格一致，同時堅持絕不 listen 排空業務 stream | trivial |
 | 9 | **→ 已併入 §P33（正式編號，規格以該節為準）** **(v2.0.0 借鏡)** Dio `FormData` (Multipart) 上傳摘要化：當發起多部件上傳時，Dio 的 `request.data` 為 `FormData`。目前走 `_stringifyData` 輸出為 `'Instance of \'FormData\''`，在 Network 列表與詳情中完全無法得知包含哪些欄位與檔案 | `dio_interceptor.dart:20-34`、`network_formatters.dart` | 於 `_stringifyData` 增設 `data is FormData` 判斷，走訪 `fields` (key/val) 與 `files` (key, filename, byte length)，格式化為 `[FormData: key1=val1, file1=avatar.png (1024 B)]$kTruncatedMarker`；空表單輸出 `[FormData: empty]$kTruncatedMarker`；`filename` 防守 nullable（`${e.value.filename ?? '<unnamed>'}`）；結尾**強制附帶 `$kTruncatedMarker`** 使 `isRequestTruncated == true`，自動停用 Replay（比照 §Z1-1，防止將摘要字串作為 payload 重送）；堅持純讀取 metadata，絕不呼叫 `finalize()` 消耗 stream | trivial |
 | 10 | **→ 已併入 §P32（正式編號，規格以該節為準）** **(v2.0.0 借鏡)** 日誌 ANSI Escape 顏色碼濾除 (`stripAnsi`)：使用第三方 logger（如 `package:logger` 的 `PrettyPrinter`）或終端彩色字串時，字串內含 `\x1B[38;5;196m` 等 ANSI escape codes，在 `ConsoleTab`、`LogDetailView` 與報告中顯示為亂碼跳脫字元 | `flutter_inspector.dart`（攝入入口）、`utils/log_formatters.dart` | 提煉靜態正則 `RegExp(r'\x1B\[[0-9;]*[A-Za-z]')` 與純函式 `stripAnsi(String text)`，以 `indexOf('\x1B') < 0` 快速返回；**洗滌時機鎖定在攝入邊界（`FlutterInspector.log` 入口處）**，一處清洗使記憶體 RingBuffer、關鍵字搜尋、Console 列表、LogDetailView、Agent Prompt 與報告匯出全部乾淨，杜絕展示端重複運算 | trivial |
+| 11 | **(v2.0.1 借鏡反查)** 根組件 `initState` 呼叫 `attach(context)` 時 `context` 位於 `MaterialApp` 之上致 `Overlay.maybeOf(context)` 為 null，懸浮按鈕靜默掛載失敗；且未傳 `rootOverlay: true` 在巢狀 Navigator 下掛錯層級 → **已併入 §P42（正式編號，規格以該節為準）** | `inspector_overlay_manager.dart:13-22`、`flutter_inspector.dart:437-439` | `context` 改為可選；改以 `(context != null && context.mounted ? Overlay.maybeOf(context, rootOverlay: true) : null) ?? navigatorKey.currentState?.overlay` 解析；未就緒時由 `addPostFrameCallback` 單次延遲重試 | trivial~low |
 
 > **附帶一處註解修正（併入 #5）**：`lifecycle_handler.dart:66-67` 寫「the actual RSS figure needs a platform channel」不精確——`dart:io` 的 `ProcessInfo.currentRss` 不需 channel，但本套件刻意不用（Web 不支援且公開承諾不碰 `dart:io`）；Google 定義的 anonymous RSS+Swap 則確實沒有 in-app API。
 
@@ -2355,6 +2392,10 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 - **無 GC 證明的離線記憶體洩漏分析災難（v2.0.0 實證）**：對方在 v2.0.0 將 `verifying -> leaked` 的 VM Service 依賴解除，在 release 包超時即判洩漏。這恰恰落入「沒有 GC 證明就盲目推測」的陷阱，在使用者暫停操作、Dart VM 尚未觸發 Full GC 時會引發海量假陽性誤報（notGCed 誤報），再度佐證本專案核心決策三（拒絕 In-App 記憶體洩漏分析）。
 - **`NavigatorAction.remove` 與 Dart 3 窮盡性（v2.0.0 實證）**：對方直到 2.0.0 才將 `didRemove` 從 `pop` 糾正為 `remove`，並因 Dart 3 窮盡 switch 被迫發布 major 破壞性更新；而本專案從一開始即完整支援 `NavigatorAction.remove`。
 - **FAB 拖動狀態管理與過度工程（v2.0.0 實證）**：對方懸浮按鈕因使用 AnimationController 吸附動畫卻未在重新拖動時 `removeListener`，導致監聽器洩漏與小球抖動爭搶；本專案斯巴達式的 `onPanUpdate` 直覺位移（54 行代碼）再次證明「簡潔永遠優於複雜的動畫」。
+- **Zone 劫持的終局是死胡同（v2.1.0 實證 · `f6d567f`）**：zero_inspector_kit 預設透過 `runZonedGuarded` 包裹宿主 `runApp` 來攔截裸 `print()`，引發嚴重的 `Zone mismatch` 崩潰並撞斷第三方 APM。在 v2.1.0 對方新增 `enablePrintZoneCapture: false` 逃生艙，但預設值仍為 true；其官方單測（`test/print_zone_opt_out_test.dart:5-17`）自白無法在 `testWidgets` 下測試該分支，因為 `runApp` 會撞斷 Flutter 的 binding 不變式。這證明全局 Zone 劫持在架構與測試維度皆是死胡同。強化本專案堅持「零 Zone 侵入，只 chain `FlutterError.onError` + `PlatformDispatcher.instance.onError`，日誌走顯式 API 攝入」的架構定力。
+- **VM Service AllocationProfile 的假精度與嚴重記憶體污染（v2.1.0 實證 · `1234e18`）**：對方在 v2.1.0 新增「類別分配直方圖」，手寫 JSON-RPC 呼叫 VM Service `getAllocationProfile`，暴露出三重致命缺陷：① **無 GC 觸發導致 New Space 海量假陽性**：為防主線程卡頓未傳 `gc: true`，導致短命臨時對象被誤報為「持續洩漏/記憶體暴增」；② **Shallow Bytes 冒充 Retained Bytes 欺騙**：`ClassHeapStats` 僅為淺層大小（Shallow Bytes），宣稱為保留大小（Retained Bytes）是技術失實的「假精度」；③ **巨量 JSON 解析嚴重污染記憶體**：在 UI Isolate 上解析 2MB~10MB+ JSON Payload，瞬間製造數萬個臨時 Map/List 物件與 GC 震盪，自身製造的分配量直接污染下一次記憶體觀測（極端觀察者效應）。印證本專案核心決策三（拒絕 In-App 偽洩漏追蹤，專業 Heap 分析回歸官方 DevTools）的正確性。
+- **裸 OverlayEntry 堆疊地獄（v2.0.1 實證 · `91213c8`）**：zero_inspector_kit 將主面板作為裸 `OverlayEntry` 插入，當面板內調用標準 `showModalBottomSheet` 時，路由被渲染在面板下方遭遮擋；對方不反思不良架構，反而打補丁疊加第 2 套手寫裸浮層 `_ReplayEditorOverlay`（自行手寫 GestureDetector 遮罩、手動 `entry.remove()`、手動約束），引發焦點丟失與返回鍵失效。反觀本專案主面板採用標準 `PopupRoute`（`showGeneralDialog`），彈出視窗依標準 Navigator 堆疊自然壓頂與出棧，優雅消滅所有層級倒置問題。
+- **記憶體閒置快照跳過的盲區反模式（v2.1.0 實證 · `a82bbc8`）**：對方在 v2.1.0 透過比對 27 個欄位在使用者閒置時跳過記憶體快照記錄與 UI 重繪，試圖減輕輪詢開銷。此舉治標不治本（500ms Timer 依然定時喚醒主線程），且產生嚴重的排查盲區——背景非同步任務（如大檔下載、SQLite 批次處理、圖片解碼）引發的真實記憶體攀升，在使用者未觸摸螢幕時會被完全忽略。再次印證本專案「零定時器輪詢、僅監聽系統原生記憶體壓力事件」的根本優勢。
 
 ### §Z6. 不借鏡（附撞到的裁決）
 
@@ -2375,7 +2416,11 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 | 網絡請求跨 session 落盤回放 (`enableNetworkReplay`) | 撞 Anti-Feature #2。歷史與實時請求混排易誤判，落盤需維護複雜的 ID 去重與資料庫遷移，拖慢啟動 |
 | 專用第三方異常轉發回調 (`onErrorReport`) | 既有基建已透明 chain `FlutterError.onError`，Sentry/Crashlytics 原生即可收到，中途多開轉發通道會造成重複上報並遺失原始堆疊 |
 | 原生 stdout/stderr 管道劫持 (`dup2`) | 違反 100% 純 Dart 原則；有 Darwin 64KB 緩衝區耗盡導致全進程卡死的極高風險（對方已於 v2.0.0 徹底移除） |
-| MaterialApp 根組件代構 (`runAppWithInspector`) | 侵入宿主根組件、破壞屬性傳遞、阻斷 Navigator 2.0 / GoRouter（對方已於 v2.0.0 移除） |
+| MaterialApp 根組件代構 (`runAppWithInspector`) | 侵入宿主根組件、破壞屬性傳遞、阻斷 Navigator 2.0 / GoRouter（勘誤：對方 v2.0.0 實際移除的是死代碼 `runInspectorApp`，`runAppWithInspector` 仍殘留） |
+| Class Allocation Histogram (類別分配直方圖) / VM Service `getAllocationProfile` (v2.1.0) | 撞 Anti-Feature #1 與 #9；shallow bytes 冒充 retained bytes 假精度；未經 GC 產生海量短命對象誤報；解析 2MB~10MB+ JSON-RPC 回傳造成 Dart Heap 嚴重自我污染與 GC 擾動 |
+| Replay Editor 裸 OverlayEntry 浮層 (`_ReplayEditorOverlay`, v2.0.1) | 壞品味補丁。因主面板為裸 OverlayEntry 遮擋 ModalBottomSheet，疊加第 2 套裸浮層導致層級混亂、焦點丟失與返回鍵失效；本專案以標準 PopupRoute (showGeneralDialog) 自然入棧 |
+| 全域 Zone print 捕獲及其 opt-out 旗標 (`enablePrintZoneCapture`, v2.1.0) | 侵入全域 Zone 鏈，引發 Zone mismatch 崩潰；官方單測自承無法在 `testWidgets` 下測試該分支；本專案堅持零 Zone 侵入，日誌走顯式 API 攝入 |
+| 記憶體快照閒置跳過 (`a82bbc8`, v2.1.0) | 治標不治本（未能消滅 500ms 定時器喚醒開銷），且造成致命盲區：使用者閒置時忽略背景非同步任務（大檔下載/DB批次）引起的真實記憶體攀升 |
 
 ---
 
@@ -2462,7 +2507,7 @@ kit 其餘維度皆為被動觀測，host 接線一次之後自動全捕獲：
 
 ### 9.5 借鏡提案與優先序矩陣索引
 
-本次生態調研所提煉出的 10 項具體借鏡與打磨提案，已全數登錄於本文件之「Tier 4 · 打磨清單」與規格章節中：
-- **第一優先（即刻落地 · Trivial / High ROI）**：§P32 (ANSI 跳脫碼濾除)、§P33 (FormData 摘要化)、§P34 (串流安全佔位)、~~§P39 (Dio 攔截器 Fail-Safe 防護)~~（✅ PR #237 已完成）
+本次生態調研與 zero_inspector_kit v2.1.0 深入對齊所提煉出的 11 項具體借鏡與打磨提案（§P32 ~ §P42），已全數登錄於本文件之「Tier 4 · 打磨清單」與規格章節中：
+- **第一優先（即刻落地 · Trivial~Low / High ROI / 穩定性基石）**：§P32 (ANSI 跳脫碼濾除)、§P33 (FormData 摘要化)、§P34 (串流安全佔位)、**§P42 (Overlay 根層解析與 NavigatorKey 自動退回，修復根組件掛載靜默失敗)**、~~§P39 (Dio 攔截器 Fail-Safe 防護)~~（✅ PR #237 已完成）
 - **第二優先（近期排程 · Low / High UX）**：§P35 (細節區塊一鍵複製)、§P38 (純 Dart 環境快照)、§P40 (呼叫堆疊智慧折疊；🟡 主體已由 §P19 完成，僅剩 0 行 fallback)、~~§P41 (篩選標籤動態數量徽章)~~（✅ PR #239 已完成）
 - **第三優先（次版規劃 · Medium / Advanced UI）**：~~§P36 (雙元件間距標尺與像素測距)~~（✅ PR #233 已完成）、~~§P37 (高精準度觸控放大鏡)~~（✅ PR #231 已完成）
