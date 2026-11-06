@@ -6,6 +6,8 @@ import 'package:dio/dio.dart';
 import '../core/flutter_inspector.dart';
 import '../models/log_level.dart';
 import '../models/network_entry.dart';
+import '../utils/redaction.dart';
+import '../utils/routing_param_extractor.dart';
 
 /// A Dio interceptor that automatically records requests and responses to the
 /// [FlutterInspector].
@@ -23,6 +25,19 @@ class FlutterInspectorDioInterceptor extends Interceptor {
     if (data is String) return data;
     if (data is Uint8List) {
       return '[binary ${data.length} bytes]$kTruncatedMarker';
+    }
+    if (data is FormData) {
+      // Files first: the 10 KB body cap then trims field values, not files.
+      final redact = _inspector.redactSensitiveData;
+      final parts = [
+        for (final MapEntry(:key, value: file) in data.files)
+          '$key=${file.filename ?? '<unnamed>'} (${file.length} B)',
+        for (final MapEntry(:key, :value) in data.fields)
+          '$key=${redact && isSensitiveRoutingKey(key) ? kRedactedValue : value}',
+      ];
+      // The marker disables Replay: a summary is not a resendable payload.
+      return '[FormData: ${parts.isEmpty ? 'empty' : parts.join(', ')}]'
+          '$kTruncatedMarker';
     }
     if (data is Map || data is List) {
       try {

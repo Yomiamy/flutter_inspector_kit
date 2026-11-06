@@ -6,6 +6,7 @@ import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/utils/redaction.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _ThrowingData {
@@ -744,6 +745,188 @@ void main() {
           expect(entry.isComplete, true);
           expect(entry.errorType, DioExceptionType.unknown);
           expect(entry.errorStackTrace, isNotNull);
+        },
+      );
+    });
+
+    group('FormData multipart summary (§P33)', () {
+      test(
+        'onRequest lists files before fields and never finalizes the FormData',
+        () {
+          final formData = FormData.fromMap({
+            'name': 'Alice',
+            'avatar': MultipartFile.fromBytes(
+              List<int>.filled(1024, 0),
+              filename: 'avatar.png',
+            ),
+          });
+          final options = RequestOptions(
+            path: 'http://example.com/upload',
+            method: 'POST',
+            data: formData,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+
+          final entry = inspector.registry.network.entries.first;
+          expect(
+            entry.requestBody,
+            '[FormData: avatar=avatar.png (1024 B), name=Alice]$kTruncatedMarker',
+          );
+          expect(entry.isRequestTruncated, isTrue);
+          expect(formData.isFinalized, isFalse);
+          expect(formData.files.single.value.isFinalized, isFalse);
+        },
+      );
+
+      test('empty FormData renders the empty placeholder', () {
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: FormData(),
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.requestBody, '[FormData: empty]$kTruncatedMarker');
+        expect(entry.isRequestTruncated, isTrue);
+      });
+
+      test('file without a filename renders <unnamed>', () {
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: FormData.fromMap({
+            'file': MultipartFile.fromBytes([1, 2, 3]),
+          }),
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final entry = inspector.registry.network.entries.first;
+        expect(
+          entry.requestBody,
+          '[FormData: file=<unnamed> (3 B)]$kTruncatedMarker',
+        );
+        expect(entry.isRequestTruncated, isTrue);
+      });
+
+      test('masks sensitive field values when redactSensitiveData is true', () {
+        final options = RequestOptions(
+          path: 'http://example.com/login',
+          method: 'POST',
+          data: FormData.fromMap({'username': 'alice', 'password': 'hunter2'}),
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final entry = inspector.registry.network.entries.first;
+        expect(
+          entry.requestBody,
+          '[FormData: username=alice, password=$kRedactedValue]$kTruncatedMarker',
+        );
+        expect(entry.requestBody, isNot(contains('hunter2')));
+        expect(entry.isRequestTruncated, isTrue);
+      });
+
+      test('keeps raw field values when redactSensitiveData is false', () {
+        final rawInspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          redactSensitiveData: false,
+        );
+        final options = RequestOptions(
+          path: 'http://example.com/login',
+          method: 'POST',
+          data: FormData.fromMap({'password': 'hunter2'}),
+        );
+        FlutterInspectorDioInterceptor(
+          rawInspector,
+        ).onRequest(options, RequestInterceptorHandler());
+
+        final entry = rawInspector.registry.network.entries.first;
+        expect(
+          entry.requestBody,
+          '[FormData: password=hunter2]$kTruncatedMarker',
+        );
+        expect(entry.isRequestTruncated, isTrue);
+      });
+
+      test(
+        'onResponse keeps the onRequest summary after Dio drains the FormData',
+        () async {
+          final formData = FormData.fromMap({
+            'password': 'hunter2',
+            'avatar': MultipartFile.fromBytes([1, 2], filename: 'a.png'),
+          });
+          final options = RequestOptions(
+            path: 'http://example.com/upload',
+            method: 'POST',
+            data: formData,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          final requestSummary =
+              inspector.registry.network.entries.single.requestBody;
+          // Dio finalizes and streams the FormData while sending it.
+          await formData.readAsBytes();
+
+          interceptor.onResponse(
+            Response(requestOptions: options, statusCode: 201),
+            ResponseInterceptorHandler(),
+          );
+
+          final entry = inspector.registry.network.entries.single;
+          expect(entry.isComplete, isTrue);
+          expect(entry.requestBody, requestSummary);
+          // No internal-error warning: the main path ran, not the fallback.
+          expect(
+            inspector.registry.log.entries.where(
+              (l) => l.level == LogLevel.warning,
+            ),
+            isEmpty,
+          );
+          expect(
+            entry.requestBody,
+            '[FormData: avatar=a.png (2 B), password=$kRedactedValue]$kTruncatedMarker',
+          );
+        },
+      );
+
+      test(
+        'onError keeps the onRequest summary after Dio drains the FormData',
+        () async {
+          final formData = FormData.fromMap({
+            'password': 'hunter2',
+            'avatar': MultipartFile.fromBytes([1, 2], filename: 'a.png'),
+          });
+          final options = RequestOptions(
+            path: 'http://example.com/upload',
+            method: 'POST',
+            data: formData,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          final requestSummary =
+              inspector.registry.network.entries.single.requestBody;
+          await formData.readAsBytes();
+
+          final errorHandler = ErrorInterceptorHandler();
+          interceptor.onError(
+            DioException(requestOptions: options, error: 'fail'),
+            errorHandler,
+          );
+          // ignore: invalid_use_of_protected_member
+          await errorHandler.future.then((_) {}, onError: (_) {});
+
+          final entry = inspector.registry.network.entries.single;
+          expect(entry.isComplete, isTrue);
+          expect(entry.requestBody, requestSummary);
+          // No internal-error warning: the main path ran, not the fallback.
+          expect(
+            inspector.registry.log.entries.where(
+              (l) => l.level == LogLevel.warning,
+            ),
+            isEmpty,
+          );
+          expect(
+            entry.requestBody,
+            '[FormData: avatar=a.png (2 B), password=$kRedactedValue]$kTruncatedMarker',
+          );
         },
       );
     });
