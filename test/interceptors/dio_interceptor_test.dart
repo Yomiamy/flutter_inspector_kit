@@ -826,6 +826,44 @@ void main() {
         expect(entry.isRequestTruncated, isTrue);
       });
 
+      test('masks the filename under a sensitive file key when redacting', () {
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: FormData.fromMap({
+            'token_file': MultipartFile.fromBytes([1, 2], filename: 'me.png'),
+            'avatar': MultipartFile.fromBytes([1], filename: 'a.png'),
+          }),
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final body = inspector.registry.network.entries.first.requestBody;
+        expect(body, isNot(contains('me.png')));
+        expect(
+          body,
+          '[FormData: token_file=$kRedactedValue (2 B), avatar=a.png (1 B)]'
+          '$kTruncatedMarker',
+        );
+      });
+
+      test('stops building the summary once past the 10 KB body cap', () {
+        // 100 fields x 1 KB: a full summary would be ~100 KB.
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: FormData.fromMap({
+            for (var i = 0; i < 100; i++) 'f$i': 'x' * 1024,
+          }),
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final body = inspector.registry.network.entries.first.requestBody!;
+        expect(body.length, lessThanOrEqualTo(kNetworkBodyMaxLength + 64));
+        expect(body, startsWith('[FormData: f0='));
+        expect(body, endsWith(kTruncatedMarker));
+        expect(body, isNot(contains('f99=')));
+      });
+
       test('keeps raw field values when redactSensitiveData is false', () {
         final rawInspector = FlutterInspector(
           navigatorKey: GlobalKey<NavigatorState>(),
