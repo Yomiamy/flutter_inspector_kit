@@ -136,6 +136,10 @@ class FlutterInspector {
   /// Whether to mask sensitive headers (e.g. `Authorization`, `Cookie`,
   /// `Set-Cookie`, `X-Api-Key`) in all share/export paths (cURL, plain text).
   ///
+  /// Dio `FormData` field values and file names under sensitive-looking keys
+  /// (e.g. `password`, `token`) are masked at capture time instead, because a
+  /// multipart body is only ever stored as a summary string.
+  ///
   /// Defaults to `true` so secrets never leak to the clipboard, a share sheet,
   /// or a screenshot unless the host explicitly opts out.
   final bool redactSensitiveData;
