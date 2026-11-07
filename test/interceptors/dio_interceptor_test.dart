@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -18,6 +19,22 @@ class _ThrowingRequestHandler extends RequestInterceptorHandler {
   void next(RequestOptions requestOptions) {
     throw StateError('downstream error');
   }
+}
+
+/// Single-subscription stream; a second listen would throw StateError.
+class _TrackedStream {
+  _TrackedStream(List<int> bytes) {
+    _controller
+      ..add(Uint8List.fromList(bytes))
+      ..close();
+  }
+
+  late final _controller = StreamController<Uint8List>(
+    onListen: () => listened = true,
+  );
+  bool listened = false;
+
+  Stream<Uint8List> get stream => _controller.stream;
 }
 
 void main() {
@@ -510,6 +527,78 @@ void main() {
         final entry = inspector.registry.network.entries.first;
         expect(entry.requestBody, '[137,80,78,71]');
         expect(entry.isRequestTruncated, isFalse);
+      });
+    });
+
+    group('ResponseBody / Stream placeholder (§P34)', () {
+      test(
+        'onRequest + onResponse render [stream] without subscribing',
+        () async {
+          final upload = _TrackedStream([1, 2, 3]);
+          final download = _TrackedStream([4, 5]);
+          final options = RequestOptions(
+            path: 'http://example.com/sse',
+            method: 'POST',
+            data: upload.stream,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          final pending = inspector.registry.network.entries.single;
+          expect(pending.requestBody, '[stream]$kTruncatedMarker');
+          expect(pending.isRequestTruncated, isTrue);
+
+          interceptor.onResponse(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: ResponseBody(download.stream, 200),
+            ),
+            ResponseInterceptorHandler(),
+          );
+
+          final entry = inspector.registry.network.entries.single;
+          expect(entry.isComplete, isTrue);
+          expect(entry.requestBody, pending.requestBody);
+          expect(entry.responseBody, '[stream]$kTruncatedMarker');
+          expect(upload.listened, isFalse);
+          expect(download.listened, isFalse);
+          // The host can still consume both single-subscription streams.
+          expect(await upload.stream.expand((c) => c).toList(), [1, 2, 3]);
+          expect(await download.stream.expand((c) => c).toList(), [4, 5]);
+        },
+      );
+
+      test('onError renders [stream] without subscribing', () async {
+        final upload = _TrackedStream([1, 2, 3]);
+        final download = _TrackedStream([4, 5]);
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: upload.stream,
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor.onError(
+          DioException(
+            requestOptions: options,
+            response: Response(
+              requestOptions: options,
+              statusCode: 500,
+              data: ResponseBody(download.stream, 500),
+            ),
+          ),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await errorHandler.future.then((_) {}, onError: (_) {});
+
+        final entry = inspector.registry.network.entries.single;
+        expect(entry.requestBody, '[stream]$kTruncatedMarker');
+        expect(entry.responseBody, '[stream]$kTruncatedMarker');
+        expect(upload.listened, isFalse);
+        expect(download.listened, isFalse);
+        expect(await upload.stream.expand((c) => c).toList(), [1, 2, 3]);
+        expect(await download.stream.expand((c) => c).toList(), [4, 5]);
       });
     });
 

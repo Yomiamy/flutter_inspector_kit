@@ -31,6 +31,10 @@ class FlutterInspectorDioInterceptor extends Interceptor {
         return data.toString();
       }
     }
+    // Never listen: host streams are single-subscription, a 2nd listen throws.
+    if (data is ResponseBody || data is Stream) {
+      return '[stream]$kTruncatedMarker';
+    }
     return data.toString();
   }
 
