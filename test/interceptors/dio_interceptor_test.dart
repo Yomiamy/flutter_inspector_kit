@@ -849,8 +849,8 @@ void main() {
         );
       });
 
-      test('stops building the summary once past the 10 KB body cap', () {
-        // 100 fields x 1 KB: a full summary would be ~100 KB.
+      test('caps a many-field FormData summary at the body limit', () {
+        // 100 fields x 1 KB: the ~100 KB summary is trimmed by NetworkInspector.
         final options = RequestOptions(
           path: 'http://example.com/upload',
           method: 'POST',
