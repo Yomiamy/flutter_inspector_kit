@@ -331,8 +331,9 @@ void main() {
             error: 'x',
           );
           interceptor.onError(err, errorHandler);
+          // Dio forwards the error through the handler's future.
           // ignore: invalid_use_of_protected_member
-          await errorHandler.future.then((_) {}, onError: (_) {});
+          await expectLater(errorHandler.future, throwsA(isA<Object>()));
 
           expect(inspector.registry.network.entries.length, 1);
           final entry = inspector.registry.network.entries.first;
@@ -358,8 +359,9 @@ void main() {
             ),
           );
           interceptor.onError(err, errorHandler);
+          // Dio forwards the error through the handler's future.
           // ignore: invalid_use_of_protected_member
-          await errorHandler.future.then((_) {}, onError: (_) {});
+          await expectLater(errorHandler.future, throwsA(isA<Object>()));
 
           expect(inspector.registry.network.entries.length, 1);
           final entry = inspector.registry.network.entries.first;
@@ -491,8 +493,9 @@ void main() {
             ),
           );
           interceptor.onError(err, errorHandler);
+          // Dio forwards the error through the handler's future.
           // ignore: invalid_use_of_protected_member
-          await errorHandler.future.then((_) {}, onError: (_) {});
+          await expectLater(errorHandler.future, throwsA(isA<Object>()));
 
           final entry = inspector.registry.network.entries.first;
           expect(entry.responseBody, '[binary 2 bytes]$kTruncatedMarker');
@@ -948,8 +951,9 @@ void main() {
             DioException(requestOptions: options, error: 'fail'),
             errorHandler,
           );
+          // Dio forwards the error through the handler's future.
           // ignore: invalid_use_of_protected_member
-          await errorHandler.future.then((_) {}, onError: (_) {});
+          await expectLater(errorHandler.future, throwsA(isA<Object>()));
 
           final entry = inspector.registry.network.entries.single;
           expect(entry.isComplete, isTrue);
