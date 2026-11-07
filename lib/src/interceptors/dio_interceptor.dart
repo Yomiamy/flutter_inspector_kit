@@ -26,19 +26,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
     if (data is Uint8List) {
       return '[binary ${data.length} bytes]$kTruncatedMarker';
     }
-    if (data is FormData) {
-      // Files first: the 10 KB body cap then trims field values, not files.
-      final redact = _inspector.redactSensitiveData;
-      final parts = [
-        for (final MapEntry(:key, value: file) in data.files)
-          '$key=${file.filename ?? '<unnamed>'} (${file.length} B)',
-        for (final MapEntry(:key, :value) in data.fields)
-          '$key=${redact && isSensitiveRoutingKey(key) ? kRedactedValue : value}',
-      ];
-      // The marker disables Replay: a summary is not a resendable payload.
-      return '[FormData: ${parts.isEmpty ? 'empty' : parts.join(', ')}]'
-          '$kTruncatedMarker';
-    }
+    if (data is FormData) return _summarizeFormData(data);
     if (data is Map || data is List) {
       try {
         return jsonEncode(data);
@@ -47,6 +35,34 @@ class FlutterInspectorDioInterceptor extends Interceptor {
       }
     }
     return data.toString();
+  }
+
+  String _summarizeFormData(FormData data) {
+    final redact = _inspector.redactSensitiveData;
+    String masked(String key, String value) =>
+        redact && isSensitiveRoutingKey(key) ? kRedactedValue : value;
+    // Lazy, files first: stop building once past the 10 KB body cap so a huge
+    // upload never materialises a full-size summary (NetworkInspector trims).
+    Iterable<String> entries() sync* {
+      for (final MapEntry(:key, value: file) in data.files) {
+        yield '$key=${masked(key, file.filename ?? '<unnamed>')} '
+            '(${file.length} B)';
+      }
+      for (final MapEntry(:key, :value) in data.fields) {
+        yield '$key=${masked(key, value)}';
+      }
+    }
+
+    final parts = <String>[];
+    var length = 0;
+    for (final part in entries()) {
+      parts.add(part);
+      length += part.length;
+      if (length > kNetworkBodyMaxLength) break;
+    }
+    // The marker disables Replay: a summary is not a resendable payload.
+    return '[FormData: ${parts.isEmpty ? 'empty' : parts.join(', ')}]'
+        '$kTruncatedMarker';
   }
 
   @override
