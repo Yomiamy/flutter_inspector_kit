@@ -34,7 +34,7 @@
 | 空表單 | `[FormData: empty]` | 照規格；用 `parts.isEmpty` 一個條件處理，不另外寫分支 |
 | `filename` 為 null | `<unnamed>` | 照規格 |
 | 結尾標記 | 一律附 `kTruncatedMarker` | 讓 `isRequestTruncated == true`，Resend 自動停用（`network_detail_view.dart` 的 `_ResendAction._disabled`） |
-| 三處呼叫一致性 | 不需要特別處理 | 摘要只取決於 `(FormData metadata, final bool redactSensitiveData)`；`fields`／`files`／`length`／`filename` 都是一般欄位，Dio 在 `dio_mixin.dart:721（`_transformData`）` 呼叫 `finalize()`、把 stream 讀完之後仍可讀取（已在 Dio 5.11.1 實測：`readAsBytes()` 前後摘要逐字相同） |
+| 三處呼叫一致性 | 不需要特別處理 | 摘要只取決於 `(FormData metadata, final bool redactSensitiveData)`；`fields`／`files`／`length`／`filename` 都是一般欄位，Dio 在 `dio_mixin.dart:721`（`_transformData`） 呼叫 `finalize()`、把 stream 讀完之後仍可讀取（已在 Dio 5.11.1 實測：`readAsBytes()` 前後摘要逐字相同） |
 | `finalize()` | 不呼叫 | `FormData.finalize()` 第二次呼叫會拋 `StateError`（`form_data.dart:165`），Inspector 若先呼叫就等於弄壞宿主的上傳 |
 
 ### 1.3 破壞性分析
