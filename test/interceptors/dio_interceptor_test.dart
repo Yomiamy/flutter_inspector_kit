@@ -593,8 +593,9 @@ void main() {
           ),
           errorHandler,
         );
+        // Dio forwards the error through the handler's future.
         // ignore: invalid_use_of_protected_member
-        await errorHandler.future.then((_) {}, onError: (_) {});
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
 
         final entry = inspector.registry.network.entries.single;
         expect(entry.requestBody, '[stream]$kTruncatedMarker');
