@@ -39,6 +39,7 @@ Instance of 'FormData'
 | 檔案項目 | `<key>=<filename> (<length> B)`；`filename` 為 null 時顯示 `<unnamed>` | `file=<unnamed> (3 B)` |
 | 欄位項目 | `<key>=<value>` | `name=Alice` |
 | 敏感欄位 | `redactSensitiveData == true`（預設）且 key 命中 `isSensitiveRoutingKey` 時，值換成 `kRedactedValue`（`••••`）；`false` 時保留原值 | `password=••••` |
+| 敏感檔名 | 同上條件（以檔案 key 判斷）時，檔名換成 `kRedactedValue`；`(<length> B)` 保留 | `token_file=•••• (2 B)` |
 | 空表單 | 無欄位也無檔案 | `[FormData: empty]...[truncated]` |
 | 結尾 | 一律附上 `kTruncatedMarker`（`...[truncated]`） | — |
 
@@ -46,7 +47,7 @@ Instance of 'FormData'
 
 - 範例中的 `...[truncated]` 即 `kTruncatedMarker`。結尾帶這個標記會讓 `NetworkEntry.isRequestTruncated == true`，詳情頁既有的 Resend 按鈕因此自動停用（提示「Cannot resend: request body truncated」），避免使用者把摘要字串當成 payload 重送到後端。這與既有 `Uint8List` 的 `[binary N bytes]` 佔位行為一致。
 - 遮蔽在**擷取時**完成：摘要一旦產生就是字串，匯出時已無法再拆回欄位，所以只能在擷取當下套用 redact。這與 `navigator_observer.dart` 擷取路由參數時遮蔽的作法相同。
-- 檔案項目只輸出 key、檔名、bytes，不受 redact 影響（不含檔案內容）。
+- 檔案項目只輸出 key、檔名、bytes（不含檔案內容）。`redactSensitiveData == true` 且檔案 key 命中 `isSensitiveRoutingKey` 時，檔名換成 `kRedactedValue`（檔名可能含使用者身分，與欄位值同一條規則）；key 與 bytes 不受影響。
 - 整體長度仍受既有 `kNetworkBodyMaxLength`（10 KB）截斷保護（`NetworkInspector.add`）。由於檔案排在前面，即使超長欄位值觸發截斷，被截掉的也只會是欄位值，檔案 metadata 會優先保留（檔案摘要總長 < 10 KB 時必定可見）。
 - `onRequest`、`onResponse`、`onError` 三處都對同一個 `requestOptions.data` 產生摘要，三者結果必須逐字相同。Dio 在送出時會 `finalize()` 並讀完 `FormData` 的 stream，但 `fields`／`files`／`length`／`filename` 都只是普通欄位，讀完之後仍可讀取。
 - **已知限制**：遮蔽沿用 `isSensitiveRoutingKey` 字詞表，`pwd`／`passwd`／`otp`／`cvv` 等不在表內的 key 會以原值進時間軸；日後 §P45 調整該函式時，FormData 遮蔽會連動改變。JSON body 內的 `password` 仍不遮蔽（不在本範圍）。
@@ -71,7 +72,7 @@ Instance of 'FormData'
 | 修改 `lib/src/utils/network_formatters.dart`（如 cURL 輸出 `-F`） | formatter 處理的是字串，摘要已在擷取時遮蔽，不需改動；cURL `-F` 重建屬另一個功能 |
 | 單一欄位值的獨立截斷上限 | 整體已有 10 KB 截斷兜底，加上「先檔案、後欄位」的排序，就不需要第二層上限 |
 | 對值中的 `,`、`=` 做跳脫 | 摘要是給人看的，不是給機器解析的；不可重送，也就不需要可逆格式 |
-| 遮蔽檔案 key 或檔名、輸出 `contentType` | 不在需求內 |
+| 遮蔽檔案 key 本身、輸出 `contentType` | 不在需求內（檔名遮蔽見第 2 節，不在此列） |
 | 擴充 `isSensitiveRoutingKey` 的敏感字詞表 | 沿用既有規則，與路由參數遮蔽保持一致 |
 | §P34 `ResponseBody` / `Stream` 佔位 | 另開 PR |
 | README、CHANGELOG 更新 | 依專案慣例，於 release commit 統一處理 |
@@ -90,4 +91,5 @@ Instance of 'FormData'
 | 6 | `redactSensitiveData: false` 時，`password` 欄位保留原值 | 單元測試 |
 | 7 | 上述摘要皆使 `entry.isRequestTruncated == true`（Resend 自動停用） | 單元測試 |
 | 8 | `FormData` 經 `readAsBytes()` 消耗（模擬 Dio 送出）後，`onResponse` 與 `onError` 產生的 `requestBody` 與 `onRequest` 逐字相同 | 單元測試 |
-| 9 | 既有測試全數通過（`flutter test`），`flutter analyze lib/ test/` 不超過既有 7 個 info | 指令執行驗證 |
+| 9 | `redactSensitiveData` 為 `true` 且檔案 key 命中 `isSensitiveRoutingKey` 時，檔名輸出為 `kRedactedValue`（如 `token_file=$kRedactedValue (2 B)`），`requestBody` 不含原檔名 | 單元測試 |
+| 10 | 既有測試全數通過（`flutter test`），`flutter analyze lib/ test/` 不超過既有 7 個 info | 指令執行驗證 |
