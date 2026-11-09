@@ -89,9 +89,8 @@ description: |
     │    （prefix/slug 規則沿用 gen-dev-worktree）    │
     │  ⏸ 暫停：展示 Issue 標題/內容 + 分支/worktree 名稱│
     │          等使用者確認或修改                       │
-    │  → 委派執行 gh issue create --assignee @me      │
-    │  → Issue 的 Project Status 切到 In Progress     │
-    │    （見下方「Issue／PR 指派與 Project 狀態」）   │
+    │  → brancher 建立 Issue（含指派與 Project 狀態， │
+    │    見下方「Issue／PR 指派與 Project 狀態」）     │
     │  → brancher 依 gen-dev-worktree 規則建立       │
     │    worktree + branch，主對話 cd                  │
     │    進新 worktree 繼續後續所有 stage               │
@@ -150,8 +149,7 @@ description: |
                            │ 使用者確認
                            ▼
                       PR 建立完成 ✦
-                      （gh pr create 帶 --assignee @me，PR 的
-                       Project Status 切到 In Progress，
+                      （由 publisher 建立，含指派與 Project 狀態，
                        見下方「Issue／PR 指派與 Project 狀態」）
                       🔴 環境清理：透過 Bash 與 `jq` 將
                       `.claude/settings.local.json` 中的
@@ -201,15 +199,17 @@ description: |
 
 ## Issue／PR 指派與 Project 狀態
 
-本流程建立的每一個 Issue（STAGE 1）與 PR（STAGE 4、quick 模式發布），建立當下就要完成兩件事：
+**誰建立**：不論哪種模式（sequence／jump／quick／batch），Issue 一律由 `brancher` agent 建立，PR 一律由 `publisher` agent 建立。主對話不自己跑 `gh issue create` / `gh pr create`。下列規則由這兩個 agent 執行（`.claude/agents/brancher.md`、`.claude/agents/publisher.md` 會引用本節）。
+
+建立當下就要完成兩件事：
 
 1. **Assignees 指定為自己**：`gh issue create` / `gh pr create` 直接帶 `--assignee @me`。
 2. **Project Status 切到 `In Progress`**（Issue 與 PR 各做一次）：
    - 查它所在的 Project：`gh issue view <N> --json projectItems`（PR 用 `gh pr view`）。
-   - 不在任何 Project → 問使用者要加到哪個 Project（owner + number），再 `gh project item-add <number> --owner <owner> --url <issue/PR URL>`。不要自己猜。
+   - 不在任何 Project → 回報主對話，由主對話問使用者要加到哪個 Project（owner + number），再 `gh project item-add <number> --owner <owner> --url <issue/PR URL>`。不要自己猜。
    - 用 `gh project field-list <number> --owner <owner> --format json` 取得 `Status` 欄位 ID 與 `In Progress` 選項 ID，再以 `gh project item-edit --project-id <id> --id <item-id> --field-id <status-field-id> --single-select-option-id <in-progress-option-id>` 設定。
 
-**失敗不阻擋流程**：gh token 缺 `project` scope 時，Project 相關指令會被 GitHub 拒絕。此時照常完成 Issue／PR 建立與指派，並告知使用者執行 `! gh auth refresh -s project` 後再補設狀態，不要因此中止。
+**失敗不阻擋流程**：gh token 缺 `project` scope 時，Project 相關指令會被 GitHub 拒絕。此時照常完成 Issue／PR 建立與指派，在回報中註明狀態未設定，由主對話告知使用者執行 `! gh auth refresh -s project` 後再補設，不要因此中止。
 
 ---
 
