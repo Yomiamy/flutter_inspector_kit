@@ -15,7 +15,7 @@ tools: [Bash, Read]
 ## 委派機制
 
 **MCP 可用時（優先）：**
-- 呼叫 `mcp__gemini-cli__ask-gemini` 委派執行 `gh issue create` 與 worktree/branch 建立，prompt 首段必附〈工作目錄與邊界〉：
+- 呼叫 `mcp__gemini-cli__ask-gemini` 委派執行 `gh issue create --assignee @me` 與 worktree/branch 建立，prompt 首段必附〈工作目錄與邊界〉：
   ```
   mcp__gemini-cli__ask-gemini(prompt:
     "<工作目錄與邊界> + <委派 prompt：明確指示只輸出結果本文，不要開場白或人設評論>")
@@ -23,7 +23,7 @@ tools: [Bash, Read]
 - 子進程回報 Issue URL 與分支名稱後繼續
 
 **Fallback（MCP 不可用時）：**
-- 自行使用 Bash 執行 `gh issue create` 與 `git worktree add -b "<branch-name>" "<worktree-path>" "origin/main"`
+- 自行使用 Bash 執行 `gh issue create --assignee @me` 與 `git worktree add -b "<branch-name>" "<worktree-path>" "origin/main"`
 
 ### 工作目錄與邊界（每次派發必附，置於最前）
 
