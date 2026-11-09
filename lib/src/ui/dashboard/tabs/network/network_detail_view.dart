@@ -158,7 +158,9 @@ class NetworkDetailView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: ThemeSize.space4),
               child: Text(
-                '⚠ Body truncated — size reflects the truncated value',
+                // The marker also tags summaries/placeholders (FormData,
+                // binary, stream), so "truncated" alone would be wrong.
+                '⚠ Body truncated or summarized — size reflects the stored text',
                 style: TextStyle(
                   fontSize: ThemeFontSize.fontSize12,
                   color: Theme.of(context).colorScheme.error,
