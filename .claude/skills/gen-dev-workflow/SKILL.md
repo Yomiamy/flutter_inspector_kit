@@ -211,7 +211,7 @@ description: |
    4. 取 ID：`gh project item-add <number> --owner <owner> --url <issue/PR URL> --format json --jq .id` 得 item ID（已在 Project 內也會回傳既有 item，可安全重跑）；`gh project view <number> --owner <owner> --format json --jq .id` 得 project ID；`gh project field-list <number> --owner <owner> --format json` 得 `Status` 欄位 ID 與 `In Progress` 選項 ID。
    5. 設定：`gh project item-edit --project-id <project-id> --id <item-id> --field-id <status-field-id> --single-select-option-id <in-progress-option-id>`。
 
-**失敗不阻擋流程**：缺 `project` scope 或任何 Project 指令失敗時，照常完成 Issue／PR 建立與指派，在回報中註明狀態未設定與原因，由主對話告知使用者執行 `! gh auth refresh -s project` 後再補設，不要因此中止。若 token 來自 `GH_TOKEN`／`GITHUB_TOKEN` 等 `_TOKEN` 結尾的環境變數（fine-grained PAT 也屬此類，無 OAuth scope 會被判缺 scope，同樣只註明原因、不阻擋），`gh auth refresh` 會直接拒絕，且 `! unset` 動不到 Claude Code 主程序的環境變數；須替該 token 補上 `project` 權限，或在不帶該變數的情況下重啟 Claude Code 後再 `gh auth refresh -s project`。
+**失敗不阻擋流程**：缺 `project` scope 或任何 Project 指令失敗時，照常完成 Issue／PR 建立與指派，在回報中註明狀態未設定與原因，由主對話告知使用者執行 `! gh auth refresh -s project` 後再補設，不要因此中止。若 token 來自 `GH_TOKEN`／`GITHUB_TOKEN` 等 `_TOKEN` 結尾的環境變數，`gh auth refresh` 會直接拒絕，且 `! unset` 動不到 Claude Code 主程序的環境變數；classic PAT 可替該 token 補上 `project` scope，否則在不帶該變數的情況下重啟 Claude Code 後再 `gh auth refresh -s project`。fine-grained PAT 沒有 OAuth scope，第 1 步一律判為缺 scope（補 Projects 權限也過不了），同樣只註明原因、不阻擋。
 
 ---
 
