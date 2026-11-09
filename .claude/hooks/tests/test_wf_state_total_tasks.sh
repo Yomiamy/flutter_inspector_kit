@@ -13,7 +13,7 @@ fi
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-export STATE_DIR="$TEMP_DIR"
+export WF_STATE_DIR="$TEMP_DIR"
 
 echo "=== Test 1: set total_tasks=3 stores numeric 3 ==="
 INIT_OUTPUT="$("$WF_STATE" init --mode sequence --stage 0a)"
