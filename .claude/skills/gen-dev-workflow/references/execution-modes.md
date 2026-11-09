@@ -26,9 +26,9 @@ quick <描述或 #issue>
    - 保住「不讓實作模型自審」原則（reviewer frontmatter 綁定 `model: opus` 最強推論，確保獨立交叉審查強度）；發現問題 → 主對話修正後重掃
    - quick 模式無 verifier 兩階段驗收，這是唯一的品質關卡
   ▼
-④ 呼叫 gen-commit skill 執行 commit → 用 gen-pr skill 產 PR 草稿
+④ 呼叫 gen-commit skill 執行 commit → Task("publisher", ...) 產 PR 草稿
   ▼
-⏸ 唯一暫停點：展示 PR 草稿 → 使用者確認 → 發布，流程結束
+⏸ 唯一暫停點：展示 PR 草稿 → 使用者確認 → publisher 發布（含指派與 Project 狀態），流程結束
 ```
 
 **規則：**

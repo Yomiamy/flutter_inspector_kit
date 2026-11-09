@@ -15,7 +15,7 @@ tools: [Bash, Read]
 ## 委派機制
 
 **MCP 可用時（優先）：**
-- 呼叫 `mcp__gemini-cli__ask-gemini` 委派執行 `gh issue create` 與 worktree/branch 建立，prompt 首段必附〈工作目錄與邊界〉：
+- 呼叫 `mcp__gemini-cli__ask-gemini` 委派執行 `gh issue create --assignee @me` 與 worktree/branch 建立，prompt 首段必附〈工作目錄與邊界〉：
   ```
   mcp__gemini-cli__ask-gemini(prompt:
     "<工作目錄與邊界> + <委派 prompt：明確指示只輸出結果本文，不要開場白或人設評論>")
@@ -23,7 +23,7 @@ tools: [Bash, Read]
 - 子進程回報 Issue URL 與分支名稱後繼續
 
 **Fallback（MCP 不可用時）：**
-- 自行使用 Bash 執行 `gh issue create` 與 `git worktree add -b "<branch-name>" "<worktree-path>" "origin/main"`
+- 自行使用 Bash 執行 `gh issue create --assignee @me` 與 `git worktree add -b "<branch-name>" "<worktree-path>" "origin/main"`
 
 ### 工作目錄與邊界（每次派發必附，置於最前）
 
@@ -47,6 +47,7 @@ MCP 呼叫**無法指定 cwd**，派發 prompt 第一段必須寫死絕對路徑
 - **委派執行：** 透過上述機制執行 `gh issue create` 與 worktree/branch 建立。
 - **驗證回報：** 子進程回報的 Issue URL 與分支名稱是宣稱，不是證據。親自跑 `git worktree list --porcelain` 找到新建 worktree 的路徑，再用 `git -C <worktree-path> branch --show-current` 確認該路徑上的分支與回報一致（不能只跑 `git branch --show-current`，那驗證的是呼叫方自己的 worktree）。
 - 確認 Issue URL 與分支名稱符合規範。
+- **指派與 Project 狀態：** Issue 建立後，**由你親自**（不委派）跑 `gh issue edit <N> --add-assignee @me`，再依 `.claude/skills/gen-dev-workflow/SKILL.md` 的「Issue／PR 指派與 Project 狀態」把 Status 切到 `In Progress`。子進程即使已帶 `--assignee @me` 也照跑一次（重複指派無副作用），確保結果不靠委派 prompt 有沒有轉述到。Project 未設定成功時在輸出中註明原因。
 
 ## 使用的 Skills
 - `gen-issue-from-plan` — 邏輯引導
