@@ -205,13 +205,13 @@ description: |
 
 1. **Assignees 指定為自己**：`gh issue create` / `gh pr create` 直接帶 `--assignee @me`，建立後再跑一次 `gh issue edit <N> --add-assignee @me`（PR 用 `gh pr edit`）。重複指派無副作用，確保不靠委派 prompt 或其他 skill 的指令有沒有帶到旗標。
 2. **Project Status 切到 `In Progress`**（Issue 與 PR 各做一次）：
-   1. **先確認 scope**：`gh auth status --active --json hosts --jq '.hosts[][].scopes'` 以逗號切分並逐項去除前後空白後（實際輸出是 `gist, read:org, repo` 這種逗號加空格格式）須有一項**完全等於** `project`（`read:project` 只能讀、不算）。沒有就直接走下方「失敗不阻擋流程」。🔴 不可跳過——缺 scope 時 `gh issue view --json projectItems` **不會報錯，而是安靜回傳空陣列**，會被誤判成「不在任何 Project」。
+   1. **先確認 scope**：`gh auth status --active --hostname github.com --json hosts --jq '.hosts[][].scopes'` 以逗號切分並逐項去除前後空白後（實際輸出是 `gist, read:org, repo` 這種逗號加空格格式）須有一項**完全等於** `project`（`read:project` 只能讀、不算）。沒有就直接走下方「失敗不阻擋流程」。🔴 不可跳過——缺 scope 時 `gh issue view --json projectItems` **不會報錯，而是安靜回傳空陣列**，會被誤判成「不在任何 Project」。
    2. 查所在 Project：`gh issue view <N> --json projectItems`（PR 用 `gh pr view`），取得 Project 標題；再用 `gh project list --owner <owner> --limit 200 --format json` 對出 number（預設只回 30 筆，不加 `--limit` 會漏）（`<owner>` 用 repo owner）。
-   3. 不在任何 Project → 互動模式回報主對話，由主對話問使用者要用哪個 Project（owner + number），不要自己猜；使用者回答時 subagent 已返回，**後續 4～5 步由主對話自己執行**。非互動模式（`pause_level=autonomous` 或 batch）不詢問、不猜，在回報註明「Project 未設定」後繼續。
+   3. 不在任何 Project → 互動模式回報主對話，由主對話問使用者要用哪個 Project（owner + number），不要自己猜；使用者回答時 subagent 已返回，**後續 4～5 步由主對話自己執行**。`pause_level=autonomous` 時（batch 與 pause_level 正交，不算；subagent 看不到 pause_level，由主對話判斷並在派發 prompt 註明「非互動」）不詢問、不猜，在回報註明「Project 未設定」後繼續。
    4. 取 ID：`gh project item-add <number> --owner <owner> --url <issue/PR URL> --format json --jq .id` 得 item ID（已在 Project 內也會回傳既有 item，可安全重跑）；`gh project view <number> --owner <owner> --format json --jq .id` 得 project ID；`gh project field-list <number> --owner <owner> --format json` 得 `Status` 欄位 ID 與 `In Progress` 選項 ID。
    5. 設定：`gh project item-edit --project-id <project-id> --id <item-id> --field-id <status-field-id> --single-select-option-id <in-progress-option-id>`。
 
-**失敗不阻擋流程**：缺 `project` scope 或任何 Project 指令失敗時，照常完成 Issue／PR 建立與指派，在回報中註明狀態未設定與原因，由主對話告知使用者執行 `! gh auth refresh -s project` 後再補設，不要因此中止。若 token 來自 `GH_TOKEN`／`GITHUB_TOKEN` 環境變數，`gh auth refresh` 會直接拒絕，須改為替該 token 補上 `project` 權限，或先 `unset GH_TOKEN` 再 refresh。
+**失敗不阻擋流程**：缺 `project` scope 或任何 Project 指令失敗時，照常完成 Issue／PR 建立與指派，在回報中註明狀態未設定與原因，由主對話告知使用者執行 `! gh auth refresh -s project` 後再補設，不要因此中止。若 token 來自 `GH_TOKEN`／`GITHUB_TOKEN` 等 `_TOKEN` 結尾的環境變數（fine-grained PAT 也屬此類，無 OAuth scope 會被判缺 scope，同樣只註明原因、不阻擋），`gh auth refresh` 會直接拒絕，且 `! unset` 動不到 Claude Code 主程序的環境變數；須替該 token 補上 `project` 權限，或在不帶該變數的情況下重啟 Claude Code 後再 `gh auth refresh -s project`。
 
 ---
 
