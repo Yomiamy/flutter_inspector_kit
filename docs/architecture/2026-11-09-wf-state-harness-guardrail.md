@@ -1,6 +1,7 @@
 # wf-state.sh: Execution Harness 與 Guardrail 機制解析
 
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-11-09**：同步 PR #246——`legal_transition()` 補上 `done→5` 與 `done→6`（連同先前 Gap 2.6 新增的 6 條獨立入口轉移，更新 §2.3 轉移表為完整 18 條），讓已走到 `done` 的 `sequence` 流程仍可重入 STAGE 5（回覆 PR review）與 STAGE 6（清理 worktree），並新增 `.claude/hooks/tests/test_wf_state_done_reentry.sh` 測試。檔名日期前綴由 `2026-08-21` 更新至 `2026-11-09`。
 > * **2026-08-21**：§「同構的第二個弱點：委派的工作目錄約束」結案（issue #134 / PR #135 已合併）。該節指出的 hook 層對策已落地為 `.claude/hooks/wf-guard-delegate-cwd.sh`（`pre` 阻擋派發者失誤、`post` 偵測子進程失誤，只告警不阻斷）。`wf-state.sh` 本身未修改——檔案位置本就不在其管轄範圍，這正是該節的原始結論。檔名日期前綴由 `2026-08-08` 更新至 `2026-08-21`。
 > * **2026-08-10**：委派傳輸層由 `agy -p` headless 改為 `gemini-mcp-tool`（MCP）。**本文件描述的 `wf-state.sh` 機制完全未受影響**（狀態機與委派後端正交），僅在文末「結構性邊界」節補上新的同類弱點：MCP 無法指定 cwd，工作目錄約束只能寫在 prompt 裡——與 Gap 2.6 同構的「約束不在強制層」問題。
 > * **2026-08-08**：依 `wf-state.sh` 原始碼逐行重新核對（基準 commit `daadf03`）。新增 §1.4 暫停粒度、§1.5 佔位檔回收、§2.6 quick 升級單向閘、§3 批次佇列子系統、§4 指令全表；修正 §2.3 轉移表（原漏 `3→2` 退回與 3 條 STAGE 5 轉移）、§2.4 白名單（原漏 `pause_level`）、§2.5 任務完整性驗證的實際觸發條件（僅 `next=3`）。檔名日期前綴由 `2026-07-21` 更新至 `2026-08-08`。
@@ -88,17 +89,18 @@ Guardrail 的設計哲學充滿了對 LLM 的「極度不信任」。它的任�
 ⚠️ **棘輪與 `pause_level` 的職責分離**：`pause_level` 只決定「要不要設 `awaiting_confirmation`」，一旦設了，棘輪的強制力完全不變。`autonomous` 關掉的是「等使用者點頭」，不是關掉任何一道校驗（見 §2.3–2.5，全部照常生效）。
 
 ### 2.3 寫死狀態機轉移表 (`legal_transition`)
-不容許 LLM 憑感覺跳關。在 `sequence` 模式下，腳本直接查表匹配合法路徑，共 **10 條**：
+不容許 LLM 憑感覺跳關。在 `sequence` 模式下，腳本直接查表匹配合法路徑，共 **18 條**：
 
 | 分類 | 合法轉移 |
 |:---|:---|
 | 主鏈 | `0a→0b`、`0b→1`、`1→2`、`2→3`、`3→4`、`4→done` |
 | 審查退回 | `3→2` |
+| 獨立入口銜接（STAGE 5/6） | `4→5`、`5→4`、`5→5`、`4→6`、`5→6`、`6→done`、`done→5`、`done→6` |
 | STAGE 5 循環 | `reviewer→responder`、`responder→reviewer`、`reviewer→publisher` |
 
-若試圖從 `0a` 直接跳到 `2`，腳本會判定為非法轉移並直接 `exit 1`。
+若試圖從 `0a` 直接跳到 `2`（或從 `done` 跳回 `2`），腳本會判定為非法轉移並直接 `exit 1`。
 
-> **`3→2` 不是漏洞而是設計**：審查不通過必須能退回實作，否則流程遇到問題就是死路。STAGE 5 的三條轉移則讓「回覆 PR review」的 responder ⇄ reviewer 循環有合法路徑可走。
+> **`3→2` 與 `done→5`／`done→6` 不是漏洞而是設計**：審查不通過必須能退回實作，否則流程遇到問題就是死路；STAGE 5／6 則是 PR 發布後的獨立入口，流程在 STAGE 4 收尾標為 `done` 後仍須可重入（否則既有 state 檔擋住 `init --mode jump`、又無法 `advance`，會陷入無路可走的死結）。STAGE 5 的三條具名轉移則讓「回覆 PR review」的 responder ⇄ reviewer 循環有合法路徑可走。
 >
 > **quick / jump 模式不套用轉移表**——quick 的階段本來就非正式、jump 是使用者明示跳段。但 §2.1 的 schema 校驗與 §2.2 的棘輪對三種 mode 一視同仁。
 
@@ -199,7 +201,7 @@ completed_tasks 的長度 < total_tasks  →  拒絕推進
 
 必須誠實標註：**上述所有 Guardrail 只在腳本被呼叫時才生效**。
 
-腳本擋得住「呼叫了 `advance` 但參數不合法」，擋不住「根本沒呼叫腳本就推進流程」。這正是 [`2026-09-13-workflow-brainstorm.md`](../brainstorm/2026-09-13-workflow-brainstorm.md) 記錄的 **Gap 2.6**——STAGE 5/6 這類獨立入口不在主鏈上，LLM 容易全程不碰 `wf-state.sh`，此時再多的內部校驗都無從觸發。
+腳本擋得住「呼叫了 `advance` 但參數不合法」，擋不住「根本沒呼叫腳本就推進流程」。這正是 [`2026-11-09-workflow-brainstorm.md`](../brainstorm/2026-11-09-workflow-brainstorm.md) 記錄的 **Gap 2.6**——STAGE 5/6 這類獨立入口不在主鏈上，LLM 容易全程不碰 `wf-state.sh`，此時再多的內部校驗都無從觸發。
 
 **對策必須落在入口攔截（hook 層），繼續往腳本內部堆校驗是無效的**。判讀本文件的防護強度時，請把「LLM 會記得呼叫腳本」視為尚未被程式碼保證的前提。
 

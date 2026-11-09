@@ -131,7 +131,7 @@
 
 ## 0. 完成度總覽（Bug 1.x / Gap 2.1–2.5 核對於 2026-07-21 · Gap 2.6 增補於 2026-08-07）
 
-> 狀態依 [`docs/architecture/2026-08-12-gen-dev-workflow-analysis.md`](../architecture/2026-08-12-gen-dev-workflow-analysis.md) 核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。（原引用 `docs/features/2026-07-18-...`，該檔已隨文件搬遷／改名不存在。）
+> 狀態依 [`docs/architecture/2026-11-09-gen-dev-workflow-analysis.md`](../architecture/2026-11-09-gen-dev-workflow-analysis.md) 核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。（原引用 `docs/features/2026-07-18-...`，該檔已隨文件搬遷／改名不存在。）
 >
 > **🔍 實查校正 (2026-08-06)**：本註記原寫「`wf-state.sh` 不在本 repo，無法直接讀原始碼，
 > 故以該份 analysis 為權威來源」——**此前提已不成立**。該腳本就在本 repo 的
@@ -150,7 +150,7 @@
 | **Gap 2.3** 缺任務完成校驗（`completed_tasks`） | ✅ 已修 | 於 2026-07-21 修復，`advance` 增加任務數量校驗 |
 | **Gap 2.4** STAGE 5 缺 `reviewer→responder` 退回 | ✅ 已修 | 於 2026-07-21 修復，新增閉環轉移路徑 |
 | **Gap 2.5** 廢棄 `.pending-*.json` 無 `prune` GC | ✅ 已修 | 於 2026-07-21 修復，新增 `prune` 指令 |
-| **Gap 2.6** 獨立入口（STAGE 5/6）完全繞過狀態機 | ✅ 已修（2026-08-14 落地 + 2026-08-17 修正 hook exit code） | 於 2026-08-14 以方案 A + C 修復：`SKILL.md:146` 首步硬性化、`.claude/hooks/wf-guard-stage-check.sh` 於 `PreToolUse` 攔截 responder 派發、`wf-state.sh:98` 補齊 `4->5` 等轉移路徑（見 §4 Gap 2.6） |
+| **Gap 2.6** 獨立入口（STAGE 5/6）完全繞過狀態機 | ✅ 已修（2026-08-14 落地 + 2026-08-17 修正 hook exit code + 2026-11-09 補齊 `done→5`/`done→6` 重入） | 於 2026-08-14 以方案 A + C 修復：`SKILL.md:146` 首步硬性化、`.claude/hooks/wf-guard-stage-check.sh` 於 `PreToolUse` 攔截 responder 派發、`wf-state.sh:98` 補齊 `4->5` 等轉移路徑；2026-11-09（PR #246）再補齊 `done->5`、`done->6` 與 `test_wf_state_done_reentry.sh`，讓 STAGE 4 收尾標 `done` 後仍可重入 STAGE 5/6（見 §4 Gap 2.6） |
 
 > **已落地的地基**（analysis 確認，非本 brainstorm 提出的待辦）：`wf-state.sh` 已成 state 檔唯一入口——狀態機轉移表（非法轉移 `exit 1`）、暫停點棘輪（無 `--confirmed` 拒絕 `advance`）、`set` 白名單、schema 校驗 + 原子寫入皆已實作。
 >
@@ -158,7 +158,7 @@
 >
 > **⚠️ 2026-08-07 補記（問題已於 2026-08-14 修復，本段保留為設計啟示）**：上述「已徹底解決」的結論**僅在腳本被呼叫的前提下成立**。Gap 2.6 揭露了守衛架構的結構性盲點——獨立入口（STAGE 5/6）可全程不碰 `wf-state.sh`，使所有內部校驗無從觸發。這不是既有修復的回歸，而是先前分析未涵蓋的層級：**對策必須落在入口攔截（hook），繼續往腳本內部堆校驗無效**。
 >
-> **📌 2026-08-14 結案**：該判斷成立，已依此落地 hook 攔截層（`.claude/hooks/wf-guard-stage-check.sh`），Gap 2.6 已修復。**但此結論的適用範圍不限於 Gap 2.6**——「守衛需要被呼叫才生效」是結構性盲點，同型弱點仍存在於**委派的工作目錄約束**（MCP 無法指定 cwd，只能靠 prompt 寫絕對路徑），詳見 [`docs/architecture/2026-08-21-wf-state-harness-guardrail.md`](../architecture/2026-08-21-wf-state-harness-guardrail.md) §「同構的第二個弱點」。
+> **📌 2026-08-14 結案**：該判斷成立，已依此落地 hook 攔截層（`.claude/hooks/wf-guard-stage-check.sh`），Gap 2.6 已修復。**但此結論的適用範圍不限於 Gap 2.6**——「守衛需要被呼叫才生效」是結構性盲點，同型弱點仍存在於**委派的工作目錄約束**（MCP 無法指定 cwd，只能靠 prompt 寫絕對路徑），詳見 [`docs/architecture/2026-11-09-wf-state-harness-guardrail.md`](../architecture/2026-11-09-wf-state-harness-guardrail.md) §「同構的第二個弱點」。
 >
 > **📌 2026-08-21 追加結案（issue #134 / PR #135 已合併）**：該同型弱點亦已落地 hook 層對策 `.claude/hooks/wf-guard-delegate-cwd.sh`——`pre` 端（PreToolUse）檢查派發 prompt 是否含目標 worktree 絕對路徑，缺失即 `exit 2` 阻擋；`post` 端（PostToolUse）以 `git status` before/after 差集偵測越界寫入與越界 commit，**只告警不阻斷**並寫入稽核紀錄。與 Gap 2.6 的差別在於：Gap 2.6 可事前阻斷，本項因 MCP 介面無 cwd 參數而**預防在物理上不可得**，確定性偵測即為天花板。
 
@@ -386,7 +386,7 @@
      - 若派發 `responder` 且當前 worktree 存在 active workflow state，檢查 `stage` 是否為 `5`；
      - 若未推進（如停在 `4`），Hook 以 exit code 阻擋派發，並在 stderr 輸出精確的修復指令（`wf-state.sh advance <state_file> 5 --confirmed`）；
      - **防誤殺保護**：若目錄下無 workflow 狀態檔（流程外單獨調用），Hook 直接 exit 0 放行。
-  3. **轉移表補全**：`wf-state.sh:legal_transition()` 補上 `4->5`、`5->4`、`5->5`、`4->6`、`5->6`、`6->done` 等轉移路徑，確保 sequence 流程回覆 PR 時推進無阻。
+  3. **轉移表補全**：`wf-state.sh:legal_transition()` 補上 `4->5`、`5->4`、`5->5`、`4->6`、`5->6`、`6->done` 等轉移路徑，確保 sequence 流程回覆 PR 時推進無阻；**2026-11-09（PR #246）再補齊 `done->5`、`done->6`**（並新增 `.claude/hooks/tests/test_wf_state_done_reentry.sh`），修正 sequence 流程於 STAGE 4 收尾標為 `done` 後無法重入 STAGE 5／6 的缺口。
 
 * 🔴 **2026-08-16 實查更正（上述方案 C 的落地實作未達成設計意圖）**：
   `.claude/hooks/wf-guard-stage-check.sh:111,126` 用 `sys.exit(1)`，而官方 hooks 文件明載
@@ -1294,7 +1294,7 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 | §5.5 Handoff | ✅ 需求已覆蓋 | SKILL.md:545-575 state 檔 + WIP commit 交接（不採 `HANDOFF.md`） |
 | §3 提案 1 `pause_level` | ✅ **已完成**（2026-08-06 · `9bce068`） | `wf-state.sh:141` `should_pause()` 單一判定來源；`:172` `apply_sets()` 白名單含 `pause_level` + enum 校驗；`:269`/`:286` 為 `stage-done`/`task-done` 兩個呼叫端；SKILL.md:179 暫停粒度章節、:872 選項語法 |
 | **批次佇列**（非原提案，2026-08-06 新增） | ✅ **已完成**（`9bce068`） | `wf-state.sh:349-430` `batch-init`/`batch-get`/`batch-next`/`batch-done`/`batch-fail`/`batch-abort`；獨立 schema + `batch_write` 原子寫入；SKILL.md:328 批次模式章節 |
-| **Gap 2.6 獨立入口狀態防護**（2026-08-14 補正） | ✅ **已完成**（2026-08-14 · 方案 A+C） | `SKILL.md:146` 首步硬性化；`.claude/hooks/wf-guard-stage-check.sh` PreToolUse 攔截 responder 派發；`.agents/hooks.json` 與 `.claude/settings.local.json` 掛載；`wf-state.sh:98` 補齊 `4->5` 轉移表 |
+| **Gap 2.6 獨立入口狀態防護**（2026-08-14 補正） | ✅ **已完成**（2026-08-14 · 方案 A+C；2026-11-09 補齊 `done→5`/`done→6`） | `SKILL.md:146` 首步硬性化；`.claude/hooks/wf-guard-stage-check.sh` PreToolUse 攔截 responder 派發；`.agents/hooks.json` 與 `.claude/settings.local.json` 掛載；`wf-state.sh:95` 補齊 `4->5` 及 `done->5`、`done->6` 轉移表（含 `.claude/hooks/tests/test_wf_state_done_reentry.sh`） |
 | §3 提案 2 `cmd_rollback.sh` | ⬜ **未實作** | 全專案查無此檔；SKILL.md 內 `rollback` / `回滾` 零命中 |
 | §3 提案 3 `wf-truncate.sh` | ⬜ **未實作** | `scripts/` 下僅有 `wf-state.sh` |
 | §3 提案 4 `wf-exec.sh` | ❌ **不採用**（2026-08-10 定案） | 前提已變：委派改走 MCP 工具呼叫，不經 bash 子進程，沒有 `$?` 可保留，此形狀無對應物。其要解決的「回報不可信」問題改由**驗收紀律**覆蓋（`implementer.md`「回報不等於事實」+ SKILL.md 委派紀律第 3 條）。**前一版的判斷（「agy headless 不可用 ⇒ 委派已死 ⇒ 不必寫轉接層」）方向對、結論錯**——不可用的是傳輸層，不是委派本身；正解是換傳輸層，不是放棄委派 |
@@ -2520,7 +2520,7 @@ Ponytail hook 在每次 write/edit 後被動檢查。
 - **真正危害**：不是「少一道保護」（漏做任務 reviewer 本來就會抓），而是**假保護**——`state-machine.md:117` 範例寫著 `"total_tasks": 5`，讀者會以為機制是活的。
 - **改法**：採方案 (a) 活化閘門：在 `SKILL.md`、`state-machine.md`、`command-cheatsheet.md` 明確加入 STAGE 2 起手由實作計畫解析總任務數 $N$，並執行 `wf-state.sh set <檔> total_tasks=<N>`。
 - **不改變操作手感**：正常做完所有任務時 `completed_tasks == total_tasks`，閘門靜默放行，只在異常時出聲。
-- **落地狀況（2026-10-01，Issue #183）**：(1) `SKILL.md` 的 STAGE 2 流程圖加入解析任務數並設定 `total_tasks` 的操作指示；(2) `state-machine.md` 與 `command-cheatsheet.md` 補齊設定步驟；(3) 建立 `tests/test_wf_state_total_tasks.sh` 自動化驗證完成度閘門阻斷與放行。
+- **落地狀況（2026-10-01，Issue #183；2026-11-09 PR #246 修正測試隔離變數）**：(1) `SKILL.md` 的 STAGE 2 流程圖加入解析任務數並設定 `total_tasks` 的操作指示；(2) `state-machine.md` 與 `command-cheatsheet.md` 補齊設定步驟；(3) 建立 `.claude/hooks/tests/test_wf_state_total_tasks.sh` 自動化驗證完成度閘門阻斷與放行（2026-11-09 將測試內的 `STATE_DIR` 修正為 `WF_STATE_DIR`，確保全部測試案例真正寫入隔離暫存目錄）。
 
 ##### 🟡 B5. effort 分層表可能從未生效（P1）— ✅ 已完成（2026-10-01，Issue #185）
 
