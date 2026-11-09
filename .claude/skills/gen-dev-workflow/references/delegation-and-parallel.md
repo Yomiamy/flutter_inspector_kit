@@ -85,7 +85,7 @@ Verifier 報告**第一行必須頂格輸出狀態前綴**，一眼即知通過�
    - **動機**：啟動子 Agent 需複製 context、初始化工具鏈與進程 IPC，耗時 30–60 秒與數萬 token。微任務原地完成可消滅神經質派發與不必要的調度延遲。
 2. **commit message 生成**（實作 model 依 diff 直生）。
 3. **STAGE 3 審查報告**（reviewer 親自判斷，不可委派。註：可選的「多 angle 對抗式審查」用 Claude Workflow 的 verifier 平行找 bug 作為輸入，reviewer 仍親自收斂判斷並產出報告，兩者不衝突——見 `references/workflow-parallel.md` 適用點 3）。
-4. **對外動作不委派 MCP 子進程**：`gh pr create`、`git push` 由 `publisher` agent 親自執行（不交給 `gemini-mcp-tool`），且須先通過對應暫停點。Issue 一律由 `brancher` 建立、PR 一律由 `publisher` 建立，任何模式皆同（見 `SKILL.md`「Issue／PR 指派與 Project 狀態」）
+4. **對外動作不委派 MCP 子進程**：`gh pr create` 由 `publisher`、`git push` 由當下負責的 agent（STAGE 4 的 `publisher`、STAGE 5 的 `responder`）親自執行，都不交給 `gemini-mcp-tool`，且須先通過對應暫停點。Issue 一律由 `brancher` 建立、PR 一律由 `publisher` 建立，任何模式皆同（見 `SKILL.md`「Issue／PR 指派與 Project 狀態」）
 
 ---
 
