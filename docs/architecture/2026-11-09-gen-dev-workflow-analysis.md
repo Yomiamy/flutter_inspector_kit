@@ -1,6 +1,7 @@
 # gen-dev-workflow 全階段分析報告
 
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-11-09**：同步 PR #246——(1) `wf-state.sh` 轉移表新增 `done→5`、`done→6`，讓 STAGE 4 收尾標為 `done` 的 `sequence` 流程可重入 STAGE 5／6；(2) 全模式（sequence／jump／quick／batch）統一由 `brancher` 建立 Issue、`publisher` 建立 PR，建立當下自動指派 `--assignee @me`（並補跑 `edit --add-assignee @me`）與設定 GitHub Project Status 為 `In Progress`（先以 `gh auth status --active --hostname github.com --json hosts` 檢查 `project` scope，缺 scope、檢查失敗或未加入 Project 皆不阻擋流程、不另開暫停詢問）；(3) `publisher` 建立 PR 前一律先執行 `git push -u origin <branch>`（不單靠 `git ls-remote` 判斷），`git push` 權責明確歸屬當下負責該 stage 的 agent（STAGE 4 為 `publisher`、STAGE 5 為 `responder`）。檔名日期前綴由 `2026-08-12` 更新至 `2026-11-09`。
 > * **2026-09-19**：同步 PR #167（Issue #166）——新增 STAGE 0·grill 需求盤問關卡與 `gen-grill` skill。(1) 「各階段詳細分析」新增 STAGE 0·grill 一節；(2) 缺點表「錯誤傳播」列標註部分緩解；(3) 總覽的 stage 敘述補上本關卡。注意此關卡**不動狀態機、不是暫停點、不產生文件**，故 state machine 轉移表與 7 個暫停點的既有敘述維持不變。
 > * **2026-09-04**：補上三處文件從未涵蓋的既有機制，並更新兩項因此失效的判斷。(1) 新增「Hook 強制層」章節——四個已註冊 hook（`wf-guard-stage-check`、`wf-guard-delegate-cwd` pre/post、`cbm-reindex-on-pr`）此前在本文件 0 次提及，其中兩個直接強制本 workflow 自身的規則；(2) 新增 batch 批次模式（此前僅 quick 模式有專節）；(3) 新增「Claude Workflow 編排」可選加速層。連帶修正：「委派後端依賴」缺點中「工作目錄靠 prompt 約束，屬文件層自律而非程式強制」一句已被 `wf-guard-delegate-cwd` 推翻，改為「pre 端已程式強制」；「最危險的假設」補上 hook 層作為第二道非自律防線。新增流程總覽圖連結。
 > * **2026-08-12**：PR review 回應階段的一致性修正（PR #126）。四處敘述本身自相矛盾，非新增功能：(1) STAGE 2 驗收責任人在 `implementer.md`、SKILL.md、本文件三處定義不一，統一為「委派 verifier 做兩階段驗收、implementer 只複核」；(2) STAGE 6 清理執行模型在本文件表格、mermaid 圖 E6/F6、SKILL.md 摘要表之間矛盾，統一為「主對話執行、不委派」；(3) `publisher.md` 唯讀派發同時宣稱「不得跨出目錄」又說明會讀全域 CLAUDE.md，改為誠實描述限制；(4) `brancher.md` 重試對帳規則原寫「找到既有資源就復用」，與 `gen-dev-worktree`「已存在則停止回報」衝突，收緊為「僅復用能證明屬於本次嘗試的資源」。
@@ -15,7 +16,7 @@
 
 `gen-dev-workflow` 是一個**全自動開發流程編排器**，從使用者說「幫我做 X 功能」到 PR 建立，共 6 個 stage（0a → 0b → 1 → 2 → 3 → 4，前方另有不進狀態機的 STAGE 0·grill 需求盤問關卡），外加兩個獨立入口的 STAGE 5（回覆 PR review）與 STAGE 6（PR 合併後清理 worktree），以及小修正用的 **quick 模式**（單暫停點快速通道，不建 worktree）。核心機制是 **Claude 做總指揮 + `gemini-mcp-tool`（MCP）做委派執行**。自 STAGE 1 起，整條流程搬進一個獨立 worktree 執行——worktree 才是真正的隔離邊界。
 
-> **📌 委派後端的傳輸層變更（2026-08-10）**：後端一直是 antigravity-cli，但**傳輸層由 `agy -p` headless 改為 MCP 工具 `mcp__gemini-cli__ask-gemini`**。原因：`agy -p` 不吃 stdin、權限會卡死（見 [`brainstorm §2.3`](../brainstorm/2026-09-13-workflow-brainstorm.md)），委派實際一律落到 fallback，「委派」名存實亡。MCP 路徑經實測可寫檔、可改既有檔、可跑 shell 與 `git commit`，是同一後端唯一能真正委派的通道。
+> **📌 委派後端的傳輸層變更（2026-08-10）**：後端一直是 antigravity-cli，但**傳輸層由 `agy -p` headless 改為 MCP 工具 `mcp__gemini-cli__ask-gemini`**。原因：`agy -p` 不吃 stdin、權限會卡死（見 [`brainstorm §2.3`](../brainstorm/2026-11-09-workflow-brainstorm.md)），委派實際一律落到 fallback，「委派」名存實亡。MCP 路徑經實測可寫檔、可改既有檔、可跑 shell 與 `git commit`，是同一後端唯一能真正委派的通道。
 >
 > **MCP 路徑的三條紀律**（因 MCP 無法指定 cwd 而必要）：
 > 1. **工作目錄寫死在 prompt**——不寫絕對路徑，子進程可能在主 repo 而非 worktree 動手。
@@ -96,7 +97,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | gen-gh-issue skill + brancher |
 | **Model** | 輕量（brancher frontmatter：`model: sonnet`；派發時帶入 `effort: high`）——純 IO，且建立前有暫停點人肉把關 |
-| **委派** | ✦ MCP 執行 `gh issue create/view` + `git worktree add` + `flutter pub get`（`gh issue create` 須先過暫停點） |
+| **委派** | ✦ MCP 執行 `gh issue create --assignee @me` / `view` + `git worktree add` + `flutter pub get`（`gh issue create` 須先過暫停點；建立後由 `brancher` 親自補跑 `--add-assignee @me` 並將 GitHub Project Status 設為 `In Progress`，失敗不阻擋） |
 | **並行** | 無 |
 | **產出** | GitHub Issue + Git 分支 + **獨立 worktree** |
 | **暫停點** | ⏸ 展示 Issue 標題/內容 + 分支/worktree 名稱 → 等使用者確認或修改 |
@@ -105,7 +106,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 1. 取得 Issue 內容（正常路徑用 gen-gh-issue 產五區段 body；issue-id 路徑用 `gh issue view <id>` 解析既有 issue）
 2. 依 `gen-dev-worktree` 規則決定 branch prefix + slug，草擬分支/worktree 名稱
 3. 暫停讓使用者確認/修改
-4. 確認後由 brancher 建立 **worktree + branch**（`git worktree add -b <branch> <worktree-path> origin/main`），主對話 `cd` 進新 worktree 繼續後續所有 stage
+4. 確認後由 brancher 建立 Issue（含指派 `@me` 與檢查 `project` scope 後設定 Project Status 為 `In Progress`，未設定成功僅註明原因、不暫停詢問）與 **worktree + branch**（`git worktree add -b <branch> <worktree-path> origin/main`），主對話 `cd` 進新 worktree 繼續後續所有 stage
 
 **Worktree 命名與落地：** worktree 目錄為 `.claude/worktrees/<repo-name>-<ISSUE-ID>-<slug>`，建在當前 repo 內的 `.claude/worktrees/` 下，base 預設 `origin/main`。branch 名稱 `<prefix>/<ISSUE-ID>-<slug>`（prefix 含 `YYYYMM`）。若目標 branch 或 worktree 路徑已存在則停止回報，不默默重用或覆蓋。這個 worktree 是**整個 workflow 的長駐工作區**；主流程（STAGE 1–4）全程只用不刪，連 PR 合併都不會自動清除——要等使用者手動觸發 STAGE 6 才移除（刻意不自動清，避免 PR 合併後仍需修改時誤刪工作區）。
 
@@ -182,7 +183,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **Agent** | publisher |
 | **Model** | 輕量（publisher frontmatter：`model: sonnet`；派發時帶入 `effort: high`）——重活已委派，發布前有暫停點人肉把關 |
-| **委派** | ✦ MCP 分析 Diff → 產 PR 草稿（唯讀）；Claude 校對；`gh pr create` 不委派 |
+| **委派** | ✦ MCP 分析 Diff → 產 PR 草稿（唯讀）；Claude 校對；`git push -u origin <branch>` 與 `gh pr create --assignee @me`（含補跑 `--add-assignee @me` 及設定 Project Status 為 `In Progress`）由 `publisher` 親自執行，不委派 MCP |
 | **並行** | 無 |
 | **產出** | GitHub PR |
 | **暫停點** | ⏸ 展示 PR 草稿 → 等使用者確認發布 |
@@ -191,7 +192,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 1. 委派分析 branch diff，生成 PR 描述草稿
 2. Claude 校對草稿品質
 3. 暫停讓使用者確認
-4. 確認後發布 PR
+4. 確認後由 `publisher` 先 `git push -u origin <branch>`（不單靠 `git ls-remote` 判斷），再發布 PR、指派 `@me` 並將 Project Status 切到 `In Progress`（失敗不阻擋）
 
 ---
 
@@ -242,7 +243,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 |------|------|
 | **觸發** | `/gen-dev-workflow quick <描述或 #issue>`、「快速修正 <描述>」 |
 | **適用** | 預期 diff 小（約 ≤3 檔）、無架構變動、無新依賴、不需規劃文件 |
-| **流程** | 建 branch（不建 worktree）→ 主對話直接實作（不委派 implementer/MCP）→ reviewer 單 lens 快掃 → gen-pr 產草稿 → 發布 |
+| **流程** | 建 branch（不建 worktree）→ 主對話直接實作（不委派 implementer/MCP）→ reviewer 單 lens 快掃 → 派發 `publisher` 產 PR 草稿 → 確認後由 `publisher` 發布（含指派 `@me` 與 Project 狀態） |
 | **暫停點** | 只有一個：PR 草稿確認前 |
 | **State** | 照寫 `<branch-slug>.json`（`mode: "quick"`），續接與 PR MERGED 自動刪檔複用既有機制 |
 
@@ -461,10 +462,10 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 | **Context 估算** | Token 用量無法精確測量 | 🟡 中 | Token Budget Gate 依賴「評估主對話 context 用量」，但 LLM 無法精確知道自己的 context 用了多少 token。60k / 100k / 150k 的閾值在實務上只能靠啟發式猜測 |
 | **缺乏回滾** | 沒有 undo/rollback 機制 | 🟡 中 | STAGE 2 如果 implementer 寫了爛 code 且已 commit，STAGE 3 退回 STAGE 2 只是「重做」，不會自動 `git revert`。壞 commit 會留在歷史中 |
 | **STAGE 5/6 脫節** | 獨立入口與主流程不連貫 | 🟡 低 | STAGE 5、6 都是「獨立入口」。STAGE 5 串聯 responder → reviewer → publisher，邏輯與主流程部分重疊卻又獨立，若修改引入新 bug 沒有機制退回 STAGE 2；STAGE 6 雖已新增文件同步（gen-sync-docs-by-branchs → gen-commit）避免 docs 過期，但仍脫離主流程，靠使用者手動觸發、不自動偵測 PR 合併狀態，誤觸發（PR 未真正合併就清理）無自動防護，只靠使用者自律 |
-| **文件 vs 執行** | Skill 是文件，不是程式 | 🟡 中（原 🔴 高） | 可程式化的 guard 已從文件搬進 `scripts/wf-state.sh`：(1) state machine 實作——sequence 模式非法 stage 轉移直接 exit 1（合法路徑 0a→0b→1→2→3→4、3→2、4→done 寫死在轉移表；quick/jump 不套用轉移表，quick 升級走單向 `upgrade` 指令）；(2) 暫停點棘輪——`stage-done`/`task-done` 後未帶 `--confirmed` 的 `advance` 一律拒絕，跳過暫停點從「無聲遺忘」變成必須蓄意加旗標的可稽核動作；(3) `set` 白名單禁改 `stage`/確認旗標，防繞過。**殘餘風險**：LLM 仍可能根本不呼叫腳本（只能靠 SKILL.md 明文禁止手寫 JSON），context 用量估算依然無法程式化 |
+| **文件 vs 執行** | Skill 是文件，不是程式 | 🟡 中（原 🔴 高） | 可程式化的 guard 已從文件搬進 `scripts/wf-state.sh`：(1) state machine 實作——sequence 模式非法 stage 轉移直接 exit 1（合法路徑 `0a→0b→1→2→3→4`、`3→2`、`4→done` 及獨立入口銜接 `4→5`、`5→4`、`5→5`、`4→6`、`5→6`、`6→done`、`done→5`、`done→6` 寫死在轉移表；quick/jump 不套用轉移表，quick 升級走單向 `upgrade` 指令）；(2) 暫停點棘輪——`stage-done`/`task-done` 後未帶 `--confirmed` 的 `advance` 一律拒絕，跳過暫停點從「無聲遺忘」變成必須蓄意加旗標的可稽核動作；(3) `set` 白名單禁改 `stage`/確認旗標，防繞過。**殘餘風險**：LLM 仍可能根本不呼叫腳本（只能靠 SKILL.md 明文禁止手寫 JSON），context 用量估算依然無法程式化 |
 | **Hook 層脆弱** | 掛載點不進版控、matcher 與通道耦合 | 🟡 中 | Hook 是目前唯一不依賴 LLM 自律的防線，但自身有三個缺口：(1) 掛載於 `.claude/settings.local.json`，**本地設定不進版控**——換機器、重裝或新 clone 都不會有，且失效時無聲無息；(2) 兩個 delegate guard 的 matcher 寫死 `mcp__gemini-cli__ask-gemini`、reindex 寫死 `Bash`，**換委派傳輸層或把 GitHub 操作改走 MCP 都會讓對應 hook 靜默失效**（2026-08-10 已換過一次通道，這是真實而非假想的風險）；(3) false positive 防護以「無 state 檔即放行」為條件，等於「不寫 state 反而繞過 guard」——為避免誤擋而接受的代價 |
 | **錯誤傳播** | 早期 stage 錯誤會放大 | 🟡 中 | 如果 STAGE 0a 的功能規格就有偏差，使用者確認了（可能沒仔細看），後面所有 stage 都在錯誤基礎上工作。flow 沒有後期發現早期問題的回溯機制。**2026-09-18 部分緩解**：新增 STAGE 0·grill 前置盤問（見上），在 planner 動工前先要求五項判準齊備，其中「既有覆蓋實查」強制查 codebase 而非只信文件敘述。但這只擋住**進入**規格階段時的偏差，「後期發現早期問題的回溯機制」仍然沒有 |
-| **STAGE 1 斷裂** | ~~`promote` 後 `stage-done 1` 恆遭拒（Bug 1.6）~~ | ✅ 已解決 | 2026-07-30 曾以 SKILL.md Workaround 繞過（連跑兩次 `advance --confirmed`）；2026-09-28（Issue #177 / PR #178）正式修復 `wf-state.sh promote` 自動推進至 stage 1 並加入來源狀態防禦，徹底廢除該 Workaround，守住人機確認閘門。詳見 [`docs/brainstorm/2026-09-17-workflow-brainstorm.md`](../brainstorm/2026-09-17-workflow-brainstorm.md) §8.2 B1。 |
+| **STAGE 1 斷裂** | ~~`promote` 後 `stage-done 1` 恆遭拒（Bug 1.6）~~ | ✅ 已解決 | 2026-07-30 曾以 SKILL.md Workaround 繞過（連跑兩次 `advance --confirmed`）；2026-09-28（Issue #177 / PR #178）正式修復 `wf-state.sh promote` 自動推進至 stage 1 並加入來源狀態防禦，徹底廢除該 Workaround，守住人機確認閘門。詳見 [`docs/brainstorm/2026-11-09-workflow-brainstorm.md`](../brainstorm/2026-11-09-workflow-brainstorm.md) §8.2 B1。 |
 | **狀態機漏洞** | ~~缺少任務完成與 STAGE 5 閉環校驗~~ | ✅ 已解決 | 2026-07-21 已在 `wf-state.sh` 補齊 `completed_tasks` 數量是否與 `total_tasks` 吻合的檢查，並於 STAGE 5 轉移表加上 `reviewer -> responder` 退回規則，防堵漏洞。（註：該校驗初版誤在頂層 `case` 分支用 `local`，一觸發即 `set -e` crash，已由「腳本脆弱性」列的 Bug 1.5 修正。） |
 | **腳本脆弱性** | ~~`wf-state.sh` 隱含多個 Bash Bug~~ | ✅ 已解決 | 2026-07-21 修復了 5 個 Bash 執行階段漏洞：參數不足導致 `shift 2` crash、無 `=` 的 `set` 參數致 JSON 損毀、負數被錯誤轉為字串、原子寫入失敗時殘留暫存檔，以及 `advance` 任務校驗誤用函式外 `local` 致 `set -e` crash（Bug 1.5，曾堵死 STAGE 2→3 主流程，屬「狀態機漏洞」修復引入的回歸）。 |
 | **垃圾回收缺失**| ~~廢棄 Pending 檔無人清理~~ | ✅ 已解決 | 2026-07-21 於 `wf-state.sh` 實作 `prune` 指令，可安全清理遺留超過 7 天的孤兒 `.pending-<wf-id>.json`。 |
