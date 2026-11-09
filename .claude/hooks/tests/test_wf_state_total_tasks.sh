@@ -65,7 +65,7 @@ echo "PASS: Advanced to stage 3 successfully"
 echo "=== Test 4: total_tasks=null backward compatibility ==="
 TEMP_DIR2="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR" "$TEMP_DIR2"' EXIT
-export STATE_DIR="$TEMP_DIR2"
+export WF_STATE_DIR="$TEMP_DIR2"
 
 INIT_OUTPUT2="$("$WF_STATE" init --mode sequence --stage 0a)"
 "$WF_STATE" advance "$INIT_OUTPUT2" 0b --confirmed
@@ -85,7 +85,7 @@ echo "PASS: null total_tasks passes backward-compatibly"
 echo "=== Test 5: advance to 3 blocked when completed_tasks > total_tasks ==="
 TEMP_DIR3="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR" "$TEMP_DIR2" "$TEMP_DIR3"' EXIT
-export STATE_DIR="$TEMP_DIR3"
+export WF_STATE_DIR="$TEMP_DIR3"
 
 INIT_OUTPUT3="$("$WF_STATE" init --mode sequence --stage 0a)"
 "$WF_STATE" advance "$INIT_OUTPUT3" 0b --confirmed
