@@ -50,6 +50,42 @@ class NetworkDemo {
     }
   }
 
+  /// Fires a multipart POST so the Network tab shows the FormData summary
+  /// instead of `Instance of 'FormData'`. `password` and `token_file` exercise
+  /// redaction (value and filename); `blob` has no filename, so it shows the
+  /// `<unnamed>` placeholder.
+  Future<void> makeFormDataRequest() async {
+    try {
+      await _dio.post(
+        'https://httpbin.org/post',
+        data: FormData.fromMap({
+          'username': 'demo',
+          'password': 'secret-123',
+          'avatar': MultipartFile.fromBytes([
+            1,
+            2,
+            3,
+            4,
+            5,
+          ], filename: 'avatar.png'),
+          'token_file': MultipartFile.fromBytes([
+            1,
+            2,
+            3,
+          ], filename: 'alice-id.txt'),
+          'blob': MultipartFile.fromBytes([1, 2]),
+        }),
+      );
+      _inspector.log('FormData request successful', level: LogLevel.info);
+    } on DioException catch (e, stackTrace) {
+      _inspector.log(
+        'FormData request failed: $e',
+        level: LogLevel.error,
+        stackTrace: stackTrace.toString(),
+      );
+    }
+  }
+
   /// Fires a GET request to httpbin.org/delay/3, which simulates a slow response
   /// taking 3 seconds. This will trigger the 🐢 SLOW visual indicator in the UI.
   Future<void> makeSlowRequest() async {
