@@ -582,20 +582,32 @@ void main() {
         interceptor.onRequest(options, RequestInterceptorHandler());
 
         final errorHandler = ErrorInterceptorHandler();
-        interceptor.onError(
-          DioException(
+        final err = DioException(
+          requestOptions: options,
+          response: Response(
             requestOptions: options,
-            response: Response(
-              requestOptions: options,
-              statusCode: 500,
-              data: ResponseBody(download.stream, 500),
-            ),
+            statusCode: 500,
+            data: ResponseBody(download.stream, 500),
           ),
-          errorHandler,
         );
-        // Dio forwards the error through the handler's future.
-        // ignore: invalid_use_of_protected_member
-        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+        interceptor.onError(err, errorHandler);
+        // handler.next completes the future with an InterceptorState error;
+        // reject would carry InterceptorResultType.reject and skip later
+        // error interceptors. dio does not export InterceptorState, so read
+        // its fields dynamically.
+        await expectLater(
+          // ignore: invalid_use_of_protected_member
+          errorHandler.future,
+          throwsA(
+            isA<dynamic>()
+                .having((e) => (e as dynamic).data, 'data', same(err))
+                .having(
+                  (e) => '${(e as dynamic).type}',
+                  'type',
+                  'InterceptorResultType.next',
+                ),
+          ),
+        );
 
         final entry = inspector.registry.network.entries.single;
         expect(entry.requestBody, '[stream]$kTruncatedMarker');
