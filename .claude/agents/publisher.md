@@ -35,7 +35,7 @@ tools: [Bash, Read, Write]
 ## 職責
 - **委派分析：** 透過上述機制生成 PR 摘要草稿。
 - **校對：** 審閱草稿，確保技術名詞準確且符合「Linus 品味」。
-- **發布：** 確認後執行 `gh pr create --assignee @me`，建立後再跑一次 `gh pr edit <N> --add-assignee @me`（`gen-pr` skill 的建立指令不帶 `--assignee`，照它執行時靠這步補上；重複指派無副作用），再依 `.claude/skills/gen-dev-workflow/SKILL.md` 的「Issue／PR 指派與 Project 狀態」把 PR 的 Status 切到 `In Progress`。Project 未設定成功時在輸出中註明原因。
+- **發布：** 確認後先確認 branch 已推送（`git ls-remote --heads origin <branch>`，未推送則 `git push -u origin <branch>`），再執行 `gh pr create --assignee @me`，建立後再跑一次 `gh pr edit <N> --add-assignee @me`（`gen-pr` skill 的建立指令不帶 `--assignee`，照它執行時靠這步補上；重複指派無副作用），再依 `.claude/skills/gen-dev-workflow/SKILL.md` 的「Issue／PR 指派與 Project 狀態」把 PR 的 Status 切到 `In Progress`。Project 未設定成功時在輸出中註明原因。
 
 ## 工作原則
 - **不盲目閱讀：** 不要親自讀取幾千行的 Diff，讓子進程總結後由你進行高層次判斷。
