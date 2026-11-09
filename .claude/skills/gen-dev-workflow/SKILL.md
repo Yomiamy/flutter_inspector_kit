@@ -199,15 +199,15 @@ description: |
 
 ## Issue／PR 指派與 Project 狀態
 
-**誰建立**：不論哪種模式（sequence／jump／quick／batch），Issue 一律由 `brancher` agent 建立，PR 一律由 `publisher` agent 建立。主對話不自己跑 `gh issue create` / `gh pr create`。下列規則由這兩個 agent 執行（`.claude/agents/brancher.md`、`.claude/agents/publisher.md` 會引用本節）。
+**誰建立**：不論哪種模式（sequence／jump／quick／batch），Issue 一律由 `brancher` agent 建立，PR 一律由 `publisher` agent 建立。主對話不自己跑 `gh issue create` / `gh pr create`。下列規則由這兩個 agent 在建立當下執行（`.claude/agents/brancher.md`、`.claude/agents/publisher.md` 會引用本節）；agent 返回之後才要做的補設（使用者選定 Project、或補上 scope 後重跑）一律由主對話執行。
 
 建立當下就要完成兩件事：
 
 1. **Assignees 指定為自己**：`gh issue create` / `gh pr create` 直接帶 `--assignee @me`，建立後再跑一次 `gh issue edit <N> --add-assignee @me`（PR 用 `gh pr edit`）。重複指派無副作用，確保不靠委派 prompt 或其他 skill 的指令有沒有帶到旗標。
 2. **Project Status 切到 `In Progress`**（Issue 與 PR 各做一次）：
-   1. **先確認 scope**：`gh auth status` 的 token scopes 須含 `project`。沒有就直接走下方「失敗不阻擋流程」。🔴 不可跳過——缺 scope 時 `gh issue view --json projectItems` **不會報錯，而是安靜回傳空陣列**，會被誤判成「不在任何 Project」。
-   2. 查所在 Project：`gh issue view <N> --json projectItems`（PR 用 `gh pr view`），取得 Project 標題；再用 `gh project list --owner <owner> --format json` 對出 number。
-   3. 不在任何 Project → 回報主對話，由主對話問使用者要用哪個 Project（owner + number），不要自己猜。使用者回答時 subagent 已返回，**後續 3～5 步由主對話自己執行**。
+   1. **先確認 scope**：`gh auth status --active --json hosts --jq '.hosts[][].scopes'` 以逗號切分後須有一項**完全等於** `project`（`read:project` 只能讀、不算）。沒有就直接走下方「失敗不阻擋流程」。🔴 不可跳過——缺 scope 時 `gh issue view --json projectItems` **不會報錯，而是安靜回傳空陣列**，會被誤判成「不在任何 Project」。
+   2. 查所在 Project：`gh issue view <N> --json projectItems`（PR 用 `gh pr view`），取得 Project 標題；再用 `gh project list --owner <owner> --format json` 對出 number（`<owner>` 用 repo owner）。
+   3. 不在任何 Project → 回報主對話，由主對話問使用者要用哪個 Project（owner + number），不要自己猜。使用者回答時 subagent 已返回，**後續 4～5 步由主對話自己執行**。
    4. 取 ID：`gh project item-add <number> --owner <owner> --url <issue/PR URL> --format json --jq .id` 得 item ID（已在 Project 內也會回傳既有 item，可安全重跑）；`gh project view <number> --owner <owner> --format json --jq .id` 得 project ID；`gh project field-list <number> --owner <owner> --format json` 得 `Status` 欄位 ID 與 `In Progress` 選項 ID。
    5. 設定：`gh project item-edit --project-id <project-id> --id <item-id> --field-id <status-field-id> --single-select-option-id <in-progress-option-id>`。
 
