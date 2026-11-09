@@ -353,7 +353,7 @@ class _ResendActionState extends State<_ResendAction> {
   Widget build(BuildContext context) {
     final String tooltip;
     if (widget.entry.isRequestTruncated) {
-      tooltip = 'Cannot resend: request body truncated';
+      tooltip = 'Cannot resend: request body truncated or summarized';
     } else if (widget.entry.sourceDio?.target == null) {
       tooltip = 'Cannot resend: source Dio not available';
     } else {

@@ -45,7 +45,7 @@ Instance of 'FormData'
 
 說明：
 
-- 範例中的 `...[truncated]` 即 `kTruncatedMarker`。結尾帶這個標記會讓 `NetworkEntry.isRequestTruncated == true`，詳情頁既有的 Resend 按鈕因此自動停用（提示「Cannot resend: request body truncated」），避免使用者把摘要字串當成 payload 重送到後端。這與既有 `Uint8List` 的 `[binary N bytes]` 佔位行為一致。
+- 範例中的 `...[truncated]` 即 `kTruncatedMarker`。結尾帶這個標記會讓 `NetworkEntry.isRequestTruncated == true`，詳情頁既有的 Resend 按鈕因此自動停用（提示「Cannot resend: request body truncated or summarized」），避免使用者把摘要字串當成 payload 重送到後端。這與既有 `Uint8List` 的 `[binary N bytes]` 佔位行為一致。
 - 遮蔽在**擷取時**完成：摘要一旦產生就是字串，匯出時已無法再拆回欄位，所以只能在擷取當下套用 redact。這與 `navigator_observer.dart` 擷取路由參數時遮蔽的作法相同。
 - 檔案項目只輸出 key、檔名、bytes（不含檔案內容）。`redactSensitiveData == true` 且檔案 key 命中 `isSensitiveRoutingKey` 時，檔名換成 `kRedactedValue`（檔名可能含使用者身分，與欄位值同一條規則）；key 與 bytes 不受影響。
 - 整體長度仍受既有 `kNetworkBodyMaxLength`（10 KB）截斷保護（`NetworkInspector.add`）。由於檔案排在前面，即使超長欄位值觸發截斷，被截掉的也只會是欄位值，檔案 metadata 會優先保留（檔案摘要總長 < 10 KB 時必定可見）。
