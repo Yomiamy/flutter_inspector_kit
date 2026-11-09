@@ -33,7 +33,7 @@
 | 單一欄位值過長 | **不另外截斷** | `NetworkInspector.add` → `NetworkEntry.truncateBody` 已有 10 KB 兜底（含 surrogate pair 防護），再加一層上限就多一個常數和分支；超長 `String` body 本來也是走同一條路 |
 | 空表單 | `[FormData: empty]` | 照規格；用 `parts.isEmpty` 一個條件處理，不另外寫分支 |
 | `filename` 為 null | `<unnamed>` | 照規格 |
-| 敏感檔案 key 的檔名 | 同欄位值規則，換成 `kRedactedValue` | review 後追加（`_summarizeFormData` 的 `masked`）：檔名可能含使用者身分；下方 Task 2 程式碼為初版，實際以 `dio_interceptor.dart` 為準 |
+| 敏感檔案 key 的檔名 | 同欄位值規則，換成 `kRedactedValue` | review 後追加（`_summarizeFormData` 的 `masked`）：檔名可能含使用者身分；下方 Task 1 測試與 Task 2 程式碼皆為初版（測試數、斷言寫法與後續 review 修正未回寫），實際以 `dio_interceptor_test.dart`／`dio_interceptor.dart` 為準 |
 | 結尾標記 | 一律附 `kTruncatedMarker` | 讓 `isRequestTruncated == true`，Resend 自動停用（`network_detail_view.dart` 的 `_ResendAction._disabled`） |
 | 三處呼叫一致性 | 不需要特別處理 | 摘要只取決於 `(FormData metadata, final bool redactSensitiveData)`；`fields`／`files`／`length`／`filename` 都是一般欄位，Dio 在 `dio_mixin.dart:721`（`_transformData`） 呼叫 `finalize()`、把 stream 讀完之後仍可讀取（已在 Dio 5.11.1 實測：`readAsBytes()` 前後摘要逐字相同） |
 | `finalize()` | 不呼叫 | `FormData.finalize()` 第二次呼叫會拋 `StateError`（`form_data.dart:165`），Inspector 若先呼叫就等於弄壞宿主的上傳 |
