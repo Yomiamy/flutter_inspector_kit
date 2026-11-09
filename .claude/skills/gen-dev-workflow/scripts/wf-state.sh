@@ -92,7 +92,7 @@ slugify() { echo "${1//\//-}"; }
 
 legal_transition() {
   case "$1->$2" in
-    "0a->0b"|"0b->1"|"1->2"|"2->3"|"3->4"|"3->2"|"4->done"|"4->5"|"5->4"|"5->5"|"4->6"|"5->6"|"6->done"|"reviewer->responder"|"responder->reviewer"|"reviewer->publisher") return 0 ;;
+    "0a->0b"|"0b->1"|"1->2"|"2->3"|"3->4"|"3->2"|"4->done"|"4->5"|"5->4"|"5->5"|"4->6"|"5->6"|"6->done"|"done->5"|"done->6"|"reviewer->responder"|"responder->reviewer"|"reviewer->publisher") return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -319,7 +319,7 @@ case "$cmd" in
       die "stage $cur 等待使用者確認中。先在對話中暫停詢問，獲確認後帶 --confirmed 重跑"
     fi
     if [ "$mode" = "sequence" ] && ! legal_transition "$cur" "$next"; then
-      die "非法 stage 轉移：$cur -> ${next}（合法路徑見 legal_transition()：主線 0a→0b→1→2→3→4、3→2、4→done；獨立入口 4→5、5→4、5→5、4→6、5→6、6→done；具名 stage reviewer→responder、responder→reviewer、reviewer→publisher）"
+      die "非法 stage 轉移：$cur -> ${next}（合法路徑見 legal_transition()：主線 0a→0b→1→2→3→4、3→2、4→done；獨立入口 4→5、5→4、5→5、4→6、5→6、6→done、done→5、done→6；具名 stage reviewer→responder、responder→reviewer、reviewer→publisher）"
     fi
     if [ "$next" = "3" ] && [ "$mode" = "sequence" ]; then
       total="$(jq -r '.total_tasks' "$f")"

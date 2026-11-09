@@ -19,7 +19,7 @@
 state 檔的**所有**建立、讀取、更新一律透過本 skill 的 `scripts/wf-state.sh`，**絕不手寫或手改 JSON**。guard 在腳本裡，不在本文件裡：
 
 - **schema 校驗 + 原子寫入**：先寫 tmp、`jq` 驗過才 `mv`——壞資料進不了磁碟，寫到一半中斷也不會留下半套 state。
-- **stage 轉移合法性**：sequence 模式接受 `0a→0b→1→2→3→4`、`3→2`（審查退回）、`4→done`，以及獨立入口銜接轉移 `4→5`、`5→4`、`5→5`、`4→6`、`5→6`、`6→done`，其餘非法跳段直接 exit 1。quick/jump 模式不套用轉移表（quick 的階段本來就非正式、jump 是使用者明示跳段），但校驗與棘輪照常生效。
+- **stage 轉移合法性**：sequence 模式接受 `0a→0b→1→2→3→4`、`3→2`（審查退回）、`4→done`，以及獨立入口銜接轉移 `4→5`、`5→4`、`5→5`、`4→6`、`5→6`、`6→done`，以及 `done→5`、`done→6`（STAGE 5／6 是 PR 發布後的獨立入口，流程已標 `done` 仍須可重入，否則 state 檔已存在、`init --mode jump` 亦被拒，無合法出路），其餘非法跳段直接 exit 1。quick/jump 模式不套用轉移表（quick 的階段本來就非正式、jump 是使用者明示跳段），但校驗與棘輪照常生效。
 - **暫停點棘輪**：`stage-done` / `task-done` 之後 `awaiting_confirmation=true`，未帶 `--confirmed` 的 `advance` 一律拒絕。`--confirmed` 只能在**使用者真的在對話中確認後**帶上——跳過暫停點從「無聲遺忘」變成必須蓄意加旗標、在 Bash 歷史留下痕跡的動作。
 
 | 時機 | 指令 |
