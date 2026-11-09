@@ -93,8 +93,7 @@ git branch -a | grep "$BRANCH"
 21. 輸出保持精簡完整，不需額外編輯就能直接貼進 PR 內文。
 22. 呈現草稿後，詢問使用者：**「草稿確認後，是否直接建立 PR？」**
 23. 使用者確認後（例如「yes」「對」「建立」「發送」），進入階段二：
-    - 檢查 `$BRANCH` 是否已推送到遠端：`git ls-remote --heads origin $BRANCH`
-    - 尚未推送則先推送：`git push -u origin $BRANCH`
+    - 一律先推送：`git push -u origin $BRANCH`（已同步時為 no-op；不要只用 `git ls-remote` 判斷，遠端分支存在不代表本地新 commit 已推送。被拒如 non-fast-forward 就停下回報，不 force）
     - 從 issue 行或 `**[修正問題]**` 的第一句取出 PR 標題，並確保是英文（必要時翻譯）。
     - 執行 `gh pr create`，帶入 `--base main --head $BRANCH --title <title> --body <full PR body>`。
     - PR 內文以 HEREDOC 傳入以保留格式。
