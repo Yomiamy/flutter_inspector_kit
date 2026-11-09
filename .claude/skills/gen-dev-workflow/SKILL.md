@@ -203,13 +203,15 @@ description: |
 
 建立當下就要完成兩件事：
 
-1. **Assignees 指定為自己**：`gh issue create` / `gh pr create` 直接帶 `--assignee @me`。
+1. **Assignees 指定為自己**：`gh issue create` / `gh pr create` 直接帶 `--assignee @me`，建立後再跑一次 `gh issue edit <N> --add-assignee @me`（PR 用 `gh pr edit`）。重複指派無副作用，確保不靠委派 prompt 或其他 skill 的指令有沒有帶到旗標。
 2. **Project Status 切到 `In Progress`**（Issue 與 PR 各做一次）：
-   - 查它所在的 Project：`gh issue view <N> --json projectItems`（PR 用 `gh pr view`）。
-   - 不在任何 Project → 回報主對話，由主對話問使用者要加到哪個 Project（owner + number），再 `gh project item-add <number> --owner <owner> --url <issue/PR URL>`。不要自己猜。
-   - 用 `gh project field-list <number> --owner <owner> --format json` 取得 `Status` 欄位 ID 與 `In Progress` 選項 ID，再以 `gh project item-edit --project-id <id> --id <item-id> --field-id <status-field-id> --single-select-option-id <in-progress-option-id>` 設定。
+   1. **先確認 scope**：`gh auth status` 的 token scopes 須含 `project`。沒有就直接走下方「失敗不阻擋流程」。🔴 不可跳過——缺 scope 時 `gh issue view --json projectItems` **不會報錯，而是安靜回傳空陣列**，會被誤判成「不在任何 Project」。
+   2. 查所在 Project：`gh issue view <N> --json projectItems`（PR 用 `gh pr view`），取得 Project 標題；再用 `gh project list --owner <owner> --format json` 對出 number。
+   3. 不在任何 Project → 回報主對話，由主對話問使用者要用哪個 Project（owner + number），不要自己猜。使用者回答時 subagent 已返回，**後續 3～5 步由主對話自己執行**。
+   4. 取 ID：`gh project item-add <number> --owner <owner> --url <issue/PR URL> --format json --jq .id` 得 item ID（已在 Project 內也會回傳既有 item，可安全重跑）；`gh project view <number> --owner <owner> --format json --jq .id` 得 project ID；`gh project field-list <number> --owner <owner> --format json` 得 `Status` 欄位 ID 與 `In Progress` 選項 ID。
+   5. 設定：`gh project item-edit --project-id <project-id> --id <item-id> --field-id <status-field-id> --single-select-option-id <in-progress-option-id>`。
 
-**失敗不阻擋流程**：gh token 缺 `project` scope 時，Project 相關指令會被 GitHub 拒絕。此時照常完成 Issue／PR 建立與指派，在回報中註明狀態未設定，由主對話告知使用者執行 `! gh auth refresh -s project` 後再補設，不要因此中止。
+**失敗不阻擋流程**：缺 `project` scope 或任何 Project 指令失敗時，照常完成 Issue／PR 建立與指派，在回報中註明狀態未設定與原因，由主對話告知使用者執行 `! gh auth refresh -s project` 後再補設，不要因此中止。
 
 ---
 
