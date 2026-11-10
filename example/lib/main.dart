@@ -188,6 +188,11 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
+                onPressed: _networkDemo.makeFormDataRequest,
+                child: const Text('Make FormData Request'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
                 onPressed: () => _runSeed(_sqliteDemo.seed),
                 child: const Text('Seed SQLite Demo'),
               ),

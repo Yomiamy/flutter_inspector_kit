@@ -471,7 +471,9 @@ void main() {
       await pumpView(tester, entry);
       final button = tester.widget<IconButton>(
         find.ancestor(
-          of: find.byTooltip('Cannot resend: request body truncated'),
+          of: find.byTooltip(
+            'Cannot resend: request body truncated or summarized',
+          ),
           matching: find.byType(IconButton),
         ),
       );
