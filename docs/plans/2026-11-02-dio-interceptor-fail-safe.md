@@ -2,7 +2,7 @@
 
 - **日期**：2026-11-02
 - **規格**：[`docs/features/2026-11-02-dio-interceptor-fail-safe.md`](../features/2026-11-02-dio-interceptor-fail-safe.md)
-- **來源**：`docs/brainstorm/2026-11-04-features-brainstorm.md` §P39
+- **來源**：`docs/brainstorm/2026-11-11-features-brainstorm.md` §P39
 - **Effort**：trivial
 
 ---
