@@ -1,6 +1,6 @@
 # 雙元件間距標尺與像素測距 (Widget Gap / Distance Ruler)
 
-> 來源：[`docs/brainstorm/2026-11-04-features-brainstorm.md`](../brainstorm/2026-11-04-features-brainstorm.md) §P36。
+> 來源：[`docs/brainstorm/2026-11-11-features-brainstorm.md`](../brainstorm/2026-11-11-features-brainstorm.md) §P36。
 
 ## What & Why
 
