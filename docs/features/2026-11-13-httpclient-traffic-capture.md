@@ -235,7 +235,7 @@ NetworkInspector.add：截斷文字 → 5 MB 檢查 → 寫入 buffer → 若總
 1. **時序**：header 在 `openUrl` 完成**之後**才設定（`io_adapter.dart:80`、:95 之後才到 :104），而 body 在 `close()` 之前先以 `addStream` 寫出（:142-161）。所以代理必須在「第一次寫 body 或 `close()`」之前檢查並移除標記（驗收 7-5）。在 `openUrl` 回傳時檢查一定看不到標記，zero 就是在這裡檢查（§6.2 A4）。
 2. **範圍**：標記只在經過 `IOHttpClientAdapter` 時才會被我們移除。用其他 adapter 的 Dio（`native_dio_adapter`、`dio_http2_adapter` 等）若也加標記，標記就會原封不動送到伺服器。因此 interceptor 只在**能證明**走 `IOHttpClientAdapter` 時才加標記（`sourceDio?.httpClientAdapter is IOHttpClientAdapter`，驗收 2-5）。README 的標準用法本來就會傳 `sourceDio`（README.md:165）。（plan-verifier 第 1 輪）這只能證明 `sourceDio` 的 adapter，無法證明實際送出請求的 Dio：`dio.clone(httpClientAdapter: X)` 會沿用 interceptor（dio 5.11.1 `dio_mixin.dart:851`），`sourceDio` 也可能傳錯；`IOHttpClientAdapter(createHttpClient: 既有 client)` 或覆寫 `fetch` 的子類也會繞過代理。這些情況下標記會外洩，見 R14。`IOHttpClientAdapter` 來自 `package:dio/io.dart`（會帶入 `dart:io`），所以型別判斷必須放在條件匯出的 io 側。
 3. **紀錄中剔除**：interceptor 存的是 `options.headers` 這個 Map 本身的參照（`dio_interceptor.dart:67`、:105、:160）。標記如果直接加進這個 Map，就會出現在 entry、cURL 與 Resend 裡，所以建 entry 時必須剔除（驗收 2-3；zero 在 `lib/src/interceptors/dio_interceptor.dart:93-96` 也這樣做）。
-4. **去重只需要布林標記**：zero 用逐請求的隨機 ID，是因為它要把 Dio 紀錄和 HttpClient 紀錄**合併**。我們是直接**跳過**，標記用固定值即可，不需要 ID 產生器或碰撞處理。
+4. **標記採用逐請求 token（5(c) 裁決選項 B）**：攔截器在 `liveDioMarkers` 以 `WeakReference` 登記 `options.headers`，由 `HttpClient` 代理在送出 header 當下移除標記並同步清空 `requestOptions.headers` 裡的標記，避免後續 `onResponse`／`onError` 攔截器在重試或刷新 token 時誤帶標記（僅連線前失敗後換另一個 Dio 重送屬已知殘留）。
 
 ### Q3：三個代理的實作範圍（response 要 tee，又不能破壞消費者）
 

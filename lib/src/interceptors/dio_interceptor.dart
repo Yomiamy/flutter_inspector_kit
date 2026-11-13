@@ -70,8 +70,14 @@ class FlutterInspectorDioInterceptor extends Interceptor {
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     try {
       options.extra['_inspector_start_time'] = DateTime.now();
+      // A resent RequestOptions still carries its previous token: retire it
+      // first, tagged or not, so it can neither leak nor linger.
+      final stale = options.headers.remove(kDioMarkerHeader);
+      if (stale != null) liveDioMarkers.remove(stale);
       final tagged = shouldTagDioRequest(sourceDio);
-      if (tagged) options.headers[kDioMarkerHeader] = kDioMarkerValue;
+      if (tagged) {
+        options.headers[kDioMarkerHeader] = registerDioMarker(options.headers);
+      }
       final entry = NetworkEntry(
         method: options.method,
         url: options.uri.toString(),
@@ -103,7 +109,17 @@ class FlutterInspectorDioInterceptor extends Interceptor {
     NetworkEntry? pending;
     Duration? duration;
     try {
-      response.requestOptions.headers.remove(kDioMarkerHeader);
+      final token = response.requestOptions.headers.remove(kDioMarkerHeader);
+      if (token != null) {
+        liveDioMarkers.remove(token);
+        // Headers were sent, yet the HttpClient layer never took the marker.
+        _inspector.log(
+          'The inspector marker header may have reached the server: this Dio '
+          'request did not pass the captureHttpClient layer. Check that '
+          'sourceDio is the Dio sending it (dio.clone keeps interceptors).',
+          level: LogLevel.warning,
+        );
+      }
       final startTime =
           response.requestOptions.extra['_inspector_start_time'] as DateTime?;
       duration = startTime != null
@@ -161,7 +177,8 @@ class FlutterInspectorDioInterceptor extends Interceptor {
     NetworkEntry? pending;
     Duration? duration;
     try {
-      err.requestOptions.headers.remove(kDioMarkerHeader);
+      final token = err.requestOptions.headers.remove(kDioMarkerHeader);
+      if (token != null) liveDioMarkers.remove(token);
       final startTime =
           err.requestOptions.extra['_inspector_start_time'] as DateTime?;
       duration = startTime != null

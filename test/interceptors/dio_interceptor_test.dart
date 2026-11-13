@@ -713,6 +713,7 @@ void main() {
         expect(options.headers, isNot(contains(kDioMarkerHeader)));
         final completed = inspector.registry.network.entries.single;
         expect(completed.requestHeaders, isNot(contains(kDioMarkerHeader)));
+        expect(inspector.logEntries, isEmpty);
       });
 
       test('without the layer the headers are untouched and recorded live '
@@ -749,6 +750,89 @@ void main() {
           interceptor.onRequest(options, RequestInterceptorHandler());
           expect(options.headers, isNot(contains(kDioMarkerHeader)));
         }
+      });
+
+      test('onRequest registers live options.headers by WeakReference', () {
+        installHttpClientCapture(inspector);
+        final tagging = FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        );
+        final options = RequestOptions(path: 'http://example.com/api');
+
+        tagging.onRequest(options, RequestInterceptorHandler());
+
+        expect(liveDioMarkers, hasLength(1));
+        final token = options.headers[kDioMarkerHeader] as String?;
+        expect(token, isNotNull);
+        expect(liveDioMarkers[token]?.target, same(options.headers));
+      });
+
+      test(
+        're-running onRequest on the same RequestOptions retires stale token',
+        () {
+          installHttpClientCapture(inspector);
+          final dio = Dio();
+          final tagging = FlutterInspectorDioInterceptor(
+            inspector,
+            sourceDio: dio,
+          );
+          final untagged = FlutterInspectorDioInterceptor(inspector);
+          final options = RequestOptions(path: 'http://example.com/api');
+
+          tagging.onRequest(options, RequestInterceptorHandler());
+          final firstToken = options.headers[kDioMarkerHeader];
+
+          tagging.onRequest(options, RequestInterceptorHandler());
+          final secondToken = options.headers[kDioMarkerHeader];
+          expect(secondToken, isNot(firstToken));
+          expect(liveDioMarkers.containsKey(firstToken), isFalse);
+          expect(liveDioMarkers, hasLength(1));
+          expect(liveDioMarkers[secondToken]?.target, same(options.headers));
+
+          untagged.onRequest(options, RequestInterceptorHandler());
+          expect(options.headers, isNot(contains(kDioMarkerHeader)));
+          expect(liveDioMarkers, isEmpty);
+        },
+      );
+
+      test('onResponse and onError clear liveDioMarkers', () async {
+        installHttpClientCapture(inspector);
+        final tagging = FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        );
+        final okOptions = RequestOptions(path: 'http://example.com/ok');
+        tagging.onRequest(okOptions, RequestInterceptorHandler());
+        expect(liveDioMarkers, hasLength(1));
+        tagging.onResponse(
+          Response(requestOptions: okOptions, statusCode: 200),
+          ResponseInterceptorHandler(),
+        );
+        expect(liveDioMarkers, isEmpty);
+
+        final errOptions = RequestOptions(path: 'http://example.com/err');
+        tagging.onRequest(errOptions, RequestInterceptorHandler());
+        expect(liveDioMarkers, hasLength(1));
+        final errorHandler = ErrorInterceptorHandler();
+        tagging.onError(
+          DioException(requestOptions: errOptions, error: 'fail'),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+        expect(liveDioMarkers, isEmpty);
+      });
+
+      test('without install onRequest does not touch liveDioMarkers (2-4)', () {
+        final options = RequestOptions(path: 'http://example.com/api');
+
+        FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        ).onRequest(options, RequestInterceptorHandler());
+
+        expect(liveDioMarkers, isEmpty);
       });
     });
 

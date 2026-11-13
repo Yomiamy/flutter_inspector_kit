@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
+import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:flutter_inspector_kit/src/interceptors/http_client_capture.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
@@ -32,6 +33,18 @@ class _HostOverrides extends HttpOverrides {
 }
 
 class _FakeAdapter extends Fake implements HttpClientAdapter {}
+
+class _OkAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async => ResponseBody.fromString('ok', 200);
+
+  @override
+  void close({bool force = false}) {}
+}
 
 class _FakeCertificate extends Fake implements X509Certificate {}
 
@@ -246,6 +259,12 @@ class _TestServer {
           response.write('a' * 60 * 1024);
         case '/utf8':
           response.write('é' * 30000);
+        case '/401':
+          if (request.headers.value('authorization') != 'Bearer refreshed') {
+            response.statusCode = HttpStatus.unauthorized;
+          } else {
+            response.write('ok');
+          }
         default:
           response.write('hello');
       }
@@ -1240,6 +1259,238 @@ void main() {
 
       expect(await utf8.decodeStream(await req.close()), '{"a":1}');
       expect(inspector.networkEntries.single.requestBody, '{"a":1}');
+    });
+  });
+
+  group('live Dio marker handshake (T12b)', () {
+    late _TestServer server;
+
+    setUp(() async {
+      server = await _TestServer.start();
+      installHttpClientCapture(inspector);
+    });
+    tearDown(() async => server.close());
+
+    test(
+      'earlier response interceptor does not see the marker (R14c)',
+      () async {
+        final seenHeaders = <Map<String, dynamic>>[];
+        final dio = Dio();
+        dio.interceptors
+          ..add(
+            InterceptorsWrapper(
+              onResponse: (response, handler) {
+                seenHeaders.add(Map.of(response.requestOptions.headers));
+                handler.next(response);
+              },
+            ),
+          )
+          ..add(FlutterInspectorDioInterceptor(inspector, sourceDio: dio));
+
+        await dio.get<String>(server.url('/text').toString());
+
+        expect(seenHeaders.single, isNot(contains(kDioMarkerHeader)));
+        expect(inspector.logEntries, isEmpty);
+        expect(liveDioMarkers, isEmpty);
+      },
+    );
+
+    test('401 token refresh resent through another Dio records httpClient and '
+        'never leaks the marker', () async {
+      final dioA = Dio();
+      final dioB = Dio();
+      dioA.interceptors
+        ..add(
+          InterceptorsWrapper(
+            onError: (err, handler) async {
+              err.requestOptions.headers['authorization'] = 'Bearer refreshed';
+              handler.resolve(await dioB.fetch<dynamic>(err.requestOptions));
+            },
+          ),
+        )
+        ..add(FlutterInspectorDioInterceptor(inspector, sourceDio: dioA));
+
+      final response = await dioA.get<String>(server.url('/401').toString());
+
+      expect(response.data, 'ok');
+      expect(server.received, hasLength(2));
+      for (final headers in server.received) {
+        expect(headers[kDioMarkerHeader], isNull);
+      }
+      expect(
+        inspector.networkEntries.where(
+          (e) => e.origin == NetworkOrigin.httpClient && e.statusCode == 200,
+        ),
+        hasLength(1),
+      );
+      expect(liveDioMarkers, isEmpty);
+    });
+
+    test(
+      'pre-connect failure resent through another Dio skips recording: known '
+      'residual (plan §9.2)',
+      () async {
+        final port = await _closedPort();
+        final dioA = Dio();
+        final dioB = Dio();
+        var retried = false;
+        dioA.interceptors
+          ..add(
+            InterceptorsWrapper(
+              onError: (err, handler) async {
+                if (!retried) {
+                  retried = true;
+                  err.requestOptions.path = server.url('/text').toString();
+                  handler.resolve(
+                    await dioB.fetch<dynamic>(err.requestOptions),
+                  );
+                  return;
+                }
+                handler.next(err);
+              },
+            ),
+          )
+          ..add(FlutterInspectorDioInterceptor(inspector, sourceDio: dioA));
+
+        final response = await dioA.get<String>('http://127.0.0.1:$port/text');
+
+        expect(response.data, 'hello');
+        expect(server.received.single[kDioMarkerHeader], isNull);
+        expect(
+          inspector.networkEntries.where(
+            (e) => e.origin == NetworkOrigin.httpClient && e.statusCode == 200,
+          ),
+          isEmpty,
+        );
+        expect(liveDioMarkers, isEmpty);
+      },
+    );
+
+    test('leaves no orphans in liveDioMarkers across sequential request '
+        'scenarios', () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        FlutterInspectorDioInterceptor(inspector, sourceDio: dio),
+      );
+
+      // 1. GET
+      await dio.get<String>(server.url('/text').toString());
+      expect(liveDioMarkers, isEmpty, reason: 'after GET');
+
+      // 2. POST
+      await dio.post<String>(server.url('/echo').toString(), data: {'a': 1});
+      expect(liveDioMarkers, isEmpty, reason: 'after POST');
+
+      // 3. 401 resent via Dio B
+      final dioRefresh = Dio();
+      final dioB = Dio();
+      dioRefresh.interceptors
+        ..add(
+          InterceptorsWrapper(
+            onError: (err, handler) async {
+              err.requestOptions.headers['authorization'] = 'Bearer refreshed';
+              handler.resolve(await dioB.fetch<dynamic>(err.requestOptions));
+            },
+          ),
+        )
+        ..add(FlutterInspectorDioInterceptor(inspector, sourceDio: dioRefresh));
+      await dioRefresh.get<String>(server.url('/401').toString());
+      expect(liveDioMarkers, isEmpty, reason: 'after 401 -> Dio B');
+
+      // 4. Pre-connect failure resent via the same Dio (dio.fetch)
+      final closed = await _closedPort();
+      var retriedSame = false;
+      final dioSameRetry = Dio();
+      dioSameRetry.interceptors
+        ..add(
+          InterceptorsWrapper(
+            onError: (err, handler) async {
+              if (!retriedSame) {
+                retriedSame = true;
+                err.requestOptions.path = server.url('/text').toString();
+                handler.resolve(
+                  await dioSameRetry.fetch<dynamic>(err.requestOptions),
+                );
+                return;
+              }
+              handler.next(err);
+            },
+          ),
+        )
+        ..add(
+          FlutterInspectorDioInterceptor(inspector, sourceDio: dioSameRetry),
+        );
+      final sameRetryRes = await dioSameRetry.get<String>(
+        'http://127.0.0.1:$closed/text',
+      );
+      expect(sameRetryRes.data, 'hello');
+      expect(liveDioMarkers, isEmpty, reason: 'after pre-connect -> same');
+
+      // 5. Pre-connect failure resent via Dio B: known residual (plan §9.2)
+      var retriedOther = false;
+      final dioOtherRetry = Dio();
+      dioOtherRetry.interceptors
+        ..add(
+          InterceptorsWrapper(
+            onError: (err, handler) async {
+              if (!retriedOther) {
+                retriedOther = true;
+                err.requestOptions.path = server.url('/text').toString();
+                handler.resolve(await dioB.fetch<dynamic>(err.requestOptions));
+                return;
+              }
+              handler.next(err);
+            },
+          ),
+        )
+        ..add(
+          FlutterInspectorDioInterceptor(inspector, sourceDio: dioOtherRetry),
+        );
+      await dioOtherRetry.get<String>('http://127.0.0.1:$closed/text');
+      expect(liveDioMarkers, isEmpty, reason: 'after pre-connect -> Dio B');
+    });
+
+    test(
+      'keeps a newer token on live headers when an older request finalizes',
+      () async {
+        final live = <String, dynamic>{};
+        final token1 = registerDioMarker(live);
+        final token2 = registerDioMarker(live);
+        live[kDioMarkerHeader] = token2;
+        expect(token1, isNot(token2));
+
+        final client = HttpClient();
+        addTearDown(() => client.close(force: true));
+        final req = await client.getUrl(server.url('/text'));
+        req.headers.set(kDioMarkerHeader, token1);
+        await (await req.close()).drain<void>();
+
+        expect(live[kDioMarkerHeader], token2);
+        expect(liveDioMarkers.containsKey(token1), isFalse);
+        expect(liveDioMarkers[token2]?.target, same(live));
+      },
+    );
+
+    test('logs a warning when a cloned Dio with non-IO adapter retains the '
+        'marker (R14a)', () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        FlutterInspectorDioInterceptor(inspector, sourceDio: dio),
+      );
+      final cloned = dio.clone(httpClientAdapter: _OkAdapter());
+
+      final response = await cloned.get<String>('http://example.com/a');
+
+      expect(response.statusCode, 200);
+      expect(liveDioMarkers, isEmpty);
+      expect(
+        inspector.logEntries.where(
+          (e) =>
+              e.level == LogLevel.warning &&
+              e.message.contains('may have reached the server'),
+        ),
+        hasLength(1),
+      );
     });
   });
 }

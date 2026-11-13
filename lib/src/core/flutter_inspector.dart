@@ -225,10 +225,13 @@ class FlutterInspector {
   ///   that keeps the interceptor, a wrong `sourceDio`, an
   ///   `IOHttpClientAdapter(createHttpClient:)` returning a client created
   ///   before the inspector, or an adapter subclass overriding `fetch`.
-  /// - Other interceptors' `onResponse` / `onError` still see the marker in
-  ///   `requestOptions.headers`. Resending those options through another Dio
-  ///   (retry, token refresh) can send the marker, or make this layer skip
-  ///   the request silently.
+  /// - Once the `HttpClient` layer sends a request's headers, it strips the
+  ///   marker from `requestOptions.headers`, so later response or error
+  ///   interceptors do not see it (token-refresh resends through another Dio
+  ///   are captured normally). Only a request that fails before connecting
+  ///   still carries the marker into `onError`: resending that failure through
+  ///   a *different* Dio can leak the marker on a non-IO adapter or be silently
+  ///   skipped here.
   /// - A Dio request that fails before connecting (DNS, refused connection,
   ///   TLS handshake) is recorded twice.
   /// - Takes effect in every build mode, release included. Gate it with a

@@ -49,9 +49,13 @@ bool shouldTagDioRequest(Dio? dio) =>
     identical(HttpOverrides.current, _installed) &&
     dio?.httpClientAdapter is IOHttpClientAdapter;
 
-/// Forgets the install guard. Tests restore `HttpOverrides.global` themselves.
+/// Forgets the install guard and clears any lingering marker entries. Tests
+/// restore `HttpOverrides.global` themselves.
 @visibleForTesting
-void resetHttpClientCaptureForTesting() => _installed = null;
+void resetHttpClientCaptureForTesting() {
+  _installed = null;
+  liveDioMarkers.clear();
+}
 
 class _InspectorHttpOverrides extends HttpOverrides {
   _InspectorHttpOverrides(this._previous, this._inspector);
@@ -287,8 +291,13 @@ class _CapturingRequest implements HttpClientRequest {
     _finalized = true;
     _guard(_inspector, () {
       final headers = _inner.headers;
-      if (headers[kDioMarkerHeader] != null) {
+      if (headers[kDioMarkerHeader] case [final token, ...]) {
         headers.removeAll(kDioMarkerHeader); // Dio's interceptor records it
+        final live = liveDioMarkers.remove(token)?.target;
+        // A resend may already carry a newer token; leave that one alone.
+        if (live != null && live[kDioMarkerHeader] == token) {
+          live.remove(kDioMarkerHeader);
+        }
         return;
       }
       _pending = _inspector.logNetwork(
