@@ -11,6 +11,9 @@ import 'package:flutter_inspector_kit/src/interceptors/http_client_capture.dart'
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_origin.dart';
+import 'package:flutter_inspector_kit/src/utils/agent_prompt.dart';
+import 'package:flutter_inspector_kit/src/utils/diagnostic_report.dart';
+import 'package:flutter_inspector_kit/src/utils/network_formatters.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Stands in for a host's own `HttpOverrides` (SSL pinning, proxy rules);
@@ -1492,5 +1495,153 @@ void main() {
         hasLength(1),
       );
     });
+  });
+
+  group('end-to-end with FlutterInspector(captureHttpClient: true) (T13)', () {
+    late _TestServer server;
+    late FlutterInspector liveInspector;
+
+    setUp(() async {
+      server = await _TestServer.start();
+      liveInspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        captureHttpClient: true,
+      );
+    });
+    tearDown(() async => server.close());
+
+    test('Dio GET and JSON POST are recorded once as dio with no leaked marker '
+        '(2-1, 2-2)', () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        FlutterInspectorDioInterceptor(liveInspector, sourceDio: dio),
+      );
+
+      final getRes = await dio.get<String>(server.url('/text').toString());
+      final postRes = await dio.post<String>(
+        server.url('/echo').toString(),
+        data: {'hello': 'world'},
+      );
+
+      expect(getRes.data, 'hello');
+      expect(postRes.data, '{"hello":"world"}');
+      expect(liveInspector.networkEntries, hasLength(2));
+      for (final entry in liveInspector.networkEntries) {
+        expect(entry.origin, NetworkOrigin.dio);
+        expect(entry.isComplete, isTrue);
+      }
+      expect(server.received, hasLength(2));
+      for (final headers in server.received) {
+        expect(headers[kDioMarkerHeader], isNull);
+      }
+      expect(liveDioMarkers, isEmpty);
+    });
+
+    test('Dio without the interceptor is captured once as httpClient '
+        '(2-6)', () async {
+      final dio = Dio();
+
+      final response = await dio.get<String>(server.url('/text').toString());
+
+      expect(response.data, 'hello');
+      final entry = liveInspector.networkEntries.single;
+      expect(entry.origin, NetworkOrigin.httpClient);
+      expect(entry.method, 'GET');
+      expect(entry.statusCode, 200);
+      expect(entry.responseBody, 'hello');
+      expect(entry.isComplete, isTrue);
+    });
+
+    test('tagged Dio failing before connecting records both dio and httpClient '
+        '— accepted per spec §8 C2', () async {
+      final port = await _closedPort();
+      final dio = Dio();
+      dio.interceptors.add(
+        FlutterInspectorDioInterceptor(liveInspector, sourceDio: dio),
+      );
+
+      await expectLater(
+        dio.get<String>('http://127.0.0.1:$port/text'),
+        throwsA(isA<DioException>()),
+      );
+
+      expect(liveInspector.networkEntries, hasLength(2));
+      final byOrigin = {
+        for (final entry in liveInspector.networkEntries) entry.origin: entry,
+      };
+      final dioEntry = byOrigin[NetworkOrigin.dio];
+      final clientEntry = byOrigin[NetworkOrigin.httpClient];
+      expect(dioEntry, isNotNull);
+      expect(dioEntry?.errorType, DioExceptionType.connectionError);
+      expect(dioEntry?.isComplete, isTrue);
+      expect(clientEntry, isNotNull);
+      expect(clientEntry?.error, isNotNull);
+      expect(clientEntry?.isComplete, isTrue);
+      expect(liveDioMarkers, isEmpty);
+    });
+
+    test('pending and completed entries keep the route active at request start '
+        '(8-4)', () async {
+      Route<void> routeFor(String name) => PageRouteBuilder<void>(
+        settings: RouteSettings(name: name),
+        pageBuilder: (_, _, _) => const SizedBox(),
+      );
+      final routeA = routeFor('/a');
+      final routeB = routeFor('/b');
+      liveInspector.navigatorObserver.didPush(routeA, null);
+
+      final client = HttpClient();
+      addTearDown(() => client.close(force: true));
+      final req = await client.getUrl(server.url('/slow'));
+      final closing = req.close();
+
+      final pending = liveInspector.networkEntries.single;
+      expect(pending.isComplete, isFalse);
+      expect(pending.activeRoute, '/a');
+
+      liveInspector.navigatorObserver.didPush(routeB, routeA);
+      server.release();
+      final response = await closing;
+      await response.drain<void>();
+
+      final completed = liveInspector.networkEntries.single;
+      expect(completed.isComplete, isTrue);
+      expect(completed.activeRoute, '/a');
+    });
+
+    test(
+      'PNG response exports carry only the summary, never raw bytes (6-9)',
+      () async {
+        final client = HttpClient();
+        addTearDown(() => client.close(force: true));
+        final req = await client.getUrl(server.url('/png'));
+        final response = await req.close();
+        await response.drain<void>();
+
+        final entry = liveInspector.networkEntries.single;
+        expect(entry.responseImageBytes, _Data.png1x1);
+
+        final curl = buildCurl(entry);
+        expect(curl, isNot(contains('iVBOR')));
+        expect(curl, isNot(contains('[137, 80')));
+
+        final responseExports = {
+          'plainText': buildPlainText(entry),
+          'agentPrompt': buildAgentPrompt(entry, timeline: [entry]),
+          'diagnosticReport': buildDiagnosticReport(
+            logInspector: liveInspector.logInspector,
+            networkEntries: liveInspector.networkEntries,
+            navigatorEntries: liveInspector.navigatorEntries,
+            databaseEntries: liveInspector.databaseEntries,
+            now: DateTime.now(),
+          ),
+        };
+        responseExports.forEach((name, output) {
+          expect(output, contains('[image/png,'), reason: name);
+          expect(output, isNot(contains('iVBOR')), reason: name);
+          expect(output, isNot(contains('[137, 80')), reason: name);
+        });
+      },
+    );
   });
 }
