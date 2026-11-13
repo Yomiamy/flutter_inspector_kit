@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../inspectors/log_inspector.dart';
 import '../inspectors/navigator_inspector.dart';
 import '../inspectors/navigator_stack_resolver.dart';
+import '../interceptors/http_client_capture.dart';
 import '../models/database_browser_source.dart';
 import '../models/database_entry.dart';
 import '../models/database_operation.dart';
@@ -148,8 +149,9 @@ class FlutterInspector {
   /// Supplies device and app metadata for the diagnostic report header.
   ///
   /// Defaults to `null`, in which case the header degrades to `N/A`. This
-  /// package depends on no device-info plugin (and never on `dart:io`); hosts
-  /// that want a populated header implement [DiagnosticInfoSource] themselves.
+  /// package depends on no device-info plugin, and imports `dart:io` only
+  /// behind conditional exports, so web builds stay free of it; hosts that
+  /// want a populated header implement [DiagnosticInfoSource] themselves.
   final DiagnosticInfoSource? diagnosticInfoSource;
 
   /// The duration threshold for considering a network request as "slow".
@@ -184,6 +186,55 @@ class FlutterInspector {
   ///
   /// Must be greater than [Duration.zero].
   final Duration frozenFrameThreshold;
+
+  /// Whether to record traffic sent through `dart:io` `HttpClient` —
+  /// `Image.network`, `package:http`'s `IOClient`, third-party SDKs, and Dio
+  /// instances without [FlutterInspectorDioInterceptor] — as
+  /// [NetworkOrigin.httpClient] entries. Image responses keep their bytes
+  /// (up to 5 MB each, 50 MB in total) for a preview in the detail view.
+  ///
+  /// Defaults to `false`. Does nothing on web. Native clients
+  /// (`cupertino_http`, `cronet_http`, `native_dio_adapter`) are not captured.
+  ///
+  /// Notes:
+  /// - Installed at construction by chaining onto the global `HttpOverrides`
+  ///   slot, so the host's own overrides (SSL pinning, proxies) keep working.
+  ///   It is never uninstalled: [detach] does not touch it, and the inspector
+  ///   never restores `HttpOverrides.global` or sets it to `null`.
+  /// - Construct the inspector at the top of `main()`, before any client is
+  ///   created or any Dio instance sends its first request. Clients created
+  ///   earlier — lazy statics such as `Image.network`'s shared client, a
+  ///   `http.Client()` in a DI container, a Dio adapter's cached client — are
+  ///   never captured.
+  /// - If the host sets `HttpOverrides.global` *after* constructing the
+  ///   inspector, that override replaces this layer and capture silently
+  ///   stops (the host always wins — nothing breaks). Traffic inside
+  ///   `HttpOverrides.runZoned` and in other isolates is not captured.
+  /// - Enable this on a single, app-wide inspector: only the first enabled
+  ///   inspector in an isolate installs the layer.
+  /// - A Dio request is recorded once — by [FlutterInspectorDioInterceptor],
+  ///   not again here — only when the interceptor was given `sourceDio` and
+  ///   that Dio is the one actually sending the request. The interceptor
+  ///   then adds a marker header that this layer removes before the headers
+  ///   are sent. Without `sourceDio` no marker is added and the request is
+  ///   recorded twice.
+  /// - Keep the interceptor *last* in `dio.interceptors`: an interceptor
+  ///   after it that signs all headers would sign the marker.
+  /// - The marker reaches the server when a request bypasses this layer even
+  ///   though `sourceDio` says it would not: a `dio.clone(httpClientAdapter:)`
+  ///   that keeps the interceptor, a wrong `sourceDio`, an
+  ///   `IOHttpClientAdapter(createHttpClient:)` returning a client created
+  ///   before the inspector, or an adapter subclass overriding `fetch`.
+  /// - Other interceptors' `onResponse` / `onError` still see the marker in
+  ///   `requestOptions.headers`. Resending those options through another Dio
+  ///   (retry, token refresh) can send the marker, or make this layer skip
+  ///   the request silently.
+  /// - A Dio request that fails before connecting (DNS, refused connection,
+  ///   TLS handshake) is recorded twice.
+  /// - Takes effect in every build mode, release included. Gate it with a
+  ///   flavor flag or `bool.fromEnvironment`; `!kReleaseMode` is also true
+  ///   under `flutter test`, so the layer would be installed in your tests.
+  final bool captureHttpClient;
 
   late final UncaughtErrorHandler _uncaughtErrorHandler;
   late final LifecycleHandler _lifecycleHandler;
@@ -282,6 +333,7 @@ class FlutterInspector {
     this.captureLifecycleEvents = false,
     this.capturePerformance = false,
     this.frozenFrameThreshold = const Duration(milliseconds: 700),
+    this.captureHttpClient = false,
     this.redactSensitiveData = true,
     this.diagnosticInfoSource,
     this.slowRequestThreshold = const Duration(seconds: 2),
@@ -370,6 +422,8 @@ class FlutterInspector {
     if (showCrashNotification) {
       _initCrashNotifier(notifier: crashNotifier);
     }
+    // Last: `this` escapes to the layer, so every field must be assigned first.
+    if (captureHttpClient) installHttpClientCapture(this);
   }
 
   /// Crash notifier. Assigned synchronously (before `init()` is awaited) so
