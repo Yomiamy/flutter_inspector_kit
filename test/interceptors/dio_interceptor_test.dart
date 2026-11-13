@@ -1,15 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HttpOverrides;
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
+import 'package:flutter_inspector_kit/src/interceptors/http_client_capture.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/utils/agent_prompt.dart';
+import 'package:flutter_inspector_kit/src/utils/network_formatters.dart';
 import 'package:flutter_inspector_kit/src/utils/redaction.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _FakeAdapter extends Fake implements HttpClientAdapter {}
 
 class _ThrowingData {
   @override
@@ -631,6 +637,118 @@ void main() {
         final entry = inspector.registry.network.entries.first;
         expect(entry.responseBody, '[binary 4 bytes]$kTruncatedMarker');
         expect(entry.responseImageBytes, isNull);
+      });
+    });
+
+    group('HttpClient-layer marker (US-2)', () {
+      // The layer chains onto the global HttpOverrides slot: restore it, and
+      // the install guard, after every test.
+      HttpOverrides? saved;
+      setUp(() => saved = HttpOverrides.current);
+      tearDown(() {
+        HttpOverrides.global = saved;
+        resetHttpClientCaptureForTesting();
+      });
+
+      test('the marker rides on the request and never into a record '
+          '(2-3, R12)', () {
+        installHttpClientCapture(inspector);
+        final tagging = FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        );
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          method: 'POST',
+          headers: {'authorization': 'Bearer t'},
+        );
+
+        tagging.onRequest(options, RequestInterceptorHandler());
+
+        expect(options.headers[kDioMarkerHeader], isNotNull); // sent on
+        final pending = inspector.registry.network.entries.single;
+        expect(
+          pending.requestHeaders,
+          containsPair('authorization', 'Bearer t'),
+        );
+        expect(pending.requestHeaders, isNot(contains(kDioMarkerHeader)));
+        final exports = {
+          'curl': buildCurl(pending),
+          'plain text': buildPlainText(pending),
+          'replay headers': '${buildReplayRequest(pending).headers}',
+          'agent prompt': buildAgentPrompt(pending, timeline: [pending]),
+        };
+        exports.forEach((name, text) {
+          expect(text, isNot(contains(kDioMarkerHeader)), reason: name);
+        });
+
+        tagging.onResponse(
+          Response(requestOptions: options, statusCode: 200),
+          ResponseInterceptorHandler(),
+        );
+
+        expect(options.headers, isNot(contains(kDioMarkerHeader)));
+        final completed = inspector.registry.network.entries.single;
+        expect(completed.isComplete, isTrue);
+        expect(completed.requestHeaders, isNot(contains(kDioMarkerHeader)));
+      });
+
+      test('onError takes the marker off the live options too (R12)', () async {
+        installHttpClientCapture(inspector);
+        final tagging = FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        );
+        final options = RequestOptions(path: 'http://example.com/api');
+        tagging.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        tagging.onError(
+          DioException(requestOptions: options, error: 'fail'),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+
+        expect(options.headers, isNot(contains(kDioMarkerHeader)));
+        final completed = inspector.registry.network.entries.single;
+        expect(completed.requestHeaders, isNot(contains(kDioMarkerHeader)));
+      });
+
+      test('without the layer the headers are untouched and recorded live '
+          '(2-4)', () {
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          headers: {'x-a': 'b'},
+        );
+
+        FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        ).onRequest(options, RequestInterceptorHandler());
+
+        expect(options.headers, {'x-a': 'b'});
+        expect(
+          inspector.registry.network.entries.single.requestHeaders,
+          same(options.headers),
+        );
+      });
+
+      test('no sourceDio, or an adapter that is not IO: no marker (2-5)', () {
+        installHttpClientCapture(inspector);
+        final interceptors = [
+          FlutterInspectorDioInterceptor(inspector),
+          FlutterInspectorDioInterceptor(
+            inspector,
+            sourceDio: Dio()..httpClientAdapter = _FakeAdapter(),
+          ),
+        ];
+
+        for (final interceptor in interceptors) {
+          final options = RequestOptions(path: 'http://example.com/api');
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          expect(options.headers, isNot(contains(kDioMarkerHeader)));
+        }
       });
     });
 

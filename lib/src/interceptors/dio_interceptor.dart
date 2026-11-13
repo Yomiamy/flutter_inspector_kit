@@ -9,6 +9,7 @@ import '../models/network_entry.dart';
 import '../utils/image_bytes.dart';
 import '../utils/redaction.dart';
 import '../utils/routing_param_extractor.dart';
+import 'http_client_capture.dart';
 
 /// A Dio interceptor that automatically records requests and responses to the
 /// [FlutterInspector].
@@ -69,10 +70,16 @@ class FlutterInspectorDioInterceptor extends Interceptor {
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     try {
       options.extra['_inspector_start_time'] = DateTime.now();
+      final tagged = shouldTagDioRequest(sourceDio);
+      if (tagged) options.headers[kDioMarkerHeader] = kDioMarkerValue;
       final entry = NetworkEntry(
         method: options.method,
         url: options.uri.toString(),
-        requestHeaders: options.headers,
+        // The marker is ours: record a copy without it. Untagged requests keep
+        // the live map, as before.
+        requestHeaders: tagged
+            ? (Map.of(options.headers)..remove(kDioMarkerHeader))
+            : options.headers,
         requestBody: _stringifyData(options.data),
         sourceDio: sourceDio,
         isReplay: options.extra['_inspector_is_replay'] == true,
@@ -96,6 +103,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
     NetworkEntry? pending;
     Duration? duration;
     try {
+      response.requestOptions.headers.remove(kDioMarkerHeader);
       final startTime =
           response.requestOptions.extra['_inspector_start_time'] as DateTime?;
       duration = startTime != null
@@ -153,6 +161,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
     NetworkEntry? pending;
     Duration? duration;
     try {
+      err.requestOptions.headers.remove(kDioMarkerHeader);
       final startTime =
           err.requestOptions.extra['_inspector_start_time'] as DateTime?;
       duration = startTime != null
