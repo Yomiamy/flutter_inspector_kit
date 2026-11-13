@@ -311,16 +311,28 @@ class _CapturingRequest implements HttpClientRequest {
       rethrow;
     }
     _responded = true;
-    return value;
+    return _wrap(value);
   }
 
-  void _complete({Object? error, StackTrace? stackTrace}) {
+  // A marked request is Dio's to record: its response is left untouched.
+  HttpClientResponse _wrap(HttpClientResponse response) =>
+      _pending == null ? response : _CapturingResponse(response, this);
+
+  void _complete({
+    Object? error,
+    StackTrace? stackTrace,
+    _CapturingResponse? response,
+  }) {
     final pending = _pending;
     if (pending == null || _completed) return;
     _completed = true;
     _guard(_inspector, () {
       _inspector.logNetwork(
         pending.copyWith(
+          statusCode: response?.statusCode,
+          responseHeaders: response == null
+              ? null
+              : _headerMap(response.headers),
           duration: DateTime.now().difference(_start),
           error: error?.toString(),
           errorStackTrace: stackTrace?.toString(),
@@ -444,6 +456,107 @@ class _CapturingRequest implements HttpClientRequest {
 
   @override
   List<Cookie> get cookies => _inner.cookies;
+
+  @override
+  HttpConnectionInfo? get connectionInfo => _inner.connectionInfo;
+
+  // ponytail: a member the SDK adds later throws NoSuchMethodError when called
+  // (only with captureHttpClient on) instead of breaking every build; add an
+  // explicit forwarder for it (plan R6, option 2).
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Subscribes to [_inner] only when the consumer listens and forwards every
+/// chunk, pause, resume, cancel and error unchanged (spec 7-3). All other
+/// Stream methods are built on [listen].
+class _CapturingResponse extends Stream<List<int>>
+    implements HttpClientResponse {
+  _CapturingResponse(this._inner, this._owner);
+
+  final HttpClientResponse _inner;
+  final _CapturingRequest _owner;
+
+  @override
+  StreamSubscription<List<int>> listen(
+    void Function(List<int> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    final controller = StreamController<List<int>>(sync: true);
+    // Subscribed before returning: a second listen throws StateError right
+    // here, as the original does.
+    final source = _inner.listen(
+      controller.add,
+      onError: (Object error, StackTrace stackTrace) {
+        _owner._complete(response: this, error: error, stackTrace: stackTrace);
+        controller.addError(error, stackTrace);
+      },
+      onDone: () {
+        _owner._complete(response: this);
+        controller.close();
+      },
+    );
+    controller
+      ..onPause = source.pause
+      ..onResume = source.resume
+      // Also fires after done; _complete runs once, so done wins.
+      ..onCancel = () {
+        _owner._complete(response: this);
+        return source.cancel();
+      };
+    return controller.stream.listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  @override
+  Future<Socket> detachSocket() {
+    _owner._complete(response: this);
+    return _inner.detachSocket();
+  }
+
+  @override
+  int get statusCode => _inner.statusCode;
+
+  @override
+  String get reasonPhrase => _inner.reasonPhrase;
+
+  @override
+  int get contentLength => _inner.contentLength;
+
+  @override
+  HttpClientResponseCompressionState get compressionState =>
+      _inner.compressionState;
+
+  @override
+  bool get persistentConnection => _inner.persistentConnection;
+
+  @override
+  bool get isRedirect => _inner.isRedirect;
+
+  @override
+  List<RedirectInfo> get redirects => _inner.redirects;
+
+  @override
+  Future<HttpClientResponse> redirect([
+    String? method,
+    Uri? url,
+    bool? followLoops,
+  ]) => _inner.redirect(method, url, followLoops);
+
+  @override
+  HttpHeaders get headers => _inner.headers;
+
+  @override
+  List<Cookie> get cookies => _inner.cookies;
+
+  @override
+  X509Certificate? get certificate => _inner.certificate;
 
   @override
   HttpConnectionInfo? get connectionInfo => _inner.connectionInfo;

@@ -31,11 +31,77 @@ class _HostOverrides extends HttpOverrides {
 
 class _FakeAdapter extends Fake implements HttpClientAdapter {}
 
-class _FakeResponse extends Fake implements HttpClientResponse {
-  _FakeResponse(this.statusCode);
+class _FakeCertificate extends Fake implements X509Certificate {}
+
+class _FakeSocket extends Fake implements Socket {}
+
+/// A response driven by hand. [events] records what reaches the source: the
+/// proxy may listen, pause, resume and cancel it only when the consumer does.
+class _FakeResponse extends Stream<List<int>> implements HttpClientResponse {
+  _FakeResponse([this.statusCode = 200]);
+
+  final events = <String>[];
+  final socket = _FakeSocket();
+  final redirectArgs = <Object?>[];
+  late final next = _FakeResponse(302);
+  late final controller = StreamController<List<int>>(
+    onListen: () => events.add('listen'),
+    onPause: () => events.add('pause'),
+    onResume: () => events.add('resume'),
+    onCancel: () => events.add('cancel'),
+  );
 
   @override
   final int statusCode;
+  @override
+  final reasonPhrase = 'Teapot';
+  @override
+  final contentLength = 42;
+  @override
+  final compressionState = HttpClientResponseCompressionState.decompressed;
+  @override
+  final persistentConnection = false;
+  @override
+  final isRedirect = true;
+  @override
+  final redirects = <RedirectInfo>[];
+  @override
+  final headers = _FakeHeaders();
+  @override
+  final cookies = <Cookie>[];
+  @override
+  final X509Certificate certificate = _FakeCertificate();
+  @override
+  final HttpConnectionInfo connectionInfo = _FakeConnectionInfo();
+
+  @override
+  StreamSubscription<List<int>> listen(
+    void Function(List<int> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) => controller.stream.listen(
+    onData,
+    onError: onError,
+    onDone: onDone,
+    cancelOnError: cancelOnError,
+  );
+
+  @override
+  Future<Socket> detachSocket() async => socket;
+
+  @override
+  Future<HttpClientResponse> redirect([
+    String? method,
+    Uri? url,
+    bool? followLoops,
+  ]) async {
+    redirectArgs
+      ..add(method)
+      ..add(url)
+      ..add(followLoops);
+    return next;
+  }
 }
 
 /// A header bag with just what the proxy reads and strips.
@@ -468,6 +534,12 @@ void main() {
     return HttpClient().getUrl(Uri.parse('http://a.test/p'));
   }
 
+  /// The response a proxy request hands out when its inner one answers [fake].
+  Future<HttpClientResponse> respondWith(_FakeResponse fake) async {
+    final req = await openOver(_FakeRequest(closing: Future.value(fake)));
+    return req.close();
+  }
+
   group('capturing request over a fake request (7-2, 7-4, 7-6, R6)', () {
     test('writes go straight through, in order and unchanged (7-2)', () async {
       final fake = _FakeRequest();
@@ -685,6 +757,206 @@ void main() {
       expect(req.encoding, utf8);
       expect(() => req.encoding = utf8, throwsStateError);
       req.abort();
+    });
+
+    test(
+      'the entry is completed in place once the body is read (1-2)',
+      () async {
+        final req = await client.getUrl(server.url('/text'));
+        final response = await req.close();
+        expect(inspector.networkEntries.single.isComplete, isFalse);
+
+        expect(await utf8.decodeStream(response), 'hello');
+
+        final entry = inspector.networkEntries.single;
+        expect(entry.isComplete, isTrue);
+        expect(entry.statusCode, 200);
+        expect(entry.error, isNull);
+      },
+    );
+
+    test('abort after the response arrived: the body completes the entry '
+        '(R2-3)', () async {
+      final req = await client.getUrl(server.url('/text'));
+      final response = await req.close();
+
+      req.abort();
+      await response.drain<void>();
+
+      final entry = inspector.networkEntries.single;
+      expect(entry.isComplete, isTrue);
+      expect(entry.statusCode, 200);
+      expect(entry.error, isNull);
+    });
+  });
+
+  group('capturing response over a fake response (7-3, 3-3, 1-5, 1-4, R6)', () {
+    test('listens only when the consumer does, forwards chunks as they are '
+        '(7-3)', () async {
+      final fake = _FakeResponse();
+      final response = await respondWith(fake);
+      expect(response, isNot(same(fake)));
+      expect(fake.events, isEmpty); // the inspector never listens on its own
+
+      final received = <List<int>>[];
+      final done = Completer<void>();
+      response.listen(received.add, onDone: done.complete);
+      expect(fake.events, ['listen']);
+
+      final first = <int>[1];
+      final second = <int>[2, 3];
+      fake.controller
+        ..add(first)
+        ..add(second)
+        ..close();
+      await done.future;
+
+      expect(received, [same(first), same(second)]);
+    });
+
+    test('pause, resume and cancel reach the source (7-3)', () async {
+      final fake = _FakeResponse();
+      final subscription = (await respondWith(fake)).listen((_) {});
+
+      subscription
+        ..pause()
+        ..resume();
+      await subscription.cancel();
+
+      expect(fake.events, ['listen', 'pause', 'resume', 'cancel']);
+    });
+
+    test('errors reach the consumer with their stack trace (7-3)', () async {
+      final fake = _FakeResponse();
+      final response = await respondWith(fake);
+      final error = StateError('reset');
+      final stack = StackTrace.current;
+      Object? gotError;
+      StackTrace? gotStack;
+      response.listen(
+        (_) {},
+        onError: (Object e, StackTrace s) {
+          gotError = e;
+          gotStack = s;
+        },
+      );
+
+      fake.controller.addError(error, stack);
+      await pumpEventQueue();
+
+      expect(gotError, same(error));
+      expect(gotStack, same(stack));
+    });
+
+    test(
+      'a second listen throws StateError, like the original (7-3)',
+      () async {
+        final response = await respondWith(_FakeResponse());
+
+        response.listen((_) {});
+
+        expect(() => response.listen((_) {}), throwsStateError);
+      },
+    );
+
+    test('every other member is the inner response\'s own (3-3)', () async {
+      final fake = _FakeResponse(207);
+      final response = await respondWith(fake);
+
+      expect(response.headers, same(fake.headers));
+      expect(response.certificate, same(fake.certificate));
+      expect(response.connectionInfo, same(fake.connectionInfo));
+      expect(response.redirects, same(fake.redirects));
+      expect(response.cookies, same(fake.cookies));
+      expect(response.statusCode, 207);
+      expect(response.reasonPhrase, fake.reasonPhrase);
+      expect(response.contentLength, fake.contentLength);
+      expect(response.compressionState, fake.compressionState);
+      expect(response.persistentConnection, fake.persistentConnection);
+      expect(response.isRedirect, fake.isRedirect);
+    });
+
+    test('redirect() forwards its arguments and returns the new response as '
+        'is', () async {
+      final fake = _FakeResponse();
+      final response = await respondWith(fake);
+      final target = Uri.parse('http://a.test/next');
+
+      final next = await response.redirect('GET', target, true);
+
+      expect(fake.redirectArgs, ['GET', target, true]);
+      expect(next, same(fake.next));
+    });
+
+    test('cancelling the subscription completes the entry, no error '
+        '(1-5)', () async {
+      final response = await respondWith(_FakeResponse());
+      final subscription = response.listen((_) {});
+      expect(inspector.networkEntries.single.isComplete, isFalse);
+
+      await subscription.cancel();
+
+      final entry = inspector.networkEntries.single;
+      expect(entry.isComplete, isTrue);
+      expect(entry.error, isNull);
+      expect(entry.statusCode, 200);
+    });
+
+    test('detachSocket completes the entry and returns the inner socket '
+        '(1-5)', () async {
+      final fake = _FakeResponse();
+      final response = await respondWith(fake);
+
+      expect(await response.detachSocket(), same(fake.socket));
+
+      final entry = inspector.networkEntries.single;
+      expect(entry.isComplete, isTrue);
+      expect(entry.error, isNull);
+    });
+
+    test('a stream error completes the entry with it (1-4)', () async {
+      final fake = _FakeResponse(206);
+      final response = await respondWith(fake);
+      final failure = StateError('reset');
+      response.listen((_) {}, onError: (Object _) {});
+
+      fake.controller.addError(failure);
+      await pumpEventQueue();
+
+      final entry = inspector.networkEntries.single;
+      expect(entry.isComplete, isTrue);
+      expect(entry.error, failure.toString());
+      expect(entry.statusCode, 206);
+    });
+
+    test('done completes the entry once; the cancel after it adds nothing '
+        '(1-2)', () async {
+      final fake = _FakeResponse();
+      final response = await respondWith(fake);
+      final drained = response.drain<void>();
+
+      fake.controller
+        ..add([1])
+        ..close();
+      await drained;
+      await pumpEventQueue(); // the sync controller's onCancel runs after done
+
+      expect(fake.events, contains('cancel'));
+      // A second completion would add a second entry: replaces: no longer matches.
+      final entry = inspector.networkEntries.single;
+      expect(entry.isComplete, isTrue);
+      expect(entry.error, isNull);
+    });
+
+    test('a response to a marked request is passed through untouched '
+        '(7-5)', () async {
+      final fake = _FakeResponse();
+      final inner = _FakeRequest(closing: Future.value(fake));
+      inner.headers.set(kDioMarkerHeader, 'x');
+      final req = await openOver(inner);
+
+      expect(await req.close(), same(fake));
+      expect(inspector.networkEntries, isEmpty);
     });
   });
 }
