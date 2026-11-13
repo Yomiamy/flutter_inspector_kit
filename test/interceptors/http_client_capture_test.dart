@@ -1,9 +1,12 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/http_client_capture.dart';
+import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,7 +31,121 @@ class _HostOverrides extends HttpOverrides {
 
 class _FakeAdapter extends Fake implements HttpClientAdapter {}
 
-class _FakeRequest extends Fake implements HttpClientRequest {}
+class _FakeResponse extends Fake implements HttpClientResponse {
+  _FakeResponse(this.statusCode);
+
+  @override
+  final int statusCode;
+}
+
+/// A header bag with just what the proxy reads and strips.
+class _FakeHeaders extends Fake implements HttpHeaders {
+  final map = <String, List<String>>{};
+
+  @override
+  List<String>? operator [](String name) => map[name.toLowerCase()];
+
+  @override
+  void set(String name, Object value, {bool preserveHeaderCase = false}) =>
+      map[name.toLowerCase()] = ['$value'];
+
+  @override
+  void removeAll(String name) => map.remove(name.toLowerCase());
+
+  @override
+  void forEach(void Function(String name, List<String> values) action) =>
+      map.forEach(action);
+}
+
+class _FakeConnectionInfo extends Fake implements HttpConnectionInfo {}
+
+/// Records what it is handed, in order. [closing] and [doneFuture] let a test
+/// make `close()` and `done` answer with different responses.
+class _FakeRequest extends Fake implements HttpClientRequest {
+  _FakeRequest({this.closing, this.doneFuture});
+
+  final Future<HttpClientResponse>? closing;
+  final Future<HttpClientResponse>? doneFuture;
+  final calls = <List<Object?>>[];
+
+  @override
+  final headers = _FakeHeaders();
+  @override
+  final method = 'GET';
+  @override
+  final uri = Uri.parse('http://a.test/p');
+  @override
+  final cookies = <Cookie>[];
+  @override
+  final HttpConnectionInfo connectionInfo = _FakeConnectionInfo();
+
+  @override
+  void add(List<int> data) => calls.add(['add', data]);
+
+  @override
+  void write(Object? object) => calls.add(['write', object]);
+
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) =>
+      calls.add(['addError', error]);
+
+  @override
+  Future flush() async => calls.add(['flush']);
+
+  @override
+  Future<HttpClientResponse> close() {
+    calls.add(['close']);
+    return closing ?? Future.value(_FakeResponse(200));
+  }
+
+  @override
+  Future<HttpClientResponse> get done =>
+      doneFuture ?? Future.value(_FakeResponse(200));
+}
+
+/// Its headers cannot be read: capture bookkeeping fails, the request must not.
+class _BrokenHeadersRequest extends _FakeRequest {
+  @override
+  HttpHeaders get headers => throw StateError('headers unavailable');
+}
+
+/// Loopback server. Records the headers of every request, holds `/slow` until
+/// [release], and answers everything else with `hello`.
+class _TestServer {
+  _TestServer._(this._server) {
+    _server.listen(_handle);
+  }
+
+  static Future<_TestServer> start() async =>
+      _TestServer._(await HttpServer.bind(InternetAddress.loopbackIPv4, 0));
+
+  final HttpServer _server;
+  final received = <HttpHeaders>[];
+  final _gate = Completer<void>();
+
+  Uri url(String path) => Uri.parse('http://127.0.0.1:${_server.port}$path');
+
+  void release() {
+    if (!_gate.isCompleted) _gate.complete();
+  }
+
+  Future<void> close() {
+    release();
+    return _server.close(force: true);
+  }
+
+  Future<void> _handle(HttpRequest request) async {
+    received.add(request.headers);
+    try {
+      await request.drain<void>();
+      if (request.uri.path == '/slow') await _gate.future;
+      request.response.write('hello');
+      await request.response.close();
+    } on Object {
+      // The client may abort mid-request; nobody is left to answer.
+    }
+  }
+}
 
 /// Records every call it receives and answers each with [opener]'s request.
 class _FakeClient implements HttpClient {
@@ -340,5 +457,234 @@ void main() {
         expect(inspector.networkEntries.single.url, '//127.0.0.1:$port/y');
       },
     );
+  });
+
+  /// Opens a proxy request that wraps [inner], through the installed layer.
+  Future<HttpClientRequest> openOver(HttpClientRequest inner) {
+    HttpOverrides.global = _HostOverrides(
+      _FakeClient(() => Future.value(inner)),
+    );
+    installHttpClientCapture(inspector);
+    return HttpClient().getUrl(Uri.parse('http://a.test/p'));
+  }
+
+  group('capturing request over a fake request (7-2, 7-4, 7-6, R6)', () {
+    test('writes go straight through, in order and unchanged (7-2)', () async {
+      final fake = _FakeRequest();
+      final req = await openOver(fake);
+      final first = <int>[1, 2];
+      final second = <int>[3];
+      final failure = StateError('boom');
+
+      req
+        ..add(first)
+        ..add(second)
+        ..addError(failure)
+        ..write('é')
+        ..writeAll(['a', 'b'], ',')
+        ..writeln('c')
+        ..writeCharCode(0x41);
+      await req.flush();
+
+      expect(fake.calls, [
+        ['add', same(first)],
+        ['add', same(second)],
+        ['addError', same(failure)],
+        ['write', 'é'],
+        ['write', 'a,b'],
+        ['write', 'c\n'],
+        ['write', 'A'],
+        ['flush'],
+      ]);
+    });
+
+    test('close() and done give one response although the inner ones differ '
+        '(7-4, R2-2)', () async {
+      final fake = _FakeRequest(
+        closing: Future.value(_FakeResponse(201)),
+        doneFuture: Future.value(_FakeResponse(202)),
+      );
+      final req = await openOver(fake);
+
+      final response = await req.close();
+
+      expect(response.statusCode, 201);
+      expect(await req.done, same(response));
+    });
+
+    test('close() still reaches the inner request when done was read first '
+        '(R2-2)', () async {
+      final fake = _FakeRequest();
+      final req = await openOver(fake);
+
+      final early = req.done;
+      final response = await req.close();
+
+      expect(fake.calls, [
+        ['close'],
+      ]);
+      expect(await early, same(response));
+    });
+
+    test('read-only members come from the inner request unchanged', () async {
+      final fake = _FakeRequest();
+      final req = await openOver(fake);
+
+      expect(req.headers, same(fake.headers));
+      expect(req.cookies, same(fake.cookies));
+      expect(req.connectionInfo, same(fake.connectionInfo));
+      expect(req.method, fake.method);
+      expect(req.uri, fake.uri);
+    });
+
+    test('a capture failure is a warning log; the request still goes out '
+        '(7-6)', () async {
+      final fake = _BrokenHeadersRequest();
+      final req = await openOver(fake);
+
+      await req.close();
+
+      expect(fake.calls, [
+        ['close'],
+      ]);
+      expect(inspector.networkEntries, isEmpty);
+      final warnings = inspector.logEntries.where(
+        (e) => e.level == LogLevel.warning,
+      );
+      expect(warnings, hasLength(1));
+      expect(warnings.single.message, contains('headers unavailable'));
+    });
+  });
+
+  group('capturing request over a real server (1-2, 7-4, 7-5, 1-4, R6)', () {
+    late _TestServer server;
+    late HttpClient client;
+
+    setUp(() async {
+      server = await _TestServer.start();
+      installHttpClientCapture(inspector);
+      client = HttpClient();
+    });
+    tearDown(() async {
+      client.close(force: true);
+      await server.close();
+    });
+
+    test('is pending only from the moment it is closed (1-2)', () async {
+      final req = await client.getUrl(server.url('/text'));
+      expect(inspector.networkEntries, isEmpty);
+
+      final closing = req.close();
+
+      final pending = inspector.networkEntries.single;
+      expect(pending.isComplete, isFalse);
+      expect(pending.origin, NetworkOrigin.httpClient);
+      expect(pending.method, 'GET');
+      expect(pending.url, '${server.url('/text')}');
+      expect(pending.requestHeaders, contains('host'));
+      await (await closing).drain<void>();
+    });
+
+    test('takes the Dio marker off before the first write and records nothing '
+        '(7-5, 2-2)', () async {
+      final req = await client.postUrl(server.url('/text'));
+      req.headers.set(kDioMarkerHeader, 'x');
+
+      await req.addStream(Stream.value([1, 2, 3]));
+      await (await req.close()).drain<void>();
+
+      expect(server.received.single[kDioMarkerHeader], isNull);
+      expect(inspector.networkEntries, isEmpty);
+    });
+
+    test(
+      'close() and done return the same response, recorded once (7-4)',
+      () async {
+        final req = await client.getUrl(server.url('/text'));
+
+        final response = await req.close();
+
+        expect(await req.done, same(response));
+        expect(inspector.networkEntries, hasLength(1));
+        await response.drain<void>();
+      },
+    );
+
+    test('a caller that drops close() and awaits done sees one failure '
+        '(R2-2)', () async {
+      final req = await client.getUrl(server.url('/slow'));
+
+      req.close(); // return value ignored on purpose
+      req.abort();
+
+      await expectLater(req.done, throwsA(anything));
+    });
+
+    test(
+      'abort after a write completes the entry with an error (1-4)',
+      () async {
+        final req = await client.postUrl(server.url('/text'));
+
+        req
+          ..write('x')
+          ..abort();
+
+        final entry = inspector.networkEntries.single;
+        expect(entry.isComplete, isTrue);
+        expect(entry.error, isNotNull);
+      },
+    );
+
+    test('abort before the response fails done with the original exception '
+        'and completes once (1-4, R2-3)', () async {
+      final req = await client.getUrl(server.url('/slow'));
+      final reason = StateError('cancelled');
+
+      final closing = req.close();
+      req.abort(reason);
+
+      await expectLater(closing, throwsA(same(reason)));
+      // A second completion would add a second entry: replaces: no longer matches.
+      final entry = inspector.networkEntries.single;
+      expect(entry.isComplete, isTrue);
+      expect(entry.error, reason.toString());
+    });
+
+    test('abort after the response arrived is a no-op: still pending, body '
+        'still readable (1-4, R2-3)', () async {
+      final req = await client.getUrl(server.url('/text'));
+      final response = await req.close();
+
+      req.abort();
+
+      final entry = inspector.networkEntries.single;
+      expect(entry.isComplete, isFalse);
+      expect(entry.error, isNull);
+      expect(await utf8.decodeStream(response), 'hello');
+    });
+
+    test('settable members round-trip through the inner request (R6)', () async {
+      final req = await client.postUrl(server.url('/text'));
+
+      req
+        ..persistentConnection = false
+        ..followRedirects = false
+        ..maxRedirects = 7
+        ..contentLength = 5
+        ..bufferOutput = false;
+
+      expect(req.persistentConnection, isFalse);
+      expect(req.followRedirects, isFalse);
+      expect(req.maxRedirects, 7);
+      expect(req.contentLength, 5);
+      expect(req.bufferOutput, isFalse);
+      // dart:io derives the encoding from the Content-Type charset and rejects
+      // the setter, so the forwarded getter and setter are what we can pin.
+      expect(req.encoding, latin1);
+      req.headers.contentType = ContentType('text', 'plain', charset: 'utf-8');
+      expect(req.encoding, utf8);
+      expect(() => req.encoding = utf8, throwsStateError);
+      req.abort();
+    });
   });
 }
