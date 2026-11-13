@@ -1558,7 +1558,7 @@ Future<void> main() async {
 * **Pending Dio entries snapshot their request headers when `captureHttpClient` is on**: for a request the interceptor marks, the pending entry keeps a copy of the headers taken in `onRequest` (without the marker), so headers added by interceptors that run later do not appear until the request completes. Without `captureHttpClient` nothing changes.
 ```
 
-- [ ] 全套驗證：`rtk flutter test`（應為 **817 + 本次新增數**，既有測試一個都不改）→ `rtk flutter analyze lib/ test/`（仍 7 個 info）→ `make format`（零差異）。
+- [ ] 全套驗證：`rtk flutter test`（應為 **817 + 本次新增數**，既有測試一個都不改）→ `rtk flutter analyze lib/ test/`（仍 7 個 info）→ 對**本次改動的檔案**跑 `dart format --set-exit-if-changed <files>`（零差異）。使用者裁決 D5（2026-11-13）：main 上既有 7 個檔案的 format 漂移不在本 PR 修正，另開 chore。
 
 ---
 
