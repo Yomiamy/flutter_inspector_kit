@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' hide BytesBuilder;
+import 'dart:typed_data' show BytesBuilder;
 
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
@@ -10,6 +11,7 @@ import '../core/flutter_inspector.dart';
 import '../models/log_level.dart';
 import '../models/network_entry.dart';
 import '../models/network_origin.dart';
+import '../utils/image_bytes.dart';
 import 'http_client_capture_common.dart';
 
 /// The overrides this isolate installed; also the once-per-isolate guard.
@@ -273,6 +275,7 @@ class _CapturingRequest implements HttpClientRequest {
   final HttpClientRequest _inner;
   final FlutterInspector _inspector;
   final DateTime _start;
+  final _Tee _body = _Tee();
   bool _finalized = false;
   bool _completed = false;
   bool _responded = false;
@@ -318,21 +321,30 @@ class _CapturingRequest implements HttpClientRequest {
   HttpClientResponse _wrap(HttpClientResponse response) =>
       _pending == null ? response : _CapturingResponse(response, this);
 
+  /// [whole] is true only when the response body ended normally, so the copy
+  /// can be told apart from a cut one.
   void _complete({
     Object? error,
     StackTrace? stackTrace,
     _CapturingResponse? response,
+    bool whole = false,
   }) {
     final pending = _pending;
     if (pending == null || _completed) return;
     _completed = true;
     _guard(_inspector, () {
+      final body = response == null
+          ? null
+          : _describe(response._body, whole: whole);
       _inspector.logNetwork(
         pending.copyWith(
           statusCode: response?.statusCode,
           responseHeaders: response == null
               ? null
               : _headerMap(response.headers),
+          requestBody: _describe(_body, whole: true).text,
+          responseBody: body?.text,
+          responseImageBytes: body?.image,
           duration: DateTime.now().difference(_start),
           error: error?.toString(),
           errorStackTrace: stackTrace?.toString(),
@@ -369,6 +381,7 @@ class _CapturingRequest implements HttpClientRequest {
   void add(List<int> data) {
     _finalize();
     _inner.add(data);
+    _guard(_inspector, () => _body.add(data));
   }
 
   @override
@@ -380,7 +393,14 @@ class _CapturingRequest implements HttpClientRequest {
   @override
   Future addStream(Stream<List<int>> stream) {
     _finalize();
-    return _inner.addStream(stream);
+    // Not transform(): Dio passes a runtime Stream<Uint8List>, and a
+    // StreamTransformer<List<int>, List<int>> fails its covariant check.
+    return _inner.addStream(
+      stream.map((chunk) {
+        _guard(_inspector, () => _body.add(chunk));
+        return chunk;
+      }),
+    );
   }
 
   @override
@@ -397,6 +417,7 @@ class _CapturingRequest implements HttpClientRequest {
     final text = '$object';
     _finalize();
     _inner.write(text);
+    _guard(_inspector, () => _body.add(encoding.encode(text)));
   }
 
   @override
@@ -476,6 +497,7 @@ class _CapturingResponse extends Stream<List<int>>
 
   final HttpClientResponse _inner;
   final _CapturingRequest _owner;
+  final _Tee _body = _Tee();
 
   @override
   StreamSubscription<List<int>> listen(
@@ -488,13 +510,16 @@ class _CapturingResponse extends Stream<List<int>>
     // Subscribed before returning: a second listen throws StateError right
     // here, as the original does.
     final source = _inner.listen(
-      controller.add,
+      (chunk) {
+        controller.add(chunk); // forward first, then copy
+        _guard(_owner._inspector, () => _body.add(chunk));
+      },
       onError: (Object error, StackTrace stackTrace) {
         _owner._complete(response: this, error: error, stackTrace: stackTrace);
         controller.addError(error, stackTrace);
       },
       onDone: () {
-        _owner._complete(response: this);
+        _owner._complete(response: this, whole: true);
         controller.close();
       },
     );
@@ -566,6 +591,66 @@ class _CapturingResponse extends Stream<List<int>>
   // explicit forwarder for it (plan R6, option 2).
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Keeps a bounded prefix of a byte stream and counts the rest (spec Q3).
+/// The cap is picked once the signature is visible: [kImageMaxBytes] for
+/// images, [_kTextCopyBytes] otherwise.
+class _Tee {
+  final BytesBuilder _copy = BytesBuilder();
+  int total = 0;
+  int? _cap;
+
+  void add(List<int> chunk) {
+    total += chunk.length;
+    final cap = _cap;
+    if (cap != null && _copy.length >= cap) return;
+    _copy.add(chunk);
+    if (cap == null && _copy.length >= kImageSniffBytes) {
+      _cap = imageMimeType(_copy.toBytes()) != null
+          ? kImageMaxBytes
+          : _kTextCopyBytes;
+    }
+  }
+
+  Uint8List takeBytes() => _copy.takeBytes();
+}
+
+/// At most 4 UTF-8 bytes per code point, so a copy cut at this size decodes
+/// to more than kNetworkBodyMaxLength UTF-16 units and NetworkInspector.add
+/// appends the marker itself.
+const int _kTextCopyBytes = 4 * kNetworkBodyMaxLength;
+
+/// What a [_Tee] saw, as entry body text plus, for a complete image, its bytes.
+/// Empties [tee]: call it once per tee.
+({String? text, Uint8List? image}) _describe(_Tee tee, {required bool whole}) {
+  if (tee.total == 0) return (text: null, image: null);
+  final head = tee.takeBytes();
+  final complete = whole && head.length == tee.total;
+  final mime = imageMimeType(head);
+  if (mime != null) {
+    return (text: imageSummary(mime, tee.total), image: complete ? head : null);
+  }
+  return (
+    text:
+        _decodeUtf8(head, exact: complete) ??
+        '[binary ${tee.total} bytes]$kTruncatedMarker',
+    image: null,
+  );
+}
+
+/// A cut prefix may end inside a character: drop up to 3 trailing bytes
+/// before calling it binary.
+String? _decodeUtf8(Uint8List bytes, {required bool exact}) {
+  final maxDrop = exact ? 0 : 3;
+  for (var drop = 0; drop <= maxDrop && drop < bytes.length; drop++) {
+    try {
+      return utf8.decode(Uint8List.sublistView(bytes, 0, bytes.length - drop));
+    } on FormatException {
+      continue;
+    }
+  }
+  return null;
 }
 
 Map<String, dynamic> _headerMap(HttpHeaders headers) {

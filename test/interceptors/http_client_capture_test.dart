@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/http_client_capture.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -144,6 +146,8 @@ class _FakeRequest extends Fake implements HttpClientRequest {
   final cookies = <Cookie>[];
   @override
   final HttpConnectionInfo connectionInfo = _FakeConnectionInfo();
+  @override
+  final Encoding encoding = utf8;
 
   @override
   void add(List<int> data) => calls.add(['add', data]);
@@ -154,6 +158,10 @@ class _FakeRequest extends Fake implements HttpClientRequest {
   @override
   void addError(Object error, [StackTrace? stackTrace]) =>
       calls.add(['addError', error]);
+
+  @override
+  Future addStream(Stream<List<int>> stream) =>
+      stream.forEach((chunk) => calls.add(['addStream', chunk]));
 
   @override
   Future flush() async => calls.add(['flush']);
@@ -175,8 +183,23 @@ class _BrokenHeadersRequest extends _FakeRequest {
   HttpHeaders get headers => throw StateError('headers unavailable');
 }
 
-/// Loopback server. Records the headers of every request, holds `/slow` until
-/// [release], and answers everything else with `hello`.
+/// Its encoding cannot be read, which only the body copy needs.
+class _BrokenEncodingRequest extends _FakeRequest {
+  @override
+  Encoding get encoding => throw StateError('encoding unavailable');
+}
+
+class _Data {
+  // Valid 1x1 PNG (70 bytes; IHDR/IDAT/IEND CRCs verified).
+  static final png1x1 = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  );
+}
+
+/// Loopback server. Records the headers of every request and answers by path:
+/// `/slow` waits for [release]; `/echo` returns the request body; `/png`,
+/// `/big` (6 MB PNG), `/binary`, `/long` and `/utf8` serve fixed bodies;
+/// anything else says `hello`.
 class _TestServer {
   _TestServer._(this._server) {
     _server.listen(_handle);
@@ -202,11 +225,31 @@ class _TestServer {
 
   Future<void> _handle(HttpRequest request) async {
     received.add(request.headers);
+    final response = request.response;
     try {
-      await request.drain<void>();
-      if (request.uri.path == '/slow') await _gate.future;
-      request.response.write('hello');
-      await request.response.close();
+      final body = await request.expand((chunk) => chunk).toList();
+      switch (request.uri.path) {
+        case '/slow':
+          await _gate.future;
+          response.write('hello');
+        case '/echo':
+          response.add(body);
+        case '/png':
+          response.add(_Data.png1x1);
+        case '/big':
+          response
+            ..add(_Data.png1x1.sublist(0, 8)) // the PNG signature
+            ..add(Uint8List(6 * 1024 * 1024));
+        case '/binary':
+          response.add([0xFF, 0xFE, 0x00, 0x80]);
+        case '/long':
+          response.write('a' * 60 * 1024);
+        case '/utf8':
+          response.write('é' * 30000);
+        default:
+          response.write('hello');
+      }
+      await response.close();
     } on Object {
       // The client may abort mid-request; nobody is left to answer.
     }
@@ -568,6 +611,35 @@ void main() {
         ['write', 'A'],
         ['flush'],
       ]);
+    });
+
+    test('addStream hands each chunk on as the same object (R2-1)', () async {
+      final fake = _FakeRequest();
+      final req = await openOver(fake);
+      final chunk = Uint8List.fromList([1, 2, 3]);
+
+      await req.addStream(Stream<Uint8List>.fromIterable([chunk]));
+
+      expect(fake.calls, [
+        ['addStream', same(chunk)],
+      ]);
+    });
+
+    test('a failing body copy is a warning log; the write still goes out '
+        '(7-6)', () async {
+      final fake = _BrokenEncodingRequest();
+      final req = await openOver(fake);
+
+      req.write('x');
+
+      expect(fake.calls, [
+        ['write', 'x'],
+      ]);
+      final warnings = inspector.logEntries.where(
+        (e) => e.level == LogLevel.warning,
+      );
+      expect(warnings, hasLength(1));
+      expect(warnings.single.message, contains('encoding unavailable'));
     });
 
     test('close() and done give one response although the inner ones differ '
@@ -948,6 +1020,39 @@ void main() {
       expect(entry.error, isNull);
     });
 
+    test('a text prefix cut inside a character is still text (1-3)', () async {
+      final fake = _FakeResponse();
+      final response = await respondWith(fake);
+      final drained = response.drain<void>();
+
+      // The first chunk reaches the copy cap in the middle of an 'é' (C3 A9).
+      fake.controller
+        ..add([...List.filled(40959, 0x61), 0xC3])
+        ..add([0xA9])
+        ..close();
+      await drained;
+
+      final body = inspector.networkEntries.single.responseBody;
+      expect(body, startsWith('aaaa'));
+      expect(body, endsWith(kTruncatedMarker));
+    });
+
+    test('a cancelled prefix of a few non-text bytes is binary, not an empty '
+        'body (1-3)', () async {
+      final fake = _FakeResponse();
+      final response = await respondWith(fake);
+      final subscription = response.listen((_) {});
+
+      fake.controller.add([0xFF, 0xFE]);
+      await pumpEventQueue();
+      await subscription.cancel();
+
+      expect(
+        inspector.networkEntries.single.responseBody,
+        '[binary 2 bytes]$kTruncatedMarker',
+      );
+    });
+
     test('a response to a marked request is passed through untouched '
         '(7-5)', () async {
       final fake = _FakeResponse();
@@ -957,6 +1062,113 @@ void main() {
 
       expect(await req.close(), same(fake));
       expect(inspector.networkEntries, isEmpty);
+    });
+  });
+
+  group('capturing bodies over a real server (1-1, 1-3, 6-1, 6-4, R2-1)', () {
+    late _TestServer server;
+    late HttpClient client;
+
+    setUp(() async {
+      server = await _TestServer.start();
+      installHttpClientCapture(inspector);
+      client = HttpClient();
+    });
+    tearDown(() async {
+      client.close(force: true);
+      await server.close();
+    });
+
+    /// Reads the whole body of a GET to [path]; returns once the entry is done.
+    Future<NetworkEntry> get(String path) async {
+      final req = await client.getUrl(server.url(path));
+      await (await req.close()).drain<void>();
+      return inspector.networkEntries.single;
+    }
+
+    test('a GET and a POST are each recorded once with what is known '
+        '(1-1)', () async {
+      final getRequest = await client.getUrl(server.url('/text'));
+      expect(await utf8.decodeStream(await getRequest.close()), 'hello');
+      final post = await client.postUrl(server.url('/echo'));
+      post
+        ..add(utf8.encode('{"a":'))
+        ..write('1}');
+      expect(await utf8.decodeStream(await post.close()), '{"a":1}');
+
+      expect(inspector.networkEntries, hasLength(2));
+      final byMethod = {for (final e in inspector.networkEntries) e.method: e};
+      final getEntry = byMethod['GET']!;
+      final postEntry = byMethod['POST']!;
+      expect(getEntry.url, '${server.url('/text')}');
+      expect(getEntry.requestBody, isNull);
+      expect(getEntry.responseBody, 'hello');
+      expect(postEntry.url, '${server.url('/echo')}');
+      expect(postEntry.requestBody, '{"a":1}');
+      expect(postEntry.responseBody, '{"a":1}');
+      for (final entry in [getEntry, postEntry]) {
+        expect(entry.origin, NetworkOrigin.httpClient);
+        expect(entry.isComplete, isTrue);
+        expect(entry.statusCode, 200);
+        expect(entry.duration, isNotNull);
+        expect(entry.requestHeaders, contains('host'));
+        // A header dart:io's HttpServer adds to every response.
+        expect(
+          entry.responseHeaders,
+          containsPair('x-content-type-options', 'nosniff'),
+        );
+        expect(entry.error, isNull);
+      }
+    });
+
+    for (final (path, prefix) in [('/long', 'aaaa'), ('/utf8', 'éééé')]) {
+      test(
+        '$path is text: cut by the inspector, never [binary] (1-3)',
+        () async {
+          final entry = await get(path);
+
+          final body = entry.responseBody!;
+          expect(body, startsWith(prefix));
+          expect(body.length, kNetworkBodyMaxLength + kTruncatedMarker.length);
+        },
+      );
+    }
+
+    test(
+      'bytes that are neither text nor an image are counted (1-3)',
+      () async {
+        final entry = await get('/binary');
+
+        expect(entry.responseBody, '[binary 4 bytes]$kTruncatedMarker');
+        expect(entry.responseImageBytes, isNull);
+      },
+    );
+
+    test('a complete PNG is summarized and its bytes are kept (6-1)', () async {
+      final entry = await get('/png');
+
+      expect(entry.responseBody, '[image/png, 70 B]$kTruncatedMarker');
+      expect(entry.responseImageBytes, _Data.png1x1);
+    });
+
+    test('an image above 5 MB keeps its size, not its bytes (6-4)', () async {
+      final entry = await get('/big');
+
+      expect(entry.responseBody, '[image/png, 6.0 MB]$kTruncatedMarker');
+      expect(entry.responseImageBytes, isNull);
+    });
+
+    test('addStream takes the Stream<Uint8List> Dio sends (R2-1)', () async {
+      final req = await client.postUrl(server.url('/echo'));
+
+      await req.addStream(
+        Stream<Uint8List>.fromIterable([
+          Uint8List.fromList(utf8.encode('{"a":1}')),
+        ]),
+      );
+
+      expect(await utf8.decodeStream(await req.close()), '{"a":1}');
+      expect(inspector.networkEntries.single.requestBody, '{"a":1}');
     });
   });
 }
