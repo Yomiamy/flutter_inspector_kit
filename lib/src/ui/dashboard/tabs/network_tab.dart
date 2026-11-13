@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/flutter_inspector.dart';
 import '../../../models/network_entry.dart';
+import '../../../models/network_origin.dart';
 import '../../../observers/inspector_route_names.dart';
 import '../../../utils/network_formatters.dart';
 import '../../../utils/network_utils.dart';
@@ -269,6 +270,7 @@ class _EntryTile extends StatelessWidget {
       ?durationText,
       formatBytes(totalSize),
       timeOf(entry.timestamp),
+      if (entry.origin != NetworkOrigin.dio) entry.origin.name,
     ];
 
     return ListTile(
