@@ -670,6 +670,22 @@ void main() {
       expect(await early, same(response));
     });
 
+    test('a failing close preserves the original stack trace', () async {
+      final error = StateError('down');
+      final stack = StackTrace.current;
+      final closing = Completer<HttpClientResponse>();
+      final req = await openOver(_FakeRequest(closing: closing.future));
+      final result = req.close();
+      closing.completeError(error, stack);
+      StackTrace? got;
+      try {
+        await result;
+      } on Object catch (_, st) {
+        got = st;
+      }
+      expect('$got', '$stack');
+    });
+
     test('read-only members come from the inner request unchanged', () async {
       final fake = _FakeRequest();
       final req = await openOver(fake);
@@ -741,6 +757,15 @@ void main() {
       expect(inspector.networkEntries, isEmpty);
     });
 
+    test('a bodyless marked request removes the Dio marker before close sends '
+        'headers (7-5, 2-2)', () async {
+      final req = await client.getUrl(server.url('/text'));
+      req.headers.set(kDioMarkerHeader, 'x');
+      await (await req.close()).drain<void>();
+      expect(server.received.single[kDioMarkerHeader], isNull);
+      expect(inspector.networkEntries, isEmpty);
+    });
+
     test(
       'close() and done return the same response, recorded once (7-4)',
       () async {
@@ -776,6 +801,17 @@ void main() {
         final entry = inspector.networkEntries.single;
         expect(entry.isComplete, isTrue);
         expect(entry.error, isNotNull);
+      },
+    );
+
+    test(
+      'abort before the response marks the entry complete immediately (1-4)',
+      () async {
+        final req = await client.getUrl(server.url('/slow'));
+        final closing = req.close();
+        req.abort(StateError('cancelled'));
+        expect(inspector.networkEntries.single.isComplete, isTrue);
+        await expectLater(closing, throwsA(anything));
       },
     );
 
@@ -1052,6 +1088,41 @@ void main() {
         '[binary 2 bytes]$kTruncatedMarker',
       );
     });
+
+    test(
+      'a mid-size image arriving in chunks keeps its preview bytes (6-1)',
+      () async {
+        final fake = _FakeResponse();
+        final response = await respondWith(fake);
+        final drained = response.drain<void>();
+        final image = Uint8List(100 * 1024)
+          ..setAll(0, _Data.png1x1.sublist(0, 8));
+        for (var i = 0; i < image.length; i += 1024) {
+          fake.controller.add(image.sublist(i, i + 1024));
+        }
+        fake.controller.close();
+        await drained;
+        expect(inspector.networkEntries.single.responseImageBytes, image);
+      },
+    );
+
+    test(
+      'multibyte UTF-8 arriving in chunks is truncated with the marker (1-3)',
+      () async {
+        final fake = _FakeResponse();
+        final response = await respondWith(fake);
+        final drained = response.drain<void>();
+        final bytes = utf8.encode('\u00e9' * 30000);
+        for (var i = 0; i < bytes.length; i += 1000) {
+          fake.controller.add(bytes.sublist(i, i + 1000));
+        }
+        fake.controller.close();
+        await drained;
+        final body = inspector.networkEntries.single.responseBody;
+        expect(body, startsWith('\u00e9'));
+        expect(body, endsWith(kTruncatedMarker));
+      },
+    );
 
     test('a response to a marked request is passed through untouched '
         '(7-5)', () async {
