@@ -39,6 +39,7 @@ class NetworkEntry implements TimestampedEntry {
     this.origin = NetworkOrigin.dio,
     this.pageUrl,
     this.activeRoute,
+    this.responseImageBytes,
     Dio? sourceDio,
     DateTime? timestamp,
   }) : sourceDio = sourceDio != null ? WeakReference(sourceDio) : null,
@@ -115,6 +116,17 @@ class NetworkEntry implements TimestampedEntry {
   /// serialisation (cURL, plain-text, or any other export format).
   final WeakReference<Dio>? sourceDio;
 
+  /// Raw bytes of an image response, kept only for the detail-view preview.
+  ///
+  /// Set when the body starts with a complete PNG/JPEG/GIF/WebP/BMP signature;
+  /// [responseBody] then holds a summary such as
+  /// `[image/png, 34.2 KB]...[truncated]`. Dropped above 5 MB, and from the
+  /// oldest entries once all previews exceed 50 MB.
+  ///
+  /// Like [sourceDio], excluded from [operator ==], [hashCode], [toString] and
+  /// every export: an entry is the same event with or without its preview.
+  final Uint8List? responseImageBytes;
+
   /// Whether this request carries an error signal: an HTTP status of 400 or
   /// above, or a transport-level failure ([error] / [errorType]).
   ///
@@ -164,6 +176,8 @@ class NetworkEntry implements TimestampedEntry {
     NetworkOrigin? origin,
     String? pageUrl,
     String? activeRoute,
+    Uint8List? responseImageBytes,
+    bool clearResponseImageBytes = false,
     Dio? sourceDio,
   }) {
     return NetworkEntry(
@@ -184,6 +198,9 @@ class NetworkEntry implements TimestampedEntry {
       origin: origin ?? this.origin,
       pageUrl: pageUrl ?? this.pageUrl,
       activeRoute: activeRoute ?? this.activeRoute,
+      responseImageBytes: clearResponseImageBytes
+          ? null
+          : responseImageBytes ?? this.responseImageBytes,
       sourceDio: sourceDio ?? this.sourceDio?.target,
     );
   }

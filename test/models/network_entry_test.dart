@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
@@ -236,6 +237,43 @@ void main() {
         // compare against the original instance.
         expect(copied.sourceDio?.target, same(dio));
         expect(copied.isReplay, isTrue);
+      });
+    });
+
+    group('responseImageBytes (transient)', () {
+      NetworkEntry entryWith(Uint8List? bytes) => NetworkEntry(
+        method: 'GET',
+        url: 'https://x/img',
+        statusCode: 200,
+        timestamp: fixedTime,
+        isComplete: true,
+        responseImageBytes: bytes,
+      );
+
+      test('defaults to null', () {
+        final entry = NetworkEntry(method: 'GET', url: 'https://x');
+        expect(entry.responseImageBytes, isNull);
+      });
+
+      test('does not affect equality, hashCode or toString', () {
+        final withBytes = entryWith(Uint8List.fromList([137, 80, 78, 71]));
+        final without = entryWith(null);
+        expect(withBytes, equals(without));
+        expect(withBytes.hashCode, without.hashCode);
+        expect(withBytes.toString(), without.toString());
+      });
+
+      test('copyWith keeps the same bytes object', () {
+        final bytes = Uint8List.fromList([1, 2, 3]);
+        final copied = entryWith(bytes).copyWith(statusCode: 404);
+        expect(copied.responseImageBytes, same(bytes));
+      });
+
+      test('copyWith(clearResponseImageBytes: true) drops the bytes', () {
+        final original = entryWith(Uint8List.fromList([1, 2, 3]));
+        final cleared = original.copyWith(clearResponseImageBytes: true);
+        expect(cleared.responseImageBytes, isNull);
+        expect(cleared, equals(original));
       });
     });
 
