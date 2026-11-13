@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../core/flutter_inspector.dart';
 import '../models/log_level.dart';
 import '../models/network_entry.dart';
+import '../utils/image_bytes.dart';
 import '../utils/redaction.dart';
 import '../utils/routing_param_extractor.dart';
 
@@ -20,11 +21,18 @@ class FlutterInspectorDioInterceptor extends Interceptor {
   /// Optional [Dio] instance that originated this request (e.g. for replay).
   final Dio? sourceDio;
 
+  // The 5 MB cap and the 50 MB budget live in NetworkInspector.add.
+  static Uint8List? _imageBytes(Object? data) =>
+      data is Uint8List && imageMimeType(data) != null ? data : null;
+
   String? _stringifyData(dynamic data) {
     if (data == null) return null;
     if (data is String) return data;
     if (data is Uint8List) {
-      return '[binary ${data.length} bytes]$kTruncatedMarker';
+      final mime = imageMimeType(data);
+      return mime == null
+          ? '[binary ${data.length} bytes]$kTruncatedMarker'
+          : imageSummary(mime, data.length);
     }
     if (data is FormData) return _summarizeFormData(data);
     if (data is Map || data is List) {
@@ -108,6 +116,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
           (k, v) => MapEntry(k, v.join(',')),
         ),
         responseBody: _stringifyData(response.data),
+        responseImageBytes: _imageBytes(response.data),
         isComplete: true,
         timestamp: startTime,
         sourceDio: sourceDio,
@@ -163,6 +172,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
           (k, v) => MapEntry(k, v.join(',')),
         ),
         responseBody: _stringifyData(err.response?.data),
+        responseImageBytes: _imageBytes(err.response?.data),
         error: err.toString(),
         errorType: err.type,
         errorStackTrace: err.stackTrace.toString(),

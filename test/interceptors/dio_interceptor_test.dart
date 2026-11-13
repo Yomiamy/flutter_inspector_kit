@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -36,6 +37,13 @@ class _TrackedStream {
   bool listened = false;
 
   Stream<Uint8List> get stream => _controller.stream;
+}
+
+class _Data {
+  // Valid 1x1 PNG (70 bytes; IHDR/IDAT/IEND CRCs verified).
+  static final png1x1 = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  );
 }
 
 void main() {
@@ -531,6 +539,98 @@ void main() {
         final entry = inspector.registry.network.entries.first;
         expect(entry.requestBody, '[137,80,78,71]');
         expect(entry.isRequestTruncated, isFalse);
+      });
+    });
+
+    group('Uint8List image summary (US-6)', () {
+      const summary = '[image/png, 70 B]$kTruncatedMarker';
+
+      test(
+        'onResponse summarizes a PNG and keeps the same bytes (6-1, 6-2)',
+        () {
+          final options = RequestOptions(
+            path: 'http://example.com/a.png',
+            method: 'GET',
+            responseType: ResponseType.bytes,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+
+          interceptor.onResponse(
+            Response<Uint8List>(
+              requestOptions: options,
+              statusCode: 200,
+              data: _Data.png1x1,
+            ),
+            ResponseInterceptorHandler(),
+          );
+
+          final entry = inspector.registry.network.entries.first;
+          expect(entry.responseBody, summary);
+          expect(entry.responseImageBytes, same(_Data.png1x1));
+        },
+      );
+
+      test('onError summarizes a PNG error body the same way', () async {
+        final options = RequestOptions(
+          path: 'http://example.com/e.png',
+          method: 'GET',
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor.onError(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.badResponse,
+            response: Response<Uint8List>(
+              requestOptions: options,
+              statusCode: 500,
+              data: _Data.png1x1,
+            ),
+          ),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.responseBody, summary);
+        expect(entry.responseImageBytes, same(_Data.png1x1));
+      });
+
+      test('onRequest summarizes a PNG request body', () {
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: _Data.png1x1,
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.requestBody, summary);
+        expect(entry.responseImageBytes, isNull);
+      });
+
+      test('an incomplete PNG signature is not an image (6-7)', () {
+        final options = RequestOptions(
+          path: 'http://example.com/cut.png',
+          method: 'GET',
+          responseType: ResponseType.bytes,
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        interceptor.onResponse(
+          Response<Uint8List>(
+            requestOptions: options,
+            statusCode: 200,
+            data: Uint8List.fromList([137, 80, 78, 71]),
+          ),
+          ResponseInterceptorHandler(),
+        );
+
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.responseBody, '[binary 4 bytes]$kTruncatedMarker');
+        expect(entry.responseImageBytes, isNull);
       });
     });
 
