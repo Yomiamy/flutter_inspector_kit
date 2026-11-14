@@ -432,12 +432,15 @@ class _ImagePreview extends StatefulWidget {
 }
 
 class _ImagePreviewState extends State<_ImagePreview> {
-  static const int _decodeWidth = 1024;
+  // A box, not a width: a 1024 x 30000 PNG would otherwise decode in full.
+  static const int _decodeLimit = 1024;
   static const double _height = 200;
 
   late final ImageProvider _image = ResizeImage(
     MemoryImage(widget.bytes),
-    width: _decodeWidth,
+    width: _decodeLimit,
+    height: _decodeLimit,
+    policy: ResizeImagePolicy.fit,
   );
 
   @override

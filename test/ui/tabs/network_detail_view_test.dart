@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -748,8 +749,48 @@ void main() {
       final image = tester.widget<Image>(find.byType(Image));
       expect(
         image.image,
-        isA<ResizeImage>().having((r) => r.width, 'width', 1024),
+        isA<ResizeImage>()
+            .having((r) => r.width, 'width', 1024)
+            // A tall image must be bounded too: width alone leaves 1024x30000
+            // decoding at ~117 MiB.
+            .having((r) => r.height, 'height', 1024)
+            .having((r) => r.policy, 'policy', ResizeImagePolicy.fit),
       );
+    });
+
+    testWidgets('6-3 decodes a tall image within the 1024 box', (tester) async {
+      // 64 x 3000: width alone would not shrink it, the height bound does.
+      final decoded = await tester.runAsync(() async {
+        final recorder = ui.PictureRecorder();
+        ui.Canvas(recorder).drawRect(
+          const ui.Rect.fromLTWH(0, 0, 64, 3000),
+          ui.Paint()..color = const ui.Color(0xFF336699),
+        );
+        final source = await recorder.endRecording().toImage(64, 3000);
+        final png = (await source.toByteData(
+          format: ui.ImageByteFormat.png,
+        ))!.buffer.asUint8List();
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/tall.png',
+          statusCode: 200,
+          responseImageBytes: png,
+          isComplete: true,
+          timestamp: t,
+        );
+        await pumpView(tester, entry);
+        final provider = tester.widget<Image>(find.byType(Image)).image;
+        final done = Completer<ui.Image>();
+        provider
+            .resolve(ImageConfiguration.empty)
+            .addListener(
+              ImageStreamListener((info, _) => done.complete(info.image)),
+            );
+        return done.future;
+      });
+
+      expect(decoded!.height, lessThanOrEqualTo(1024));
+      expect(decoded.width, lessThan(64)); // aspect ratio kept
     });
 
     testWidgets(
