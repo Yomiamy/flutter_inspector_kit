@@ -7,6 +7,7 @@ import 'package:talker/talker.dart' show Talker;
 import 'bridges/logger_bridge.dart';
 import 'bridges/logging_bridge.dart';
 import 'bridges/talker_bridge.dart';
+import 'demos/http_client_demo.dart';
 import 'demos/inappwebview_demo.dart';
 import 'demos/log_bridges_demo.dart';
 import 'demos/network_demo.dart';
@@ -49,6 +50,11 @@ void main() {
     // Aligned with Android Vitals frozen frames to correlate UI freezes with
     // preceding network, database or navigation events.
     capturePerformance: true,
+    // Record dart:io HttpClient traffic outside the Dio interceptor
+    // (Image.network, package:http, plain Dio) as `httpClient` entries
+    // (opt-in). It also runs in release builds: in your app, gate it with a
+    // flavor or bool.fromEnvironment instead of hard-coding true.
+    captureHttpClient: true,
   );
   // Bridge existing loggers into the Console timeline (README: "Bridge
   // existing loggers"). Every hook is synchronous, so a bridged record keeps
@@ -106,6 +112,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
   late final NetworkDemo _networkDemo;
+  late final HttpClientDemo _httpClientDemo;
   late final SqliteDemo _sqliteDemo;
   late final ObjectBoxDemo _objectBoxDemo;
   late final SharedPrefsDemo _sharedPrefsDemo;
@@ -117,6 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _networkDemo = NetworkDemo(inspector);
+    _httpClientDemo = HttpClientDemo(inspector);
     _sqliteDemo = SqliteDemo(inspector);
     _objectBoxDemo = ObjectBoxDemo(inspector);
     _sharedPrefsDemo = SharedPrefsDemo(inspector);
@@ -190,6 +198,21 @@ class _MyHomePageState extends State<MyHomePage> {
               ElevatedButton(
                 onPressed: _networkDemo.makeFormDataRequest,
                 child: const Text('Make FormData Request'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _httpClientDemo.fetchWithPackageHttp,
+                child: const Text('HttpClient: package:http Request'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _httpClientDemo.fetchWithPlainDio,
+                child: const Text('HttpClient: Dio Without Interceptor'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _httpClientDemo.showNetworkImage(context),
+                child: const Text('HttpClient: Image.network'),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
