@@ -21,7 +21,7 @@ const String inspectorWebViewBridgeJs = r'''
 
   function truncate(s) {
     if (typeof s !== 'string' || s.length <= MAX_CHARS) return { v: s, cut: false };
-    return { v: s.slice(0, MAX_CHARS) + '…[truncated]', cut: true };
+    return { v: s.slice(0, MAX_CHARS) + '...[truncated]', cut: true };
   }
 
   function safeStringify(o) {

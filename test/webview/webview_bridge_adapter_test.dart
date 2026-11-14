@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_inspector_kit/src/utils/log_formatters.dart';
 import 'package:flutter_inspector_kit/src/utils/network_formatters.dart';
@@ -145,6 +146,19 @@ void main() {
       expect(inspector.networkEntries, isEmpty);
     });
 
+    test('JS 已截斷的長 body 不量大小，回退顯示儲存文字長度', () {
+      final inspector = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+      );
+      WebViewBridgeAdapter(inspector).handleMessage(_Data.fetchJsTruncated);
+      final e = inspector.networkEntries.single;
+      expect(e.responseBodyLength, isNull);
+      expect(
+        e.responseSizeBytes,
+        kNetworkBodyMaxLength + kTruncatedMarker.length,
+      );
+    });
+
     test('超過大小上限的 raw 訊息在 decode 前被丟棄（敵意輸入）', () {
       final inspector = FlutterInspector(
         navigatorKey: GlobalKey<NavigatorState>(),
@@ -221,6 +235,12 @@ class _Data {
     "status": 200
   }
   ''';
+
+  // What the JS bridge sends for a body over MAX_CHARS (32768).
+  static final String fetchJsTruncated =
+      '{"t":"net","method":"GET","url":"https://m.example.com/api/big",'
+      '"status":200,"resBody":"${'a' * 32768}$kTruncatedMarker",'
+      '"truncated":true}';
 
   // ts within int64 range but far outside DateTime's valid ±8.64e15 ms window:
   // DateTime.fromMillisecondsSinceEpoch throws RangeError, which must be caught

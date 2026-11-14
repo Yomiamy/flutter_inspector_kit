@@ -158,7 +158,7 @@ function post(msg) {
 var MAX_CHARS = 32768; // 對齊 brainstorm 的 32KB；具名常數，非魔術數字
 function truncate(s) {
   if (typeof s !== 'string' || s.length <= MAX_CHARS) return { v: s, cut: false };
-  return { v: s.slice(0, MAX_CHARS) + '…[truncated]', cut: true };
+  return { v: s.slice(0, MAX_CHARS) + '...[truncated]', cut: true };
 }
 ```
 

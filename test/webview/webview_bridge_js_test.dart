@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_inspector_kit/src/models/network_entry.dart';
 import 'package:flutter_inspector_kit/src/webview/webview_bridge_js.dart';
 
 void main() {
@@ -21,5 +22,9 @@ void main() {
   test('JS 端截斷上限為具名常數且存在截斷標記', () {
     expect(inspectorWebViewBridgeJs, contains('MAX_CHARS'));
     expect(inspectorWebViewBridgeJs, contains('truncated'));
+  });
+  test('JS 截斷標記與 Dart kTruncatedMarker 一致', () {
+    // 不一致時 JS 已截的 body 會被當成完整 payload 量大小。
+    expect(inspectorWebViewBridgeJs, contains("'$kTruncatedMarker'"));
   });
 }
