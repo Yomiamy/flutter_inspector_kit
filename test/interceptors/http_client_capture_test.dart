@@ -1284,6 +1284,34 @@ void main() {
       expect(entry.responseImageBytes, isNull);
     });
 
+    // The body text is a summary or a bounded copy; the size shown must be the
+    // bytes that crossed the wire.
+    for (final (path, size) in [
+      ('/png', _Data.png1x1.length),
+      ('/binary', 4),
+      ('/big', 8 + 6 * 1024 * 1024),
+      ('/long', 60 * 1024),
+      ('/utf8', 2 * 30000),
+    ]) {
+      test('$path reports its real byte count', () async {
+        final entry = await get(path);
+
+        expect(entry.responseSizeBytes, size);
+        expect(entry.requestBodyLength, isNull); // a GET sends no body
+        expect(entry.requestSizeBytes, 0);
+      });
+    }
+
+    test('a request body larger than the copy reports its real size', () async {
+      final req = await client.postUrl(server.url('/echo'));
+      req.add(List.filled(5 * kNetworkBodyMaxLength + 1, 0x61));
+      await (await req.close()).drain<void>();
+
+      final entry = inspector.networkEntries.single;
+      expect(entry.requestSizeBytes, 5 * kNetworkBodyMaxLength + 1);
+      expect(entry.responseSizeBytes, 5 * kNetworkBodyMaxLength + 1);
+    });
+
     test('addStream takes the Stream<Uint8List> Dio sends (R2-1)', () async {
       final req = await client.postUrl(server.url('/echo'));
 
@@ -1340,6 +1368,15 @@ void main() {
         body,
         '[multipart/form-data, ${multipart.length} B]'
         '$kTruncatedMarker',
+      );
+    });
+
+    test('still reports the real size of the summarized body', () async {
+      await requestBodyWith(inspector);
+
+      expect(
+        inspector.networkEntries.single.requestSizeBytes,
+        multipart.length,
       );
     });
 

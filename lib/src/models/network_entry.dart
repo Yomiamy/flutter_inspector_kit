@@ -29,8 +29,10 @@ class NetworkEntry implements TimestampedEntry {
     this.duration,
     this.requestHeaders,
     this.requestBody,
+    this.requestBodyLength,
     this.responseHeaders,
     this.responseBody,
+    this.responseBodyLength,
     this.error,
     this.errorType,
     this.errorStackTrace,
@@ -67,11 +69,23 @@ class NetworkEntry implements TimestampedEntry {
   /// Request body (already truncated to [kNetworkBodyMaxLength]).
   final String? requestBody;
 
+  /// Real size in bytes of the request body as sent, recorded when
+  /// [requestBody] is a summary or a truncated copy. `null` when the stored
+  /// text is the whole body, or the size was not measured (a `FormData`
+  /// summary). See [requestSizeBytes].
+  final int? requestBodyLength;
+
   /// Response headers.
   final Map<String, dynamic>? responseHeaders;
 
   /// Response body (already truncated to [kNetworkBodyMaxLength]).
   final String? responseBody;
+
+  /// Real size in bytes of the response body as received, recorded when
+  /// [responseBody] is a summary or a truncated copy. `null` when the stored
+  /// text is the whole body, or the size was not measured (a stream
+  /// placeholder). See [responseSizeBytes].
+  final int? responseBodyLength;
 
   /// Error message if the request failed.
   final String? error;
@@ -166,8 +180,10 @@ class NetworkEntry implements TimestampedEntry {
     Duration? duration,
     Map<String, dynamic>? requestHeaders,
     String? requestBody,
+    int? requestBodyLength,
     Map<String, dynamic>? responseHeaders,
     String? responseBody,
+    int? responseBodyLength,
     String? error,
     DioExceptionType? errorType,
     String? errorStackTrace,
@@ -188,8 +204,10 @@ class NetworkEntry implements TimestampedEntry {
       duration: duration ?? this.duration,
       requestHeaders: requestHeaders ?? this.requestHeaders,
       requestBody: requestBody ?? this.requestBody,
+      requestBodyLength: requestBodyLength ?? this.requestBodyLength,
       responseHeaders: responseHeaders ?? this.responseHeaders,
       responseBody: responseBody ?? this.responseBody,
+      responseBodyLength: responseBodyLength ?? this.responseBodyLength,
       error: error ?? this.error,
       errorType: errorType ?? this.errorType,
       errorStackTrace: errorStackTrace ?? this.errorStackTrace,
@@ -215,8 +233,10 @@ class NetworkEntry implements TimestampedEntry {
         other.duration == duration &&
         mapEquals(other.requestHeaders, requestHeaders) &&
         other.requestBody == requestBody &&
+        other.requestBodyLength == requestBodyLength &&
         mapEquals(other.responseHeaders, responseHeaders) &&
         other.responseBody == responseBody &&
+        other.responseBodyLength == responseBodyLength &&
         other.error == error &&
         other.errorType == errorType &&
         other.errorStackTrace == errorStackTrace &&
@@ -235,7 +255,9 @@ class NetworkEntry implements TimestampedEntry {
     statusCode,
     duration,
     requestBody,
+    requestBodyLength,
     responseBody,
+    responseBodyLength,
     error,
     errorType,
     errorStackTrace,
@@ -246,13 +268,15 @@ class NetworkEntry implements TimestampedEntry {
     activeRoute,
   );
 
-  /// Number of UTF-8 bytes in the (possibly truncated) request body.
+  /// Size in bytes of the request body: [requestBodyLength] when recorded,
+  /// else the UTF-8 length of [requestBody] (0 when there is none).
   int get requestSizeBytes =>
-      requestBody == null ? 0 : utf8.encode(requestBody!).length;
+      requestBodyLength ?? utf8.encode(requestBody ?? '').length;
 
-  /// Number of UTF-8 bytes in the (possibly truncated) response body.
+  /// Size in bytes of the response body: [responseBodyLength] when recorded,
+  /// else the UTF-8 length of [responseBody] (0 when there is none).
   int get responseSizeBytes =>
-      responseBody == null ? 0 : utf8.encode(responseBody!).length;
+      responseBodyLength ?? utf8.encode(responseBody ?? '').length;
 
   /// Query parameters parsed from [url]. Empty when the URL has none.
   Map<String, String> get queryParameters {

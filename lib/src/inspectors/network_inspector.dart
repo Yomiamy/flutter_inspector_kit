@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/ring_buffer.dart';
@@ -7,6 +9,12 @@ import '../utils/image_bytes.dart';
 /// Callback invoked after a [NetworkEntry] is buffered. [totalCount] is the
 /// current number of buffered entries.
 typedef NetworkAddListener = void Function(NetworkEntry entry, int totalCount);
+
+// A cut body keeps the size it had; a size the capture layer measured wins.
+int? _sizeBeforeCut(String? body, String? truncated, int? known) {
+  if (known != null || body == null || body == truncated) return known;
+  return utf8.encode(body).length;
+}
 
 /// Manages a ring buffer of [NetworkEntry] items.
 class NetworkInspector {
@@ -33,7 +41,9 @@ class NetworkInspector {
   /// If [replaces] was already evicted from the buffer, [entry] is appended.
   ///
   /// The request and response bodies will be automatically truncated
-  /// if they exceed [kNetworkBodyMaxLength].
+  /// if they exceed [kNetworkBodyMaxLength]. A body cut here keeps its real
+  /// size in [NetworkEntry.requestBodyLength] or
+  /// [NetworkEntry.responseBodyLength], unless the entry already carried one.
   ///
   /// Preview bytes ([NetworkEntry.responseImageBytes]) above [kImageMaxBytes]
   /// are dropped, and once all previews exceed [kImageBudgetBytes] the oldest
@@ -48,7 +58,17 @@ class NetworkInspector {
         oversized) {
       entry = entry.copyWith(
         requestBody: requestBody,
+        requestBodyLength: _sizeBeforeCut(
+          entry.requestBody,
+          requestBody,
+          entry.requestBodyLength,
+        ),
         responseBody: responseBody,
+        responseBodyLength: _sizeBeforeCut(
+          entry.responseBody,
+          responseBody,
+          entry.responseBodyLength,
+        ),
         clearResponseImageBytes: oversized,
       );
     }

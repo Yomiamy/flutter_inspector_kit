@@ -353,7 +353,9 @@ class _CapturingRequest implements HttpClientRequest {
               ? null
               : _headerMap(response.headers),
           requestBody: _requestBodyText(),
+          requestBodyLength: _body.seen,
           responseBody: body?.text,
+          responseBodyLength: response?._body.seen,
           responseImageBytes: body?.image,
           duration: DateTime.now().difference(_start),
           error: error?.toString(),
@@ -625,6 +627,10 @@ class _Tee {
   final BytesBuilder _copy = BytesBuilder();
   int total = 0;
   int? _cap;
+
+  /// [total] once any bytes were seen: the entry's real body length, which
+  /// the summary or the bounded copy cannot show. `null` for an empty body.
+  int? get seen => total > 0 ? total : null;
 
   void add(List<int> chunk) {
     total += chunk.length;

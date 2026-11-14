@@ -26,6 +26,12 @@ class FlutterInspectorDioInterceptor extends Interceptor {
   static Uint8List? _imageBytes(Object? data) =>
       data is Uint8List && imageMimeType(data) != null ? data : null;
 
+  // ponytail: only a bytes payload is summarized with a size the text cannot
+  // show; a FormData or stream summary keeps reporting its own length, record
+  // FormData.length here if that ever matters.
+  static int? _byteLength(Object? data) =>
+      data is Uint8List ? data.length : null;
+
   String? _stringifyData(dynamic data) {
     if (data == null) return null;
     if (data is String) return data;
@@ -87,6 +93,7 @@ class FlutterInspectorDioInterceptor extends Interceptor {
             ? (Map.of(options.headers)..remove(kDioMarkerHeader))
             : options.headers,
         requestBody: _stringifyData(options.data),
+        requestBodyLength: _byteLength(options.data),
         sourceDio: sourceDio,
         isReplay: options.extra['_inspector_is_replay'] == true,
       );
@@ -136,10 +143,12 @@ class FlutterInspectorDioInterceptor extends Interceptor {
         duration: duration,
         requestHeaders: response.requestOptions.headers,
         requestBody: _stringifyData(response.requestOptions.data),
+        requestBodyLength: _byteLength(response.requestOptions.data),
         responseHeaders: response.headers.map.map(
           (k, v) => MapEntry(k, v.join(',')),
         ),
         responseBody: _stringifyData(response.data),
+        responseBodyLength: _byteLength(response.data),
         responseImageBytes: _imageBytes(response.data),
         isComplete: true,
         timestamp: startTime,
@@ -194,10 +203,12 @@ class FlutterInspectorDioInterceptor extends Interceptor {
         duration: duration,
         requestHeaders: err.requestOptions.headers,
         requestBody: _stringifyData(err.requestOptions.data),
+        requestBodyLength: _byteLength(err.requestOptions.data),
         responseHeaders: err.response?.headers.map.map(
           (k, v) => MapEntry(k, v.join(',')),
         ),
         responseBody: _stringifyData(err.response?.data),
+        responseBodyLength: _byteLength(err.response?.data),
         responseImageBytes: _imageBytes(err.response?.data),
         error: err.toString(),
         errorType: err.type,

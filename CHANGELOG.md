@@ -21,6 +21,7 @@
 ### Changed
 * **Dio image bodies are summarized**: a `Uint8List` request or response body that starts with a complete image signature is recorded as `[image/png, 34.2 KB]...[truncated]` instead of `[binary N bytes]...[truncated]`. Other binary bodies are unchanged.
 * **Pending Dio entries snapshot their request headers when `captureHttpClient` is on**: for a request the interceptor marks, the pending entry keeps a copy of the headers taken in `onRequest` (without the marker), so headers added by interceptors that run later do not appear until the request completes. Without `captureHttpClient` nothing changes.
+* **Request / response size is the real payload size**: the Network list, the detail view and the plain-text export measured the stored body text, so an image or binary body read as the length of its summary (`[image/png, 7.9 KB]...[truncated]` showed 33 B) and a long text body as its first 10 KB. They now show what was sent or received, kept in the new `NetworkEntry.requestBodyLength` / `responseBodyLength` (`null` when the stored text is the whole body; Dio `FormData` and stream summaries still report their text length).
 
 ## 2.9.0
 

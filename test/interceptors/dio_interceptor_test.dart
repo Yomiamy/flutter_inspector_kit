@@ -640,6 +640,86 @@ void main() {
       });
     });
 
+    group('Uint8List body size', () {
+      // The recorded text is only a summary: the size shown must be the bytes'.
+      NetworkEntry onlyEntry() => inspector.registry.network.entries.single;
+
+      test('onRequest and onResponse report the byte count, not the '
+          'summary length', () {
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: Uint8List.fromList([1, 2, 3, 4, 5, 6]),
+          responseType: ResponseType.bytes,
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+        expect(onlyEntry().requestSizeBytes, 6);
+
+        interceptor.onResponse(
+          Response<Uint8List>(
+            requestOptions: options,
+            statusCode: 200,
+            data: _Data.png1x1,
+          ),
+          ResponseInterceptorHandler(),
+        );
+
+        expect(onlyEntry().requestSizeBytes, 6);
+        expect(onlyEntry().responseSizeBytes, _Data.png1x1.length);
+      });
+
+      test('onError reports the byte count of the error body', () async {
+        final options = RequestOptions(
+          path: 'http://example.com/e.bin',
+          method: 'GET',
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor.onError(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.badResponse,
+            response: Response<Uint8List>(
+              requestOptions: options,
+              statusCode: 500,
+              data: Uint8List.fromList([0xff, 0x00]),
+            ),
+          ),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+
+        expect(onlyEntry().responseSizeBytes, 2);
+      });
+
+      test('a JSON map or FormData body records no length', () {
+        interceptor
+          ..onRequest(
+            RequestOptions(
+              path: 'http://example.com/json',
+              method: 'POST',
+              data: {'a': 1},
+            ),
+            RequestInterceptorHandler(),
+          )
+          ..onRequest(
+            RequestOptions(
+              path: 'http://example.com/form',
+              method: 'POST',
+              data: FormData.fromMap({'a': '1'}),
+            ),
+            RequestInterceptorHandler(),
+          );
+
+        final entries = inspector.registry.network.entries;
+        expect(entries, hasLength(2));
+        expect(entries.map((e) => e.requestBodyLength), [null, null]);
+        expect(entries.last.requestSizeBytes, 7); // the JSON text `{"a":1}`
+      });
+    });
+
     group('HttpClient-layer marker (US-2)', () {
       // The layer chains onto the global HttpOverrides slot: restore it, and
       // the install guard, after every test.

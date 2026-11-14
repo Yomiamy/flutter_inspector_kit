@@ -111,6 +111,57 @@ void main() {
       expect(inspector.entries.first, stored);
     });
 
+    test('a truncated body keeps its real size; a known length is kept', () {
+      final long = 'é' * (kNetworkBodyMaxLength + 100); // 2 UTF-8 bytes each
+
+      final stored = inspector.add(
+        NetworkEntry(
+          method: 'POST',
+          url: '/1',
+          requestBody: long,
+          responseBody: long,
+          responseBodyLength: 123456,
+        ),
+      );
+
+      expect(stored.requestBody, endsWith(kTruncatedMarker));
+      expect(stored.requestBodyLength, 2 * long.length);
+      expect(stored.requestSizeBytes, 2 * long.length);
+      expect(stored.responseSizeBytes, 123456);
+    });
+
+    test('a body that fits gets no recorded length', () {
+      final stored = inspector.add(
+        NetworkEntry(method: 'POST', url: '/1', requestBody: 'abc'),
+      );
+
+      expect(stored.requestBodyLength, isNull);
+      expect(stored.responseBodyLength, isNull);
+      expect(stored.requestSizeBytes, 3);
+    });
+
+    test('add with replaces finds a pending entry whose body was cut', () {
+      final long = 'a' * (kNetworkBodyMaxLength + 100);
+      final pending = inspector.add(
+        NetworkEntry(method: 'POST', url: '/1', requestBody: long),
+      );
+      expect(pending.requestBodyLength, long.length);
+
+      final done = inspector.add(
+        NetworkEntry(
+          method: 'POST',
+          url: '/1',
+          requestBody: long,
+          statusCode: 200,
+          isComplete: true,
+        ),
+        replaces: pending,
+      );
+
+      expect(inspector.entries, [done]);
+      expect(done.requestSizeBytes, long.length);
+    });
+
     test('onAdd fires on replace with unchanged total', () {
       final calls = <(String, int)>[];
       inspector.onAdd = (entry, total) => calls.add((entry.url, total));
