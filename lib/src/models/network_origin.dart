@@ -9,4 +9,9 @@ enum NetworkOrigin {
 
   /// Captured by `WebViewBridgeAdapter` from a WebView's `fetch`/`XHR`.
   webview,
+
+  /// Captured by the `captureHttpClient` layer from `dart:io` `HttpClient`
+  /// traffic (`Image.network`, `package:http`, SDKs, Dio without the
+  /// inspector interceptor).
+  httpClient,
 }

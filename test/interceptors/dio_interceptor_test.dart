@@ -1,14 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show HttpOverrides;
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
+import 'package:flutter_inspector_kit/src/interceptors/http_client_capture.dart';
 import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/utils/agent_prompt.dart';
+import 'package:flutter_inspector_kit/src/utils/network_formatters.dart';
 import 'package:flutter_inspector_kit/src/utils/redaction.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _FakeAdapter extends Fake implements HttpClientAdapter {}
 
 class _ThrowingData {
   @override
@@ -36,6 +43,13 @@ class _TrackedStream {
   bool listened = false;
 
   Stream<Uint8List> get stream => _controller.stream;
+}
+
+class _Data {
+  // Valid 1x1 PNG (70 bytes; IHDR/IDAT/IEND CRCs verified).
+  static final png1x1 = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  );
 }
 
 void main() {
@@ -531,6 +545,374 @@ void main() {
         final entry = inspector.registry.network.entries.first;
         expect(entry.requestBody, '[137,80,78,71]');
         expect(entry.isRequestTruncated, isFalse);
+      });
+    });
+
+    group('Uint8List image summary (US-6)', () {
+      const summary = '[image/png, 70 B]$kTruncatedMarker';
+
+      test(
+        'onResponse summarizes a PNG and keeps the same bytes (6-1, 6-2)',
+        () {
+          final options = RequestOptions(
+            path: 'http://example.com/a.png',
+            method: 'GET',
+            responseType: ResponseType.bytes,
+          );
+          interceptor.onRequest(options, RequestInterceptorHandler());
+
+          interceptor.onResponse(
+            Response<Uint8List>(
+              requestOptions: options,
+              statusCode: 200,
+              data: _Data.png1x1,
+            ),
+            ResponseInterceptorHandler(),
+          );
+
+          final entry = inspector.registry.network.entries.first;
+          expect(entry.responseBody, summary);
+          expect(entry.responseImageBytes, same(_Data.png1x1));
+        },
+      );
+
+      test('onError summarizes a PNG error body the same way', () async {
+        final options = RequestOptions(
+          path: 'http://example.com/e.png',
+          method: 'GET',
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor.onError(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.badResponse,
+            response: Response<Uint8List>(
+              requestOptions: options,
+              statusCode: 500,
+              data: _Data.png1x1,
+            ),
+          ),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.responseBody, summary);
+        expect(entry.responseImageBytes, same(_Data.png1x1));
+      });
+
+      test('onRequest summarizes a PNG request body', () {
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: _Data.png1x1,
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.requestBody, summary);
+        expect(entry.responseImageBytes, isNull);
+      });
+
+      test('an incomplete PNG signature is not an image (6-7)', () {
+        final options = RequestOptions(
+          path: 'http://example.com/cut.png',
+          method: 'GET',
+          responseType: ResponseType.bytes,
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        interceptor.onResponse(
+          Response<Uint8List>(
+            requestOptions: options,
+            statusCode: 200,
+            data: Uint8List.fromList([137, 80, 78, 71]),
+          ),
+          ResponseInterceptorHandler(),
+        );
+
+        final entry = inspector.registry.network.entries.first;
+        expect(entry.responseBody, '[binary 4 bytes]$kTruncatedMarker');
+        expect(entry.responseImageBytes, isNull);
+      });
+    });
+
+    group('Uint8List body size', () {
+      // The recorded text is only a summary: the size shown must be the bytes'.
+      NetworkEntry onlyEntry() => inspector.registry.network.entries.single;
+
+      test('onRequest and onResponse report the byte count, not the '
+          'summary length', () {
+        final options = RequestOptions(
+          path: 'http://example.com/upload',
+          method: 'POST',
+          data: Uint8List.fromList([1, 2, 3, 4, 5, 6]),
+          responseType: ResponseType.bytes,
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+        expect(onlyEntry().requestSizeBytes, 6);
+
+        interceptor.onResponse(
+          Response<Uint8List>(
+            requestOptions: options,
+            statusCode: 200,
+            data: _Data.png1x1,
+          ),
+          ResponseInterceptorHandler(),
+        );
+
+        expect(onlyEntry().requestSizeBytes, 6);
+        expect(onlyEntry().responseSizeBytes, _Data.png1x1.length);
+      });
+
+      test('onError reports the byte count of the error body', () async {
+        final options = RequestOptions(
+          path: 'http://example.com/e.bin',
+          method: 'GET',
+        );
+        interceptor.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        interceptor.onError(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.badResponse,
+            response: Response<Uint8List>(
+              requestOptions: options,
+              statusCode: 500,
+              data: Uint8List.fromList([0xff, 0x00]),
+            ),
+          ),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+
+        expect(onlyEntry().responseSizeBytes, 2);
+      });
+
+      test('a JSON map or FormData body records no length', () {
+        interceptor
+          ..onRequest(
+            RequestOptions(
+              path: 'http://example.com/json',
+              method: 'POST',
+              data: {'a': 1},
+            ),
+            RequestInterceptorHandler(),
+          )
+          ..onRequest(
+            RequestOptions(
+              path: 'http://example.com/form',
+              method: 'POST',
+              data: FormData.fromMap({'a': '1'}),
+            ),
+            RequestInterceptorHandler(),
+          );
+
+        final entries = inspector.registry.network.entries;
+        expect(entries, hasLength(2));
+        expect(entries.map((e) => e.requestBodyLength), [null, null]);
+        expect(entries.last.requestSizeBytes, 7); // the JSON text `{"a":1}`
+      });
+    });
+
+    group('HttpClient-layer marker (US-2)', () {
+      // The layer chains onto the global HttpOverrides slot: restore it, and
+      // the install guard, after every test.
+      HttpOverrides? saved;
+      setUp(() => saved = HttpOverrides.current);
+      tearDown(() {
+        HttpOverrides.global = saved;
+        resetHttpClientCaptureForTesting();
+      });
+
+      test('the marker rides on the request and never into a record '
+          '(2-3, R12)', () {
+        installHttpClientCapture(inspector);
+        final tagging = FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        );
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          method: 'POST',
+          headers: {'authorization': 'Bearer t'},
+        );
+
+        tagging.onRequest(options, RequestInterceptorHandler());
+
+        expect(options.headers[kDioMarkerHeader], isNotNull); // sent on
+        final pending = inspector.registry.network.entries.single;
+        expect(
+          pending.requestHeaders,
+          containsPair('authorization', 'Bearer t'),
+        );
+        expect(pending.requestHeaders, isNot(contains(kDioMarkerHeader)));
+        final exports = {
+          'curl': buildCurl(pending),
+          'plain text': buildPlainText(pending),
+          'replay headers': '${buildReplayRequest(pending).headers}',
+          'agent prompt': buildAgentPrompt(pending, timeline: [pending]),
+        };
+        exports.forEach((name, text) {
+          expect(text, isNot(contains(kDioMarkerHeader)), reason: name);
+        });
+
+        tagging.onResponse(
+          Response(requestOptions: options, statusCode: 200),
+          ResponseInterceptorHandler(),
+        );
+
+        expect(options.headers, isNot(contains(kDioMarkerHeader)));
+        final completed = inspector.registry.network.entries.single;
+        expect(completed.isComplete, isTrue);
+        expect(completed.requestHeaders, isNot(contains(kDioMarkerHeader)));
+      });
+
+      test('onError takes the marker off the live options too (R12)', () async {
+        installHttpClientCapture(inspector);
+        final tagging = FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        );
+        final options = RequestOptions(path: 'http://example.com/api');
+        tagging.onRequest(options, RequestInterceptorHandler());
+
+        final errorHandler = ErrorInterceptorHandler();
+        tagging.onError(
+          DioException(requestOptions: options, error: 'fail'),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+
+        expect(options.headers, isNot(contains(kDioMarkerHeader)));
+        final completed = inspector.registry.network.entries.single;
+        expect(completed.requestHeaders, isNot(contains(kDioMarkerHeader)));
+        expect(inspector.logEntries, isEmpty);
+      });
+
+      test('without the layer the headers are untouched and recorded live '
+          '(2-4)', () {
+        final options = RequestOptions(
+          path: 'http://example.com/api',
+          headers: {'x-a': 'b'},
+        );
+
+        FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        ).onRequest(options, RequestInterceptorHandler());
+
+        expect(options.headers, {'x-a': 'b'});
+        expect(
+          inspector.registry.network.entries.single.requestHeaders,
+          same(options.headers),
+        );
+      });
+
+      test('no sourceDio, or an adapter that is not IO: no marker (2-5)', () {
+        installHttpClientCapture(inspector);
+        final interceptors = [
+          FlutterInspectorDioInterceptor(inspector),
+          FlutterInspectorDioInterceptor(
+            inspector,
+            sourceDio: Dio()..httpClientAdapter = _FakeAdapter(),
+          ),
+        ];
+
+        for (final interceptor in interceptors) {
+          final options = RequestOptions(path: 'http://example.com/api');
+          interceptor.onRequest(options, RequestInterceptorHandler());
+          expect(options.headers, isNot(contains(kDioMarkerHeader)));
+        }
+      });
+
+      test('onRequest registers live options.headers by WeakReference', () {
+        installHttpClientCapture(inspector);
+        final tagging = FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        );
+        final options = RequestOptions(path: 'http://example.com/api');
+
+        tagging.onRequest(options, RequestInterceptorHandler());
+
+        expect(liveDioMarkers, hasLength(1));
+        final token = options.headers[kDioMarkerHeader] as String?;
+        expect(token, isNotNull);
+        expect(liveDioMarkers[token]?.target, same(options.headers));
+      });
+
+      test(
+        're-running onRequest on the same RequestOptions retires stale token',
+        () {
+          installHttpClientCapture(inspector);
+          final dio = Dio();
+          final tagging = FlutterInspectorDioInterceptor(
+            inspector,
+            sourceDio: dio,
+          );
+          final untagged = FlutterInspectorDioInterceptor(inspector);
+          final options = RequestOptions(path: 'http://example.com/api');
+
+          tagging.onRequest(options, RequestInterceptorHandler());
+          final firstToken = options.headers[kDioMarkerHeader];
+
+          tagging.onRequest(options, RequestInterceptorHandler());
+          final secondToken = options.headers[kDioMarkerHeader];
+          expect(secondToken, isNot(firstToken));
+          expect(liveDioMarkers.containsKey(firstToken), isFalse);
+          expect(liveDioMarkers, hasLength(1));
+          expect(liveDioMarkers[secondToken]?.target, same(options.headers));
+
+          untagged.onRequest(options, RequestInterceptorHandler());
+          expect(options.headers, isNot(contains(kDioMarkerHeader)));
+          expect(liveDioMarkers, isEmpty);
+        },
+      );
+
+      test('onResponse and onError clear liveDioMarkers', () async {
+        installHttpClientCapture(inspector);
+        final tagging = FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        );
+        final okOptions = RequestOptions(path: 'http://example.com/ok');
+        tagging.onRequest(okOptions, RequestInterceptorHandler());
+        expect(liveDioMarkers, hasLength(1));
+        tagging.onResponse(
+          Response(requestOptions: okOptions, statusCode: 200),
+          ResponseInterceptorHandler(),
+        );
+        expect(liveDioMarkers, isEmpty);
+
+        final errOptions = RequestOptions(path: 'http://example.com/err');
+        tagging.onRequest(errOptions, RequestInterceptorHandler());
+        expect(liveDioMarkers, hasLength(1));
+        final errorHandler = ErrorInterceptorHandler();
+        tagging.onError(
+          DioException(requestOptions: errOptions, error: 'fail'),
+          errorHandler,
+        );
+        // ignore: invalid_use_of_protected_member
+        await expectLater(errorHandler.future, throwsA(isA<Object>()));
+        expect(liveDioMarkers, isEmpty);
+      });
+
+      test('without install onRequest does not touch liveDioMarkers (2-4)', () {
+        final options = RequestOptions(path: 'http://example.com/api');
+
+        FlutterInspectorDioInterceptor(
+          inspector,
+          sourceDio: Dio(),
+        ).onRequest(options, RequestInterceptorHandler());
+
+        expect(liveDioMarkers, isEmpty);
       });
     });
 

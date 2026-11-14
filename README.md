@@ -62,7 +62,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^2.9.0
+  flutter_inspector_kit: ^3.0.0
 ```
 
 Then run `flutter pub get`.
@@ -181,9 +181,38 @@ publicDio.interceptors.add(FlutterInspectorDioInterceptor(inspector, sourceDio: 
 
 This guarantees that replaying a request in the Network detail view uses the exact same `Dio` instance, maintaining the correct baseUrl, interceptors, and authentication state.
 
+#### Capture HttpClient traffic (Image.network, package:http, SDKs) — opt-in
+
+Enable `captureHttpClient: true` on `FlutterInspector` to automatically record `dart:io` `HttpClient` traffic — `Image.network`, `package:http`'s `IOClient`, third-party SDKs, and `Dio` instances without `FlutterInspectorDioInterceptor` — as `NetworkOrigin.httpClient` entries. Supported image responses (`PNG`, `JPEG`, `GIF`, `WebP`, `BMP`) keep up to 5 MB per image and 50 MB in total across the buffer so they can be previewed in the Network detail view.
+
+Gate this behind a flavor or `--dart-define` / `bool.fromEnvironment` flag rather than `!kReleaseMode` — `captureHttpClient` takes effect in release builds too, and `!kReleaseMode` is also `true` under `flutter test`, which would install the layer during your tests:
+
+```dart
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureHttpClient: const bool.fromEnvironment('ENABLE_INSPECTOR'),
+  // Optional: image-heavy screens share the 500-entry network ring buffer
+  // with API calls; increase bufferSize if images push API calls out too fast.
+  bufferSize: 1000,
+);
+```
+
+Important caveats and boundaries:
+
+- **Construct the inspector at the top of `main()`**, right after `WidgetsFlutterBinding.ensureInitialized()` and before any client is created or `Dio` sends its first request. Lazy static clients created earlier (`Image.network`'s shared client, an `http.Client()` in a DI container, a Dio adapter's cached client) are never captured.
+- **Keep a single app-wide inspector**: only the first enabled inspector in an isolate installs this layer.
+- **Dio deduplication requires `sourceDio` — and it must be the exact `Dio` sending the request**: `FlutterInspectorDioInterceptor(inspector, sourceDio: dio)` tags outgoing requests only when `sourceDio?.httpClientAdapter is IOHttpClientAdapter` and this layer is active, so the `HttpClient` layer skips double-recording and removes the marker before wire send. Always keep `FlutterInspectorDioInterceptor` **last** in `dio.interceptors` (any trailing signing interceptor such as HMAC/SigV4 would sign the marker before it is stripped).
+- **Marker leak and missed-dedup paths**:
+  - *(a)* Calling `dio.clone(httpClientAdapter: otherAdapter)` keeps the interceptor while bypassing the proxy layer, or passing the wrong `sourceDio`, leaks the marker header to the server.
+  - *(b)* Passing an already-created client via `IOHttpClientAdapter(createHttpClient: () => existingClient)`, overriding `fetch` on a custom adapter subclass, or sending with a `Dio` instance that already cached its native `HttpClient` before the inspector was constructed also bypasses the proxy and leaks the marker. When this happens and the marker survives on response, `FlutterInspectorDioInterceptor` logs a warning.
+  - *(c)* Once headers are sent on the wire, the `HttpClient` layer removes the marker from live `requestOptions.headers`, so later response or error interceptors never see it (token-refresh retries through another `Dio` are captured normally). Only a request that fails **before connecting** still carries the marker into `onError`: resending that failure through a *different* `Dio` can leak the marker on a non-IO adapter or be silently skipped here (retrying through the *same* `Dio` re-tags and captures normally).
+- **Pre-connect Dio failures are recorded twice**: a Dio request that fails before opening a connection (DNS failure, connection refused, TLS handshake error) is recorded both by `FlutterInspectorDioInterceptor` (`dio`) and by the `HttpClient` layer (`httpClient`).
+- **Overrides and scope boundaries**: the layer chains onto `HttpOverrides.global` (preserving proxies and SSL pinning registered *before* the inspector) and is never uninstalled by `detach()`. If the host sets `HttpOverrides.global` *after* constructing the inspector, capture silently stops and host behavior wins. Traffic inside `HttpOverrides.runZoned(...)` or background isolates (`compute` / `Isolate.run`), and native clients (`cupertino_http`, `cronet_http`, `native_dio_adapter`), are not captured. Does nothing on Web.
+- **Unread response bodies stay `pending`**: requests whose response body is never consumed (e.g. `HEAD` requests or un-drained streams) remain `no response · Ns` (`pending`) and trigger `🐢 SLOW`, because the inspector never reads the stream on the caller's behalf.
+
 #### With other HTTP clients
 
-Build a `NetworkEntry` yourself and pass it to `inspector.logNetwork`:
+Build a `NetworkEntry` yourself and pass it to `inspector.logNetwork` (if `captureHttpClient: true` is enabled, `package:http`'s `IOClient` is already captured automatically — do not manually `logNetwork` it as well or each call will be recorded twice):
 
 ```dart
 inspector.logNetwork(entry);
@@ -343,14 +372,14 @@ When integrating non-HTTP or non-Dio protocols manually, beware of two critical 
    - Furthermore, the Network tab filter chips (`2xx`, `3xx`, `4xx`, `5xx`) expect standard HTTP status codes.
    - **Solution**: Leave `statusCode` as `null` for non-HTTP protocols. Pass error descriptions to `error:` (which sets `isFailed = true`), and record protocol codes inside `responseHeaders` (e.g. `{'grpc-status': '${error.code}'}`) or the body.
 
-2. **Never add or expect custom `NetworkOrigin` enum values**:
-   `NetworkOrigin` is a public enum (`dio`, `webview`). Host applications frequently use exhaustive `switch (entry.origin)` expressions. Adding new values like `grpc` or `websocket` would break exhaustive matching at compile time (`Never break userspace`). `origin` has no "unspecified" value: it defaults to `NetworkOrigin.dio`, so custom entries will show `dio` in the detail view's Origin row. Treat this as a known limitation of the current API (do not set `webview` either, as that would mislabel the entry).
+2. **Do not invent or expect custom `NetworkOrigin` values**:
+   `NetworkOrigin` is a public enum (`dio`, `httpClient`, `webview`). Host applications frequently use exhaustive `switch (entry.origin)` expressions, so adding new enum values is a breaking change that will only ship in major versions (`Never break userspace`). `origin` has no "unspecified" value: it defaults to `NetworkOrigin.dio`, so custom gRPC or WebSocket entries will show `dio` in the detail view's Origin row. Treat this as a known limitation of the current API (do not set `webview` or `httpClient` for manual integrations either, as that would mislabel the entry).
 
 ### Inside the Network tab
 
-- **Search & filter**: filter the call list by URL, method, or status code (case-insensitive); method and status (`2xx`/`3xx`/`4xx`/`5xx`/`Failed`) chips narrow it further.
+- **Search & filter**: filter the call list by URL, method, or status code (case-insensitive); method and status (`2xx`/`3xx`/`4xx`/`5xx`/`Failed`) chips narrow it further. Call list subtitles automatically label non-Dio origins (`httpClient`, `webview`) while keeping standard `dio` rows uncluttered.
 - **Error summary banner**: a collapsible banner above the call list groups failed/errored requests by status code (or error type for transport failures — offline/timeout/DNS), showing a per-group count and first/last-seen time range. Tap a group card to filter the list down to just that error; tap again to clear the filter.
-- **Call details**: tap any call for a structured view — General (method, URL, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON bodies rendered as a collapsible tree (with search for large payloads and a **Show raw** toggle for the plain text). A body that is not valid JSON — truncated, or mislabelled by its `Content-Type` — falls back to plain text. Truncated bodies are clearly marked. Binary payloads (`Uint8List`, e.g. file downloads) are recorded as a `[binary N bytes]` placeholder instead of being encoded byte by byte, and a request with a binary body cannot be resent. Failed requests display an **Exception Details** section distinguishing between transport-layer failures and server-side errors, with a copyable stack trace.
+- **Call details**: tap any call for a structured view — General (method, URL, `Origin`, status with color coding, duration, request/response sizes), Query Parameters, Headers, and JSON bodies rendered as a collapsible tree (with search for large payloads and a **Show raw** toggle for the plain text). Supported image responses (`PNG`, `JPEG`, `GIF`, `WebP`, `BMP` — up to 5 MB each and 50 MB total across the buffer, oldest dropped first) display a **Response Preview** above Response Body (or a fallback note if decoding fails), while exports/copies include only the `[image/<type>, <size>]` summary. A body that is not valid JSON — truncated, or mislabelled by its `Content-Type` — falls back to plain text. Truncated bodies are clearly marked. Non-image binary payloads (`Uint8List`, e.g. file downloads) are recorded as a `[binary N bytes]` placeholder instead of being encoded byte by byte, and requests with binary/summarized bodies or no `sourceDio` (such as `httpClient` or `webview` entries) cannot be resent. Failed requests display an **Exception Details** section distinguishing between transport-layer failures and server-side errors, with a copyable stack trace.
 - **Sharing**: copy the call as a runnable `cURL` command, copy the full details as text, or open the system share sheet (native via `share_plus`, web via the browser Web Share API — falls back to the clipboard when unavailable).
 - **Replay / Resend**: for requests captured with a `sourceDio` provided to the interceptor, you can trigger a "Resend" action in the detail view to replay the request locally using the same Dio client (carrying the same headers, base URL, and interceptors). Replayed requests automatically show up as new entries with a dedicated "Replay" label, and the confirmation shows the outcome directly — `Resent → 200` / `Resent → 500` when a response arrived, or `Resend failed: <type>` (e.g. `connectionError`, `receiveTimeout`) when it did not.
 - **Slow requests**: calls at or above `slowRequestThreshold` carry a `🐢 SLOW` badge here and in the Console, and the summary banner counts them. A request still waiting for a response is measured from the moment it was sent — its row reads `no response · 12s` — so a call that never returns gets flagged too. The badge is evaluated when the list rebuilds; it does not tick on its own timer.
@@ -1300,7 +1329,7 @@ The report inherits your `redactSensitiveData` setting, and its header states
 
 #### Populating the device / app header (optional)
 
-This package depends on **no** device-info plugin (and never touches `dart:io`, so it
+This package depends on **no** device-info plugin (and imports `dart:io` only behind conditional exports, so it
 stays WASM-compatible). Without a source, the header degrades to `N/A` and the report
 is still produced in full.
 

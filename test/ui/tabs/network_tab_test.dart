@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network_tab.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -324,6 +325,88 @@ void main() {
         );
 
         expect(find.textContaining('🐢 1 slow'), findsOneWidget);
+      },
+    );
+  });
+
+  group('NetworkTab — origin label and slow httpClient (T15)', () {
+    testWidgets(
+      '8-2 shows non-dio origin in subtitle and omits origin for dio entries',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+        );
+        final ts = DateTime(2026, 4, 15, 10, 0);
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/first',
+            statusCode: 200,
+            duration: const Duration(milliseconds: 42),
+            origin: NetworkOrigin.httpClient,
+            isComplete: true,
+            timestamp: ts,
+          ),
+        );
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/second',
+            statusCode: 200,
+            duration: const Duration(milliseconds: 42),
+            origin: NetworkOrigin.dio,
+            isComplete: true,
+            timestamp: ts,
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: NetworkTab(inspector: inspector)),
+          ),
+        );
+
+        final clientTile = tester.widget<ListTile>(
+          find.widgetWithText(ListTile, 'https://api.test/first'),
+        );
+        final dioTile = tester.widget<ListTile>(
+          find.widgetWithText(ListTile, 'https://api.test/second'),
+        );
+        final clientSubtitle = (clientTile.subtitle as Text?)?.data;
+        final dioSubtitle = (dioTile.subtitle as Text?)?.data;
+
+        expect(clientSubtitle, contains('httpClient'));
+        expect(dioSubtitle, isNotNull);
+        expect(dioSubtitle, isNot(contains('dio')));
+      },
+    );
+
+    testWidgets(
+      '8-1 completed httpClient entry exceeding slowRequestThreshold displays 🐢 SLOW',
+      (tester) async {
+        final inspector = FlutterInspector(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          slowRequestThreshold: const Duration(seconds: 2),
+        );
+        inspector.logNetwork(
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/slow-client',
+            statusCode: 200,
+            duration: const Duration(seconds: 3),
+            origin: NetworkOrigin.httpClient,
+            isComplete: true,
+            timestamp: DateTime(2026, 4, 15, 10, 0),
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: NetworkTab(inspector: inspector)),
+          ),
+        );
+
+        expect(find.text('🐢 SLOW'), findsOneWidget);
       },
     );
   });

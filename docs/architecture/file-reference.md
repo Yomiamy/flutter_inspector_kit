@@ -26,8 +26,8 @@
 | [`lib/src/models/timestamped_entry.dart`](../../lib/src/models/timestamped_entry.dart) | `TimestampedEntry`<br>`TimelineSource` (enum) | 混合時序軸的統一契約介面與其格式化擴充方法。定義了 `timestamp`、`displayTime` 屬性。 |
 | [`lib/src/models/log_level.dart`](../../lib/src/models/log_level.dart) | `LogLevel` (enum) | 控制台日誌的嚴重性等級（`verbose` 至 `error`）。 |
 | [`lib/src/models/log_entry.dart`](../../lib/src/models/log_entry.dart) | `LogEntry` | 單條日誌資料模型。實作了 `TimestampedEntry` 介面。 |
-| [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。含 `origin` / `pageUrl` provenance 欄位（帶預設值，向後相容）。`activeRoute` 於送出時捕捉、完成時不覆寫。 |
-| [`lib/src/models/network_origin.dart`](../../lib/src/models/network_origin.dart) | `NetworkOrigin` (enum) | **[新增]** 網路請求來源（`dio` / `webview`）。顯式 provenance，取代不可靠的 `sourceDio == null` 推斷（WeakReference 被 GC 後無法區分來源）。 |
+| [`lib/src/models/network_entry.dart`](../../lib/src/models/network_entry.dart) | `NetworkEntry` | HTTP 請求與響應資料模型。使用 `WeakReference<Dio>` 避免記憶體洩漏。實作 `TimestampedEntry`。含 `origin` / `pageUrl` provenance 欄位（帶預設值，向後相容）與供圖片預覽用的 `responseImageBytes`（排除於 `==`、`hashCode` 與匯出外）。`activeRoute` 於送出時捕捉、完成時不覆寫。 |
+| [`lib/src/models/network_origin.dart`](../../lib/src/models/network_origin.dart) | `NetworkOrigin` (enum) | 網路請求來源（`dio` / `httpClient` / `webview`）。顯式 provenance，取代不可靠的 `sourceDio == null` 推斷（WeakReference 被 GC 後無法區分來源）。 |
 | [`lib/src/models/navigator_action.dart`](../../lib/src/models/navigator_action.dart) | `NavigatorAction` (enum) | 導航動作類型（`push`、`pop`、`replace`、`remove`）。 |
 | [`lib/src/models/navigator_entry.dart`](../../lib/src/models/navigator_entry.dart) | `NavigatorEntry` | 導航事件資料模型。實作 `TimestampedEntry`。`routeLabel` 為路由標籤格式的單一真相來源，供各維度 `activeRoute` 蓋章共用，亦為 Console 與 Event History 的列標題。`queryParams`（URL query）與 `argParams`（arguments）分欄保存擷取後的路由參數。 |
 | [`lib/src/models/database_operation.dart`](../../lib/src/models/database_operation.dart) | `DatabaseOperation` (enum) | 資料庫操作類型（`insert`、`update`、`delete`、`query`）。 |
@@ -44,7 +44,11 @@
 | [`lib/src/inspectors/navigator_inspector.dart`](../../lib/src/inspectors/navigator_inspector.dart) | `NavigatorInspector` | 提供對導航 RingBuffer 的包裝。 |
 | [`lib/src/inspectors/navigator_stack_resolver.dart`](../../lib/src/inspectors/navigator_stack_resolver.dart) | `NavigatorStackResolver` | 負責根據導航事件流重新解析與還原當前應用的作用中路由 stack。同一層的判定比對 `routeName`、`widgetType` 與 `queryParams`。 |
 | [`lib/src/inspectors/database_inspector.dart`](../../lib/src/inspectors/database_inspector.dart) | `DatabaseInspector` | 提供對資料庫 RingBuffer 的包裝。 |
-| [`lib/src/interceptors/dio_interceptor.dart`](../../lib/src/interceptors/dio_interceptor.dart) | `FlutterInspectorDioInterceptor` | Dio 攔截器，實作 Adapter 模式，將網絡生命週期轉化為 `NetworkEntry` 發送給 Core。 |
+| [`lib/src/interceptors/dio_interceptor.dart`](../../lib/src/interceptors/dio_interceptor.dart) | `FlutterInspectorDioInterceptor` | Dio 攔截器，實作 Adapter 模式，將網絡生命週期轉化為 `NetworkEntry` 發送給 Core。開啟 `captureHttpClient` 時依 `sourceDio` 加上逐請求標記並在回應／錯誤時清理與偵測疑似外洩。 |
+| [`lib/src/interceptors/http_client_capture.dart`](../../lib/src/interceptors/http_client_capture.dart) | - | `HttpClient` 流量擷取的平台導出分流器（Conditional Exports）：匯出共用定義，Native 載入 `_io.dart`、Web 載入 `_web.dart`。 |
+| [`lib/src/interceptors/http_client_capture_common.dart`](../../lib/src/interceptors/http_client_capture_common.dart) | `kDioMarkerHeader`<br>`liveDioMarkers`<br>`registerDioMarker()` | `HttpClient` 擷取層與 `DioInterceptor` 共用的常數、逐請求 `WeakReference` 標記註冊表，以及保證雙向介面一致的 typedef。 |
+| [`lib/src/interceptors/http_client_capture_io.dart`](../../lib/src/interceptors/http_client_capture_io.dart) | `installHttpClientCapture()`<br>`shouldTagDioRequest()`<br>`resetHttpClientCaptureForTesting()` | Native 端 `dart:io` `HttpOverrides`／`HttpClient` 代理鏈：write-through 請求、tee 回應串流、剝除同 token 的 live Dio 標記並截存圖片位元組。 |
+| [`lib/src/interceptors/http_client_capture_web.dart`](../../lib/src/interceptors/http_client_capture_web.dart) | `installHttpClientCapture()`<br>`shouldTagDioRequest()`<br>`resetHttpClientCaptureForTesting()` | Web 端 no-op 實作（`captureHttpClient` 在 Web 上忽略、永遠回傳 `false`），阻斷 `dart:io` 並與 `_io.dart` 維持雙向簽章一致。 |
 | [`lib/src/observers/navigator_observer.dart`](../../lib/src/observers/navigator_observer.dart) | `FlutterInspectorNavigatorObserver` | 導航觀察者，實作 Adapter 模式，將路由變更進行 Widget 類型解析後發送給 Core。 |
 | [`lib/src/sources/operation_log_source.dart`](../../lib/src/sources/operation_log_source.dart) | `OperationLogSource` | 將資料庫 SQL 日誌包裝成虛擬 `DatabaseBrowserSource`，以便在資料庫 Tab 顯示。 |
 | [`lib/src/webview/webview_bridge_js.dart`](../../lib/src/webview/webview_bridge_js.dart) | `kWebViewBridgeChannelName`<br>`inspectorWebViewBridgeJs` | **[新增]** 可注入 WebView 的 JS bridge payload（常數字串）。Hook `console.*`、`window.onerror`、`unhandledrejection`、`fetch`、`XHR`，JS 端截斷大 payload 後以統一 JSON envelope postMessage 給 native；單一 payload 同時支援 webview_flutter 與 flutter_inappwebview 的傳輸層。 |
@@ -64,6 +68,7 @@
 | 檔案路徑 | 關鍵類別/列舉 | 單一職責 (Single Responsibility) |
 | :--- | :--- | :--- |
 | [`lib/src/utils/agent_prompt.dart`](../../lib/src/utils/agent_prompt.dart) | `buildAgentPrompt` | **[新增]** 把單筆事件與同路由的稍早事件組成交接給 coding agent 的 Markdown 提示。純函式，回溯以 `activeRoute` 為界並在觸頂時揭露截斷。 |
+| [`lib/src/utils/image_bytes.dart`](../../lib/src/utils/image_bytes.dart) | `kImageMaxBytes`<br>`kImageBudgetBytes`<br>`kImageSniffBytes`<br>`imageMimeType()`<br>`imageSummary()` | 以檔頭魔術位元組辨識圖片（PNG／JPEG／GIF／WebP／BMP）、產生圖片摘要文字，並定義單張 5 MB／全域 50 MB 預覽預算常數。 |
 | [`lib/src/utils/layout_formatters.dart`](../../lib/src/utils/layout_formatters.dart) | `formatLayoutChain`<br>`formatMeasurement` | **[新增]** 將 size／constraints／offset、整條 `LayoutLevel` 父鏈及雙點間距標尺（含 `xdp (opx)` 雙單位）格式化為純文字，供 layout inspect 複製／分享。 |
 | [`lib/src/utils/log_formatters.dart`](../../lib/src/utils/log_formatters.dart) | - | 將日誌資料模型格式化為單行與純文字的工具方法。 |
 | [`lib/src/utils/network_formatters.dart`](../../lib/src/utils/network_formatters.dart) | `ReplayRequest` | 提供網絡格式化功能，包含 `buildCurl` 產生 cURL 指令與 `prettyJson` 縮排工具。 |
@@ -84,8 +89,8 @@
 | [`lib/src/ui/dashboard/tabs/console_tab.dart`](../../lib/src/ui/dashboard/tabs/console_tab.dart) | `ConsoleTab` | 顯示混合時序軸（Console, Network, Nav, DB 等多源時序歸併）並依類型分頁展示。 |
 | [`lib/src/ui/dashboard/tabs/console/log_detail_view.dart`](../../lib/src/ui/dashboard/tabs/console/log_detail_view.dart) | `LogDetailView` | 展示單條日誌詳細資訊與 Stack Trace 的卡片。 |
 | [`lib/src/ui/dashboard/tabs/console/navigator_detail_view.dart`](../../lib/src/ui/dashboard/tabs/console/navigator_detail_view.dart) | `NavigatorDetailView` | 展示單條導航事件的 General、Params（URL query）、Args 與 Raw Arguments（JSON 樹狀）。 |
-| [`lib/src/ui/dashboard/tabs/network_tab.dart`](../../lib/src/ui/dashboard/tabs/network_tab.dart) | `NetworkTab` | 提供網絡請求列表、搜尋過濾與 Status 晶片篩選；支援慢速請求視覺標籤（`🐢 SLOW`）以及在 `_ErrorSummaryBanner` 中展示 slow request 統計指標與時間門檻資訊。 |
-| [`lib/src/ui/dashboard/tabs/network/network_detail_view.dart`](../../lib/src/ui/dashboard/tabs/network/network_detail_view.dart) | `NetworkDetailView` | 展現詳細的請求/響應 headers 與 body，並整合 Replay、cURL 複製與分享。 |
+| [`lib/src/ui/dashboard/tabs/network_tab.dart`](../../lib/src/ui/dashboard/tabs/network_tab.dart) | `NetworkTab` | 提供網絡請求列表、搜尋過濾與 Status 晶片篩選；於副標題顯示非 Dio 來源（`httpClient` / `webview`）、支援慢速請求視覺標籤（`🐢 SLOW`）以及在 `_ErrorSummaryBanner` 中展示 slow request 統計指標與時間門檻資訊。 |
+| [`lib/src/ui/dashboard/tabs/network/network_detail_view.dart`](../../lib/src/ui/dashboard/tabs/network/network_detail_view.dart) | `NetworkDetailView` | 展現詳細的請求/響應 headers 與 body（含 `Response Preview` 縮圖解碼預覽與 dispose 清除快取），並整合 Replay、cURL 複製與分享。 |
 | [`lib/src/ui/dashboard/tabs/navigator_tab.dart`](../../lib/src/ui/dashboard/tabs/navigator_tab.dart) | `NavigatorTab` | 以時間軸列表展示路由事件與傳參。 |
 | [`lib/src/ui/dashboard/tabs/database_tab.dart`](../../lib/src/ui/dashboard/tabs/database_tab.dart) | `DatabaseTab` | 數據庫瀏覽器 Tab。支援動態下拉切換不同的 `DatabaseBrowserSource`。 |
 | [`lib/src/ui/dashboard/tabs/database/table_rows_view.dart`](../../lib/src/ui/dashboard/tabs/database/table_rows_view.dart) | `TableRowsView` | 表格二維數據瀏覽器。支援動態加載（Load More）、點擊單元格查看，以及點擊表頭排序。 |

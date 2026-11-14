@@ -32,7 +32,7 @@ App 內除錯檢視工具（Flutter Package）：把 log / network / navigator /
    - `OperationLogSource` 為唯一特例：將緩衝型 `DatabaseInspector` 包裝為 `DatabaseBrowserSource`。
 
 4. **條件匯出（Conditional Export）雙向簽章一致性**
-   - `network_notifier.dart` 與 `share_text.dart` 透過條件匯出切換 `_io.dart` 與 `_web.dart`。
+   - `network_notifier.dart`、`share_text.dart` 與 `http_client_capture.dart` 透過條件匯出切換 `_io.dart` 與 `_web.dart`。
    - **修改任一側公開介面時，必須同步修改另一側的函式簽章**，否則 Web build 會崩潰且單元測試無法捕捉。
 
 5. **Flutter Package 純淨性與依賴限制**
@@ -42,7 +42,7 @@ App 內除錯檢視工具（Flutter Package）：把 log / network / navigator /
 
 ```bash
 # 測試
-flutter test                                  # 全套測試 (606 tests, ~15–20s)
+flutter test                                  # 全套測試 (950 tests, ~45s)
 flutter test test/ui/console_tab_test.dart    # 單檔測試
 
 # 分析與程式碼格式化

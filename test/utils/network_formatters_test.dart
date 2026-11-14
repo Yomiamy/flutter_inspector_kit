@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_inspector_kit/src/utils/network_formatters.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -114,6 +115,21 @@ void main() {
       );
       final curl = buildCurl(entry, redact: false);
       expect(curl.contains("-H 'Authorization: Bearer secret-token'"), isTrue);
+    });
+  });
+
+  group('httpClient origin (8-1)', () {
+    test('buildCurl masks sensitive headers of an httpClient entry', () {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/items',
+        origin: NetworkOrigin.httpClient,
+        requestHeaders: {'Authorization': 'Bearer secret'},
+        timestamp: fixedTime,
+      );
+      final curl = buildCurl(entry);
+      expect(curl, contains('••••'));
+      expect(curl, isNot(contains('secret')));
     });
   });
 

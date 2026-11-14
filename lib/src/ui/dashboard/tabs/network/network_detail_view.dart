@@ -103,6 +103,11 @@ class NetworkDetailView extends StatelessWidget {
             title: 'Response Headers',
             child: KeyValueTable(data: entry.responseHeaders),
           ),
+          if (entry.responseImageBytes case final bytes?)
+            DetailSection(
+              title: 'Response Preview',
+              child: _ImagePreview(bytes),
+            ),
           if (_hasBody(entry.responseBody))
             _bodySection(
               context,
@@ -154,7 +159,10 @@ class NetworkDetailView extends StatelessWidget {
             'Response size',
             formatBytes(entry.responseSizeBytes),
           ),
-          if (entry.isTruncated)
+          // A cut body with a recorded length already shows its real size.
+          if ((entry.isRequestTruncated && entry.requestBodyLength == null) ||
+              ((entry.responseBody?.endsWith(kTruncatedMarker) ?? false) &&
+                  entry.responseBodyLength == null))
             Padding(
               padding: const EdgeInsets.only(top: ThemeSize.space4),
               child: Text(
@@ -414,5 +422,45 @@ class _ResendActionState extends State<_ResendAction> {
         failureText ??
         (statusCode != null ? 'Resent → $statusCode' : 'Request resent');
     messenger.showSnackBar(SnackBar(content: Text(text)));
+  }
+}
+
+class _ImagePreview extends StatefulWidget {
+  const _ImagePreview(this.bytes);
+
+  final Uint8List bytes;
+
+  @override
+  State<_ImagePreview> createState() => _ImagePreviewState();
+}
+
+class _ImagePreviewState extends State<_ImagePreview> {
+  // A box, not a width: a 1024 x 30000 PNG would otherwise decode in full.
+  static const int _decodeLimit = 1024;
+  static const double _height = 200;
+
+  late final ImageProvider _image = ResizeImage(
+    MemoryImage(widget.bytes),
+    width: _decodeLimit,
+    height: _decodeLimit,
+    policy: ResizeImagePolicy.fit,
+  );
+
+  @override
+  void dispose() {
+    _image.evict();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Image(
+      image: _image,
+      height: _height,
+      fit: BoxFit.contain,
+      alignment: Alignment.centerLeft,
+      errorBuilder: (_, _, _) =>
+          const Text('Preview unavailable: the image could not be decoded'),
+    );
   }
 }

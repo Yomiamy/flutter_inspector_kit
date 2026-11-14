@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inspector_kit/src/core/flutter_inspector.dart';
 import 'package:flutter_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_inspector_kit/src/ui/dashboard/tabs/network/network_detail_view.dart';
 import 'package:flutter_inspector_kit/src/ui/theme/theme.dart';
 import 'package:flutter_inspector_kit/src/ui/widgets/json_tree_viewer.dart';
@@ -58,6 +61,38 @@ void main() {
   // -------------------------------------------------------------------------
   // Existing tests (must stay green)
   // -------------------------------------------------------------------------
+
+  group('NetworkDetailView size hint', () {
+    const hint =
+        '⚠ Body truncated or summarized — size reflects the stored text';
+
+    testWidgets('hidden when a summarized body has its real length', (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        sample().copyWith(
+          requestBody: null,
+          responseBody: '[image/png, 7.9 KB]$kTruncatedMarker',
+          responseBodyLength: 8090,
+        ),
+      );
+
+      expect(find.text('7.9 KB'), findsOneWidget);
+      expect(find.text(hint), findsNothing);
+    });
+
+    testWidgets('shown when a summarized body has no recorded length', (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        sample().copyWith(responseBody: '[stream]$kTruncatedMarker'),
+      );
+
+      expect(find.text(hint), findsOneWidget);
+    });
+  });
 
   group('NetworkDetailView', () {
     testWidgets('renders all sections', (tester) async {
@@ -714,4 +749,207 @@ void main() {
       expect(NetworkDetailView(entry: entry).redactSensitiveData, isTrue);
     });
   });
+
+  group('NetworkDetailView — Response Preview (T14)', () {
+    final t = DateTime(2026, 4, 15, 10, 0);
+
+    tearDown(() {
+      imageCache.clear();
+      imageCache.clearLiveImages();
+    });
+
+    testWidgets('6-3 renders ResizeImage preview when responseImageBytes set', (
+      tester,
+    ) async {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/avatar.png',
+        statusCode: 200,
+        responseHeaders: {'content-type': 'image/png'},
+        responseBody: '[image/png, 70 bytes]',
+        responseImageBytes: _Data.png1x1,
+        isComplete: true,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+
+      expect(find.text('Response Preview'), findsOneWidget);
+      expect(find.text('Response Body'), findsOneWidget);
+      expect(find.byType(Image), findsOneWidget);
+
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(
+        image.image,
+        isA<ResizeImage>()
+            .having((r) => r.width, 'width', 1024)
+            // A tall image must be bounded too: width alone leaves 1024x30000
+            // decoding at ~117 MiB.
+            .having((r) => r.height, 'height', 1024)
+            .having((r) => r.policy, 'policy', ResizeImagePolicy.fit),
+      );
+    });
+
+    testWidgets('6-3 decodes a tall image within the 1024 box', (tester) async {
+      // 64 x 3000: width alone would not shrink it, the height bound does.
+      final decoded = await tester.runAsync(() async {
+        final recorder = ui.PictureRecorder();
+        ui.Canvas(recorder).drawRect(
+          const ui.Rect.fromLTWH(0, 0, 64, 3000),
+          ui.Paint()..color = const ui.Color(0xFF336699),
+        );
+        final source = await recorder.endRecording().toImage(64, 3000);
+        final png = (await source.toByteData(
+          format: ui.ImageByteFormat.png,
+        ))!.buffer.asUint8List();
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/tall.png',
+          statusCode: 200,
+          responseImageBytes: png,
+          isComplete: true,
+          timestamp: t,
+        );
+        await pumpView(tester, entry);
+        final provider = tester.widget<Image>(find.byType(Image)).image;
+        final done = Completer<ui.Image>();
+        provider
+            .resolve(ImageConfiguration.empty)
+            .addListener(
+              ImageStreamListener((info, _) => done.complete(info.image)),
+            );
+        return done.future;
+      });
+
+      expect(decoded!.height, lessThanOrEqualTo(1024));
+      expect(decoded.width, lessThan(64)); // aspect ratio kept
+    });
+
+    testWidgets(
+      '6-3 shows fallback text without uncaught error on invalid image bytes',
+      (tester) async {
+        final corruptPng = Uint8List.fromList([
+          ..._Data.png1x1.sublist(0, 8),
+          1,
+          2,
+          3,
+          4,
+        ]);
+        final entry = NetworkEntry(
+          method: 'GET',
+          url: 'https://api.test/broken.png',
+          statusCode: 200,
+          responseHeaders: {'content-type': 'image/png'},
+          responseBody: '[image/png, 12 bytes]',
+          responseImageBytes: corruptPng,
+          isComplete: true,
+          timestamp: t,
+        );
+
+        await pumpView(tester, entry);
+
+        const errorText = 'Preview unavailable: the image could not be decoded';
+        for (
+          var i = 0;
+          i < 40 && find.text(errorText).evaluate().isEmpty;
+          i++
+        ) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 25)),
+          );
+          await tester.pump();
+        }
+
+        expect(tester.takeException(), isNull);
+        expect(find.text(errorText), findsOneWidget);
+      },
+    );
+
+    testWidgets('omits Response Preview when responseImageBytes is null', (
+      tester,
+    ) async {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/data.json',
+        statusCode: 200,
+        responseHeaders: {'content-type': 'application/json'},
+        responseBody: '{"ok":true}',
+        isComplete: true,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+
+      expect(find.text('Response Preview'), findsNothing);
+      expect(find.byType(Image), findsNothing);
+      expect(find.text('Response Body'), findsOneWidget);
+    });
+
+    testWidgets('6-10 evicts image cache entry when detail view disposes', (
+      tester,
+    ) async {
+      final entry = NetworkEntry(
+        method: 'GET',
+        url: 'https://api.test/avatar.png',
+        statusCode: 200,
+        responseHeaders: {'content-type': 'image/png'},
+        responseBody: '[image/png, 70 bytes]',
+        responseImageBytes: _Data.png1x1,
+        isComplete: true,
+        timestamp: t,
+      );
+
+      await pumpView(tester, entry);
+
+      final image = tester.widget<Image>(find.byType(Image));
+      final key = await tester.runAsync(
+        () => image.image.obtainKey(ImageConfiguration.empty),
+      );
+      if (key == null) {
+        fail('Expected non-null ResizeImage cache key');
+      }
+
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+      expect(imageCache.statusForKey(key).untracked, isFalse);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      expect(imageCache.statusForKey(key).untracked, isTrue);
+    });
+
+    testWidgets(
+      '8-3 disables Resend with expected tooltip for httpClient entry without sourceDio',
+      (tester) async {
+        final entry = NetworkEntry(
+          method: 'POST',
+          url: 'https://api.test/client-post',
+          statusCode: 200,
+          origin: NetworkOrigin.httpClient,
+          requestBody: '{"a":1}',
+          isComplete: true,
+          timestamp: t,
+        );
+
+        await pumpView(tester, entry);
+
+        final button = tester.widget<IconButton>(
+          find.ancestor(
+            of: find.byTooltip('Cannot resend: source Dio not available'),
+            matching: find.byType(IconButton),
+          ),
+        );
+        expect(button.onPressed, isNull);
+      },
+    );
+  });
+}
+
+class _Data {
+  // Valid 1x1 PNG (70 bytes; IHDR/IDAT/IEND CRCs verified).
+  static final png1x1 = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  );
 }

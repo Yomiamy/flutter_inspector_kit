@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
@@ -239,6 +240,126 @@ void main() {
       });
     });
 
+    group('responseImageBytes (transient)', () {
+      NetworkEntry entryWith(Uint8List? bytes) => NetworkEntry(
+        method: 'GET',
+        url: 'https://x/img',
+        statusCode: 200,
+        timestamp: fixedTime,
+        isComplete: true,
+        responseImageBytes: bytes,
+      );
+
+      test('defaults to null', () {
+        final entry = NetworkEntry(method: 'GET', url: 'https://x');
+        expect(entry.responseImageBytes, isNull);
+      });
+
+      test('does not affect equality, hashCode or toString', () {
+        final withBytes = entryWith(Uint8List.fromList([137, 80, 78, 71]));
+        final without = entryWith(null);
+        expect(withBytes, equals(without));
+        expect(withBytes.hashCode, without.hashCode);
+        expect(withBytes.toString(), without.toString());
+      });
+
+      test('copyWith keeps the same bytes object', () {
+        final bytes = Uint8List.fromList([1, 2, 3]);
+        final copied = entryWith(bytes).copyWith(statusCode: 404);
+        expect(copied.responseImageBytes, same(bytes));
+      });
+
+      test('copyWith(clearResponseImageBytes: true) drops the bytes', () {
+        final original = entryWith(Uint8List.fromList([1, 2, 3]));
+        final cleared = original.copyWith(clearResponseImageBytes: true);
+        expect(cleared.responseImageBytes, isNull);
+        expect(cleared, equals(original));
+      });
+    });
+
+    group('requestBodyLength / responseBodyLength', () {
+      test(
+        'default to null; the size getters fall back to the stored text',
+        () {
+          final entry = NetworkEntry(
+            method: 'POST',
+            url: 'https://x',
+            requestBody: 'abc',
+            responseBody: '日本',
+            timestamp: fixedTime,
+          );
+          expect(entry.requestBodyLength, isNull);
+          expect(entry.responseBodyLength, isNull);
+          expect(entry.requestSizeBytes, 3);
+          expect(entry.responseSizeBytes, 6);
+        },
+      );
+
+      test(
+        'the size getters report a recorded length over the text, even 0',
+        () {
+          final entry = NetworkEntry(
+            method: 'POST',
+            url: 'https://x',
+            requestBody: '[binary 0 bytes]$kTruncatedMarker',
+            responseBody: '[image/png, 7.9 KB]$kTruncatedMarker',
+            requestBodyLength: 0,
+            responseBodyLength: 8100,
+            timestamp: fixedTime,
+          );
+          expect(entry.requestSizeBytes, 0);
+          expect(entry.responseSizeBytes, 8100);
+        },
+      );
+
+      test('copyWith sets them and keeps them when not given', () {
+        final base = NetworkEntry(method: 'GET', url: 'https://x');
+        final sized = base.copyWith(
+          requestBodyLength: 5,
+          responseBodyLength: 7,
+        );
+        expect(sized.requestBodyLength, 5);
+        expect(sized.responseBodyLength, 7);
+
+        final kept = sized.copyWith(statusCode: 200);
+        expect(kept.requestBodyLength, 5);
+        expect(kept.responseBodyLength, 7);
+      });
+
+      test('equality and hashCode see each of them', () {
+        final base = NetworkEntry(
+          method: 'GET',
+          url: 'https://x',
+          timestamp: fixedTime,
+        );
+        final request = base.copyWith(requestBodyLength: 1);
+        final response = base.copyWith(responseBodyLength: 1);
+
+        expect(request, isNot(equals(base)));
+        expect(response, isNot(equals(base)));
+        expect(request, isNot(equals(response)));
+        expect(request.hashCode, isNot(base.hashCode));
+        expect(response.hashCode, isNot(base.hashCode));
+        expect(request, equals(base.copyWith(requestBodyLength: 1)));
+        expect(request.hashCode, base.copyWith(requestBodyLength: 1).hashCode);
+      });
+
+      test('a copy without preview bytes still equals the original', () {
+        // Bookmarking and preview eviction find their slot through this.
+        final original = NetworkEntry(
+          method: 'GET',
+          url: 'https://x/img',
+          responseImageBytes: Uint8List(8),
+          responseBodyLength: 8,
+          timestamp: fixedTime,
+        );
+        final cleared = original.copyWith(clearResponseImageBytes: true);
+        expect(cleared, equals(original));
+        expect(cleared.hashCode, original.hashCode);
+        expect(cleared.responseBodyLength, 8);
+      });
+    });
+
     group('truncateBody', () {
       test('returns null for null input', () {
         expect(NetworkEntry.truncateBody(null), isNull);
@@ -304,7 +425,10 @@ void main() {
           final result = NetworkEntry.truncateBody(body)!;
 
           // Entire pair is within the limit, so full limit is retained.
-          expect(result.length, kNetworkBodyMaxLength + kTruncatedMarker.length);
+          expect(
+            result.length,
+            kNetworkBodyMaxLength + kTruncatedMarker.length,
+          );
           expect(result.endsWith(kTruncatedMarker), isTrue);
           final content = result.substring(0, kNetworkBodyMaxLength);
           expect(content, '$prefix$emoji');

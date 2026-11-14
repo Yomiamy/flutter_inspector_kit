@@ -8,6 +8,7 @@ import 'package:flutter_inspector_kit/src/models/log_level.dart';
 import 'package:flutter_inspector_kit/src/models/navigator_action.dart';
 import 'package:flutter_inspector_kit/src/models/navigator_entry.dart';
 import 'package:flutter_inspector_kit/src/models/network_entry.dart';
+import 'package:flutter_inspector_kit/src/models/network_origin.dart';
 import 'package:flutter_inspector_kit/src/models/timestamped_entry.dart';
 import 'package:flutter_inspector_kit/src/utils/diagnostic_report.dart';
 import 'package:flutter_inspector_kit/src/utils/log_formatters.dart';
@@ -608,6 +609,25 @@ void main() {
         expect(report, isNot(contains('[NET] GET /ok')));
       },
     );
+
+    test('keeps a failed httpClient entry (8-1)', () {
+      final report = _report(
+        network: [
+          NetworkEntry(
+            method: 'GET',
+            url: 'https://api.test/http-client-fail',
+            origin: NetworkOrigin.httpClient,
+            statusCode: 500,
+            isComplete: true,
+            timestamp: _minutesAgo(1),
+          ),
+        ],
+        errorsOnly: true,
+      );
+
+      expect(report, contains('https://api.test/http-client-fail'));
+      expect(report, contains('[NET] GET /http-client-fail → 500'));
+    });
   });
 
   group('timeline section (AC-1, AC-6)', () {

@@ -29,8 +29,10 @@ class NetworkEntry implements TimestampedEntry {
     this.duration,
     this.requestHeaders,
     this.requestBody,
+    this.requestBodyLength,
     this.responseHeaders,
     this.responseBody,
+    this.responseBodyLength,
     this.error,
     this.errorType,
     this.errorStackTrace,
@@ -39,6 +41,7 @@ class NetworkEntry implements TimestampedEntry {
     this.origin = NetworkOrigin.dio,
     this.pageUrl,
     this.activeRoute,
+    this.responseImageBytes,
     Dio? sourceDio,
     DateTime? timestamp,
   }) : sourceDio = sourceDio != null ? WeakReference(sourceDio) : null,
@@ -66,11 +69,26 @@ class NetworkEntry implements TimestampedEntry {
   /// Request body (already truncated to [kNetworkBodyMaxLength]).
   final String? requestBody;
 
+  /// Real size in bytes of the request body as sent, when it was measured:
+  /// for any non-empty HttpClient-layer body, for a `Uint8List` Dio body, and
+  /// for a body cut to [kNetworkBodyMaxLength]. `null` when it was not measured
+  /// (e.g. a `FormData` summary); [requestSizeBytes] then counts the stored
+  /// text.
+  final int? requestBodyLength;
+
   /// Response headers.
   final Map<String, dynamic>? responseHeaders;
 
   /// Response body (already truncated to [kNetworkBodyMaxLength]).
   final String? responseBody;
+
+  /// Real size in bytes of the response body as the app received it, when it
+  /// was measured (see [requestBodyLength]). This is what the client handed
+  /// over: decompressed by default, but still gzip-compressed for clients
+  /// with `autoUncompress` off, such as the one `Image.network` uses. `null`
+  /// when it was not measured (e.g. a stream placeholder);
+  /// [responseSizeBytes] then counts the stored text.
+  final int? responseBodyLength;
 
   /// Error message if the request failed.
   final String? error;
@@ -115,6 +133,17 @@ class NetworkEntry implements TimestampedEntry {
   /// serialisation (cURL, plain-text, or any other export format).
   final WeakReference<Dio>? sourceDio;
 
+  /// Raw bytes of an image response, kept only for the detail-view preview.
+  ///
+  /// Set when the body starts with a complete PNG/JPEG/GIF/WebP/BMP signature;
+  /// [responseBody] then holds a summary such as
+  /// `[image/png, 34.2 KB]...[truncated]`. Dropped above 5 MB, and from the
+  /// oldest entries once all previews exceed 50 MB.
+  ///
+  /// Like [sourceDio], excluded from [operator ==], [hashCode], [toString] and
+  /// every export: an entry is the same event with or without its preview.
+  final Uint8List? responseImageBytes;
+
   /// Whether this request carries an error signal: an HTTP status of 400 or
   /// above, or a transport-level failure ([error] / [errorType]).
   ///
@@ -154,8 +183,10 @@ class NetworkEntry implements TimestampedEntry {
     Duration? duration,
     Map<String, dynamic>? requestHeaders,
     String? requestBody,
+    int? requestBodyLength,
     Map<String, dynamic>? responseHeaders,
     String? responseBody,
+    int? responseBodyLength,
     String? error,
     DioExceptionType? errorType,
     String? errorStackTrace,
@@ -164,6 +195,8 @@ class NetworkEntry implements TimestampedEntry {
     NetworkOrigin? origin,
     String? pageUrl,
     String? activeRoute,
+    Uint8List? responseImageBytes,
+    bool clearResponseImageBytes = false,
     Dio? sourceDio,
   }) {
     return NetworkEntry(
@@ -174,8 +207,10 @@ class NetworkEntry implements TimestampedEntry {
       duration: duration ?? this.duration,
       requestHeaders: requestHeaders ?? this.requestHeaders,
       requestBody: requestBody ?? this.requestBody,
+      requestBodyLength: requestBodyLength ?? this.requestBodyLength,
       responseHeaders: responseHeaders ?? this.responseHeaders,
       responseBody: responseBody ?? this.responseBody,
+      responseBodyLength: responseBodyLength ?? this.responseBodyLength,
       error: error ?? this.error,
       errorType: errorType ?? this.errorType,
       errorStackTrace: errorStackTrace ?? this.errorStackTrace,
@@ -184,6 +219,9 @@ class NetworkEntry implements TimestampedEntry {
       origin: origin ?? this.origin,
       pageUrl: pageUrl ?? this.pageUrl,
       activeRoute: activeRoute ?? this.activeRoute,
+      responseImageBytes: clearResponseImageBytes
+          ? null
+          : responseImageBytes ?? this.responseImageBytes,
       sourceDio: sourceDio ?? this.sourceDio?.target,
     );
   }
@@ -198,8 +236,10 @@ class NetworkEntry implements TimestampedEntry {
         other.duration == duration &&
         mapEquals(other.requestHeaders, requestHeaders) &&
         other.requestBody == requestBody &&
+        other.requestBodyLength == requestBodyLength &&
         mapEquals(other.responseHeaders, responseHeaders) &&
         other.responseBody == responseBody &&
+        other.responseBodyLength == responseBodyLength &&
         other.error == error &&
         other.errorType == errorType &&
         other.errorStackTrace == errorStackTrace &&
@@ -218,7 +258,9 @@ class NetworkEntry implements TimestampedEntry {
     statusCode,
     duration,
     requestBody,
+    requestBodyLength,
     responseBody,
+    responseBodyLength,
     error,
     errorType,
     errorStackTrace,
@@ -229,13 +271,15 @@ class NetworkEntry implements TimestampedEntry {
     activeRoute,
   );
 
-  /// Number of UTF-8 bytes in the (possibly truncated) request body.
+  /// Size in bytes of the request body: [requestBodyLength] when recorded,
+  /// else the UTF-8 length of [requestBody] (0 when there is none).
   int get requestSizeBytes =>
-      requestBody == null ? 0 : utf8.encode(requestBody!).length;
+      requestBodyLength ?? utf8.encode(requestBody ?? '').length;
 
-  /// Number of UTF-8 bytes in the (possibly truncated) response body.
+  /// Size in bytes of the response body: [responseBodyLength] when recorded,
+  /// else the UTF-8 length of [responseBody] (0 when there is none).
   int get responseSizeBytes =>
-      responseBody == null ? 0 : utf8.encode(responseBody!).length;
+      responseBodyLength ?? utf8.encode(responseBody ?? '').length;
 
   /// Query parameters parsed from [url]. Empty when the URL has none.
   Map<String, String> get queryParameters {
