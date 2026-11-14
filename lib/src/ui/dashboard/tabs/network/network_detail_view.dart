@@ -159,7 +159,10 @@ class NetworkDetailView extends StatelessWidget {
             'Response size',
             formatBytes(entry.responseSizeBytes),
           ),
-          if (entry.isTruncated)
+          // A cut body with a recorded length already shows its real size.
+          if ((entry.isRequestTruncated && entry.requestBodyLength == null) ||
+              ((entry.responseBody?.endsWith(kTruncatedMarker) ?? false) &&
+                  entry.responseBodyLength == null))
             Padding(
               padding: const EdgeInsets.only(top: ThemeSize.space4),
               child: Text(

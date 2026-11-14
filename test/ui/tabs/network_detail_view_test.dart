@@ -62,6 +62,38 @@ void main() {
   // Existing tests (must stay green)
   // -------------------------------------------------------------------------
 
+  group('NetworkDetailView size hint', () {
+    const hint =
+        '⚠ Body truncated or summarized — size reflects the stored text';
+
+    testWidgets('hidden when a summarized body has its real length', (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        sample().copyWith(
+          requestBody: null,
+          responseBody: '[image/png, 7.9 KB]$kTruncatedMarker',
+          responseBodyLength: 8090,
+        ),
+      );
+
+      expect(find.text('7.9 KB'), findsOneWidget);
+      expect(find.text(hint), findsNothing);
+    });
+
+    testWidgets('shown when a summarized body has no recorded length', (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        sample().copyWith(responseBody: '[stream]$kTruncatedMarker'),
+      );
+
+      expect(find.text(hint), findsOneWidget);
+    });
+  });
+
   group('NetworkDetailView', () {
     testWidgets('renders all sections', (tester) async {
       tester.view.physicalSize = const Size(1200, 4000);
