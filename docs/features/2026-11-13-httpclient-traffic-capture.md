@@ -357,7 +357,7 @@ NetworkInspector.add：截斷文字 → 5 MB 檢查 → 寫入 buffer → 若總
 | R8 | 測試隔離：`HttpOverrides.global` 是 static，flutter_test 會先裝一個回 400 的 `_MockHttpOverrides`（`flutter_test/_binding_io.dart:26-27`、`binding.dart:1288-1290`） | 開關 `true` 的測試必須自行儲存與還原 `HttpOverrides.global`，並重置安裝 guard；真實請求用不初始化 binding 的 `test()` 加本機 `HttpServer` |
 | R9 | 書籤 Set 與開著的詳情頁持有舊 entry 指標，被淘汰的位元組要等它們釋放才回收 | 量小，只記錄不處理 |
 | R10 | `autoUncompress == false`（`NetworkImage`）時，副本是壓縮後的位元組；伺服器對圖片 gzip 時判不出圖片 | 退回 `[binary N bytes]`，不解壓（範圍外） |
-| R11 | 列表的 size 欄位對圖片顯示的是摘要字串的大小（沿用 binary 佔位的既有行為，`network_entry.dart:236-238`） | 摘要字串本身含真實大小；詳情頁已有「size reflects the stored text」提示 |
+| R11 | ~~列表的 size 欄位對圖片顯示的是摘要字串的大小~~ | 已修正（1f9b29a）：`NetworkEntry.requestBodyLength`／`responseBodyLength` 記錄實際大小，size 優先採用；只有未量到大小的摘要（如 FormData）才顯示「size reflects the stored text」提示 |
 | R12 | 請求進行中，Dio 的 `RequestOptions.headers` 帶著標記，宿主自己讀 `requestOptions.headers` 會看到 | 0b 決定在 `onResponse`／`onError` 移除。（plan-verifier 第 1 輪）Dio 的 response／error interceptor 與 request 同序（`dio_mixin.dart:534`、:564、:577），inspector 排最後時，其他 interceptor 的 `onResponse`／`onError` 會先看到標記，見 R14 (c) |
 | R13 | 連線建立前就失敗的 Dio 請求會重複記錄 | 已裁決 2026-11-13 接受（§8 C2）；寫進 dartdoc 與 README |
 | R14 | （plan-verifier 第 1 輪）標記外洩與漏記路徑：(a) `dio.clone(httpClientAdapter: X)` 沿用 interceptor，或 `sourceDio` 傳錯；(b) `IOHttpClientAdapter(createHttpClient: 既有 client)`，或覆寫 `fetch` 的子類；(c) 其他 interceptor 在 R12 移除前就看得到標記，經別的 Dio retry／token refresh 重送時，非 IO adapter 會外洩，IO adapter 且未掛 inspector 會被 HttpClient 層靜默略過不記 | (a)(b) 寫進 dartdoc 與 README；只有「傳了 `sourceDio`、而且它就是實際送出請求的 Dio」時才保證不重複記錄。(c) 的處理**待使用者裁決**，選項見計畫 §9 |

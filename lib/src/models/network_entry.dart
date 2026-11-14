@@ -69,10 +69,11 @@ class NetworkEntry implements TimestampedEntry {
   /// Request body (already truncated to [kNetworkBodyMaxLength]).
   final String? requestBody;
 
-  /// Real size in bytes of the request body as sent, recorded when
-  /// [requestBody] is a summary or a truncated copy. `null` when the stored
-  /// text is the whole body, or the size was not measured (a `FormData`
-  /// summary). See [requestSizeBytes].
+  /// Real size in bytes of the request body as sent, when it was measured:
+  /// always for the HttpClient layer, for a `Uint8List` Dio body, and for a
+  /// body cut to [kNetworkBodyMaxLength]. `null` when it was not measured
+  /// (e.g. a `FormData` summary); [requestSizeBytes] then counts the stored
+  /// text.
   final int? requestBodyLength;
 
   /// Response headers.
@@ -81,10 +82,12 @@ class NetworkEntry implements TimestampedEntry {
   /// Response body (already truncated to [kNetworkBodyMaxLength]).
   final String? responseBody;
 
-  /// Real size in bytes of the response body as received, recorded when
-  /// [responseBody] is a summary or a truncated copy. `null` when the stored
-  /// text is the whole body, or the size was not measured (a stream
-  /// placeholder). See [responseSizeBytes].
+  /// Real size in bytes of the response body as the app received it, when it
+  /// was measured (see [requestBodyLength]). This is what the client handed
+  /// over: decompressed by default, but still gzip-compressed for clients
+  /// with `autoUncompress` off, such as the one `Image.network` uses. `null`
+  /// when it was not measured (e.g. a stream placeholder);
+  /// [responseSizeBytes] then counts the stored text.
   final int? responseBodyLength;
 
   /// Error message if the request failed.
