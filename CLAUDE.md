@@ -10,7 +10,7 @@ App 內除錯檢視工具（Flutter Package）：把 log / network / navigator /
 |:---|:---|:---|
 | 系統架構 | `docs/architecture/overview.md` | 分層、設計原則、WeakReference、錯誤鉤子、WebView 防護 |
 | 檔案索引 | `docs/architecture/file-reference.md` | 模組結構與檔案職責（若與程式碼衝突以程式碼為準） |
-| 資料流向 | `docs/architecture/data-flow.md` | 8 條主要流程時序圖（含 `mergedTimeline` 歸併機制） |
+| 資料流向 | `docs/architecture/data-flow.md` | 9 條主要流程時序圖（含 `mergedTimeline` 歸併機制） |
 
 ## 2. 核心不變式與致命陷阱 (Critical Invariants)
 
@@ -42,7 +42,7 @@ App 內除錯檢視工具（Flutter Package）：把 log / network / navigator /
 
 ```bash
 # 測試
-flutter test                                  # 全套測試 (950 tests, ~45s)
+flutter test                                  # 全套測試 (981 tests, ~20s)
 flutter test test/ui/console_tab_test.dart    # 單檔測試
 
 # 分析與程式碼格式化
