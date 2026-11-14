@@ -1311,6 +1311,48 @@ void main() {
     });
   });
 
+  group('multipart request bodies and redactSensitiveData', () {
+    late _TestServer server;
+    const multipart =
+        '--b\r\nContent-Disposition: form-data; name="password"\r\n\r\n'
+        'hunter2\r\n--b--\r\n';
+
+    setUp(() async => server = await _TestServer.start());
+    tearDown(() async => server.close());
+
+    Future<String?> requestBodyWith(FlutterInspector host) async {
+      HttpOverrides.global = saved;
+      resetHttpClientCaptureForTesting();
+      installHttpClientCapture(host);
+      final client = HttpClient();
+      final req = await client.postUrl(server.url('/echo'))
+        ..headers.contentType = ContentType('multipart', 'form-data')
+        ..write(multipart);
+      await (await req.close()).drain<void>();
+      client.close(force: true);
+      return host.networkEntries.single.requestBody;
+    }
+
+    test('is a size summary, never the raw fields, by default', () async {
+      final body = await requestBodyWith(inspector);
+
+      expect(
+        body,
+        '[multipart/form-data, ${multipart.length} B]'
+        '$kTruncatedMarker',
+      );
+    });
+
+    test('is kept verbatim when redaction is off', () async {
+      final open = FlutterInspector(
+        navigatorKey: GlobalKey<NavigatorState>(),
+        redactSensitiveData: false,
+      );
+
+      expect(await requestBodyWith(open), multipart);
+    });
+  });
+
   group('live Dio marker handshake (T12b)', () {
     late _TestServer server;
 

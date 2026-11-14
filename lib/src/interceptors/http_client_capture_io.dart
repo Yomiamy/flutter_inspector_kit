@@ -12,6 +12,7 @@ import '../models/log_level.dart';
 import '../models/network_entry.dart';
 import '../models/network_origin.dart';
 import '../utils/image_bytes.dart';
+import '../utils/network_formatters.dart';
 import 'http_client_capture_common.dart';
 
 /// The overrides this isolate installed; also the once-per-isolate guard.
@@ -351,7 +352,7 @@ class _CapturingRequest implements HttpClientRequest {
           responseHeaders: response == null
               ? null
               : _headerMap(response.headers),
-          requestBody: _describe(_body, whole: true).text,
+          requestBody: _requestBodyText(),
           responseBody: body?.text,
           responseImageBytes: body?.image,
           duration: DateTime.now().difference(_start),
@@ -362,6 +363,20 @@ class _CapturingRequest implements HttpClientRequest {
         replaces: pending,
       );
     });
+  }
+
+  // Like Dio's FormData, a multipart body is stored as a summary when
+  // redacting: its field values are secrets the bytes would carry verbatim.
+  String? _requestBodyText() {
+    final type = _inner.headers[HttpHeaders.contentTypeHeader]?.first;
+    if (_inspector.redactSensitiveData &&
+        _body.total > 0 &&
+        type != null &&
+        type.toLowerCase().startsWith('multipart/')) {
+      return '[${type.split(';').first.trim()}, ${formatBytes(_body.total)}]'
+          '$kTruncatedMarker';
+    }
+    return _describe(_body, whole: true).text;
   }
 
   // One memo for both: dart:io's close() returns done, so a caller may ignore

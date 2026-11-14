@@ -139,7 +139,9 @@ class FlutterInspector {
   ///
   /// Dio `FormData` field values and file names under sensitive-looking keys
   /// (e.g. `password`, `token`) are masked at capture time instead, because a
-  /// multipart body is only ever stored as a summary string.
+  /// multipart body is only ever stored as a summary string. The same goes for
+  /// a `multipart/*` request body seen by [captureHttpClient]: it is recorded
+  /// as `[multipart/form-data, N B]` rather than its raw bytes.
   /// Set this flag to `false` to see the raw values instead.
   ///
   /// Defaults to `true` so secrets never leak to the clipboard, a share sheet,
