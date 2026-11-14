@@ -1148,6 +1148,19 @@ void main() {
       },
     );
 
+    test('a consumer cancelling inside onData still has that chunk '
+        'recorded (1-3)', () async {
+      final fake = _FakeResponse();
+      final response = await respondWith(fake);
+      late final StreamSubscription<List<int>> subscription;
+      subscription = response.listen((_) => subscription.cancel());
+
+      fake.controller.add(utf8.encode('hello'));
+      await pumpEventQueue();
+
+      expect(inspector.networkEntries.single.responseBody, 'hello');
+    });
+
     test(
       'multibyte UTF-8 arriving in chunks is truncated with the marker (1-3)',
       () async {

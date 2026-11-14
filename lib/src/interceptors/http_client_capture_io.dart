@@ -520,8 +520,9 @@ class _CapturingResponse extends Stream<List<int>>
     // here, as the original does.
     final source = _inner.listen(
       (chunk) {
-        controller.add(chunk); // forward first, then copy
+        // Copy first: the sync controller may run onCancel inside add.
         _guard(_owner._inspector, () => _body.add(chunk));
+        controller.add(chunk);
       },
       onError: (Object error, StackTrace stackTrace) {
         _owner._complete(response: this, error: error, stackTrace: stackTrace);
