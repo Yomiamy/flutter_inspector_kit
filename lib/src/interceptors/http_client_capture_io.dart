@@ -639,7 +639,11 @@ const int _kTextCopyBytes = 4 * kNetworkBodyMaxLength;
   final complete = whole && head.length == tee.total;
   final mime = imageMimeType(head);
   if (mime != null) {
-    return (text: imageSummary(mime, tee.total), image: complete ? head : null);
+    // fromList: takeBytes() is a view of the builder's larger buffer.
+    return (
+      text: imageSummary(mime, tee.total),
+      image: complete ? Uint8List.fromList(head) : null,
+    );
   }
   return (
     text:

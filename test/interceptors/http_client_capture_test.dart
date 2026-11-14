@@ -1129,6 +1129,26 @@ void main() {
     );
 
     test(
+      'a complete image keeps its own bytes, not the copy buffer (6-1)',
+      () async {
+        final fake = _FakeResponse();
+        final response = await respondWith(fake);
+        final drained = response.drain<void>();
+        // One chunk: BytesBuilder grows its buffer to a power of two.
+        final image = Uint8List(3 * 1024 * 1024 + 1)
+          ..setAll(0, _Data.png1x1.sublist(0, 8));
+        fake.controller
+          ..add(image)
+          ..close();
+        await drained;
+
+        final kept = inspector.networkEntries.single.responseImageBytes!;
+        expect(kept, image);
+        expect(kept.buffer.lengthInBytes, kept.length);
+      },
+    );
+
+    test(
       'multibyte UTF-8 arriving in chunks is truncated with the marker (1-3)',
       () async {
         final fake = _FakeResponse();
