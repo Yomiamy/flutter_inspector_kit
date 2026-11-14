@@ -140,6 +140,29 @@ void main() {
       expect(stored.requestSizeBytes, 3);
     });
 
+    test('an oversized summary is not measured as if it were the body', () {
+      // A long FormData summary already carries the marker: its own length
+      // is not the payload size, so the size stays unknown.
+      final summary = '${'field\n' * 2000}$kTruncatedMarker';
+      final stored = inspector.add(
+        NetworkEntry(method: 'POST', url: '/1', requestBody: summary),
+      );
+
+      expect(stored.requestBody, isNot(summary));
+      expect(stored.requestBodyLength, isNull);
+    });
+
+    test('a cut body is measured in UTF-8 bytes', () {
+      // 2-, 3- and 4-byte characters plus a lone surrogate (encoded as
+      // U+FFFD, 3 bytes).
+      final long = 'é€😀\uD800' * kNetworkBodyMaxLength;
+      final stored = inspector.add(
+        NetworkEntry(method: 'POST', url: '/1', requestBody: long),
+      );
+
+      expect(stored.requestBodyLength, (2 + 3 + 4 + 3) * kNetworkBodyMaxLength);
+    });
+
     test('add with replaces finds a pending entry whose body was cut', () {
       final long = 'a' * (kNetworkBodyMaxLength + 100);
       final pending = inspector.add(

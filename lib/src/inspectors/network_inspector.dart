@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 
 import '../core/ring_buffer.dart';
@@ -11,9 +9,27 @@ import '../utils/image_bytes.dart';
 typedef NetworkAddListener = void Function(NetworkEntry entry, int totalCount);
 
 // A cut body keeps the size it had; a size the capture layer measured wins.
+// A body already ending in the marker is a summary, not the payload.
 int? _sizeBeforeCut(String? body, String? truncated, int? known) {
   if (known != null || body == null || body == truncated) return known;
-  return utf8.encode(body).length;
+  if (body.endsWith(kTruncatedMarker)) return null;
+  return _utf8Length(body);
+}
+
+// utf8.encode(body).length without allocating the encoded copy; a lone
+// surrogate encodes as U+FFFD (3 bytes), as utf8.encode does.
+int _utf8Length(String text) {
+  var bytes = 0;
+  for (final rune in text.runes) {
+    bytes += rune < 0x80
+        ? 1
+        : rune < 0x800
+        ? 2
+        : rune < 0x10000
+        ? 3
+        : 4;
+  }
+  return bytes;
 }
 
 /// Manages a ring buffer of [NetworkEntry] items.
