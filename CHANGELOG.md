@@ -1,3 +1,26 @@
+## 3.0.0
+
+### Breaking changes
+* **`NetworkOrigin` gains `httpClient`**: entries captured by the new `HttpClient` layer carry `NetworkOrigin.httpClient`. An exhaustive `switch (entry.origin)` without a wildcard no longer compiles — add one branch:
+  ```dart
+  final label = switch (entry.origin) {
+    NetworkOrigin.dio => 'Dio',
+    NetworkOrigin.webview => 'WebView',
+    NetworkOrigin.httpClient => 'HttpClient', // new in 3.0.0
+  };
+  ```
+  Nothing else changes. New `NetworkOrigin` values will only ship in major versions.
+
+### Added
+* **HttpClient traffic capture (opt-in)**: `captureHttpClient: true` records `Image.network`, `package:http`, third-party SDK and interceptor-less Dio traffic sent through `dart:io` `HttpClient` as `NetworkOrigin.httpClient` entries. Construct the inspector at the top of `main()` — clients created earlier are not captured. The layer chains onto the `HttpOverrides.global` already registered (host proxies and SSL pinning keep working); a host override set *after* the inspector wins and silently stops capture. Dio deduplication needs `FlutterInspectorDioInterceptor(inspector, sourceDio: dio)` pointing at the exact `Dio` sending the request, placed last in `dio.interceptors`. A Dio request that fails before connecting is recorded twice (`dio` and `httpClient`). The flag takes effect in every build mode, so gate it with a flavor or `bool.fromEnvironment` rather than `!kReleaseMode`. Does nothing on Web.
+* **Image response preview**: PNG / JPEG / GIF / WebP / BMP responses (Dio `Uint8List` and the HttpClient layer) show a preview in the Network detail view; up to 5 MB per image and 50 MB in total, oldest previews dropped first. Exports only contain the summary.
+* **Network list shows the origin** of non-Dio entries (`httpClient`, `webview`).
+* `NetworkEntry.responseImageBytes`.
+
+### Changed
+* **Dio image bodies are summarized**: a `Uint8List` request or response body that starts with a complete image signature is recorded as `[image/png, 34.2 KB]` instead of `[binary N bytes]`. Other binary bodies are unchanged.
+* **Pending Dio entries snapshot their request headers when `captureHttpClient` is on**: for a request the interceptor marks, the pending entry keeps a copy of the headers taken in `onRequest` (without the marker), so headers added by interceptors that run later do not appear until the request completes. Without `captureHttpClient` nothing changes.
+
 ## 2.9.0
 
 ### Added

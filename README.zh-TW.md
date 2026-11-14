@@ -62,7 +62,7 @@
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^2.9.0
+  flutter_inspector_kit: ^3.0.0
 ```
 
 接著執行 `flutter pub get`。

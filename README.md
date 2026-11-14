@@ -62,7 +62,7 @@ In-app, multi-inspector debugging overlay for Flutter apps — logs, network, na
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^2.9.0
+  flutter_inspector_kit: ^3.0.0
 ```
 
 Then run `flutter pub get`.
