@@ -1,7 +1,7 @@
 # 功能規格：`dart:io` `HttpClient` 層流量擷取與圖片預覽
 
 - **日期**：2026-11-13
-- **來源**：gen-grill 需求 brief（使用者已確認 Q1–Q5 與盤問決策）；同類參考 `zero_inspector_kit`（淺層 clone，HEAD `dbb10f4`，v2.4.0，以下簡稱 zero）；既有否決紀錄 `docs/brainstorm/2026-11-11-features-brainstorm.md` 第八部分（:2345、:2391、:2395、:2490、:2506、:2538）
+- **來源**：gen-grill 需求 brief（使用者已確認 Q1–Q5 與盤問決策）；同類參考 `zero_inspector_kit`（淺層 clone，HEAD `dbb10f4`，v2.4.0，以下簡稱 zero）；既有否決紀錄 `docs/brainstorm/2026-11-15-features-brainstorm.md` 第八部分（:2345、:2391、:2395、:2490、:2506、:2538）
 - **類型**：新事件來源（opt-in，預設關閉），加上 Network 詳情頁圖片預覽（Dio 與 `HttpClient` 兩層共用）
 - **Effort**：high（三個 `dart:io` 代理、條件匯出、圖片預覽與記憶體預算）｜ **排查價值**：高
 - **版號**：**3.0.0（major）**（已裁決 2026-11-13，見 §8 C1）。brief 原定 minor，但新增 `NetworkOrigin.httpClient` 會讓宿主的窮盡式 `switch (entry.origin)` 編譯失敗，屬 breaking change，故改走 major

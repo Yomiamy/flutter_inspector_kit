@@ -1,7 +1,7 @@
 # 功能規格：Dio `FormData`（Multipart）上傳摘要化與欄位脫敏（§P33）
 
 - **日期**：2026-11-07
-- **來源**：`docs/brainstorm/2026-11-11-features-brainstorm.md` §P33（源自 §Z1-9）
+- **來源**：`docs/brainstorm/2026-11-15-features-brainstorm.md` §P33（源自 §Z1-9）
 - **Effort**：trivial ｜ **排查價值**：⭐⭐⭐⭐
 
 ---

@@ -1,7 +1,7 @@
 # 功能規格：Dio 攔截器全生命週期 Fail-Safe 防禦（§P39）
 
 - **日期**：2026-11-02
-- **來源**：`docs/brainstorm/2026-11-11-features-brainstorm.md` §P39（【網路防禦】Dio 攔截器全生命週期 Fail-Safe 雙重防禦）
+- **來源**：`docs/brainstorm/2026-11-15-features-brainstorm.md` §P39（【網路防禦】Dio 攔截器全生命週期 Fail-Safe 雙重防禦）
 - **Effort**：trivial ｜ **排查價值**：⭐⭐⭐⭐⭐
 
 ---

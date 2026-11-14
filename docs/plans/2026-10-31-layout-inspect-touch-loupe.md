@@ -4,7 +4,7 @@
 
 - **日期**：2026-10-31（plan-verifier 初審 REVISE 後第 1 次修正）
 - **規格**：[`docs/features/2026-10-31-layout-inspect-touch-loupe.md`](../features/2026-10-31-layout-inspect-touch-loupe.md)（已經使用者確認；本次修正同步更正了 R1、Q1、Q7 與 AC2 的事實描述，見 §9）
-- **來源**：`docs/brainstorm/2026-11-11-features-brainstorm.md` §P37
+- **來源**：`docs/brainstorm/2026-11-15-features-brainstorm.md` §P37
 - **Effort**：Low~Medium ｜ **總任務數：4**（STAGE 2 起手執行 `wf-state.sh set <檔> total_tasks=4`）
 
 **Goal**：在 `Inspect layout` 模式加入按住拖曳瞄準，搭配 `RawMagnifier` 放大鏡與十字準星；放開手指的結果與在同一點單點完全相同。
