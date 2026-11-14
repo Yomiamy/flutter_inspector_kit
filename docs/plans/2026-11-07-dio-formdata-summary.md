@@ -2,7 +2,7 @@
 
 - **日期**：2026-11-07
 - **規格**：[`docs/features/2026-11-07-dio-formdata-summary.md`](../features/2026-11-07-dio-formdata-summary.md)
-- **來源**：`docs/brainstorm/2026-11-11-features-brainstorm.md` §P33（源自 §Z1-9）
+- **來源**：`docs/brainstorm/2026-11-15-features-brainstorm.md` §P33（源自 §Z1-9）
 - **Effort**：trivial
 
 ---
@@ -410,5 +410,5 @@ rtk flutter analyze lib/ test/
 ## 5. 範圍外（交接備忘）
 
 - README（Network 段落第 353 行附近的 binary placeholder 說明）與 CHANGELOG：依專案慣例在 release commit 統一更新，屆時再補一句 `FormData` 摘要說明。
-- `docs/brainstorm/2026-11-11-features-brainstorm.md` §P33 的狀態標記（⬜ → ✅）：PR merge 後再處理。
+- `docs/brainstorm/2026-11-15-features-brainstorm.md` §P33 的狀態標記（⬜ → ✅）：PR merge 後再處理。
 - §P34 `ResponseBody`／`Stream` 佔位：另開 PR。
