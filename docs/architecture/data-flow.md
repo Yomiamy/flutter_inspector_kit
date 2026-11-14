@@ -2,7 +2,7 @@
 
 > 「好的程式碼沒有特殊情況。」 —— Linus Torvalds
 
-本文件詳細剖析本套件內四大核心功能的運作流程、狀態移轉與數據傳遞軌跡，並涵蓋「App 生命週期標記」、「診斷報告導出與分享」、「懸浮按鈕與 Overlay 生命週期管理」與「WebView 事件橋接」等核心流程。
+本文件詳細剖析本套件內四大核心功能的運作流程、狀態移轉與數據傳遞軌跡，並涵蓋「App 生命週期標記」、「診斷報告導出與分享」、「懸浮按鈕與 Overlay 生命週期管理」、「WebView 事件橋接」與「HttpClient 流量擷取」等核心流程。
 
 ---
 
@@ -385,3 +385,52 @@
 3. **Replay 自然降級**：WebView 請求非經 Dio 送出，`sourceDio == null` 使既有 Replay 檢查自動停用，無新增特殊分支。
 4. **redaction 共用邊界**：WebView `NetworkEntry` 存原始 headers/body（與 native 一致），遮罩由既有顯示/匯出 formatter 依 `redactSensitiveData` 施加——同一組 code path，無旁門。
 5. **注入時機差異**：`flutter_inappwebview` 的 `UserScript` 可於 documentStart 注入、吃得到頁面最早期事件；`webview_flutter` 的 `runJavaScript` 於 `onPageStarted` 後執行會漏最早期 log。README 明文標註，套件不假裝抹平。
+
+---
+
+## 9. HttpClient 流量擷取流程 (HttpClient Traffic Capture Flow)
+
+opt-in `captureHttpClient: true`（預設關閉，Web 為 no-op）時，套件在 `dart:io` 的 `HttpOverrides` 槽位**串接**一層代理，擷取不經 Dio interceptor 的流量（`Image.network`、`package:http` 的 `IOClient`、第三方 SDK、未掛 interceptor 的 Dio），產出 `origin: NetworkOrigin.httpClient` 的 `NetworkEntry`，與其他來源共用同一條 timeline。
+
+```text
+  呼叫端 (Image.network /          _InspectorHttpOverrides /        _CapturingRequest /           FlutterInspector & Registry
+  IOClient / 無 interceptor Dio)    _CapturingHttpClient             _CapturingResponse
+       │                                 │                                │                               │
+       │ (建構 inspector 時一次性安裝：    │                                │                               │
+       │  previous = 根 Zone 的            │                                │                               │
+       │  HttpOverrides.current，          │                                │                               │
+       │  HttpOverrides.global = 本層)     │                                │                               │
+       │                                 │                                │                               │
+       │─── 1. HttpClient() ────────────>│─ previous?.createHttpClient    │                               │
+       │                                 │  ?? 預設 client，外包一層        │                               │
+       │─── 2. openUrl / get / post … ──>│── 轉發至 inner ───────────────>│                               │
+       │                                 │   (開啟失敗 → 直接記一筆         │                               │
+       │                                 │    error entry 後 rethrow)     │                               │
+       │─── 3. write / add / close ─────────────────────────────────────>│─ 4. _finalize（首次送出標頭）  │
+       │                                 │                                │   帶 Dio 標記？               │
+       │                                 │                                │   ├ 是：移除標記，交由 Dio     │
+       │                                 │                                │   │  interceptor 記錄（去重）  │
+       │                                 │                                │   └ 否：logNetwork(pending) ─>│ → Network RingBuffer
+       │                                 │                                │─ 5. 請求 body write-through   │
+       │                                 │                                │   送出，_Tee 只複製有界前綴    │
+       │<── 6. HttpClientResponse ──────────────────────────────────────│─ 回應 stream 包成 tee：        │
+       │    (逐 chunk 先複製再轉發)       │                                │   chunk 原樣交給呼叫端         │
+       │                                 │                                │                               │
+       │─── 7. stream 結束 / 取消 / 錯誤 ───────────────────────────────>│─ 8. _complete：               │
+       │                                 │                                │   _describe 判斷文字或圖片、  │
+       │                                 │                                │   記實際 byte 數，             │
+       │                                 │                                │   logNetwork(replaces:        │
+       │                                 │                                │   pending) ──────────────────>│ → 同一筆 entry 原地替換
+       │                                 │                                │                               ▼
+       │                                 │                                │       NetworkInspector.add：圖片 5 MB 單張上限、
+       │                                 │                                │       50 MB 總預算由舊到新淘汰預覽 bytes
+```
+
+### 關鍵細節
+
+1. **串接而非取代**：安裝時讀根 Zone 的 `HttpOverrides.current` 當 `previous`，`createHttpClient` 與 `findProxyFromEnvironment` 都先委派給它，宿主先註冊的 proxy 與 SSL pinning 照常生效。本層永不還原、也不把槽位設為 `null`；宿主之後若再設定 `HttpOverrides.global`，只是蓋掉本層，宿主行為不受影響。每個 isolate 只安裝一次，第二個開啟的 inspector 只印 debug 警告。
+2. **與 Dio 去重**：`FlutterInspectorDioInterceptor` 在 `shouldTagDioRequest(sourceDio)` 成立時（本層為作用中 overrides 且 `sourceDio` 用 `IOHttpClientAdapter`）於請求標頭加上一次性標記並登記於 `liveDioMarkers`。本層在送出標頭前看到標記就移除並放手，該請求只由 Dio 記錄一次，標記不會送到伺服器。
+3. **不改變傳輸行為**：請求 body 直接轉發（write-through），回應 chunk 原樣交給呼叫端；擷取只複製有界前綴（文字 `4 × kNetworkBodyMaxLength`，嗅出圖片簽章後放寬到 `kImageMaxBytes`）。擷取邏輯一律包在 `_guard` 內，出錯只影響紀錄，不影響請求。
+4. **pending → completed 原地替換**：送出時先記 pending entry，完成時以 `replaces: pending` 取代同一筆，沿用不變式 #2「不存在第二份真相」。呼叫端中途取消訂閱也會完成紀錄，已轉發的 chunk 一定已被複製。
+5. **大小與脫敏**：`requestBodyLength` / `responseBodyLength` 記實際收到的 byte 數（`autoUncompress` 關閉的 client 如 `Image.network` 記壓縮後大小）。開啟 `redactSensitiveData` 時，`multipart/*` 請求 body 只記 `[multipart/form-data, N B]...[truncated]` 摘要，與 Dio `FormData` 一致。
+6. **條件匯出**：`http_client_capture.dart` 在 Native 載入 `_io.dart`、Web 載入 no-op 的 `_web.dart`，兩側簽章須一致（CLAUDE.md 不變式 #4）。
