@@ -269,7 +269,13 @@ class FlutterInspector {
     if (_bookmarkedEntries.contains(entry)) {
       _bookmarkedEntries.remove(entry);
     } else {
-      _bookmarkedEntries.add(entry);
+      // Preview bytes are budgeted in NetworkInspector; a bookmark must not
+      // keep them alive past it. Equality ignores them, so lookups still match.
+      _bookmarkedEntries.add(
+        entry is NetworkEntry
+            ? entry.copyWith(clearResponseImageBytes: true)
+            : entry,
+      );
     }
   }
 
