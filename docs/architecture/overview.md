@@ -37,6 +37,7 @@
   │            資料擷取層 (Collectors / Interceptors)          │
   │ [DioInterceptor] [NavigatorObserver] [UncaughtErrorHandler]│
   │ [LifecycleHandler] [PerformanceHandler]                    │
+  │ [HttpClientCapture (HttpOverrides)]                        │
   │ [WebViewBridgeAdapter] <── postMessage ── 頁內注入 JS bridge │
   └────────────────────────────────────────────────────────────┘
 ```
@@ -51,12 +52,13 @@
 - 採用 **Immutable (不可變)** 的設計模式。
 - **`TimestampedEntry`**：定義混合時序軸（Merged Timeline）排序契約之抽象介面，包含 `timestamp`、`displayTime` 欄位與 `TimelineSource` 來源標記。
 - 具體實體包括：`LogEntry`、`NetworkEntry`、`NavigatorEntry` 與 `DatabaseEntry`。
-- **`NetworkOrigin`**：網路請求的來源列舉（`dio` / `webview`）。`NetworkEntry` 以第一級欄位 `origin`（預設 `dio`）與 `pageUrl`（WebView 請求的 `location.href`）標記 provenance——顯式欄位而非依賴 `sourceDio == null` 推斷，因為 `WeakReference<Dio>` 被 GC 後兩種來源將無法區分。
+- **`NetworkOrigin`**：網路請求的來源列舉（`dio` / `httpClient` / `webview`）。`NetworkEntry` 以第一級欄位 `origin`（預設 `dio`）、`pageUrl`（WebView 請求的 `location.href`）與 `responseImageBytes`（圖片預覽位元組，排除於 `==` 與匯出外）標記 provenance 與預覽資料——顯式欄位而非依賴 `sourceDio == null` 推斷，因為 `WeakReference<Dio>` 被 GC 後無法區分來源。
 - **`DiagnosticInfo`**：裝置與應用程式的元數據模型（如應用版本、裝置型號、系統版本等）。為了確保平台自適應與 WASM 相容性，其所有欄位皆為 nullable，並在報告中安全地以 `N/A` 降級顯示，避免 host 無法提供資訊時導致流程中斷。
 - **`DiagnosticInfoSource`**：Host 提供裝置與 App 元數據的抽象資料源介面。Host 實作此介面後，經由建構子注入 `FlutterInspector` 中。
 
 ### 3. 數據擷取層 (Collectors / Interceptors)
-- **`DioInterceptor`** (`FlutterInspectorDioInterceptor`)：攔截 Dio 請求與響應，處理 pending 狀態更新，並支持安全請求重發（Replay）。
+- **`DioInterceptor`** (`FlutterInspectorDioInterceptor`)：攔截 Dio 請求與響應，處理 pending 狀態更新，並支持安全請求重發（Replay）。開啟 `captureHttpClient` 且 `sourceDio?.httpClientAdapter is IOHttpClientAdapter` 時透過逐請求 `WeakReference` 標記（`liveDioMarkers`）與 `HttpClient` 層去重。
+- **`HttpClientCapture`**（opt-in `captureHttpClient`，default off）：透過條件匯出在 Native 端將代理鏈接至 `HttpOverrides.global`（Web 端為 no-op），攔截 `dart:io` `HttpClient` 流量（如 `Image.network`、`package:http` `IOClient` 與未掛載 interceptor 的 Dio），採 write-through 送出與 response stream tee 複製，在送出標頭時依同 token 移除 live Dio 標記，並將支援之圖片回應截存於 5 MB 單張 / 50 MB 總量預算內。
 - **`NavigatorObserver`** (`FlutterInspectorNavigatorObserver`)：自動監聽路由變化，並安全解析頁面 Widget 類型。
 - **`UncaughtErrorHandler`**：獨立類別，專職掛載與鏈接未捕捉的例外。它透過建構子接收 `onLog` 回呼函數，在呼叫 `attach()` 時安全地將錯誤鉤子鏈接（chain/wrap）至 `FlutterError.onError`、`PlatformDispatcher.instance.onError` 與 `ErrorWidget.builder`。此類別無 `FlutterInspector` 的逆向依賴，保證了職責單一與高品味的模組獨立性。針對同一次 build 崩潰會同時觸發 `FlutterError.onError` 與 `ErrorWidget.builder`（兩者收到**同一個** `FlutterErrorDetails` 物件）的情況，`_logFlutterError` 以 object-identity 去重（`identical` 比對上一筆已記錄的 details），確保 Console 只記錄一次（PR #96）。記錄前會以 `parseRenderFlexOverflow` 與 `parseErrorCausingWidget` 對錯誤文字做輕量解析，把溢出像素／方向與 error-causing widget 位置併入 `LogEntry.data`；解析不到時靜默略過，不影響原本的錯誤日誌（PR #197）。
 - **`LifecycleHandler`**：獨立類別，專職把 app 前景/背景切換（`resumed`/`inactive`/`paused`/`detached`，及 Flutter 3.13+ 的 `hidden`）記成 `LogLevel.info` 的 `LogEntry`（opt-in `captureLifecycleEvents`，default off）。與 `UncaughtErrorHandler` 同形——透過建構子接收 `onLog` 回呼、無 `FlutterInspector` 逆向依賴。message 尾巴附加當前 top-most page（`FlutterInspector._currentTopPageLabel()` 走 `NavigatorStackResolver` best-effort 重播，推不出來時省略而非猜測），讓 home/back 頻繁切換仍能在 Console 一眼分辨發生在哪一頁。與錯誤鉤子不同，此 observer **可乾淨 teardown**：`detach()` 會 `removeObserver(this)`——因為 `WidgetsBindingObserver` 是一個 list（移除自己不影響宿主），而非 `FlutterError.onError` 那種單一 slot。同一旗標下還覆寫 `didHaveMemoryPressure()`，把 OS 回報的記憶體壓力記成 `LogLevel.warning`（非 info——這是 OOM/LMK 前導信號，要能被既有 warning/error 過濾撈起來，不能沉在資訊流裡）；`lifecycleState` 為 `hidden`/`paused`/`detached` 時直接丟棄（Android 切背景會因 `TRIM_MEMORY_UI_HIDDEN` 例行觸發，PR #205），`inactive` 因 App 仍可見照常記錄。**共用 `captureLifecycleEvents` 而非另開旗標**：兩者是同一個 observer 上的 callback、共用同一組 attach/detach 生命週期（PR #155）。
@@ -83,10 +85,10 @@
 ## 🛠️ 架構設計原則與「好品味」
 
 ### 1. 平台自適應與 WASM 相容性 (Conditional Exports)
-在網路通知 (`NetworkNotifier`) 與文字分享 (`ShareText`) 模組中，為了解決 Native（依賴 `dart:io` 與三方套件）與 Web（WASM 相容）之間的平台差異：
+在網路通知 (`NetworkNotifier`)、`HttpClient` 流量擷取 (`http_client_capture`) 與文字分享 (`ShareText`) 模組中，為了解決 Native（依賴 `dart:io` 與三方套件）與 Web（WASM 相容）之間的平台差異：
 - 採用 **條件匯出 (Conditional Exports)** 技術：
-  - Web 端自動切換為 no-op stub，或直接調用 Web 原生的 API（例如 Web Share API）。
-  - Native 端則載入對應的插件（例如 `flutter_local_notifications`、`share_plus`）。
+  - Web 端自動切換為 no-op stub（如 `http_client_capture_web.dart` 直接忽略開關），或直接調用 Web 原生的 API（例如 Web Share API）。
+  - Native 端則載入對應實作（例如 `http_client_capture_io.dart` 串接 `HttpOverrides`，以及 `flutter_local_notifications`、`share_plus`）。
 - **結果**：完全阻斷 `dart:io` 傳遞式匯入進入 Web 編譯鏈，保持 Flutter 網頁端 WASM 構建的乾淨相容。
 
 ### 2. 弱引用與防洩漏設計 (WeakReference)

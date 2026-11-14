@@ -181,9 +181,38 @@ publicDio.interceptors.add(FlutterInspectorDioInterceptor(inspector, sourceDio: 
 
 這能保證在 Network 詳情頁重送請求時，用的是完全相同的 `Dio` 實例，維持正確的 baseUrl、interceptors 與認證狀態。
 
+#### 擷取 HttpClient 流量（Image.network、package:http、第三方 SDK）— opt-in
+
+在 `FlutterInspector` 開啟 `captureHttpClient: true`，即可自動將透過 `dart:io` `HttpClient` 送出的流量——包含 `Image.network`、`package:http` 的 `IOClient`、第三方 SDK 以及未掛載 `FlutterInspectorDioInterceptor` 的 `Dio` 實例——記錄為 `NetworkOrigin.httpClient` 項目。支援的圖片回應（`PNG`、`JPEG`、`GIF`、`WebP`、`BMP`）會在緩衝區內保留位元組（單張上限 5 MB、全域總預算 50 MB，採 FIFO 淘汰舊圖）供 Network 詳情頁預覽。
+
+請以 flavor 或 `--dart-define`／`bool.fromEnvironment` 旗標控制開關，**勿直接用 `!kReleaseMode`**——此功能在 release 模式同樣生效，且 `!kReleaseMode` 在 `flutter test` 環境下也是 `true`，會導致測試期間意外安裝這一層：
+
+```dart
+final inspector = FlutterInspector(
+  navigatorKey: navigatorKey,
+  captureHttpClient: const bool.fromEnvironment('ENABLE_INSPECTOR'),
+  // 選填：圖片較多的畫面會與 API 請求共用預設 500 筆的 ring buffer；
+  // 建議適度調大 bufferSize，避免 API 呼叫過早被圖片擠出。
+  bufferSize: 1000,
+);
+```
+
+重要限制與行為邊界：
+
+- **在 `main()` 最開頭建構 inspector**：應置於 `WidgetsFlutterBinding.ensureInitialized()` 之後、任何 HTTP client 建立或 `Dio` 送出首筆請求之前。更早建立的 lazy static client（例如 `Image.network` 共用的靜態 client、DI 容器中的 `http.Client()`、或已快取原生 client 的 `Dio` adapter）將永遠無法被擷取。
+- **全 App 僅於單一 inspector 開啟**：同一 isolate 中只有第一個開啟 `captureHttpClient: true` 的實例會安裝攔截層。
+- **Dio 去重依賴 `sourceDio`，且必須是實際送出請求的同一個 `Dio` 實例**：只有在傳入 `sourceDio`、該實例的 `httpClientAdapter is IOHttpClientAdapter` 且本層仍為作用中 `HttpOverrides` 時，`FlutterInspectorDioInterceptor(inspector, sourceDio: dio)` 才會替請求加上內部標記，讓 `HttpClient` 層略過重複記錄並在送出前剝除標記。請務必將 `FlutterInspectorDioInterceptor` 放在 `dio.interceptors` **最後一個**（排在後方的 HMAC/SigV4 簽章 interceptor 會把標記一併簽入，導致標記被移除後伺服器驗簽失敗）。
+- **標記外洩與漏記路徑**：
+  - *(a)* 以 `dio.clone(httpClientAdapter: otherAdapter)` 沿用 interceptor 卻換走 adapter，或傳錯 `sourceDio`，會讓內部標記直接送到伺服器。
+  - *(b)* 透過 `IOHttpClientAdapter(createHttpClient: () => existingClient)` 回傳 inspector 建構前已存在的 client、使用覆寫 `fetch` 的 adapter 子類，或在建構 inspector 前就已送過請求而快取原生 `HttpClient` 的 `Dio`，同樣會繞過代理層並外洩標記。當標記在回應階段仍完整殘留時，`FlutterInspectorDioInterceptor` 會輸出 warning 日誌提醒。
+  - *(c)* `HttpClient` 層一旦將請求標頭寫入底層送出，就會立刻從 live `requestOptions.headers` 移除標記，使後續的 response 或 error interceptor 看不到該標記（透過另一個 `Dio` 執行 token refresh 重送也能正常記錄）。僅有**在連線建立前就失敗**的請求會將標記帶進 `onError`：若此時改用**另一個** `Dio` 重送，走非 IO adapter 會外洩標記，走 IO adapter（且未掛 inspector）則會被 `HttpClient` 層靜默略過（以**原本同一個** `Dio` 重試則會重新標記並正常記錄）。
+- **連線建立前失敗的 Dio 請求會記錄兩筆**：於 `openUrl` 階段失敗（DNS 錯誤、連線遭拒、TLS 握手失敗）的 `Dio` 請求無法事先關聯，會分別由 `FlutterInspectorDioInterceptor`（`dio`）與 `HttpClient` 層（`httpClient`）各記一筆。
+- **全域覆蓋優先序與範圍限制**：本層會串接既有的 `HttpOverrides.global`（保留先前註冊的 proxy 與 SSL pinning），且 `detach()` 不會移除它；若宿主 App 在建構 inspector **之後**重新設定 `HttpOverrides.global`，擷取會靜默停止且以宿主設定為準。位於 `HttpOverrides.runZoned(...)` 內的流量、背景 isolate（`compute` / `Isolate.run`）的請求，以及原生網路底層套件（`cupertino_http`、`cronet_http`、`native_dio_adapter`）皆不予擷取；Web 平台不執行任何動作。
+- **未被讀取的回應 body 會維持 `pending`**：例如 `HEAD` 請求或未消費完串流即丟棄的回應，因規格嚴禁 inspector 主動讀取 caller 的串流，該筆請求將保持 `no response · Ns`（`pending`）並隨經過時間觸發 `🐢 SLOW`。
+
 #### 搭配其他 HTTP client
 
-自行建立 `NetworkEntry` 並傳入：
+自行建立 `NetworkEntry` 並傳入（若已開啟 `captureHttpClient: true`，`package:http` 的 `IOClient` 已自動涵蓋，請勿再手動呼叫 `logNetwork`，否則每筆請求會重複記錄）：
 
 ```dart
 inspector.logNetwork(entry);
@@ -342,14 +371,14 @@ channel.stream.listen(
    - 此外，Network 分頁的篩選 chip（`2xx`, `3xx`, `4xx`, `5xx`）期望標準 HTTP 狀態碼。
    - **解法**：非 HTTP 協定請保持 `statusCode` 為 `null`。錯誤說明傳入 `error:`（這會將 `isFailed` 設為 `true`），並把協定特定狀態碼記錄在 `responseHeaders`（例如 `{'grpc-status': '${error.code}'}`）或 body 中。
 
-2. **切勿新增或期望自訂的 `NetworkOrigin` 列舉值**：
-   `NetworkOrigin` 是公開列舉（`dio`, `webview`）。宿主 App 常會使用窮盡的 `switch (entry.origin)` 表達式。新增 `grpc` 或 `websocket` 等新值會在編譯期破壞窮盡比對（`Never break userspace`）。`origin` 沒有「unspecified」值，預設為 `NetworkOrigin.dio`，因此自訂項目在詳情頁的 Origin 欄位會顯示 `dio`。請視為目前 API 的已知限制（也不要設為 `webview`，那會造成標籤誤導）。
+2. **切勿自行發明或期望自訂的 `NetworkOrigin` 列舉值**：
+   `NetworkOrigin` 是公開列舉（`dio`、`httpClient`、`webview`）。宿主 App 常會使用窮盡的 `switch (entry.origin)` 表達式，因此新增列舉值屬於 breaking change，僅會在 major 版本釋出（`Never break userspace`）。`origin` 沒有「unspecified」值，預設為 `NetworkOrigin.dio`，因此手動整合的 gRPC／WebSocket 項目在詳情頁的 Origin 欄位會顯示 `dio`。請視為目前 API 的已知限制（也不要誤設為 `webview` 或 `httpClient`，那會造成來源標籤錯誤）。
 
 ### 在 Network 分頁裡
 
-- **搜尋與篩選**：依 URL、method 或 status code 篩選呼叫列表（不分大小寫）；method 與 status（`2xx`/`3xx`/`4xx`/`5xx`/`Failed`）chip 可再進一步縮小範圍。
+- **搜尋與篩選**：依 URL、method 或 status code 篩選呼叫列表（不分大小寫）；method 與 status（`2xx`/`3xx`/`4xx`/`5xx`/`Failed`）chip 可再進一步縮小範圍。列表副標題會自動標示非 Dio 來源（`httpClient`、`webview`），一般 `dio` 項目則維持簡潔不額外標記。
 - **錯誤摘要橫幅**：呼叫列表上方一個可收合的橫幅，依 status code（傳輸層失敗則依 error type——離線/逾時/DNS）將失敗／錯誤的請求分組，顯示各組計數與首見/末見時間範圍。點某張分組卡即把列表篩選到只剩該錯誤；再點一次即清除篩選。
-- **呼叫細節**：點任一筆呼叫進入結構化檢視——General（method、URL、附色彩標示的 status、duration、request/response 大小）、Query Parameters、Headers，以及渲染為可收合樹狀圖的 JSON body（大 payload 支援搜尋，並附 **Show raw** 按鈕切回純文字）。非合法 JSON 的 body（被截斷、或 `Content-Type` 虛標）會自動退回純文字。被截斷的 body 會清楚標示。二進位 payload（`Uint8List`，如檔案下載）以 `[binary N bytes]` 佔位呈現而非逐 byte 編碼，且帶有二進位 body 的請求無法被重送。失敗的請求會顯示一個 **Exception Details** 區塊，區分傳輸層失敗與伺服器端錯誤，並附可複製的 stack trace。
+- **呼叫細節**：點任一筆呼叫進入結構化檢視——General（method、URL、`Origin` 來源、附色彩標示的 status、duration、request/response 大小）、Query Parameters、Headers，以及渲染為可收合樹狀圖的 JSON body（大 payload 支援搜尋，並附 **Show raw** 按鈕切回純文字）。若項目帶有擷取到的圖片回應（`PNG`、`JPEG`、`GIF`、`WebP`、`BMP`，單張上限 5 MB／全域總預算 50 MB，超額時淘汰最舊圖片），會在 Response Body 上方顯示 **Response Preview** 預覽圖（解碼失敗時降級顯示提示文字），而複製／匯出仍僅保留 `[image/<type>, <size>]` 摘要。非合法 JSON 的 body（被截斷、或 `Content-Type` 虛標）會自動退回純文字。被截斷的 body 會清楚標示。非圖片的二進位 payload（`Uint8List`，如檔案下載）以 `[binary N bytes]` 佔位呈現而非逐 byte 編碼；帶有二進位／摘要 body 或無 `sourceDio` 的請求（例如 `httpClient` 與 `webview` 來源）無法被重送。失敗的請求會顯示一個 **Exception Details** 區塊，區分傳輸層失敗與伺服器端錯誤，並附可複製的 stack trace。
 - **分享**：把呼叫複製為可執行的 `cURL` 指令、把完整細節複製為文字，或開啟系統分享面板（原生透過 `share_plus`、web 透過瀏覽器 Web Share API——不可用時退回剪貼簿）。
 - **Replay / Resend**：對於 interceptor 有提供 `sourceDio` 而擷取的請求，你可以在詳情頁觸發「Resend」動作，用同一個 Dio client（帶著相同 headers、base URL 與 interceptors）在本地重送請求。重送的請求會自動以帶「Replay」標籤的新項目出現，確認提示中直接顯示結果——收到回應時顯示狀態碼（`Resent → 200` / `Resent → 500`），未收到回應時顯示失敗類型（`Resend failed: <type>`，例如 `connectionError`, `receiveTimeout`）。
 - **慢請求**：耗時達到或超過 `slowRequestThreshold` 的呼叫會在此處與 Console 帶有 `🐢 SLOW` 標記，摘要橫幅也會進行統計。仍在等待回應的請求會從送出當下開始計算時間——其資料列顯示 `no response · 12s`——因此永遠沒有回傳的呼叫也能被抓出。該 badge 在列表 rebuild 時計算，不依賴額外計時器。
@@ -1132,7 +1161,7 @@ inspector.registerKeyValueSource(SecureStorageBrowserSource(storage));
 
 #### 填入裝置／App 標頭（可選）
 
-本套件**不**依賴任何 device-info plugin（也從不碰 `dart:io`，因此維持 WASM 相容）。沒有 source 時，標頭會降級為 `N/A`，報告仍完整產出。
+本套件**不**依賴任何 device-info plugin（僅在條件匯出後方匯入 `dart:io`，因此維持 WASM 相容）。沒有 source 時，標頭會降級為 `N/A`，報告仍完整產出。
 
 要填入它，把 `package_info_plus` 與 `device_info_plus` 加進**你自己的 App**，然後實作 `DiagnosticInfoSource`：
 
