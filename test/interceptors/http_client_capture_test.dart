@@ -1263,6 +1263,19 @@ void main() {
       expect(await utf8.decodeStream(await req.close()), '{"a":1}');
       expect(inspector.networkEntries.single.requestBody, '{"a":1}');
     });
+
+    // package:http sends the whole body as one chunk; only a bounded prefix
+    // may be copied, so the non-text tail past it is never seen (Q3).
+    test('a body sent as one large chunk is cut to its text prefix '
+        '(Q3)', () async {
+      final req = await client.postUrl(server.url('/echo'));
+      req.add([...List.filled(5 * kNetworkBodyMaxLength, 0x61), 0xFF]);
+      await (await req.close()).drain<void>();
+
+      final body = inspector.networkEntries.single.requestBody!;
+      expect(body, startsWith('aaaa'));
+      expect(body.length, kNetworkBodyMaxLength + kTruncatedMarker.length);
+    });
   });
 
   group('live Dio marker handshake (T12b)', () {

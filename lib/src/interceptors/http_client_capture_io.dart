@@ -612,14 +612,15 @@ class _Tee {
 
   void add(List<int> chunk) {
     total += chunk.length;
-    final cap = _cap;
-    if (cap != null && _copy.length >= cap) return;
-    _copy.add(chunk);
-    if (cap == null && _copy.length >= kImageSniffBytes) {
-      _cap = imageMimeType(_copy.toBytes()) != null
-          ? kImageMaxBytes
-          : _kTextCopyBytes;
+    // Sniff before copying: one chunk may be the whole body (package:http).
+    final need = kImageSniffBytes - _copy.length;
+    if (_cap == null && chunk.length >= need) {
+      final head = [..._copy.toBytes(), ...chunk.take(need)];
+      _cap = imageMimeType(head) != null ? kImageMaxBytes : _kTextCopyBytes;
     }
+    final room = (_cap ?? kImageSniffBytes) - _copy.length;
+    if (room <= 0) return;
+    _copy.add(chunk.length <= room ? chunk : chunk.sublist(0, room));
   }
 
   Uint8List takeBytes() => _copy.takeBytes();
