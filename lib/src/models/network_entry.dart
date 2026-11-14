@@ -70,8 +70,8 @@ class NetworkEntry implements TimestampedEntry {
   final String? requestBody;
 
   /// Real size in bytes of the request body as sent, when it was measured:
-  /// always for the HttpClient layer, for a `Uint8List` Dio body, and for a
-  /// body cut to [kNetworkBodyMaxLength]. `null` when it was not measured
+  /// for any non-empty HttpClient-layer body, for a `Uint8List` Dio body, and
+  /// for a body cut to [kNetworkBodyMaxLength]. `null` when it was not measured
   /// (e.g. a `FormData` summary); [requestSizeBytes] then counts the stored
   /// text.
   final int? requestBodyLength;
