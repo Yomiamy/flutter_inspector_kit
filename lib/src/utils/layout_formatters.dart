@@ -21,6 +21,12 @@ String formatConstraints(BoxConstraints constraints) =>
 String formatOffset(Offset offset) =>
     '(${_formatNumber(offset.dx)}, ${_formatNumber(offset.dy)})';
 
+/// Formats [color] as `#RRGGBB` in upper case, dropping alpha.
+String formatColor(Color color) {
+  final rgb = color.toARGB32() & 0xFFFFFF;
+  return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+}
+
 /// Formats an entire [chain] of [LayoutLevel] snapshots (target first) as
 /// plain text for clipboard copy or share export.
 String formatLayoutChain(
