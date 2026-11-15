@@ -1427,7 +1427,11 @@ git diff --stat
    - 全套 1005 個全綠，`layout_inspect/` 72 個全綠（目錄耗時約 2 秒增為約 4 秒，多出來的是「斷言沒有色碼列」那幾處要等滿 0.5 秒）。
    - 同一 project 目錄同時開多個 `flutter test` 行程，會互搶 `build/native_assets`（`OS Error: No such file or directory`、`Failed to code sign binary`），那是工具層的衝突，不是測試失敗；壓力測試請改用單一行程加 `--concurrency`。
 8. **S1 退路（`toImage`）**：把 Task 1「S1 退路程式碼」套進原型，Task 3、4 的 23 個新測試全過（輪詢 helper 版本重跑）；再把 `_capturePixel` 改成回傳 `Future.error(StateError('injected'))`，`reads the app pixel…` 得到 `null`，輸出中沒有 `injected` 未捕獲錯誤。
-9. **Task 1／Task 5 實機結果**：（待回寫）
+9. **Task 1／Task 5 實機結果**：
+   - **Task 1（2026-11-15）**：S1–S6 全部通過，使用者實機手測回報「皆可接受」；S2 閃爍判定可接受，維持 (A)。執行指令指向 iPhone 實機（`flutter devices` 的 `YiandayH`，debug 與 `--release`）與 Chrome（`-d chrome` 與 `--wasm`）；使用者未另報型號與 OS 版本。
+   - **未套用任何退路**：Task 3 程式碼區塊維持原樣（`toImageSync`，Web 不加 `kIsWeb` 關閉）。
+   - **spike 產物**：使用者要求以分支形式執行，spike 程式碼 commit 於本地分支 `spike/202611/251-layout-inspect-color-sampling`（`61fe345`，不合併）；spike worktree 已移除。Task 5 沿用比對的基準 diff 由 `git diff 6513be0 61fe345 --output=… -- lib/` 產生，存於 `$SCRATCHPAD/spike-lib.diff`（327 行）；scratchpad 被清空時可由同一指令重建。
+   - **Task 5**：（待回寫）
 
 ---
 
