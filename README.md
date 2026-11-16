@@ -138,6 +138,8 @@ For small targets such as a 16×16 icon, press and drag instead of tapping. Once
 
 To measure relative distances and gaps between widgets, tap the **Measure distance** ruler button on the inspection card. This locks the selected widget as reference **A** (blue border). Tapping any other widget selects target **B** (orange border), immediately drawing real-time ruler guidelines with numeric badges showing dual units: logical pixels (`dp`) and physical device pixels (`px`). You can still use the up/down arrows on target B to inspect spacing against its parent containers, and copying or sharing includes the complete measurement breakdown. Tap the ruler button again to exit measurement mode.
 
+Each time you tap or release, the card also shows the color actually displayed at that point — a swatch and `color: #RRGGBB` — and copying or sharing adds the same line. It is read from the screen pixel, not from the widget's declared color, and never includes the inspector's own outline, ruler, card, magnifier or FAB: they are hidden for the one frame in which the pixel is read, so the overlay flickers briefly. Over a platform view or texture (WebView, maps, video) or where the pixel is not fully opaque, the color row is left out. One exception to the exclusion: a card button's tooltip, if still showing from a long press, can end up in the sample.
+
 It needs no setup and works in every build mode, including release. Values are a snapshot taken when you tap or release; if the layout changes, select again. Nothing is written to the Timeline. In profile and release builds the card notes that type names may be obfuscated (when the app is built with `--obfuscate`).
 
 ### Add a custom tab
