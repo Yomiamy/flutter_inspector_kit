@@ -1431,7 +1431,7 @@ git diff --stat
    - **Task 1（2026-11-15）**：S1–S6 全部通過，使用者實機手測回報「皆可接受」；S2 閃爍判定可接受，維持 (A)。執行指令指向 iPhone 實機（`flutter devices` 的 `YiandayH`，debug 與 `--release`）與 Chrome（`-d chrome` 與 `--wasm`）；使用者未另報型號與 OS 版本。
    - **未套用任何退路**：Task 3 程式碼區塊維持原樣（`toImageSync`，Web 不加 `kIsWeb` 關閉）。
    - **spike 產物**：使用者要求以分支形式執行，spike 程式碼 commit 於本地分支 `spike/202611/251-layout-inspect-color-sampling`（`61fe345`，不合併）；spike worktree 已移除。Task 5 沿用比對的基準 diff 由 `git diff 6513be0 61fe345 --output=… -- lib/` 產生，存於 `$SCRATCHPAD/spike-lib.diff`（327 行）；scratchpad 被清空時可由同一指令重建。
-   - **Task 5**：（待回寫）
+   - **Task 5（2026-11-16）**：Step 1 重跑 Task 4 Step 4 全部指令，結果與預期一致：`layout_inspect/` 72 個全過、全套 1005 個全過、format 14 檔 0 changed、analyze 恰為既有 7 個 info、`pubspec.yaml`／匯出檔／六個既有測試檔對 `main` 零 diff、`layout_formatters_test.dart` numstat 為 `6 0`。Step 2 沿用條件成立：`git diff main -- lib/` 與 `git diff 6513be0 61fe345 -- lib/` 兩份 diff（各 327 行）`cmp` exit 0，`main` 仍為 `c2e1b6e`，故第 1、2、3、5 項沿用 Task 1 實機結果；第 4 項（標尺模式鎖定 Box 1、點 Box 2 後複製貼上，最後一行為 `color: #F44336`）由使用者實機補測，回報通過，未另報型號與 OS 版本。
 
 ---
 
