@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 /// A snapshot of one [RenderBox] level captured at tap time.
@@ -47,9 +51,12 @@ class LayoutLevel {
 }
 
 bool _probing = false;
+bool _hidden = false;
+final Set<_RenderLayoutProbeShield> _shields = {};
 
-/// Wraps a subtree so that it is invisible to [probeLayoutAt] hit tests while
-/// behaving identically to its child during normal pointer events.
+/// Wraps a subtree so that it is invisible to [probeLayoutAt] hit tests and
+/// to [sampleColorAt] captures, while behaving identically to its child
+/// otherwise.
 class LayoutProbeShield extends SingleChildRenderObjectWidget {
   const LayoutProbeShield({required super.child, super.key});
 
@@ -61,9 +68,122 @@ class LayoutProbeShield extends SingleChildRenderObjectWidget {
 
 class _RenderLayoutProbeShield extends RenderProxyBox {
   @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _shields.add(this);
+  }
+
+  @override
+  void detach() {
+    _shields.remove(this);
+    super.detach();
+  }
+
+  @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
     if (_probing) return false;
     return super.hitTest(result, position: position);
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (_hidden) return;
+    super.paint(context, offset);
+  }
+
+  // Reads RenderView.layer, which is @protected: legal only inside a
+  // RenderObject member.
+  ui.Image? _capturePixel(Offset globalPosition) {
+    final view = owner?.rootNode;
+    if (view is! RenderView) return null;
+    final root = view.layer;
+    if (root is! TransformLayer) return null;
+    final transform = root.transform;
+    if (transform == null) return null;
+    final p = MatrixUtils.transformPoint(transform, globalPosition);
+    if (_coversExternalSurface(root, Matrix4.identity(), p)) return null;
+    return root.toImageSync(
+      Rect.fromLTWH(p.dx.floorToDouble(), p.dy.floorToDouble(), 1, 1),
+    );
+  }
+}
+
+// Platform views and textures are composited outside the Flutter scene, so a
+// capture cannot see what they show on screen.
+// shortcut: clips and z-order are ignored, so a platform view clipped away
+// at the point, or covered there by opaque UI, still hides the color; refine
+// with clip intersection and paint order if that shows up in practice.
+bool _coversExternalSurface(Layer layer, Matrix4 transform, Offset point) {
+  final rect = switch (layer) {
+    PlatformViewLayer(:final rect) || TextureLayer(:final rect) => rect,
+    _ => null,
+  };
+  if (rect != null) {
+    return MatrixUtils.transformRect(transform, rect).contains(point);
+  }
+  if (layer is! ContainerLayer) return false;
+  for (var child = layer.firstChild; child != null; child = child.nextSibling) {
+    final childTransform = transform.clone();
+    layer.applyTransform(child, childTransform);
+    if (_coversExternalSurface(child, childTransform, point)) return true;
+  }
+  return false;
+}
+
+// shortcut: kit tooltips are drawn through OverlayPortal, outside any shield,
+// so one still showing after a long press (~1.5s) can end up in the sample;
+// wrap the tooltip overlay in a shield if that shows up in practice.
+void _setHidden(bool value) {
+  _hidden = value;
+  for (final shield in _shields) {
+    shield.markNeedsPaint();
+  }
+}
+
+/// Reads the on-screen color of the physical pixel under [globalPosition].
+///
+/// [anchor] must sit inside a [LayoutProbeShield]. Every shield subtree is
+/// left unpainted for one frame, so the result never contains kit UI.
+/// Completes with `null`, never with an error, when the displayed color
+/// cannot be known: a platform view or texture covers the point, the pixel is
+/// not fully opaque, or the capture fails.
+Future<Color?> sampleColorAt(RenderObject anchor, Offset globalPosition) async {
+  RenderObject? node = anchor;
+  while (node != null && node is! _RenderLayoutProbeShield) {
+    node = node.parent;
+  }
+  if (node is! _RenderLayoutProbeShield) return null;
+  final shield = node;
+
+  final captured = Completer<ui.Image?>();
+  SchedulerBinding.instance.addPostFrameCallback((_) {
+    try {
+      captured.complete(shield._capturePixel(globalPosition));
+    } on Object catch (_) {
+      // A failed capture only hides the color row (spec AC7).
+      captured.complete(null);
+    } finally {
+      _setHidden(false);
+    }
+  });
+  // Hide only once the callback that unhides is registered.
+  _setHidden(true);
+  final image = await captured.future;
+  if (image == null) return null;
+  try {
+    final bytes = await image.toByteData();
+    // Not fully opaque: what shows through is outside the Flutter scene.
+    if (bytes == null || bytes.getUint8(3) != 255) return null;
+    return Color.fromARGB(
+      255,
+      bytes.getUint8(0),
+      bytes.getUint8(1),
+      bytes.getUint8(2),
+    );
+  } on Object catch (_) {
+    return null;
+  } finally {
+    image.dispose();
   }
 }
 

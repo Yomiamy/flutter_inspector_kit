@@ -75,5 +75,11 @@ void main() {
         );
       },
     );
+
+    test('formatColor writes #RRGGBB in upper case without alpha', () {
+      expect(formatColor(const Color(0xFFAA00AA)), '#AA00AA');
+      expect(formatColor(const Color(0xFF00AA55)), '#00AA55');
+      expect(formatColor(const Color(0x80336699)), '#336699');
+    });
   });
 }

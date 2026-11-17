@@ -70,6 +70,8 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
   Timer? _copiedTimer;
   Offset? _aim;
   Offset _stackOffset = Offset.zero;
+  Color? _color;
+  int _sampleId = 0;
 
   @override
   void dispose() {
@@ -82,7 +84,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
 
   void _onTapUp(TapUpDetails details) {
     _stackOffset = details.globalPosition - details.localPosition;
-    _probeAt(details.globalPosition);
+    _settleAt(details.globalPosition);
   }
 
   void _onPanStart(DragStartDetails details) {
@@ -101,7 +103,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
   void _onPanEnd(DragEndDetails _) {
     final aim = _aim;
     setState(() => _aim = null);
-    if (aim != null) _probeAt(aim);
+    if (aim != null) _settleAt(aim);
   }
 
   // shortcut: probes on every pointer move; throttle to once per frame if
@@ -115,21 +117,29 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
     final anchor = context.findRenderObject();
     if (anchor == null) return;
     final hit = probeLayoutAt(anchor, globalPosition);
-    if (hit.isEmpty) {
-      _copiedTimer?.cancel();
-      setState(() {
-        _chain = const [];
-        _index = 0;
-        _copied = false;
-      });
-      return;
-    }
     _copiedTimer?.cancel();
+    // A new point: drop the old color and orphan any in-flight sample.
+    _sampleId++;
     setState(() {
       _chain = hit;
       _index = 0;
       _copied = false;
+      _color = null;
     });
+  }
+
+  void _settleAt(Offset globalPosition) {
+    _probeAt(globalPosition);
+    unawaited(_sampleAt(globalPosition));
+  }
+
+  Future<void> _sampleAt(Offset globalPosition) async {
+    final anchor = context.findRenderObject();
+    if (anchor == null || _chain.isEmpty) return;
+    final id = _sampleId;
+    final color = await sampleColorAt(anchor, globalPosition);
+    if (!mounted || id != _sampleId || color == null) return;
+    setState(() => _color = color);
   }
 
   void _onToggleRuler() {
@@ -154,6 +164,8 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
   }
 
   String _buildExportText() {
+    final color = _color;
+    final colorLine = color == null ? '' : '\n\ncolor: ${formatColor(color)}';
     final chainText = formatLayoutChain(
       _chain,
       mayBeObfuscated: widget.mayBeObfuscated,
@@ -168,9 +180,9 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
         relation: model.relation,
         devicePixelRatio: dpr,
       );
-      return '$chainText\n\n$measurementText';
+      return '$chainText\n\n$measurementText$colorLine';
     }
-    return chainText;
+    return '$chainText$colorLine';
   }
 
   Future<void> _onCopy([String? prebuiltText]) async {
@@ -260,6 +272,7 @@ class _LayoutInspectLayerState extends State<_LayoutInspectLayer> {
             lockedA: _lockedA,
             rulerModel: rulerModel,
             mayBeObfuscated: widget.mayBeObfuscated,
+            color: _color,
             copied: _copied,
             onParent: _index < _chain.length - 1 ? _onParent : null,
             onChild: _index > 0 ? _onChild : null,
@@ -377,6 +390,7 @@ class _LayoutInfoCard extends StatelessWidget {
     required this.lockedA,
     required this.rulerModel,
     required this.mayBeObfuscated,
+    required this.color,
     required this.copied,
     required this.onParent,
     required this.onChild,
@@ -392,6 +406,7 @@ class _LayoutInfoCard extends StatelessWidget {
   final LayoutLevel? lockedA;
   final RulerDisplayModel? rulerModel;
   final bool mayBeObfuscated;
+  final Color? color;
   final bool copied;
   final VoidCallback? onParent;
   final VoidCallback? onChild;
@@ -568,6 +583,7 @@ class _LayoutInfoCard extends StatelessWidget {
                           'offset: ${formatOffset(current.rect.topLeft)}',
                           style: ThemeTextStyle.monospaceStyle,
                         ),
+                        if (color case final sampled?) _ColorRow(sampled),
                         if (mayBeObfuscated)
                           const Padding(
                             padding: EdgeInsets.only(top: ThemeSize.space4),
@@ -593,6 +609,34 @@ class _LayoutInfoCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ColorRow extends StatelessWidget {
+  const _ColorRow(this.color);
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox.square(
+          dimension: ThemeSize.space12,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: color,
+              border: Border.all(color: ThemeColor.color9E9E9E),
+            ),
+          ),
+        ),
+        const SizedBox(width: ThemeSize.space4),
+        Text(
+          'color: ${formatColor(color)}',
+          style: ThemeTextStyle.monospaceStyle,
+        ),
+      ],
     );
   }
 }
