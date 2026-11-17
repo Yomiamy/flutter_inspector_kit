@@ -34,7 +34,7 @@
 | 🧊 **凍結幀捕捉（Frozen Frame Capture）** *(需 opt-in)* | 將每次渲染耗時達 700ms 或以上的幀（Android vitals 的凍結幀定義）記錄為 `warning` 等級的 Console log，附 wait / build / raster 細項拆解；連續凍結幀會自動合併為單一項目 | 開啟訂單列表後 App「卡頓了一秒」——時間軸在 2 MB JSON 回應後隨即顯示 `Frozen frame (1240ms) · OrderListPage`，確認停頓點發生在 UI 執行緒的資料解析，而非網路端 |
 | 🔔 **即時通知（Live Notification）** *(需 opt-in)* | 一則系統通知摘要最新一筆 API 呼叫與累計總數；點一下直接跳到 Network 分頁 | 在 App 內導覽時即時監看 API 流量——不必一直開著 dashboard；也適合驗證每個操作的 API 呼叫數是否合理（例如單一頁面載入就觸發數十筆呼叫，暗示有重複請求） |
 | 📐 **佈局邊界疊層（Layout Boundary Overlay）** *(僅 debug)* | dashboard app bar 上的格線按鈕可切換 Flutter 的佈局邊界疊層（`debugPaintSizeEnabled`）並立即重繪 App；在 debug 以外的環境自動隱藏 | 小螢幕上排版溢出——從 dashboard 快速切換疊層，在真實螢幕上檢視每個 widget 的外框與 padding，不必修改程式碼或開啟 DevTools |
-| 🎯 **點選與拖曳佈局檢查（Tap-to-Inspect Layout）** | 點選任何 widget 檢視其尺寸、constraints 與螢幕位置，沿父級鏈向上走訪，並將整條鏈複製或分享為文字；小尺寸目標可按住並拖曳瞄準，手指上方（近頂部邊緣則在下方）顯示放大鏡與十字準星；點選尺規圖示以 dp 和 px 雙單位測量與另一個 widget 的距離與間距；支援 release 模式 | 按鈕在 QA 裝置上被壓扁——點它查看 `constraints: 0.0 ≤ h ≤ 20.0`，向上走訪找到施加 20px 限制的父級，將精確數值貼進 bug ticket；透過十字準星瞄準手指遮蔽的 16×16 圖示；點選尺規驗證頭像與使用者名稱間距是否符合設計稿 12dp 規格 |
+| 🎯 **點選與拖曳佈局檢查（Tap-to-Inspect Layout）** | 點選任何 widget 檢視其尺寸、constraints、螢幕位置與實測像素色碼（`#RRGGBB`），沿父級鏈向上走訪，並將整條鏈複製或分享為文字；小尺寸目標可按住並拖曳瞄準，手指上方（近頂部邊緣則在下方）顯示放大鏡與十字準星；點選尺規圖示以 dp 和 px 雙單位測量與另一個 widget 的距離與間距；支援 release 模式 | 按鈕在 QA 裝置上被壓扁——點它查看 `constraints: 0.0 ≤ h ≤ 20.0` 與實際顯示的 `color: #1E88E5`，向上走訪找到施加 20px 限制的父級，將精確數值貼進 bug ticket；透過十字準星瞄準手指遮蔽的 16×16 圖示；點選尺規驗證頭像與使用者名稱間距是否符合設計稿 12dp 規格 |
 | 👆 **神奇點擊與浮動按鈕（Magical Tap & Floating Button）** | 用隱藏的多次點擊手勢，或可拖曳的 App 內 FAB 打開 dashboard | 內嵌進 release build 作為隱藏的診斷入口——當 QA 或使用者遇到問題，當場觸發 inspector 做初步錯誤分流，不必重建 debug 版或翻原始碼 |
 | 🧩 **自訂分頁（Custom Tab）** | 透過 `FlutterInspector(customTab: ..., customTabTitle: ...)` 注入你自己的 widget 作為第 5 個 dashboard 分頁——與 Console / Network / Navigator / Database 並列 | 把 App 專屬的偵錯工具擺在內建 inspector 旁邊——feature-flag 開關面板、當前 auth/session 狀態、或「清快取」按鈕——讓團隊的臨時診斷全集中在一處，不必另開一個 debug 畫面 |
 
@@ -62,7 +62,7 @@
 
 ```yaml
 dependencies:
-  flutter_inspector_kit: ^3.0.0
+  flutter_inspector_kit: ^3.1.0
 ```
 
 接著執行 `flutter pub get`。

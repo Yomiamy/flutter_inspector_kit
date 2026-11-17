@@ -1,3 +1,8 @@
+## 3.1.0
+
+### Added
+* **Settled-point color sampling in Layout Inspect**: Every tap or drag release now samples the physical pixel color actually rendered at that point, shows a swatch with `color: #RRGGBB` on the inspection card, and appends the same `color: #RRGGBB` line to copy and share exports (including ruler-mode exports, representing the settled point). Inspector UI (outline, ruler, card, magnifier and FAB) is hidden for the single capture frame via `LayoutProbeShield` so the overlay never tints the sample, and points over a platform view or texture or with non-opaque pixels omit the color row without showing errors. Works in debug, profile and release builds.
+
 ## 3.0.0
 
 ### Breaking changes
