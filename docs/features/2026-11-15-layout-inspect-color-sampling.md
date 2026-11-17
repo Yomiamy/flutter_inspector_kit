@@ -1,7 +1,7 @@
 # 功能規格：Inspect layout 結算點取色 (Settled-Point Color Sampling)
 
 - **日期**：2026-11-15
-- **來源**：gen-grill 需求 brief（2026-11-15 已與使用者逐項確認）。此功能原列於 [`2026-10-31-layout-inspect-touch-loupe.md`](2026-10-31-layout-inspect-touch-loupe.md) §4「不做（使用者已確認）」（:93「取色器」），性質是延後處理，當時沒有否決理由。`docs/brainstorm/2026-11-15-features-brainstorm.md` 沒有對應條目，所以不編 §P 號。
+- **來源**：gen-grill 需求 brief（2026-11-15 已與使用者逐項確認）。此功能原列於 [`2026-10-31-layout-inspect-touch-loupe.md`](2026-10-31-layout-inspect-touch-loupe.md) §4「不做（使用者已確認）」（:93「取色器」），性質是延後處理，當時沒有否決理由。`docs/brainstorm/2026-11-18-features-brainstorm.md` 沒有對應條目，所以不編 §P 號。
 - **Effort**：估計 **Medium**。取色是套件裡沒有的新能力，「排除 inspector 自己畫的東西」與非同步競態都需要設計 ｜ **排查價值**：⭐⭐⭐
 
 > ⚠️ **部分不可行：平台視圖區域無法取得實際顯示色。** Flutter 的畫面擷取（`Scene.toImage` 系列）只包含 Flutter 自己合成的 layer，不含平台視圖（WebView、`HtmlElementView`、原生地圖等）的像素。Web 端已在本機 SDK 實查：toImage 專用的 `PaintVisitor.forToImage` 把 `viewEmbedder` 設成 `null`（`flutter_web_sdk/lib/_engine/engine/layer/layer_visitor.dart:474`），`visitPlatformView` 什麼都不畫（`:730-733`）。原生端的 engine 原始碼不在本機，尚未實查，但一般認為限制相同。因此「色碼 = 畫面上實際顯示的像素色」在平台視圖上做不到。本規格的處置：這類點視同「取色失敗」，**不顯示色碼列，也不能顯示錯誤的顏色**（AC7）。偵測方式交給 STAGE 0b（§6 Q6）。
