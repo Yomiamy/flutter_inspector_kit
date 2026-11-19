@@ -131,12 +131,21 @@ description: |
     │  🪶 Ponytail：第五 lens「過度工程/可簡化」找    │
     │     計畫外抽象；僅 plan 外加料 / 刪即更小 diff  │
     │     兩種情況阻擋退回，與安全衝突時安全勝出      │
-    │  ⏸ 暫停：展示審查報告，問「確認繼續嗎？」         │
-    │  ┌─ 使用者確認（通過）                      ─┐   │
-    │  └─ 不通過 / 使用者要求修正                   │   │
-    │       → 退回 STAGE 2 修正 → 再回 STAGE 3 ───┘   │
+    │  → 依報告首行 REVIEW: PASS|CONCERNS|FAIL 寫入   │
+    │    wf-state.sh set <檔> review_verdict=<V>      │
+    │    （CONCERNS 同一次 set 帶 review_concerns）   │
+    │    → stage-done 3                               │
+    │  ⏸ 暫停：展示審查報告＋歷次退回理由，           │
+    │     問「確認繼續嗎？」                          │
+    │  ┌─ PASS / CONCERNS → advance 4            ─┐   │
+    │  └─ FAIL / 使用者要求修正                   │   │
+    │      → advance 2 --reason "<摘要>" 退回修正 │   │
+    │      → 再回 STAGE 3（進 3 自動清空裁決）────┘   │
+    │  ⏸ 第 3 次起退回被腳本拒絕（任何 pause_level）：│
+    │     展示歷次退回理由，使用者擇一：再修（帶      │
+    │     --confirmed）／改判 CONCERNS 留案發布／放棄 │
     └──────────────────────┬──────────────────────────┘
-                           │ 使用者確認通過
+                           │ 裁決 PASS／CONCERNS（且使用者確認）
                            ▼
     ┌─────────────────────────────────────────────────┐
     │  STAGE 4：發布                                    │
@@ -227,11 +236,11 @@ description: |
 | 實作計畫完成後 | 展示實作計畫（任務清單、檔案異動）與 plan-verifier 初審摘要，問「確認開始實作嗎？」 | 使用者確認 |
 | Issue + 分支建立前 | 展示 Issue 標題、描述內容、分支名稱，問「確認建立嗎？」 | 使用者確認或修改後確認 |
 | 每個實作任務完成後 | 展示變更檔案清單 + 測試結果，問「確認繼續下一個任務嗎？」 | 使用者確認 |
-| 審查報告完成後 | 展示完整審查報告，問「確認繼續發布嗎？或需要修正？」 | 使用者確認 → STAGE 4，或退回 STAGE 2 |
+| 審查報告完成後 | 展示完整審查報告（含首行裁決；`rework_history` 非空時一併列出歷次退回的 `at` + `reason`），問「確認繼續發布嗎？或需要修正？」 | `PASS`／`CONCERNS` 且使用者確認 → STAGE 4；`FAIL` 或要求修正 → `advance 2 --reason` 退回 STAGE 2 |
 | 遇到模糊需求 | 問最小必要問題（≤ 2 個），不要問多 | 使用者回答後自動繼續 |
 | PR 草稿完成後 | 展示草稿，問「確認發布嗎？」 | 使用者確認 |
 
-**不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 0b plan-verifier 初審打回（REVISE）自動重修（最多 2 次；第 2 次仍為 REVISE 則停止並等待使用者決策，不再自動處理）、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見 [`references/delegation-and-parallel.md`](references/delegation-and-parallel.md)）。
+**不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 0b plan-verifier 初審打回（REVISE）自動重修（最多 2 次；第 2 次仍為 REVISE 則停止並等待使用者決策，不再自動處理）、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2（**僅前 2 次**；第 3 次起任何 `pause_level` 都停，見下方暫停粒度）、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見 [`references/delegation-and-parallel.md`](references/delegation-and-parallel.md)）。
 
 **主動中斷（非暫停）：** context > 150k 時依 Token Budget Gate 主動保存並切 session，這**不是暫停點，是保護性中斷**——續接時不問「繼續還是開新流程」，直接接回原 stage（見 [`references/token-budget-gate.md`](references/token-budget-gate.md)）。
 
@@ -247,7 +256,9 @@ description: |
 |:---|:---|:---|:---|
 | `strict`（預設） | 全停（上表七項） | **每個任務都停** | 不熟的功能、要盯著看 |
 | `balanced` | 只停 `0b` 計畫確認 / `2` 實作整體完成 / `4` PR 發布前 | **不停** | 計畫已看過，想一路跑到 PR |
-| `autonomous` | 全不停 | 不停 | 批次佇列、純機械性改動 |
+| `autonomous` | 全不停（例外見下） | 不停 | 批次佇列、純機械性改動 |
+
+> **唯一跨 level 的例外：STAGE 3 第 3 次起的退回。** `rework_history` 已有 2 筆時，`advance <檔> 2` 未帶 `--confirmed` 會被腳本拒絕——不看 `pause_level`，`balanced`／`autonomous` 也停。此上限在 sequence 由腳本完整強制；jump 下是軟約束（可被繞過，見 state-machine.md），主對話仍須照此停下。拒絕訊息列出歷次 `at` + `reason`，原樣展示給使用者，由使用者決定：再修（確認後帶 `--confirmed` 重跑）、改判 `CONCERNS` 並寫入 `review_concerns` 後推進 STAGE 4，或放棄。沒有其他覆寫旗標；`FAIL` 不能靠 `--confirmed` 推進 STAGE 4。
 
 **等價的自然語言**（使用者不打選項時，下列說法一律解析為對應 level）：
 
