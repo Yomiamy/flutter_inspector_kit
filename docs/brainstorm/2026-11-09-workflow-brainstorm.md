@@ -3,6 +3,11 @@
 > **📝 合併紀錄**：
 > 本文件整併了 `2026-07-17` 與 `2026-07-30` 的腦力激盪記錄。依據時間軸與完成度，前半部記錄歷史遺留 Bug、流程漏洞的分析與修復；後半部基於系統穩固的基礎，進行開源多 Agent 框架的深度比對，並提出 2.0 架構的具體優化提案。
 >
+> **2026-11-18 新增第九、十、十一部分（外部三大工作流體系實查比對：`ccg-workflow`、`gstack`、`Fable-Orchestrator` 查證與公開 `*/fable-orchestrator` 生態系）**：
+> - **第九部分 `fengshao1227/ccg-workflow`（`v3.7.4`，`HEAD=2f12cc5f7862437e46ff498ad844ca62c65e77aa`，5,982★）**：TS CLI + Go 5.16.0 多模型橋接器 + Hook 抗壓縮注入（`SessionStart`、`UserPromptSubmit`、`PreToolUse updatedInput`）+ `/ccg:go` 10 策略路由 + `dsh-ccg` 機械式檔案衝突拒絕。提煉 **F1–F6 共 6 項**（`PreToolUse(Agent)` `updatedInput` 注入、`SessionStart` 重注入、並行 `owns` 碰撞拒絕、跨模型 Unified Diff 隔離重寫、PBT 不變式萃取、環境健檢 `doctor`）。
+> - **第十部分 `garrytan/gstack`（`v1.100.0.0`，`HEAD=fda9dea79f131d7731259b9275fc82c04387ca37`，141,990★）**：Bun/TS/bash 單人全棧工程工廠（5,615 tree entries、`.tmpl` 多宿主編譯與 preamble 提升、`freeze`/`careful` fail-closed 護欄、`readSettledTranscript` 有限次 `Stop` 契約、`pregate.json` 與三層評測）。提煉 **G1–G6 共 6 項**（`Edit/Write` worktree 凍結 + `Bash` 護欄、settled-transcript `Stop` 門檻、`tree` 雜湊驗收收據 + `origin/main` 基準、`MISSING COVERAGE` 誠實退化 + 雙層 timeout、雙 harness 等價測試 + 寫前防注入遮罩、`Earn Its Place` 63-skill catalog 與 7 孤兒 agent 剪枝）。
+> - **第十一部分 `Fable-Orchestrator` 查證與公開 `*/fable-orchestrator` 生態系**：實證 `gh api users/Fable-Orchestrator` 回傳 HTTP 404、`Fable-Orchestrator/Fable-Orchestrator` 無法解析（若公開 GitHub 外存在同名私有倉庫則無法存取、不作臆測）；同步實查 GitHub 上 4 個公開實作（`codejunkie99/fable-orchestrator` 614★ `e6345e56`、`100yenadmin/fable-token-saving-skills-orchestrator` 103★ `cf1d9a31`、`Rylaa/fable5.2-opus5.5-orchestrator` 86★ `f061e453`、`BuildContext/fable-orchestrator` 4★ `ff39e8cb`），聚焦「高階架構師 + 省額度車道」工程模式，提煉 **H1–H5 共 5 項**（40 行回報上限 + 暫存落盤、200 行預消化 + 5 分鐘 cache 密集回合、Exit-First `^STATUS:` + 禁對唯讀 agent 誤傳 `name`、計畫期反空談 `Stop` 守衛、外部裁判無工具封包上限）。
+>
 > **2026-10-25 新增第八部分（並完成 §2.7 / §5 / §6 / §7 四大上游最新版追蹤更新）**：**`cursor/plugins/pstack` (`poteto-mode`, v0.15.32 `9580c23`) 深度工程與跨模型對抗體系比對**。
 > 作者為 Lauren Tan（`@poteto`，Cursor 核心工程師、React Compiler 成員）。與前幾部分的差異：§5 addyosmani 比廣度與 CI 規範、§6 mattpocock 比前置需求對齊、§7 pilotfish 比單 session 微觀派發經濟學；§8 `pstack` 則是**「Go deep first, fearless parallelism, anti-slop & cross-model verification」**的實戰工程系統（1 路由入口 `/poteto-mode` + 23 playbooks + 34 situational skills + 24 principle skills）。提煉出 **E1–E9 共 9 項高投報可借鏡設計**（含 `correct` 四層防禦升級階梯 + 規則↔強制器配對表、`blast-radius` 單一安全事實 5 級實證階梯、`show-me-your-work` TSV 決策軌跡與跨模型 transcript 稽核、提問前經驗性分叉分類器與禁用 subagent resume、`attack-the-premise` 兩敗質疑前提熔斷律、`worktree-audit.sh` 唯讀 5 桶盤點、`bugbot-triage.md` 機器審查誤報模式庫等）。
 >
@@ -3042,3 +3047,287 @@ pilotfish v1.5.0（commit `44a2140`）透過 `benchmarks/effort-selection/` 實�
 | **`statechart` 完整 TLA+ / TLC 形式化驗證工具鏈（19 支 `.mjs` + 自動下載 305MB Java/TLC）** | 對分散式協定或共識演算法極有價值，但本 package 為單機記憶體內 Flutter debug 工具，引入 305MB Java/TLC 屬於過度工程（Over-engineering），以 Dart 單元測試與狀態機測試覆蓋即可。 |
 
 > **📌 E1–E9 共 9 項為 2026-10-25 新增提案，其中 E4、E5、E8 為極低成本（幾行文字即可嵌入既有 skill/agent），落地後應即時回寫本表。**
+
+---
+
+## 🟦 第九部分：fengshao1227/ccg-workflow 多模型編排架構比對 (2026-11-18)
+
+> **來源**：<https://github.com/fengshao1227/ccg-workflow>
+> **查證方式**：以 `gh repo view` 與 `gh api` 唯讀實查 `v3.7.4`（`HEAD` `2f12cc5f7862437e46ff498ad844ca62c65e77aa`，`2026-11-02T03:12:32Z`，5,982★），逐檔檢視 `package.json`、612 筆 recursive tree、`src/utils/{installer,installer-template,installer-data,config,skill-manager,skill-activation,skill-registry,doctor-checks}.ts`、`templates/hooks/{session-start,workflow-state,subagent-context,skill-router,task-utils}.js`、`templates/codex/hooks/ccg-workflow.py`、`templates/commands/{go,context,commit,spec-plan,spec-impl,spec-review}.md`、`templates/engine/{model-router,phase-guide,strategies/full-collaborate}.md`、`codeagent-wrapper/{backend,executor,config,parser,server}.go`、`templates/skills/` 品質腳本及 `dsh-ccg/src/{index,team,crosscheck,memory,knowledge}.js`。本地側以 `2026-11-18`（`HEAD` `0bc03b7`，PR #254）實測現況對位。
+>
+> **定位與前幾部分的差異**：
+> - §5 `addyosmani` 比廣度、§6 `mattpocock` 比前置對齊、§7 `pilotfish` 比單 session 微觀派發、§8 `pstack` 比深度工程與反 slop。
+> - 本部分 `ccg-workflow` 則是**「跨 CLI 異質多模型編排與 Hook 抗壓縮注入引擎」**：主力透過編譯好的 Go 5.16.0 二進位橋接器（`codeagent-wrapper`）統一 7 個模型後端（`codex`、`claude`、`gemini`、`antigravity`、`grok`、`kimi`、`opencode`），同時演進出三種環境綁定型態（npm CLI 靜態模板注入、Claude Code 多層 Hook、以及重寫為 DeepSeek Harness plugin 的 `dsh-ccg/`）。
+>
+> **核心結論**：我們在**單一 repo 確定性狀態機棘輪（`wf-state.sh`）**、**實體 Git Worktree 隔離**與**跨 worktree `exit 2` 硬阻斷**上大幅領先，且 `ccg-workflow` 自身存在三套重疊 context 機制（`.ccg/` vs `.context/` vs `openspec/`）與偏弱的 regex 靜態檢查（`quality_checker.js` 僅對 `.py` 做真實 AST/複雜度分析）；但他在 **Hook 端 `PreToolUse(Agent)` `updatedInput` 靜默注入**、**`SessionStart` 抗 `/clear` 重注入**、**`dsh-ccg` 機械式檔案所有權拒絕（`pathsCollide()`）**以及**外部模型唯讀 Unified Diff 隔離重寫**上，給出了本專案目前完全空白的精準解法。
+
+### 1. 系統概覽
+
+**`fengshao1227/ccg-workflow`（`v3.7.4`，`2f12cc5`）**：由四大層構成（612 個 tree entries）：
+1. **TypeScript 安裝與管理 CLI（`bin/ccg.mjs`、`src/`）**：`cac` CLI 提供 `init`、`update`、`doctor`（`doctor-checks.ts` 輸出 `schemaVersion: 1` `DoctorReport`）、`skills`（`skill-manager.ts` content-addressed SHA256 快照 + `withLock` + 原子 symlink rollback）、`dsh`、`codex-mode` 等指令；安裝時透過 `installer-template.ts` 將 `~/.claude/.ccg/config.toml` 的模型路由與 `{{MCP_SEARCH_TOOL}}` 靜態展開進模板，並於 `~/.claude/hooks/ccg/package.json` 寫入 `{ "type": "commonjs" }` 隔離 ESM 專案衝突。
+2. **Go 多模型橋接與 DAG 執行器（`codeagent-wrapper/` `v5.16.0`）**：以單一 `UnifiedEvent` parser 統一 7 個 CLI 後端之 NDJSON stream，支援 `--parallel` Kahn 拓撲排序 DAG、Unix process-group / Windows `taskkill` 樹狀回收、以及綁定 `127.0.0.1` 的 SSE 即時監看頁面（`server.go`）。
+3. **Claude / Codex Hook 引擎（`templates/hooks/`、`templates/codex/hooks/`）**：綁定 `SessionStart`（`startup|clear|compact`）、`UserPromptSubmit`（`workflow-state.js` `.turns.json` 迴圈偵測 + `skill-router.js` `intentGuard`）與 `PreToolUse(Bash|Agent)`（`subagent-context.js` `updatedInput` 注入），另為 Codex 提供 `ccg-workflow.py` 自適應風險檢查與 subagent 防遞迴通知。
+4. **策略引擎與 `dsh-ccg/` 重寫層**：`/ccg:go` 以 7×3 矩陣路由至 10 套策略（S 級免建任務資料夾；M/L/XL 走 `full-collaborate.md` 六階段 + `MAX_ROUNDS=3` Ralph Loop）；`dsh-ccg/` 則針對 Claude Code 實戰痛點重寫出 `pathsCollide()` 硬拒絕與 `crosscheck` 不平均多模型面板。
+
+**`gen-dev-workflow`（本專案 `2026-11-18` `0bc03b7` 實況）**：**63 個 skills**、**15 個 `.claude/agents/*.md`**（同步對應 15 個 `.agents/agents/*.yaml`，含 8 個主流程角色與 7 個獨立/未引用 profile）、**4 份 `.claude/rules/`**、**`SKILL.md`（281 行，15,373 chars / 26,423 bytes）+ 8 份 `references/`**、**430 行 `wf-state.sh`**（含 `done→5`/`done→6` 轉移與 `total_tasks` 閘門）、**4 支 hooks + 5 支 hook 測試**（`.claude/settings.json` 掛載 `wf-guard-stage-check.sh` 與 `wf-guard-delegate-cwd.sh`，PR #220 加上 `"onFailure": "block"`）、`CLAUDE.md` 基線 **981 tests**（無 `.github/` CI）。
+
+### 2. 機制對位矩陣
+
+| 面向 | `fengshao1227/ccg-workflow` (`v3.7.4`) | `gen-dev-workflow`（本專案 `2026-11-18`） | 判定 |
+|:---|:---|:---|:---|
+| **跨模型架構** | Go 5.16.0 wrapper 驅動 7 家外部 CLI（`codeagent-wrapper`）+ `dsh-ccg` API 直連面板 | Claude 原生 `Agent` + `gemini-mcp-tool@1.1.8` MCP 單一外部橋接 | 各擅勝場（他廣、我們零外部二進位依賴） |
+| **狀態持久化與生命週期** | `.ccg/tasks/*/task.json` + `.turns.json` + 歸檔；另有 `.context/` 與 `openspec/` 並存 | 單一 `wf-state.sh`（430 行 `jq` 原子寫入）+ `legal_transition()` 棘輪（涵蓋 STAGE 0a–6 與 `done→5`/`6`） | **我們更內聚且無多套 state 漂移** |
+| **Subagent 上下文注入** | `PreToolUse(Bash|Agent)` `subagent-context.js` 用 `updatedInput` 直接改寫 `toolInput.prompt` 並依 role 過濾 `context.jsonl` | 僅 `PreToolUse(ask-gemini)` 檢查 prompt 是否含目標 worktree 路徑；`Agent` 派發全靠主模型手寫 prompt | **他大勝**（Claude `additionalContext` 不進 teammate，他精準破局） |
+| **Compaction / `/clear` 續接** | `SessionStart` (`startup\|clear\|compact`) 自動重注入 `<ccg-session>` 活躍任務與 git 狀態 | 無 `SessionStart` hook；`batch` 手動 `/clear` 後需人喊「繼續批次」或手動跑 `wf-state.sh` | **他勝** |
+| **工作區與檔案衝突隔離** | 無內建強制 worktree（`/ccg:worktree` 為可選）；但 `dsh-ccg` 有 `pathsCollide()` 機械拒絕同目錄所有權重疊 | 強制實體 Git Worktree + `wf-guard-delegate-cwd.sh` 雙端 Git 差集監控；但**同 worktree 內並行**靠散文規則防互踩 | **互補**（我們缺並行 `owns` 碰撞檢查） |
+| **迴圈與卡死偵測** | `workflow-state.js` `.turns.json` 連 3 輪同 `phase\|nextAction` 觸發 `BREAK-LOOP PROTOCOL` | 既有待辦 **§3.6 R12(a)**（`issues_hash`/上限 3）與 **E5**（兩敗質疑前提），尚未寫成 `UserPromptSubmit` hook | **同向設計**（他的 `.turns.json` 可作 **R12(a)** 實作參考） |
+| **PR / Review / 清理閉環** | 有 `/ccg:commit`、`/ccg:rollback`（對應 **§3 提案 2**）、`/ccg:clean-branches`，缺結構化 PR review 回覆機 | 完整 STAGE 4（`publisher` `@me` + Project `In Progress`）→ 5（`responder` hook 守門）→ 6（同步文件 + 清理 + `/retro`） | **我們完勝** |
+| **靜態檢查與安全閘門** | `quality_checker.js`（非 `.py` 只查行數）、`security_scanner.js`（15 條 regex）、`change_analyzer.js`（對應 **§8.2 A5**） | Dart 官方靜態分析 `flutter analyze` + 981 tests + `verifier` 三態契約（`PASS / FAIL: CODE / FAIL: INFRA`） | **我們完勝**（他屬脆弱 regex 假把式） |
+
+### 3. 他的關鍵設計（我們沒有或可深化的）
+
+#### 3.1 `PreToolUse(Agent)` `updatedInput` 確定性注入 + Role-Filtered Context（`templates/hooks/subagent-context.js:138-151`）
+`subagent-context.js` 揭露了一個關鍵的 Claude Code Runtime 細節：在 `PreToolUse` Hook 中回傳 `additionalContext` **只會進入呼叫端（Lead）的對話**，不會進入新建立的 Subagent / Teammate 的初始 prompt。因此它在偵測到 `Agent(team_name=...)` 時，直接回傳 `updatedInput: { ...toolInput, prompt: "${injected}\n\n---\n\n${toolInput.prompt}" }`，並依推導出的角色（`implement`/`review`/`research`/`debug`）從 `context.jsonl` 篩選對應條目與截斷版 `requirements.md`（2,000 chars）/ `plan.md`（3,000 chars）/ `research/*.md`（1,500 chars）。
+- **對位本專案**：我們的 `wf-guard-delegate-cwd.sh` 僅攔截 `mcp__gemini-cli__ask-gemini` 檢查路徑有無漏寫，而 `Agent` 派發時 `wf-guard-stage-check.sh` 只驗 STAGE 5 `responder` 狀態，完全沒有透過 `updatedInput` 自動注入「當前 worktree 絕對路徑 + spec/plan 路徑 + 角色約束」。
+
+#### 3.2 `SessionStart (startup|clear|compact)` 主動重注入（`templates/hooks/session-start.js`）
+透過在 `settings.json` 綁定 `SessionStart`（`matcher: 'startup|clear|compact'`），每次開啟、執行 `/clear` 或自動壓縮後，自動往上找 `.git` 根目錄、盤點當前分支與未結案 `task.json`、再注入精簡 `<ccg-session>`。
+- **對位本專案**：本專案目前**零 `SessionStart` hook**。在 `execution-modes.md` 的 `batch` 模式中，使用者必須手動 `/clear` 再輸入「繼續批次」；一旦對話歷經 compaction，主要進度也依賴模型主動執行 `wf-state.sh get` 才會浮現。
+
+#### 3.3 `dsh-ccg` 機械式檔案所有權衝突拒絕（`dsh-ccg/src/memory.js`, `dsh-ccg/src/team.js`）
+`dsh-ccg/src/memory.js` 註解直指 Claude Code 多 Agent 實戰的真實痛點：**「協調者在 compaction 後常忘記誰擁有哪個檔案，甚至親手編輯或重疊派發 teammates 的檔案」**。因此它在儲存層實作 `pathsCollide()` 正規化檔案路徑與 glob，一旦新派發任務宣告的 `owns` 與既有活躍隊員重疊，**直接在工具層機械拒絕派發**（並具備 `release` 與 `sweepStale` 回收）。
+- **對位本專案**：我們的 `wf-guard-delegate-cwd.sh` 只防「worktree vs 主 repo」跨樹越界，**同一 worktree 內**在 STAGE 2 `workflow-parallel.md` 平行派發多個 `implementer` 時，「修改檔案不重疊」仍完全依賴 `delegation-and-parallel.md` 的散文「並行三規則」。
+
+#### 3.4 外部模型唯讀 Unified Diff Patch + 強制重寫與副作用審查（`templates/commands/spec-impl.md`）
+`spec-impl.md` 規定：所有外部模型（如 Codex/Gemini）產出實作時**嚴禁寫檔權限**，一律強制輸出 `Unified Diff Patch format ONLY`；主模型必須將外部產出的 prototype 依專案風格**重寫為生產級程式碼**，並執行 Side-Effect Review 檢查表後才落地。同方向亦見於 `dsh-ccg/src/crosscheck.js`（`ccg.panel/1`）：明確禁止對多模型結果投票或平均（_"Nothing here votes or synthesises... every answer comes back verbatim"_），把真實分歧完整保留給持有上下文的協調者。
+- **對位本專案（與 `§W2:2012, 2039` 邊界對齊）**：本專案在 `§W2` 已明確將「全面限制外部委派僅做唯讀分析」標為 `⏸ 保留`（避免自廢 STAGE 2 `implementer` 與 `token-budget-gate.md:9` 100k–150k 委派寫碼能力），且認定提示詞無法取代 `wf-guard-delegate-cwd.sh` Sensor 的安全邊界（`§W2:2039`）。因此借鏡此機制時，**嚴格限縮於「選用之跨模型 Prototype / 實作建議諮詢模式」**（不取代 STAGE 2 主力寫檔委派）：作為輸出格式契約要求回傳 Unified Diff + 主端依 `flutter-styles.md` 重寫與執行副作用檢查（與 **H5** 的「無工具架構/除錯諮詢 3 次上限」分工互補）。
+
+#### 3.5 與既有待辦交疊之機制對照（不重複開號）
+- **`.turns.json` 3 輪同態 `BREAK-LOOP PROTOCOL`**（`workflow-state.js`）：可作為既有 **§3.6 R12(a)**（`issues_hash` / 3 次上限）在 `UserPromptSubmit` hook 層的實作參考；
+- **`intentGuard` 關鍵字防誤觸發守衛 + 8,000 字元上限**（`skill-router.js`）：為既有 **§5 B2**（Context 自動偵測啟動 skill）補上關鍵護欄——僅出現關鍵字不等於使用者下令立即執行，且注入上限嚴控在 2 檔 × 120 行 / 8,000 chars；
+- **`spec-plan.md` `[AMBIGUITY] → [REQUIRED CONSTRAINT]` 與 PBT `[INVARIANT] → [FALSIFICATION STRATEGY]`**：其中「消滅模糊決策」已被我方 **D1 (`plan-verifier`)** 覆蓋，但 **PBT 不變式與證偽策略萃取** 屬淨新強化；
+- **`Spec Evolution Protocol`**（`phase-guide.md §8` 收尾經 `[Y/n]` 確認寫入規則）與 **`.context/history/commits.jsonl`**（`context.md`/`commit.md`）：分別與已落地的 **C5 (`retro`)** / **E1** 及既有待辦 **§3.6 R9 / E3** 同向；
+- **`doctor-checks.ts`**（`DoctorReport` 環境健檢）：與靜態結構檢查 **§8.2 A1** 互補——`A1` 檢 skill/agent 定義檔語法，`doctor` 檢執行期環境（`jq`、`gh auth` `project` scope、殘留 `alwaysThinkingEnabled`、hook 可執行性）。
+
+### 4. 我們的關鍵優勢（他沒有的）
+
+1. **單一狀態機檔案 + 強資料結構收斂 vs 三套重疊上下文系統**：`ccg-workflow` 同時維護 `.ccg/tasks/` + `.ccg/spec/`、`.context/`（`prefs/` + `history/commits.jsonl`）與 `openspec/` 三套機制，且文件承認 `CLAUDE.md` 與 `planner.md` 殘留舊版 `{{MCP_SEARCH_TOOL}}` / `.claude/plan/` 漂移；我們只有單一 `wf-state.sh`（430 行）與 `docs/{features,plans}/`，零多頭馬車。
+2. **實體 Git Worktree 強制隔離 + Git 差集 Sensor**：我們的 `brancher.md` 強制 M/L/XL 任務建立物理 worktree（含 `git hash-object` 逐檔雜湊驗證搬移），並由 `wf-guard-delegate-cwd.sh` 實測前後工作樹差集；`ccg-workflow` 主流程 `/ccg:go` 將 worktree 留作可選指令，多數任務仍在同一工作樹執行。
+3. **Hook 層 Fail-Closed（`exit 2` + `"onFailure": "block"`）與無狀態殘留**：`.claude/settings.json` 已透過 PR #220 鎖死 `"onFailure": "block"`，且 `wf-guard-stage-check.sh` 實測 `exit 2` 攔截越級派發；反之 `ccg-workflow` 雖在 `templates/codex/hooks/ccg-workflow.py:68-116` 設計了風險守衛，該檔 `has_test_output` 卻永遠維持 `False`（死狀態旗標）。
+4. **語言級真實靜態分析 + 981 Tests 門檻**：Dart 原生 `flutter analyze` 與 981 個單元/Widget 測試遠勝 `ccg-workflow` 僅對 Python 有效、對其他語言只數行數的 `quality_checker.js` 與 regex 版 `security_scanner.js`。
+
+### 5. 建議借鏡（按投報比排序，F1–F6）
+
+| 順位 | 借鏡項 | 做法 | effort | 狀態 |
+|:---:|:---|:---|:---:|:---|
+| 1 | **F1** `PreToolUse(Agent)` `updatedInput` 角色上下文自動注入 | 擴充 `.claude/hooks/`：偵測 `Agent` 派發時依當前 active `wf-state` JSON 自動以 `updatedInput` 在 `toolInput.prompt` 前端注入目標 worktree 絕對路徑、對應 `spec`/`plan` 路徑與角色邊界（取代只靠 lead 手動貼路徑），同時注意不誤覆蓋唯讀工具權限 | 低 | ⬜ 提案 |
+| 2 | **F2** `SessionStart (startup\|clear\|compact)` 狀態自動重注入 Hook | 於 `.claude/settings.json` 註冊輕量 `SessionStart` hook：檢查當前 git branch 是否有未達 `done` 的 `wf-state` 檔或 `.batch-*.json`，自動吐出精簡 `<wf-session>` 狀態與下一步提示（並偵測 subagent 跳過注入，防工人誤認自己為主指揮） | 低 | ⬜ 提案 |
+| 3 | **F3** 並行子任務「檔案所有權衝突機械拒絕」（`pathsCollide`） | 在 `wf-state.sh` 新增或於 STAGE 2 並行派發前執行路徑正規化檢查：同一批 parallel tasks 宣告之目標檔案/glob 若發生交集即拒絕同時派發，消除 `delegation-and-parallel.md` 僅靠散文維持「並行三規則」的盲區 | 低 | ⬜ 提案 |
+| 4 | **F4** 跨模型 Prototype 諮詢「唯讀 Unified Diff + 強制重寫與副作用檢查」 | 在 `mcp-delegation-discipline.md` 與 `delegation-and-parallel.md` 新增選用之「Prototype Diff 諮詢模式」（保留 STAGE 2 正常寫檔委派，不觸犯 `§W2:2012`）：當請求 `gemini-mcp-tool` 產出實作原型建議時，作為輸出格式契約（非取代 Sensor 安全邊界，`§W2:2039`）要求僅輸出 Unified Diff，由 Claude 側依 `flutter-styles.md` 重寫並檢查副作用（與 **H5** 架構諮詢上限互補） | 極低 | ⬜ 提案 |
+| 5 | **F5** STAGE 0b 計畫補入 PBT 不變式與證偽策略欄位 | 在 `planner.md` 與 `plan-verifier.md`（D1）針對狀態機/資料模型類變更增列 `[INVARIANT] → [FALSIFICATION STRATEGY]` 檢核項，要求寫出至少一條可測性質與證偽手段，與 C13 測試接縫標註互補 | 極低 | ⬜ 提案 |
+| 6 | **F6** 執行期環境前置健檢腳本（`wf-doctor`） | 參考 `doctor-checks.ts` 產出單一唯讀檢查腳本（可併入或並列於 `§8.2 A1` 靜態 linter）：一次檢查 `jq`、`gh auth status`（含 `project` scope）、孤立 `alwaysThinkingEnabled: true` 殘留、`.claude/settings.json` hook 執行權限與未結案 orphan state | 低 | ⬜ 提案 |
+
+### 6. 刻意不學（保持 Good Taste 的底線）
+
+| 上游有、我們不採用 | 理由 |
+|:---|:---|
+| **引入 7 後端 Go CLI 橋接器（`codeagent-wrapper`）與 R2 二進位下載** | 本專案已於 2026-08-10 實證淘汰 `agy -p` headless wrapper、改走 `gemini-mcp-tool` MCP；引入 Go 跨平台二進位檔與 7 家 CLI 旗標相依會大幅提高維護與 Windows/macOS 行程樹掃除複雜度，違反極簡原則。 |
+| **三套並行的 Context / Spec 系統（`.ccg/` + `.context/` + `openspec/`）** | 歷史包袱導致資料結構分裂與模板變數殘留漂移；我們維持單一 `wf-state.sh` + `docs/` 單一事實來源。 |
+| **Regex 版 `quality_checker.js` / `security_scanner.js` 品質門檻** | 實查證實 `quality_checker.js` 對 Dart/TS/Go 皆僅檢查行長與檔長、無 AST 語意能力；本專案已有 `flutter analyze` 與 981 tests，不應以弱 regex 取代 compiler/analyzer。 |
+| **`override-refusal`（`/hi` 改寫對話 `.jsonl` transcript 繞過安全拒答）** | 屬於高風險對話竄改工具（直接修改 `.claude/projects/*.jsonl` 與 `.codex/sessions/*.jsonl`），與工程嚴謹性與稽核可信度原則相牴觸，堅決不納入。 |
+| **全域 `~/.claude/` 安裝器與 `npm` 模板變數注入管線** | 本專案是 repo-local 工作流，直接隨專案版控演進，不需要跨電腦全域模板替換器與多餘的安裝狀態機。 |
+
+> **📌 F1–F6 共 6 項為 2026-11-18 新增待辦提案（均已排除與 `§3 提案 2`、`§3.6 R9/R12(a)`、`§5 B2`、`§8.2 A1/A5`、`C5`、`D1`、`E1/E3/E5` 之重複）；依 C14 紀律，本節所有實況錨定於本專案 `0bc03b7` 與 `ccg-workflow` `2f12cc5`（`2026-11-18`），任一項落地後應即時回寫本表。**
+
+---
+
+## 🟪 第十部分：garrytan/gstack 單人全棧工程工廠比對 (2026-11-18)
+
+> **來源**：<https://github.com/garrytan/gstack>
+> **查證方式**：以 `gh repo view`、`gh api` recursive tree（5,615 筆路徑）與 `Accept:application/vnd.github.raw` 實地讀取 `v1.100.0.0`（`HEAD` `fda9dea79f131d7731259b9275fc82c04387ca37`，`2026-11-18T16:17:08Z`，141,990★，MIT），包含 `VERSION`、`package.json`、`setup`（5,277 行 bash）、`ETHOS.md`、`ARCHITECTURE.md`、`docs/{skill-routing-and-contracts,skill-gates,pregate}.md`、`scripts/{gen-skill-docs,skill-check,test-free-shards,test-paid-shards}.ts`、`scripts/resolvers/{index,preamble,preamble-hoist,outside-voice}.ts`、`scripts/resolvers/preamble/generate-preamble-bash.ts`、`hosts/claude.ts`、`hosts/claude/hooks/{skill-route-hook,skill-contract-stop-hook,ceo-review-gate,autoplan-stop-gate}.ts`、`lib/{state-root,skill-route,redact-engine,jsonl-store,egress-receipt}.ts`、`bin/{gstack-state-root.sh,gstack-config,gstack-telemetry-log,gstack-learnings-log}`、`careful/bin/check-careful.sh`、`freeze/bin/check-freeze.sh`、以及 12+ 份核心 `*/SKILL.md.tmpl`（`office-hours`、`plan-ceo-review`、`plan-eng-review`、`autoplan`、`review`、`verify`、`qa`、`ship`、`cso`、`spec`、`retro`、`codex`、`guard`、`browse`）。
+>
+> **定位與前幾部分的差異**：
+> - `gstack` 是目前已檢視系統中**工程完成度與規模最高**的實戰工作流工廠（5,615 tree entries、1,000+ 測試與三層評測）：從產品創辦人盤問（`/office-hours`）、CEO/Eng/Design 計畫審查（`/autoplan`）、安全護欄（`/guard`）、跨模型獨立意見（`/codex`）、瀏覽器/API 回歸（`/qa` + `$B`）、不可變門檻驗收（`/verify`）一路做到 22 步發布（`/ship`）與跨工具回顧（`/retro`）。
+> - 更重要的是，它在演進至 `v1.100.0.0` 的過程中直面了所有大型 skill 體系的共同痛點——**Prompt 膨脹、多宿主漂移、Stop hook 競態、與模型偷懶繞過門檻**——並給出了極高品質的系統級解方。
+>
+> **核心結論**：我們在**單一確定性階段狀態機（`wf-state.sh`）**與 **STAGE 1→6 Git Worktree + PR Review 自動化閉環**保持輕量簡潔且專注單一 Flutter package；但 `gstack` 在 **Fail-Closed `Edit/Write` 實體凍結與 `Bash` 防護（`/guard`）**、**解決 JSONL flush 競態的有限次 `Stop` 合約門檻（`readSettledTranscript`）**、**`tree` 雜湊驗收免重測 + `origin/main` 不可變門檻基準**、**外部/平行通道逾時強制標記 `MISSING COVERAGE`**、**雙宿主結構等價測試**以及 **`ETHOS.md` §9「Earn Its Place」元件剪枝紀律**上，提供了高度可移植、極高投報比的工程規範。
+
+### 1. 系統概覽
+
+**`garrytan/gstack`（`v1.100.0.0`，`fda9dea`）**：以 Bun（`>= 1.4.2`）+ TypeScript + bash 打造的完整工程套件：
+1. **單一事實來源編譯管線（`scripts/gen-skill-docs.ts` + `skill-check.ts`）**：由 `.tmpl` 編譯出 15 種宿主（`hosts/*.ts`）之 `SKILL.md`；以 `preamble-hoist.ts` 將 Tier 2+ 約 27KB 共用指令提取為附 12-hex SHA256 `sharedId` 的 `sections/preamble.md`；以 `applyCatalogTrim()` 將常駐 `description:` 壓縮至 `230` 字元內；`skill-check.ts` 驗證 YAML、指令與 `git ls-files` freshness。
+2. **雙語狀態根與安全資料管線（`lib/state-root.ts` + `bin/gstack-state-root.sh`）**：以 `test/state-root-parity.test.ts` 鎖定 TS 與純 bash builtins 等價；設定採 `MERGED_CONFIG_KEYS` 取跨層**最嚴格值**；`telemetry`、`learnings.jsonl`、`decisions.jsonl` 寫入前強制經過 `hasInjection()` 過濾與 `lib/redact-engine.ts` fail-closed 機密遮罩。
+3. **兩類確定性 Hooks（`careful`/`freeze` + `hosts/claude/hooks/`）**：`PreToolUse` 的 `check-careful.sh`（分級 `deny`/`ask` + `$IFS`/base64 混淆偵測）與 `check-freeze.sh`（詞法 + 物理 `readlink` 40 層雙解析 + `EXIT` trap fail-closed）；`Stop` / `SubagentStop` / `UserPromptSubmit` 則含 `skill-route-hook.ts`、`skill-contract-stop-hook.ts`、`ceo-review-gate.ts`、`autoplan-stop-gate.ts`。
+4. **全套角色 Skills、雙軌瀏覽器與三層評測**：涵蓋 `office-hours` → `autoplan` → `review` → `qa` → `verify`（`.gstack/pregate.json`）→ `ship`（22 步 + `tree` 雜湊快取）→ `cso` → `retro`；瀏覽器採 macOS Aside（`egress.jsonl` hash-chain 稽核）+ Bun headless Chromium daemon（`$B`，ARIA `@e1` ref + L1–L6 防間接注入）；測試分 Tier 1 免費分片 + `EVALS=1` 真實 CLI 付費評測，並以 `ETHOS.md` §9 + `gstack-inventory --check` 淘汰無效 skill 膨脹。
+
+**`gen-dev-workflow`（本專案 `2026-11-18` `0bc03b7` 實況）**：**63 個 skills**、**15 個 `.claude/agents/*.md`** 與 **15 個 `.agents/agents/*.yaml`**、430 行 `wf-state.sh`、4 支 `.claude/hooks/*.sh`（僅覆蓋 `PreToolUse(Agent)` 的 `responder` 檢查與 `ask-gemini` 路徑檢查，**無 `Edit`/`Write`/`Bash` 守衛、無 `Stop` hook**）、5 支 hook 測試、981 個 Dart/Flutter 測試基線。
+
+### 2. 機制對位矩陣
+
+| 面向 | `garrytan/gstack` (`v1.100.0.0`) | `gen-dev-workflow`（本專案 `2026-11-18`） | 判定 |
+|:---|:---|:---|:---|
+| **階段狀態機控制** | 以檔案產物（`ceo-plans/`、`autoplan` phase marker、外部 `ship` invocation record）+ Stop gates 串接，無單一中央狀態機 | 單一 `wf-state.sh`（430 行 `jq` 原子寫入 + `legal_transition()` 棘輪 + `pause_level` 三檔） | **我們更簡潔統一** |
+| **主對話 `Edit/Write` 與 `Bash` 護欄** | `/guard` = `check-freeze.sh`（詞法+物理路徑雙驗 + `EXIT` trap fail-closed）+ `check-careful.sh`（混淆偵測 + `deny`/`ask`） | 僅 `PreToolUse(ask-gemini)` 事後檢查 worktree 差集；**主對話 `Edit`/`Write` 與 `Bash` 零 hook 攔截** | **他大勝** |
+| **`Stop` 結束合約檢查** | `readSettledTranscript` 等 flush ≤2s、只檢 `isFinalTurn`、有限次阻擋（`MAX_BLOCKS`）+ 未知格式 canary fail-open | **零 `Stop` hook**；`SKILL.md` 的 `alwaysThinkingEnabled` 移除與 STAGE 6 收尾靠散文提醒（`command-cheatsheet.md` 明載無兜底） | **他大勝** |
+| **多宿主同步與等價驗證** | `.tmpl` → 15 宿主單源編譯 + `skill-check.ts` freshness + `state-root-parity.test.ts` | `.agents/{skills,hooks,rules}` 用 symlink 共用，但 `.claude/agents/*.md` vs `.agents/agents/*.yaml`（15 對）與 `settings.json` vs `hooks.json` **無等價檢查** | **他大勝** |
+| **Prompt / Catalog Token 控管** | `preamble-hoist.ts`（`sharedId` 指標，對應 **§2.7 S1** / **§5 A4**）+ `applyCatalogTrim`（`description ≤ 230`）+ `ETHOS` §9 剪枝 | 63 支 skill 中僅 `retro` 已設 `disable-model-invocation: true`、`C2` 僅擬處理 `gen-dev-workflow`；剩餘 **61 支常駐 model-invoked skill catalog 與 7 個孤兒 agent（§8.4）無預算控管** | **他大勝** |
+| **不可變驗收與免重測** | `.gstack/pregate.json` **預設讀自 `origin/<base>`**（防 PR 改弱門檻，對應 **§8.2 A5**）+ `READY_FOR_SHIP tree=<hash>` 免重跑 | `verifier` 引述測試數（A2）與 `D3` 三態，但無 `tree` hash 收據，STAGE 3→4 重跑與否無密碼學依據 | **他勝** |
+| **跨模型超時與失敗語意** | `outsideVoiceGuard`（`exit 78` 防自呼）+ `codex-probe` + 外>內雙層超時（`exit 124`）+ **空/逾時必標 `MISSING COVERAGE`** | `mcp-delegation-discipline.md` 明寫「無 `--print-timeout` 限制」；缺 `MISSING COVERAGE` 防靜默放行 | **他勝** |
+| **寫前安全過濾與記憶稽核** | `redact-engine.ts` + `hasInjection()` 過濾所有寫入 JSONL 之學習/決策/遙測；`/cso` 獨立啟動器跳過遙測 | **C12** 僅提案在 debug log 遮罩 `<REDACTED>`，尚無通用寫前注入與機密攔截 | **他勝** |
+| **領域工具鏈負擔** | 200+ `bin/gstack-*`、5,277 行 `setup`、Bun headless Chromium `$B`、Aside、Swift/Design/Capy `crew` | 專注單一 Flutter package（`flutter analyze` + `flutter test`），零瀏覽器 daemon 負擔 | **我們勝於輕量精準**（適合單 repo 需求） |
+
+### 3. 他的關鍵設計（我們沒有或可深化的）
+
+#### 3.1 Fail-Closed `PreToolUse` 路徑凍結與指令守衛（`freeze/bin/check-freeze.sh`、`careful/bin/check-careful.sh`）
+`gstack` 的 `/guard` 組合了兩支針對主對話本身的 `PreToolUse` 守衛：
+1. **`check-freeze.sh`（`Edit|Write|NotebookEdit`）**：設定 `EXIT` trap `_freeze_backstop` 確保腳本任何非零異常退出一律輸出 `permissionDecision: "deny"`（絕不因 parse error 放行）；更重要的是同時解析**詞法路徑（lexical）**與**物理路徑（`pwd -P` + 最多 40 層 `readlink` 解析 `<link>/..`）**，兩者皆須落於 `freeze-dir.txt` 內才放行。這能從根本防止「worktree 啟用中，主對話卻手滑 `Edit` 到主 repo 原始檔案」或透過 symlink 逃逸。
+2. **`check-careful.sh`（`Bash|PowerShell`）**：偵測 `$IFS` 與 base64-to-shell 混淆，將破壞性指令分級為 HIGH（如 `rm -rf /`、`rm -rf ~`、預設分支 force-push 直接 `deny`）與 MEDIUM（`git reset --hard`、`git checkout/restore .`、`drop table` 等轉 `ask`），且使用者自訂 `careful-patterns.txt` **只能加嚴不能削弱基準**。
+
+#### 3.2 Settled-Transcript 有限次 `Stop` 合約門檻（`hosts/claude/hooks/skill-contract-stop-hook.ts`、`ceo-review-gate.ts`）
+寫 `Stop` Hook 最容易踩的兩個坑是「CLI 尚未把最後一則訊息 flush 進 JSONL transcript 就觸發 Stop」與「阻擋條件寫死導致模型陷入無限重試死鎖」。`gstack` 的設計極具工程參考價值：
+1. **`readSettledTranscript()`**：最多輪詢等待 2 秒，確認最後一則 assistant message 已落地才評估；
+2. **`isFinalTurn()` + 背景 Agent 檢查**：若該輪是在對人類提問或仍有背景 subagent 運行（未逾 `AGENT_STALL_MS`）則直接放行，絕不打斷正常對話；
+3. **原子有界阻擋 + Canary Fail-Open**：每個 skill 最多阻擋 1 次（`MAX_BLOCKS = 1`；`ceo-review-gate` 上限 3 次），計數原子寫入 `skill-contracts/<session>.json`；若遭遇未預期的 JSONL schema 則遞增 canary 計數並 **fail-open**，確保 Claude Code 改版不會鎖死工作區。
+- **對位本專案**：正好能安全修補 `SKILL.md:19-23, 154-156, 172, 188`（`alwaysThinkingEnabled` 遺忘清理）與 `command-cheatsheet.md` 標註的「STAGE 6 無 hook 兜底」風險。
+
+#### 3.3 `tree` 雜湊免重測與 `origin/<base>` 不可變 Gate 基準（`ship/SKILL.md.tmpl`、`docs/pregate.md`）
+- **`READY_FOR_SHIP tree=<tree>`**：`/verify` 產出帶 git tree hash 的驗證結果，`/ship` 比對當前工作樹雜湊若未異動即直接免除冗餘重跑（只在異動時觸發）。本專案 `flutter test` 現已有 981 tests，透過 `git write-tree` 收據即可在 STAGE 3 驗通過且 STAGE 4 未改檔時零風險免重跑。
+- **`pregate.json` 讀自 `origin/<base>`**：`gstack-checks` 預設從遠端目標分支讀取品質門檻定義，防止 PR 分支自己改弱檢查規則通過 CI（head 僅允許新增更嚴格的 check lane）。這與本文件既有待辦 **§8.2 A5**（抓 `skip:`/`// ignore:` diff 降標）形成前後呼應。
+
+#### 3.4 跨模型/平行通道 `MISSING COVERAGE` 與雙層 Timeout 契約（`codex/SKILL.md.tmpl`、`scripts/resolvers/outside-voice.ts`）
+`gstack` 呼叫跨模型意見前會跑三道防線：(1) `outsideVoiceGuard` 檢查宿主環境變數，禁止 Claude 呼叫 Claude 或 Codex 呼叫 Codex（`exit 78`）；(2) `gstack-codex-probe` 預檢 auth/model/sandbox 可用性；(3) 外層 Bash timeout 嚴格大於內層 `run-with-timeout`（`360s > 330s` / `600s > 540s`）確保超時可被診斷為 `exit 124`。**最重要的是結果契約**：一旦外部意見逾時或回傳空白，**嚴禁靜默忽略並宣稱整體 `PASS`**，必須明確標示 **`MISSING COVERAGE`**。
+- **對位本專案**：我們的 `mcp-delegation-discipline.md`（14 行）明記「無 `--print-timeout` 限制」，且 STAGE 3 多 angle `verifier` 或 `ask-gemini` 若某一路徑異常空回或超時，現制缺少強制區分「全部過關 (`PASS`)」與「部分視角缺席 (`MISSING COVERAGE`)」的明確合約。
+
+#### 3.5 `ETHOS.md` 原則 9「Earn Its Place」與雙宿主等價測試（`ETHOS.md`、`bin/gstack-inventory --check`、`test/state-root-parity.test.ts`）
+- **元件減法與 Catalog 預算**：`ETHOS.md` 原則 9 明定每個 skill/步驟都消耗 token 與模型注意力，定期跑 "Why null?" 檢視保留、修正或刪除；並以 `applyCatalogTrim()` 將 model-invoked `description` 限制在 `230` 字元內。本專案實查已累積 **63 個 skills** 與 **7 個從未被 `gen-dev-workflow` 引用的孤兒 `.claude/agents/*.md`**（§8.4 已點名但未立項清點），正是引入此紀律的最佳時機。
+- **雙語言 / 雙宿主等價測試**：`state-root-parity.test.ts` 與 `skill-check.ts` 用測試鎖死多端設定與文件不漂移。本專案同時維護 15 份 `.claude/agents/*.md` 與 15 份 `.agents/agents/*.yaml`、`.claude/settings.json` 與 `.agents/hooks.json`，且已實查出 `verifier.md` 與 `delegation-and-parallel.md` 仍殘留舊基線 `606`（vs `CLAUDE.md` `981`）、`docs/architecture/` 與現況 `effort:` 漂移（`r1_1 §1.3(D)`），亟需等價驗證測試鎖死。
+
+#### 3.6 與既有待辦交疊之機制對照（不重複開號）
+- **`preamble-hoist.ts`**（`sections/preamble.md` + `sharedId` 防重讀）：精準對應既有 **§2.7 S1**（`<20k` 截斷防線，目前 `subagent-driven-development` 32KB、`writing-skills` 26KB 仍未修）與 **§5 A4**（共享 `references/` DRY）；
+- **`skill-route-hook.ts`**（`triggers:` 閾值 `0.66`、預設 `off`）：對應既有 **§5 B2**（Context 自動偵測啟動 skill）；
+- **`learnings.jsonl` / `decisions.jsonl`**：其經驗與架構決策沉澱角色與 **§3.6 R9 / E3**、**C3** 重疊（僅「寫前 `hasInjection()` 過濾」屬淨新安全強化，併入 **G5**）；
+- **`greptile-triage.md`**：對應既有 **E7**（`bugbot-triage.md`）；
+- **`review` `Gate edits:` (`RH-*` 標籤)**：對應既有 **§8.2 A5**；
+- **`qa`「1 次改到無關檔案立刻停」**：與 **§3.6 R12(a)** / **E5** 互為補充；
+- **`autoplan` 6 大決策原則**：為 **E4**「經驗性分叉分類」之外補充了「Taste/User Challenge 匯總至單一 Final Approval Gate」。
+
+### 4. 我們的關鍵優勢（他沒有的）
+
+1. **高內聚單一狀態機（`wf-state.sh`）vs 分散式檔標記**：`gstack` 跨 `/office-hours` → `/autoplan` → `/review` → `/verify` → `/ship` 仰賴多處獨立標記檔與 `stop-gate` 串接；我們以 430 行 `wf-state.sh` 統一管理 `0a→0b→1→2→3→4→5→6→done` 與 `done→5`/`6` 重入，且以 `set -C` 防併發認領，狀態轉換一目了然。
+2. **輕量單 repo 實戰 vs 巨型多棧基礎設施**：我們的 `gen-dev-workflow` 主體僅 `SKILL.md`（281 行）+ 8 份 `references/` + 4 支精悍 hooks，零 Bun binary 編譯與瀏覽器 daemon 維護負擔，專為 `flutter_inspector` 單人開發者設計。
+3. **STAGE 1→6 完整 GitHub Issue / PR Review 自動化閉環**：我們在 PR #246 已統一 `brancher` 建 Issue（`--assignee @me` + Project `In Progress`）、`publisher` 建 PR、STAGE 5 `responder`（`wf-guard-stage-check.sh` 硬擋未切狀態派發）與 STAGE 6 同步文件與清理 Worktree。
+
+### 5. 建議借鏡（按投報比排序，G1–G6）
+
+| 順位 | 借鏡項 | 做法 | effort | 狀態 |
+|:---:|:---|:---|:---:|:---|
+| 1 | **G1** `PreToolUse(Edit\|Write\|Bash)` 主對話 Worktree 凍結與危險指令護欄 | 借鏡 `check-freeze.sh` + `check-careful.sh`：(1) 當 active `wf-state` 綁定 worktree 時，主對話 `Edit`/`Write` 須經詞法與物理 `readlink` 雙解析落於該 worktree 內（附 `EXIT` trap fail-closed）；(2) `Bash` 攔截 `rm -rf ~`、`git push --force main`、`git reset --hard` 與 `$IFS`/base64 混淆（補足 `wf-guard-delegate-cwd.sh` 只防 `ask-gemini` 之盲區） | 中 | ⬜ 提案 |
+| 2 | **G4** 跨模型/並行視角 `MISSING COVERAGE` 誠實退化與雙層 Timeout | 更新 `mcp-delegation-discipline.md` 與 `delegation-and-parallel.md`：(1) 派發前驗證同家族隔離與 auth 就緒；(2) 外層超時嚴格大於內層以保留可診斷退出碼；(3) 任一審查 lens 或 `ask-gemini` 逾時/空回應時**嚴禁靜默宣告 `PASS`**，強制於報告標記 `MISSING COVERAGE` 區分於 `FAIL: INFRA` 重試 | 極低 | ⬜ 提案 |
+| 3 | **G5** 雙 Harness 結構等價測試 + 寫前 Prompt Injection / Secret 掃描 | (1) 在 `.claude/hooks/tests/` 新增等價檢查：驗證 `.claude/agents/*.md` ↔ `.agents/agents/*.yaml`（角色與 `effort`）、`.claude/settings.json` ↔ `.agents/hooks.json` 關鍵守衛一致（擴展 `test_project_settings_hooks.sh`）；(2) 在 `retro` / 未來 `E3` 持久記憶寫入前加入簡易類指令注入與機密關鍵字掃描（擴充 `C12` 僅限 bug log 範圍） | 低 | ⬜ 提案 |
+| 4 | **G3** `git write-tree` 驗收雜湊收據 + `origin/main` 不可變門檻基準 | (1) `verifier` 於 STAGE 2/3 全綠通過時將 `git write-tree` 雜湊寫入 `wf-state`（`wf-state.sh` 白名單欄位）；STAGE 4 發布前若樹雜湊未變即免重跑 981 tests；(2) 分析與測試執行腳本/門檻基準以 `origin/main` 為準，防止 PR 分支自行降低標準（與 `§8.2 A5` diff 降標檢查互補） | 低 | ⬜ 提案 |
+| 5 | **G2** 基於 `readSettledTranscript` 與有界阻擋的 `Stop` 收尾守衛 | 在 `.claude/settings.json` 評估掛載輕量 `Stop` hook：僅在 `isFinalTurn()` 且等 JSONL flush ≤2s 後檢查 `alwaysThinkingEnabled: true` 是否於 STAGE 4/5/6 結束時忘記移除或 STAGE 6 是否漏跑清理；嚴格設定 `MAX_BLOCKS = 1` + 未知 transcript schema canary fail-open 防鎖死 | 中 | ⬜ 提案 |
+| 6 | **G6** `Earn Its Place` 元件盤點與 63-Skill Catalog 預算剪枝 | 依 `ETHOS.md` §9 與 `applyCatalogTrim` 原則：(1) 定期審查 `§8.4` 點名之 7 個孤兒 `.claude/agents/*.md` 決定收編或移除；(2) 盤點現有 62 支 model-invoked skill（63 支扣除已設 `disable-model-invocation: true` 之 `retro`），為 `gen-dev-workflow`（**C2**）以外剩餘 61 支訂定 `description` 字元上限（如 `≤ 250` chars）並核對是否可改 `disable-model-invocation: true` | 低 | ⬜ 提案 |
+
+### 6. 刻意不學（保持 Good Taste 的底線）
+
+| 上游有、我們不採用 | 理由 |
+|:---|:---|
+| **200+ `bin/gstack-*` + 5,277 行 `setup` + `.tmpl` 15 宿主編譯器** | `gstack` 是跨 15 個 AI CLI 平台公開發行的通用套件，故需要龐大安裝腳本與多宿主轉譯器；本專案僅服務單一 repo 內的 Claude Code + Antigravity（且已透過 symlink 共用 `skills`/`hooks`/`rules`），引入 5,000+ 行 bash 與編譯管線是純粹的過度工程。 |
+| **Bun headless Chromium `$B` daemon + Aside / ngrok tunnel + `make-pdf` / `ios-qa` / `design`** | 本專案為純 Flutter/Dart 開發工具 package，UI 除錯自有 `flutter_inspector` / Dart MCP，無需為工作流額外維護 Chromium daemon、50K 環形緩衝與 L4 ONNX Sidecar。 |
+| **`gstack-telemetry-log` 社群遙測上報與 `crew/` 多車道 merge train** | 單人單 repo 開發不需要匿名社群遙測收集管線，也不需要多工程師自動合併車道。 |
+| **依賴 1,000+ 測試與 `EVALS=1` 付費 LLM-as-judge CI 才敢開通的默認關閉 Hooks** | 本專案無 `.github/` CI 與專職評測 API 預算；我們以高內聚的少數確定性 shell/python hooks 搭配本機 5 支確定性測試直接預設啟用，成本結構完全不同。 |
+
+> **📌 G1–G6 共 6 項為 2026-11-18 新增待辦提案（均已避開與 `§2.7 S1`、`§3.6 R9/R12(a)`、`§5 A4/B2`、`§8.2 A1/A5`、`C2/C3/C12`、`E3/E4/E5/E7`、`F6` 之重複）；依 C14 紀律，本節對位基準為 `gen-dev-workflow` `0bc03b7` 與 `gstack` `v1.100.0.0` (`fda9dea`)，任一項落地後應即時回寫本表。**
+
+---
+
+## 🟨 第十一部分：Fable-Orchestrator 查證與公開 */fable-orchestrator 生態系比對 (2026-11-18)
+
+> **來源與查證限制（重要）**：
+> 1. **裸名稱 `Fable-Orchestrator` 查證結果（無法存取／無單一官方倉庫）**：以 GitHub CLI 實測 `gh api users/Fable-Orchestrator` 回傳 **HTTP 404**（`{"message": "Not Found", "documentation_url": "https://docs.github.com/rest", "status": "404"}`），且 `gh repo view Fable-Orchestrator/Fable-Orchestrator --json name,url,isPrivate,description` 回傳 **`GraphQL: Could not resolve to a Repository with the name 'Fable-Orchestrator/Fable-Orchestrator'. (repository)`**。若公開 GitHub 之外另存在名為 `Fable-Orchestrator` 的私有或閉源倉庫，本輪查證完全無法存取，**不對該未知私有目標作任何內容臆測或補齊**。
+> 2. **公開 `*/fable-orchestrator` 實作家族實查**：以 `gh search repos "Fable-Orchestrator" --match name --limit 20` 實證 GitHub 上存在多個活躍公開（`isPrivate: false`）的 `*/fable-orchestrator` 專案，我們實地檢視了其中 Top 4 具實作程式碼與測試之倉庫（皆為 MIT 授權，且模型名稱依各該倉庫原文保留，不作替換）：
+>    - **`codejunkie99/fable-orchestrator`**（<https://github.com/codejunkie99/fable-orchestrator>，614★，`HEAD` `e6345e56d3a6fc7456cda0dd352a6f6c993b1125`）：Codex `$fable` skill + `ask_fable.sh` 呼叫無頭 `claude --print`。
+>    - **`100yenadmin/fable-token-saving-skills-orchestrator`**（<https://github.com/100yenadmin/fable-token-saving-skills-orchestrator>，103★，`HEAD` `cf1d9a31b1ef1d123d64e9ed825fbab0322c17b0`）：FTSO 省 Token 編排套件，含 `dense-turns.md`、`keepalive-economics.md`、`stop-autonomous-guard.py` 與 `stop-keepalive-guard.py`。
+>    - **`Rylaa/fable5.2-opus5.5-orchestrator`**（<https://github.com/Rylaa/fable5.2-opus5.5-orchestrator>，86★，`HEAD` `f061e453c1bf378cde4a9b67aa216ecc30c74dd1`）：Claude Code plugin，含 `inject_instructions.py`、`solo_guard.py`、`remind_chair.py`、`cleanup_session_cache.py` 與 `playbook/SKILL.md`。
+>    - **`BuildContext/fable-orchestrator`**（<https://github.com/BuildContext/fable-orchestrator>，4★，`HEAD` `ff39e8cb756ce681f4bf3ae5a538b67743717b8b`）：`DannyMac180/fable-advisor` 實戰強化分支，含 `block-architect-product-write.py`、`block-named-cli-lane.py`、`run-grok-headless.sh` 與 `orchestration/SKILL.md`。
+>
+> **定位與前幾部分的差異**：這四個公開專案構成了一個明確的**「高價架構師／主席（Fable / Opus）+ 廉價／異質執行車道（Sonnet / Grok / DeepSeek）」Token 經濟學與多工防呆模式群**——核心不在生命週期狀態機或 PR 流程，而在**極端壓縮昂貴主指揮的 context 消耗與避免主模型「親自下場寫碼或半途空談停頓」**。
+>
+> **核心結論**：這 4 個專案幾乎不具備工程級跨階段狀態機或工作樹隔離（多靠提示詞與單點 hook 防呆），我們在 SDLC 流程、Worktree 隔離與審查深度遠勝；但其中提煉出的 **40 行 Subagent 回報上限 + 原證落盤**、**主指揮 200 行預消化規則與 5 分鐘 Prompt Cache 密集回合**、**Exit-First `^STATUS:` 尾行解析 + 禁止對唯讀 Agent 誤傳 `name` 剝奪白名單**、**活躍計畫反半途空談 `Stop` 守衛**、以及**無工具外部裁判次數上限**，恰好切中本專案 `150k` context 膨脹與工具權限邊界的實務痛點。
+
+### 1. 系統概覽
+
+**公開 `*/fable-orchestrator` 生態系（4 個實測倉庫）**：
+1. **`codejunkie99/fable-orchestrator`（614★，`e6345e56`）**：極簡 Codex skill（`skill/fable/SKILL.md` + `ask_fable.sh`）。Codex 維持檔案擁有權與執行，將 compact packet 送到無頭 `claude --print --effort low --permission-mode dontAsk --tools "" --no-session-persistence` 取得 DAG（單任務限最多 3 次 Fable 呼叫），再將實作嚴格路由至 `opencode-go/deepseek-v4-flash` 與 `opencode-go-responses/gpt-5.6-luna`。
+2. **`100yenadmin/fable-token-saving-skills-orchestrator`（103★，`cf1d9a31`）**：圍繞 Anthropic **5 分鐘 Prompt Cache TTL**（寫 1.25× vs 讀 0.1×）設計的 Claude Code 套件：主張「密集回合（`docs/dense-turns.md`）」與「200 行預消化規則」，並附兩支 fail-open `Stop` hooks（`hooks/stop-autonomous-guard.py`、`hooks/stop-keepalive-guard.py`）及自熄式 `keepalive_tick.sh`。
+3. **`Rylaa/fable5.2-opus5.5-orchestrator`（86★，`f061e453`）**：Claude Code「主席 / 工人」插件。`SessionStart`（`inject_instructions.py`）自動依 `ps` 祖先鏈/`--model`/marker 切換 Fable/Opus 且跳過 `--agent-id` 子進程；`PreToolUse`（`solo_guard.py`）在無 spawn 紀錄時於第 3 次產品寫入單次 deny 提醒委派，並對 prompt ≥1,500 字元無 `name` 之派發單次 deny 強制進 tmux pane；`playbook/SKILL.md` 強制工人原證寫入 `./.workflow/scratch/`、回報 ≤ 40 行；`SessionEnd` 清理孤立 tmux panes。
+4. **`BuildContext/fable-orchestrator`（4★，`ff39e8cb`）**：針對 RN/Expo + `grok-implementer` 的強硬派護欄。`block-architect-product-write.py` 無條件禁止架構師寫入 `src/`/`ios/`/`android/`/`package.json`；`block-named-cli-lane.py` **反向禁止對 CLI 工人傳入 `name`**（防止 Claude Code 將其轉為 in-process teammate 並剝奪 agent 工具白名單）；`run-grok-headless.sh` 實作 Exit-First `^STATUS:` 解析與 300–900s stall watchdog。
+
+**`gen-dev-workflow`（本專案 `2026-11-18` `0bc03b7` 實況）**：已具備實證化的模型分級（`delegation-and-parallel.md` 4 級分層 + D2 `Dispatch Brake` 主進程原地修 ≤20 行）與 `token-budget-gate.md`（60k/100k/150k 分級踩剎車），但在 **Subagent 回報體積上限**、**主指揮讀取原檔前先預消化**、**5 分鐘 Prompt Cache 批次節奏**與 **Agent `name` 參數對工具白名單的隱性破壞**上尚無防護。
+
+### 2. 機制對位矩陣
+
+| 面向 | 公開 `*/fable-orchestrator` 生態（4 倉庫合計） | `gen-dev-workflow`（本專案 `2026-11-18`） | 判定 |
+|:---|:---|:---|:---|
+| **裸名稱與單一事實來源** | GitHub 無 `Fable-Orchestrator/Fable-Orchestrator`（404）；公開生態分散為 4 個理念相近但實作各異的獨立倉庫 | 單一倉庫內聚演進（`SKILL.md` + 8 `references/` + `wf-state.sh`） | **我們完勝於架構一致性** |
+| **微任務 vs 委派邊界** | `BuildContext` 無條件禁寫產品碼；`Rylaa` 第 3 次編輯單次提醒（不區分修改大小） | **D2 `Dispatch Brake`**（單檔 ≤20 行且無公共 API 變更強制主進程原地修，消除冷啟動浪費） | **我們大勝**（他的禁寫破壞 D2） |
+| **Context 與回報體積控制** | `Rylaa` 規定原證寫 `./.workflow/scratch/`、回報 **≤40 行**；`100yenadmin` 規定主指揮不直讀 **>200 行** raw diff/log | `token-budget-gate.md` 管「總量到 60k/100k/150k 後怎麼辦」；缺「單次輸入/回報上限」的源頭節流（**§3 提案 3** 只管 shell 截斷） | **他大勝** |
+| **Prompt Cache 經濟學** | `100yenadmin` 明文化 5 分鐘 TTL（1.25× 寫 vs 0.1× 讀）之「密集回合」批次策略 + `keepalive_tick.sh` | 未針對 5 分鐘 Cache TTL 設計派發集中節奏（heartbeat/keepalive 則屬 **§5.6** 刻意不學） | **他的密集回合洞見勝** |
+| **Teammate `name` 參數陷阱** | `BuildContext/hooks/block-named-cli-lane.py` 實測發現對 `Agent` 傳 `name` 會轉 teammate 並剝奪 agent 工具白名單 | `.claude/agents/{verifier,reviewer}.md` 仰賴 `tools: [Bash, Read, Glob, Grep]`（對應 `.agents/agents/*.yaml` 之 `enable_write_tools: false`）防「球員兼裁判」，但未防派發時誤加 `name` | **他抓到關鍵平台地雷** |
+| **無頭狀態解析抗誤殺** | `BuildContext/scripts/run-grok-headless.sh` 實作 **Exit-First `^STATUS:` 解析**（絕不在串流中途關鍵字誤殺） | **D3** 首行頂格契約明確，但尚未對未來外部無頭腳本明定 Exit-First 與靜默 watchdog 原則 | **他勝於串流邊界防呆** |
+| **中途空談停頓攔截** | `100yenadmin/hooks/stop-autonomous-guard.py` 在活躍計畫期攔截 `"I'll proceed"` 等空談結束語 | 無 `Stop` hook；`autonomous` 模式下模型若自行總結停下需人催促（與 **G2** 收尾檢查互補） | **他勝** |
+| **SDLC 與 Worktree 閉環** | 皆無強制 git worktree 隔離與 STAGE 4→5→6 Issue/PR Review 自動化閉環 | 完整 STAGE 0·grill → 6 閉環 + `wf-guard-delegate-cwd.sh` + `wf-guard-stage-check.sh` | **我們完勝** |
+
+### 3. 他的關鍵設計（我們沒有或可深化的）
+
+#### 3.1 `Rylaa` 40 行回報上限 + 原證落盤（`Rylaa/fable5.2-opus5.5-orchestrator` · `skills/playbook/SKILL.md`）
+`Rylaa` 規定所有子代理人：凡超過 10 行的測試輸出、diff 或長日誌，一律寫入工作區暫存路徑（如 `./.workflow/scratch/`），回傳給主指揮的最終訊息**嚴格不得超過 40 行**，只含狀態結論、關鍵指標與原證檔案路徑。
+- **對位本專案**：我們的 `token-budget-gate.md`（41 行）是在累積到 `60k/100k/150k` 後進行降載或 WIP commit，屬於「事後煞車」；`Rylaa` 的規則則是從每個 subagent 回報源頭節流（與 **§3 提案 3 `wf-truncate.sh`** 專注截斷 shell stdout 互補），能讓 Opus 主指揮多撐數輪才觸及 `100k` 降載線。
+
+#### 3.2 `100yenadmin` 200 行預消化規則與 5 分鐘 Prompt Cache 密集回合（`100yenadmin/fable-token-saving-skills-orchestrator` · `docs/dense-turns.md`, `docs/keepalive-economics.md`, `skills/fable-orchestrator-router/SKILL.md`）
+1. **200 行預消化規則**：高階架構模型不直接讀取超過 ~200 行的 raw diff、測試 log 或龐大檔案，必先由探索/驗證子任務預先摘要或精準 `StartLine..EndLine` 切片讀取。
+2. **密集回合（Dense Turns）**：基於 Anthropic **5 分鐘 prompt cache TTL**（cache 寫入 `1.25×`、快取命中讀取 `0.1×`），建議把同一階段的獨立唯讀讀取與批次派發壓縮在同一活躍窗內連續發起，避免對話斷斷續續反覆付出 `1.25×` 冷寫代價（注意：只採納其**批次排程紀律**，不採納其背景空轉 tick）。
+
+#### 3.3 `BuildContext` `block-named-cli-lane.py` 與 `run-grok-headless.sh` 的兩條平台級經驗律
+1. **`Agent(name=...)` 剝奪工具白名單地雷**（`hooks/block-named-cli-lane.py`）：實證在 Claude Code 中對 `Agent` 傳入 `name` 參數會將其視為 in-process teammate，可能繞過或覆寫 agent 定義檔內的工具限制，導致原本應唯讀的角色意外獲得 `Write`/`Edit` 權限！在本專案 **D3** 與 `verifier.md`/`reviewer.md`/`plan-verifier.md` 都仰賴「唯讀不可改代碼」不變式的情況下，明文禁止對非隊伍型唯讀 subagent 誤傳 `name`（或於 **F1** Hook 順帶校驗）極具價值。
+2. **Exit-First `^STATUS:` 解析與外補超時狀態**（`scripts/run-grok-headless.sh`）：若串流中模型引述說明文字或討論失敗案例（例如輸出 `"avoid STATUS: failed"`），中途字串比對會誤殺進程。正確作法是只檢查靜默 stall watchdog，直到進程真正結束後才解析最後一行 `^STATUS:`（並正規化別名），若缺有效 STATUS 才由外殼主動補印 `STATUS: timeout` / `incomplete`。
+
+#### 3.4 `100yenadmin` 活躍計畫「反半途空談停頓」Stop 守衛（`hooks/stop-autonomous-guard.py`）
+不同於 **G2**（`gstack` 在流程結束時檢查交付物與收尾清理是否完整），`stop-autonomous-guard.py` 專抓「**流程進行到一半，模型自顧自總結停下來**」：當偵測到存在 6 小時內活躍計畫、且模型最後一則訊息包含 `"I'll proceed"` / `"milestone summary"` / `"wrapping up"` 等空談停頓語句（同時排除真正向人類提問、明確回報阻塞、或已宣告等待背景 wake 者），即透過 fail-open `Stop` hook 單次攔截推回繼續執行。這對本專案 `pause_level=autonomous` 或長任務 `batch` 模式尤為有用。
+
+#### 3.5 `codejunkie99` 無狀態無工具裁判封包與呼叫上限（`skill/fable/scripts/ask_fable.sh`）
+當需要請求外部模型進行高層次架構裁決或盲點複核時，`ask_fable.sh` 組裝精簡 compact packet 並以 `--tools "" --no-session-persistence` 徹底切斷工具副作用與跨次會話污染，且硬性限制**單次任務最多呼叫 3 次**，防止主指揮與外部顧問陷入無止盡來回確認。
+
+#### 3.6 與既有待辦與前兩節交疊之機制對照（不重複開號）
+- **`Rylaa` `inject_instructions.py` 依 `--agent-id` 跳過主席指令注入 + `resume` 增量注入**：已直接併入 **F2**（`SessionStart` hook 必須跳過 subagent 子進程），不另開重複項目；
+- **`codejunkie99` 無工具外部諮詢（H5）與 `ccg-workflow` Unified Diff 原型模式（F4）之分工**：兩者皆寫入 `mcp-delegation-discipline.md` 且皆不取代 STAGE 2 主力寫檔委派（`§W2:2012`），但職責正交——**F4** 規範「請求程式碼原型建議時之 Unified Diff 輸出格式 + 主端依 `flutter-styles.md` 重寫與副作用檢查」，**H5** 規範「架構裁決／除錯盲點諮詢時之無狀態最小封包與單任務最多 3 次呼叫上限」；
+- **`BuildContext` `docs/LEDGER.md` 與 `NO_DIFF` 閘門**：分別對應本專案既有的 `wf-state` 進度追蹤與 **D3** `verifier`；
+- **`Rylaa` `solo_guard.py` 與 `BuildContext` `block-architect-product-write.py`**：與本專案已落地之 **D2 `Dispatch Brake`** 衝突，移列刻意不學。
+
+### 4. 我們的關鍵優勢（他沒有的）
+
+1. **有狀態機、有實證閘門的 `Dispatch Brake`（D2）vs 教條式「主席禁寫代碼」**：`BuildContext` 一刀切禁止架構師寫任何產品碼，連改 1 行 typo 都要啟動外部進程；我們的 `SKILL.md` 與 `delegation-and-parallel.md` 以 ≤20 行單檔為界精準切換原地修改與 subagent 派發，兼顧延遲與隔離。
+2. **實體 Git Worktree + `wf-guard-delegate-cwd.sh` 雙端 Git 差集監控**：4 個 `*/fable-orchestrator` 倉庫皆未針對「多工並行編輯同一 repo」建立 Git Worktree 隔離與差集越界偵測。
+3. **單一內聚工作流與全生命週期閉環**：涵蓋 `gen-grill`（C4/C11）→ `plan-verifier`（D1）→ STAGE 2/3 三態契約（D3）→ STAGE 4–6 `@me`/Project/PR Review/Cleanup/Retro（C5），而非各自為政的省錢補丁腳本集合。
+
+### 5. 建議借鏡（按投報比排序，H1–H5）
+
+| 順位 | 借鏡項 | 做法 | effort | 狀態 |
+|:---:|:---|:---|:---:|:---|
+| 1 | **H1** Subagent 回報「40 行上限 + 暫存原證落盤」契約 | 在 STAGE 0a `Explore`（`workflow-parallel.md`）與 `implementer`/`verifier`/`reviewer` agent 定義及 `delegation-and-parallel.md` 明定：超過 10 行的長測試 stdout/diff 原證寫入暫存路徑（保留 **§8.2 A2** `verifier.md` 必填之 `flutter analyze` 終端原文引述於 40 行額度內），回傳主指揮的訊息嚴格壓在 **≤ 40 行**（含結論、測試數、analyze 原文與原證路徑），從源頭延緩觸及 `token-budget-gate.md` 100k/150k 紅線（與 **§3 提案 3** 腳本截斷互補） | 極低 | ⬜ 提案 |
+| 2 | **H3** 「Exit-First `^STATUS:` 解析原則」+ 禁止對唯讀 Agent 誤傳 `name` | (1) 在 `delegation-and-parallel.md` 明文警告 Claude Code `Agent(name=...)` 轉 teammate 可能覆寫工具白名單，禁止對唯讀 `verifier`/`reviewer`/`plan-verifier` 傳入 `name`（可在 **F1** Hook 一併防呆）；(2) 明定任何外部腳本/無頭工具狀態解析一律採進程退出後尾行或首行頂格（Exit-First），嚴禁串流中途關鍵字誤殺 | 極低 | ⬜ 提案 |
+| 3 | **H2** 主指揮「200 行預消化規則」與「5 分鐘 Cache 密集回合」指引 | 在 `SKILL.md` / `token-budget-gate.md` 補充兩條低成本紀律：(1) 主指揮不直接全檔讀取 >200 行 raw log/diff，改用 STAGE 0a `Explore` 子代理摘要或 `StartLine..EndLine` 分段切片；(2) 同階段獨立唯讀探索與同批派發盡量在同一回合集中送出，吃滿 5 分鐘 Prompt Cache `0.1×` 讀取紅利 | 極低 | ⬜ 提案 |
+| 4 | **H5** 跨模型顧問「無工具最小封包 + 3 次呼叫上限」紀律 | 在 `mcp-delegation-discipline.md` 補入（與 **F4** Prototype Unified Diff 模式分工互補）：呼叫外部模型（`ask-gemini`）做架構裁決或除錯盲點諮詢時，組裝無狀態自包含精簡封包、明禁其修改工作樹，並設單一任務最多 3 次諮詢上限（超出即收斂或轉人決策），避免無限來回消耗額度 | 極低 | ⬜ 提案 |
+| 5 | **H4** `autonomous` 模式下活躍計畫「反半途空談停頓」Stop 守衛 | 借鏡 `stop-autonomous-guard.py` 設計（可與 **G2** `Stop` hook 合併實作或作為旗標模式）：當 `pause_level=autonomous` 且 `wf-state` 仍處於執行期（非合法暫停點、未達 `done`）時，若最後訊息僅寫「接下來將進行…」卻未提問、無阻塞且無背景任務，單次阻擋提醒繼續推進 | 低 | ⬜ 提案 |
+
+### 6. 刻意不學（保持 Good Taste 的底線）
+
+| 上游有、我們不採用 | 理由 |
+|:---|:---|
+| **`100yenadmin` `keepalive_tick.sh` + `stop-keepalive-guard.py` 空轉保活 5 分鐘 Cache** | 為維持快取熱度而定時跑背景 tick 與阻塞 Stop 的 sentinel，本質上接近 **§5.6 已明確否決的 Heartbeat Cron 自我續命**，增加 hook 狀態鎖死風險與無謂 complexity。 |
+| **`BuildContext` 無條件禁止主指揮 Write/Edit 產品碼（及 `Rylaa` `solo_guard.py`）** | 直接摧毀本專案已驗證高價值的 **D2 `Dispatch Brake`**（≤20 行單檔原地修改免去數十秒 subagent 冷啟動）與 `quick` 模式。 |
+| **強制將所有大任務拆進 tmux split panes 與 `SessionEnd` 掃殺 pane（`Rylaa`）** | 本專案跨 macOS / Antigravity / Claude Code 環境運作，依賴原生 `Agent` subagent 與 Git Worktree 目錄隔離，不應綁死終端機排版工具 `tmux`。 |
+| **為省額度將大量實作硬路由至未驗證穩定性的便宜外部模型（如 DeepSeek V4 / Grok 4.5）** | `flutter_inspector` 是重型別安全與生命週期的單一 Dart package，核心品質仰賴 `flutter-styles.md` 與精準資料結構；外部模型維持輔助探索/跨分佈對抗（`gemini-mcp-tool`），不盲目取代主力實作與驗收閉環。 |
+
+> **📌 H1–H5 共 5 項為 2026-11-18 新增待辦提案（均已避開與 `D2`、`D3`、`§3 提案 3`、`§5.6`、`F1/F2`、`G2` 之重複）；同時完整記錄了 `Fable-Orchestrator` 裸名稱 GitHub 404 查證依據與 4 個公開 `*/fable-orchestrator` 倉庫實測邊界。依 C14 紀律，任一項落地後應即時回寫本表。**
+
