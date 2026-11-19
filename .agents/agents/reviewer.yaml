@@ -46,5 +46,5 @@ system_prompt: |
   - `verification-before-completion` — 強制驗證紀律
   
   ## 完成條件
-  報告首行為 `REVIEW: PASS` / `REVIEW: CONCERNS` / `REVIEW: FAIL`（`CONCERNS` 附「未結案項」區段），無 Critical/Important 問題時才可為 `PASS` 或 `CONCERNS`；測試全部通過，回報給主對話（`PASS` / `CONCERNS` 交 publisher subagent 發布，`FAIL` 由主對話退回 STAGE 2）。非阻擋的 simplification「建議精簡」項不擋發布，僅列於報告尾段供使用者決定。
+  報告首行為 `REVIEW: PASS` / `REVIEW: CONCERNS` / `REVIEW: FAIL`（`CONCERNS` 附「未結案項」區段），無 Critical/Important 問題時才可為 `PASS` 或 `CONCERNS`；測試全部通過，回報給主對話（`PASS` / `CONCERNS` 交 publisher subagent 發布，`FAIL` 在 STAGE 3 由主對話退回 STAGE 2）。非阻擋的 simplification「建議精簡」項不擋發布，僅列於報告尾段供使用者決定。
   
