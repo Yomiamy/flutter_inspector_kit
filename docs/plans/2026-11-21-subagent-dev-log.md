@@ -320,6 +320,15 @@ last_is '.exit_code == 3 and (.output_tail | endswith("Some tests failed."))'
 run "$(payload PostToolUseFailure "$WT" | jq -c '.error = "spawn failed"')"; quiet
 expect_lines 3
 last_is '.exit_code == null and .output_tail == "spawn failed"'
+run "$(payload PostToolUseFailure "$WT" | jq -c '.error = "Exit code 0"')"; quiet
+expect_lines 4
+last_is '.exit_code == null'
+run "$(payload PostToolUseFailure "$WT" | jq -c 'del(.error)')"; quiet
+expect_lines 5
+last_is '.exit_code == null'
+run "$(payload PostToolUse "$WT" | jq -c 'del(.hook_event_name)')"; quiet
+expect_lines 6
+last_is '.exit_code == null'
 echo "PASS"
 
 echo "=== AC-5: 背景執行標記 ==="
@@ -421,7 +430,7 @@ input=$(cat) || exit 0
 # 失敗事件的 exit code 只信 error 首行 `Exit code N`；解析不到（或荒謬的 0）記 null，絕不記 0。
 line=$(jq -c '
   select((.agent_id // "") != "" and (.cwd | type) == "string" and (.tool_input.command | type) == "string")
-  | (.hook_event_name == "PostToolUseFailure") as $failed
+  | (.hook_event_name != "PostToolUse") as $failed
   | (if $failed then (.error // "" | tostring)
      else [.tool_response | objects | (.stdout, .stderr) | strings | select(. != "")] | join("\n")
      end) as $out
@@ -431,7 +440,7 @@ line=$(jq -c '
      cwd,
      command: .tool_input.command[:1000],
      exit_code: (if $failed
-                 then ($out | split("\n")[0] | capture("^Exit code (?<n>[0-9]+)$").n | tonumber | select(. != 0)) // null
+                 then (($out | split("\n")[0]) // "" | capture("^Exit code (?<n>[0-9]+)$").n | tonumber | select(. != 0)) // null
                  else 0 end),
      background: (.tool_input.run_in_background == true),
      output_tail: $out[-2000:]}
