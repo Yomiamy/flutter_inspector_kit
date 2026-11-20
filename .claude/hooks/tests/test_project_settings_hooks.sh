@@ -8,8 +8,10 @@ SETTINGS=".claude/settings.json"
 # shell form 的路徑佔位符必須加雙引號（官方 hooks 文件），否則 repo 路徑含空白時 hook 無法啟動。
 STAGE_CHECK_REL='.claude/hooks/wf-guard-stage-check.sh'
 DELEGATE_CWD_REL='.claude/hooks/wf-guard-delegate-cwd.sh'
+DEV_LOG_REL='.claude/hooks/wf-dev-log.sh'
 STAGE_CHECK='"$CLAUDE_PROJECT_DIR"/'"$STAGE_CHECK_REL"
 DELEGATE_CWD='"$CLAUDE_PROJECT_DIR"/'"$DELEGATE_CWD_REL"
+DEV_LOG='"$CLAUDE_PROJECT_DIR"/'"$DEV_LOG_REL"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -51,9 +53,12 @@ check_guard() {
 check_guard PreToolUse Agent "$STAGE_CHECK"
 check_guard PreToolUse mcp__gemini-cli__ask-gemini "$DELEGATE_CWD pre"
 check_guard PostToolUse mcp__gemini-cli__ask-gemini "$DELEGATE_CWD post"
+# dev log 側錄：失敗的 Bash 只觸發 PostToolUseFailure，兩個事件都要掛（AC-11）
+check_guard PostToolUse Bash "$DEV_LOG"
+check_guard PostToolUseFailure Bash "$DEV_LOG"
 
 echo "=== Test 3 (AC-3): guard scripts exist, executable, index mode 100755 ==="
-for rel in "$STAGE_CHECK_REL" "$DELEGATE_CWD_REL"; do
+for rel in "$STAGE_CHECK_REL" "$DELEGATE_CWD_REL" "$DEV_LOG_REL"; do
   [ -f "$REPO_ROOT/$rel" ] || fail "$rel does not exist"
   [ -x "$REPO_ROOT/$rel" ] || fail "$rel is not executable"
   mode="$(git -C "$REPO_ROOT" ls-files -s -- "$rel" | cut -d' ' -f1)"
