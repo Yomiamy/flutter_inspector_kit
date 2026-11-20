@@ -18,7 +18,7 @@ input=$(cat) || exit 0
 # 失敗事件的 exit code 只信 error 首行 `Exit code N`；解析不到（或荒謬的 0）記 null，絕不記 0。
 line=$(jq -c '
   select((.agent_id // "") != "" and (.cwd | type) == "string" and (.tool_input.command | type) == "string")
-  | (.hook_event_name == "PostToolUseFailure") as $failed
+  | (.hook_event_name != "PostToolUse") as $failed
   | (if $failed then (.error // "" | tostring)
      else [.tool_response | objects | (.stdout, .stderr) | strings | select(. != "")] | join("\n")
      end) as $out
@@ -28,7 +28,7 @@ line=$(jq -c '
      cwd,
      command: .tool_input.command[:1000],
      exit_code: (if $failed
-                 then ($out | split("\n")[0] | capture("^Exit code (?<n>[0-9]+)$").n | tonumber | select(. != 0)) // null
+                 then (($out | split("\n")[0]) // "" | capture("^Exit code (?<n>[0-9]+)$").n | tonumber | select(. != 0)) // null
                  else 0 end),
      background: (.tool_input.run_in_background == true),
      output_tail: $out[-2000:]}

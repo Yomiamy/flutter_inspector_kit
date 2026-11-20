@@ -84,6 +84,15 @@ last_is '.exit_code == 3 and (.output_tail | endswith("Some tests failed."))'
 run "$(payload PostToolUseFailure "$WT" | jq -c '.error = "spawn failed"')"; quiet
 expect_lines 3
 last_is '.exit_code == null and .output_tail == "spawn failed"'
+run "$(payload PostToolUseFailure "$WT" | jq -c '.error = "Exit code 0"')"; quiet
+expect_lines 4
+last_is '.exit_code == null'
+run "$(payload PostToolUseFailure "$WT" | jq -c 'del(.error)')"; quiet
+expect_lines 5
+last_is '.exit_code == null'
+run "$(payload PostToolUse "$WT" | jq -c 'del(.hook_event_name)')"; quiet
+expect_lines 6
+last_is '.exit_code == null'
 echo "PASS"
 
 echo "=== AC-5: 背景執行標記 ==="
