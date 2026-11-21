@@ -103,10 +103,12 @@ const results = await parallel([
 // null 不可濾掉：逾時/空白/null/無法解析的 lens 必須留下 MISSING COVERAGE 標記（契約見 delegation-and-parallel.md「缺席視角契約」）
 const lenses = ['correctness', ...activeSpecialLenses, '過度工程'] // 與上方陣列順序一致
 const ok = r => Array.isArray(r?.findings)
-const missing = lenses.filter((_, i) => !ok(results[i]))
+// verifier 自報 `MISSING COVERAGE: <lens>: <原因>` 前綴的 finding 同樣算缺席：保留該 finding（lens 與原因），其餘 findings 照常收斂
+const selfMissing = r => r.findings.some(f => JSON.stringify(f).includes('MISSING COVERAGE:'))
+const missing = lenses.filter((_, i) => !ok(results[i]) || selfMissing(results[i]))
 const findings = results.filter(ok).flatMap(r => r.findings)
 
-// 回到主對話：reviewer 親自收斂 findings、去重、判定真偽；missing 非空 → 報告頂部列缺席視角 → 寫審查報告 → 暫停展示（不委派）
+// 回到主對話：reviewer 親自收斂 findings、去重、判定真偽；missing 非空（含自報 `MISSING COVERAGE:` 者）→ 報告頂部列缺席視角（lens 與原因） → 寫審查報告 → 暫停展示（不委派）
 ```
 
 > 不變式：審查報告由 reviewer（最強推論）親自產出，**不委派**。多 angle 只是提高召回率的輸入，不取代 reviewer 的最終判斷。退回 STAGE 2 的條件與層級不變。
