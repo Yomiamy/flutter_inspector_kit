@@ -628,10 +628,12 @@ BASE="$(git merge-base HEAD origin/main)"
    ```
 3. **逐條判定**回報中標示「（自行執行）」或未標示來源的測試／分析宣稱：
 
+   下列「對應紀錄／最後一筆」皆先剔除 `background == true` 的啟動列（尚無結果，不是證據；前台失敗後的背景重試不得蓋掉那筆失敗）。
+
    | 情境 | 判定 |
    |---|---|
-   | 範圍內剔除 `background == true` 啟動列後，無對應指令的紀錄（背景啟動列尚無結果，不是證據；前台失敗後的背景重試不得蓋掉那筆失敗） | `FAIL: CODE: 宣稱的 <指令> 無側錄紀錄` |
-   | 測試類指令（剔除背景啟動列後）最後一筆對應紀錄 `exit_code != 0`（含 `null`：失敗但取不到 exit code） | `FAIL: CODE: 宣稱通過的 <指令> 最後一次執行失敗` |
+   | 範圍內無對應指令 | `FAIL: CODE: 宣稱的 <指令> 無側錄紀錄` |
+   | 測試類指令最後一筆對應紀錄 `exit_code != 0`（含 `null`：失敗但取不到 exit code） | `FAIL: CODE: 宣稱通過的 <指令> 最後一次執行失敗` |
    | `exit_code == 0` 但 `output_tail` 顯示失敗或數字對不上（如 `\| tail` 遮蔽 exit code、宣稱 981 passed 但尾段為 `+975 -6`） | `FAIL: CODE`，以 `output_tail` 為準 |
    | 分析類指令（`flutter analyze` 有任何 issue，含既有 7 info，即 exit 1） | 不看 exit code，以 `output_tail` 的 `N issues found` 核對宣稱；不符即 `FAIL: CODE` |
    | 中途失敗、最後一筆成功（TDD red → green） | 不是 FAIL；屬正常過程，可在報告中引述 |
@@ -770,7 +772,7 @@ hook 與新 verifier 只在「session 從載有新設定的目錄啟動」時生
    - `cat` 那列的 `command` 是否為 `rtk read …`（**H6 實測**，結果寫回規格 §9）；
    - `cwd-probe` 那列是否出現、`cwd` 為何（**H3 subagent cwd 重設語意實測**）。
 3. 派發 verifier，附一份假回報「（自行執行）`flutter test test/nonexistent_test.dart` 通過」+ 真實 `DEV_LOG` + 剛記下的 `SINCE` → 首行應為 `FAIL: CODE: 宣稱的 … 無側錄紀錄`。
-4. 同上，但 `DEV_LOG` 給 worktree 外、hook 永遠不會寫入的不存在路徑（如 `/nonexistent/dev-log.jsonl`；不可用 worktree 內尚未建立的標準路徑，canary 的 echo 會觸發 hook 先建出該檔）→ 首行應為 `FAIL: INFRA: dev log 側錄失效`。
+4. 同上，但 `DEV_LOG` 給 worktree 外、hook 永遠不會寫入的不存在路徑（如 `/nonexistent/.claude/workflow-state/dev-log.jsonl`；不可用 worktree 內尚未建立的標準路徑，canary 的 echo 會觸發 hook 先建出該檔）→ 首行應為 `FAIL: INFRA: dev log 側錄失效`。
 
 **失敗處置**：第 2 步的 `cat`／`false` 兩列沒有寫進 worktree log，或紀錄的 `cwd` 不在 worktree 內（**cwd 行為不符**）→ **不 merge，退回 0b**，改走規格 H3 備案（解析指令開頭 `cd <絕對路徑> &&`，或由 workflow state 反推 worktree）。第 3、4 步首行不符 → 屬 T2 文字缺陷，退回 T2 修正後重測。
 
