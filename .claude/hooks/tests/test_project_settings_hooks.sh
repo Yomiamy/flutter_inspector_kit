@@ -8,8 +8,12 @@ SETTINGS=".claude/settings.json"
 # shell form 的路徑佔位符必須加雙引號（官方 hooks 文件），否則 repo 路徑含空白時 hook 無法啟動。
 STAGE_CHECK_REL='.claude/hooks/wf-guard-stage-check.sh'
 DELEGATE_CWD_REL='.claude/hooks/wf-guard-delegate-cwd.sh'
+FREEZE_REL='.claude/hooks/wf-guard-worktree-freeze.py'
+BASH_GUARD_REL='.claude/hooks/guard-dangerous-bash.py'
 STAGE_CHECK='"$CLAUDE_PROJECT_DIR"/'"$STAGE_CHECK_REL"
 DELEGATE_CWD='"$CLAUDE_PROJECT_DIR"/'"$DELEGATE_CWD_REL"
+FREEZE='"$CLAUDE_PROJECT_DIR"/'"$FREEZE_REL"
+BASH_GUARD='"$CLAUDE_PROJECT_DIR"/'"$BASH_GUARD_REL"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -34,26 +38,28 @@ echo "=== Test 2 (AC-2): each guard registered exactly once ==="
 # 重複註冊、或多了 timeout 等欄位的 handler 都會讓這裡不相等。
 # -S：兩邊 key 排序後再比，handler 內 key 順序不同不算差異。
 # arrays：事件或 hooks 被改成物件時 Claude Code 會拒載，這裡也要判失敗（物件會被 [] 迭代）。
+# 第 4 參數：預期的 onFailure（PreToolUse 預設 block；PostToolUse 預設不帶）。
 check_guard() {
-  local got want event="$1" matcher="$2" cmd="$3"
+  local got want event="$1" matcher="$2" cmd="$3" on_failure="${4:-}"
   got="$(jq -cS --arg e "$event" --arg m "$matcher" --arg c "$cmd" \
     '[(.hooks[$e] | arrays)[] | select(.matcher == $m) | (.hooks | arrays)[]
       | select(.command == $c)]' "$REPO_ROOT/$SETTINGS")" \
     || fail "cannot query $event / $matcher in $SETTINGS"
-  if [ "$event" = "PreToolUse" ]; then
-    want="$(jq -ncS --arg c "$cmd" '[{"type": "command", "command": $c, "onFailure": "block"}]')"
-  else
-    want="$(jq -ncS --arg c "$cmd" '[{"type": "command", "command": $c}]')"
-  fi
+  if [ "$event" = "PreToolUse" ] && [ -z "$on_failure" ]; then on_failure=block; fi
+  want="$(jq -ncS --arg c "$cmd" --arg f "$on_failure" \
+    '[{"type": "command", "command": $c} + (if $f == "" then {} else {"onFailure": $f} end)]')"
   [ "$got" = "$want" ] || fail "$event / $matcher / $cmd handlers: $got (expected exactly $want)"
   echo "PASS: $event / $matcher / $cmd"
 }
 check_guard PreToolUse Agent "$STAGE_CHECK"
 check_guard PreToolUse mcp__gemini-cli__ask-gemini "$DELEGATE_CWD pre"
 check_guard PostToolUse mcp__gemini-cli__ask-gemini "$DELEGATE_CWD post"
+# 凍結 fail-closed；Bash 護欄刻意 fail-open（它是凍結 hook 壞掉時的自救通道），onFailure 寫明 continue 並鎖住
+check_guard PreToolUse 'Edit|Write' "$FREEZE"
+check_guard PreToolUse Bash "$BASH_GUARD" continue
 
 echo "=== Test 3 (AC-3): guard scripts exist, executable, index mode 100755 ==="
-for rel in "$STAGE_CHECK_REL" "$DELEGATE_CWD_REL"; do
+for rel in "$STAGE_CHECK_REL" "$DELEGATE_CWD_REL" "$FREEZE_REL" "$BASH_GUARD_REL"; do
   [ -f "$REPO_ROOT/$rel" ] || fail "$rel does not exist"
   [ -x "$REPO_ROOT/$rel" ] || fail "$rel is not executable"
   mode="$(git -C "$REPO_ROOT" ls-files -s -- "$rel" | cut -d' ' -f1)"
