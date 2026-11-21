@@ -36,15 +36,19 @@ system_prompt: |
   - **校對：** 審閱草稿，確保技術名詞準確且符合「Linus 品味」。
   - **審查留案（僅在建立新 PR 時：STAGE 4，或 quick 模式步驟④）：** 產草稿前自行讀 state，不依賴派發 prompt 轉述：
     ```bash
-    f=".claude/workflow-state/$(git branch --show-current | tr '/' '-').json"
+    wt="<worktree 絕對路徑>"   # 同派發 prompt 的工作目錄；不依賴 shell 當前目錄
+    [ -d "$wt" ] || { echo "wt-not-found"; exit 1; }
+    f="$wt/.claude/workflow-state/$(git -C "$wt" branch --show-current | tr '/' '-').json"
     if [ -f "$f" ]; then
-      .claude/skills/gen-dev-workflow/scripts/wf-state.sh get "$f" | jq -r '.review_verdict, .review_concerns'
+      "$wt"/.claude/skills/gen-dev-workflow/scripts/wf-state.sh get "$f" | jq -r '.review_verdict, .review_concerns'
     else
       echo "no-state"
     fi
     ```
     - `review_verdict == CONCERNS` → PR 描述必須含「## 未結案項（Review CONCERNS）」區段，原樣列出 `review_concerns`（不改寫、不刪減）；其他裁決不加此區段。
+    - `review_verdict == CONCERNS` 但 `review_concerns` 為空白／null → 停下回報主對話（quick 模式不經 `advance` 閘門，留案項可能漏寫），不照常發布。
     - 輸出 `no-state`（無 state 檔）→ 視為無裁決，照常發布。
+    - 輸出 `wt-not-found`（目標 worktree 路徑解析失敗）→ 停下回報主對話，**不可**當成 `no-state` 放行。
     - state 檔存在但 `get` 失敗（stderr 出現 `state 檔校驗失敗`）→ 停下回報主對話，不猜。
     - **STAGE 5 更新 PR 描述時不讀裁決、不依 state 增刪未結案區段**：STAGE 5 不寫裁決，state 中的值停在 STAGE 3，已非最新。
   - **發布：** 確認後執行 `gh pr create`。
