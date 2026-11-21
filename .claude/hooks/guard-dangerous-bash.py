@@ -3,7 +3,7 @@
 # 規格：docs/features/2026-11-21-main-session-guard-and-missing-coverage.md §4.2
 #
 #   deny：rm 同時帶 -r/-R 與 -f，目標為 / ~ $HOME ${HOME}（含尾斜線與 /*）；force push 到 main
-#         （-f / --force* / +refspec；省略 refspec 或 HEAD 時看該處當前 branch；--all 視同含 main）
+#         （-f / --force* / +refspec；省略 refspec 或 HEAD 時看該處當前 branch；--all／--branches 視同含 main）
 #   ask ：git reset --hard；git checkout . / git restore .；git clean 帶 -f
 #
 # 以 shlex 切詞，依 ; && || | & ( ) 換行切成子指令逐段比對；剝除前綴 sudo、rtk（含 rtk proxy）與 VAR=val；
@@ -22,6 +22,7 @@
 # git --git-dir <dir>（空格分隔）：值被當成子指令，整段漏判。
 # git checkout ./ 不算 git checkout .，不 ask。
 # 子 shell 內的 cd 會延續到外層，後續 branch 判斷可能指向錯的目錄。
+# git push --mirror（不帶 -f 也會強制覆寫遠端 main）不比對。
 # branch 在執行前查一次：同一指令內先 git switch/checkout 再省略 refspec 的 force push（git switch main && git push -f）判不到。
 # hook ask 在 bypassPermissions 下不保證跳出確認，dontAsk／-p 下會變成拒絕；不可逆項目因此一律放在 deny 層。
 #
@@ -108,7 +109,7 @@ def push_main_hit(args, d):
         or any(r.startswith("+") for r in refspecs)
     if not force:
         return False
-    dsts = [r.lstrip("+").split(":")[-1] for r in refspecs] or (["main"] if "--all" in args else ["HEAD"])
+    dsts = [r.lstrip("+").split(":")[-1] for r in refspecs] or (["main"] if {"--all", "--branches"} & set(args) else ["HEAD"])
     return any(x in ("main", "refs/heads/main") or (x == "HEAD" and branch_of(d) == "main")
                for x in dsts)
 

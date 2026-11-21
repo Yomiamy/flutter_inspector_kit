@@ -123,7 +123,10 @@ decide deny 'cd /definitely-missing; git push -f origin'
 CWD="$ON_FEAT"
 decide deny 'git push --force --all origin'
 decide deny 'git push --all -f origin'
+decide deny 'git push --branches -f origin'
 pass 'git push --all origin'
+CWD="$TMP"; decide deny 'cd on-main && git push -f origin'  # 相對路徑 cd
+CWD="$ON_FEAT"
 pass "echo '>'; git push -f origin feat/x"
 pass "cd $ON_MAIN && git push -f origin feat/x"
 echo "PASS"

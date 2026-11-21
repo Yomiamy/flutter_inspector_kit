@@ -104,7 +104,7 @@ const results = await parallel([
 const lenses = ['correctness', ...activeSpecialLenses, '過度工程'] // 與上方陣列順序一致
 const ok = r => Array.isArray(r?.findings)
 // verifier 自報 `MISSING COVERAGE: <lens>: <原因>` 前綴的 finding 同樣算缺席：保留該 finding（lens 與原因），其餘 findings 照常收斂
-const selfMissing = r => r.findings.some(f => JSON.stringify(f).includes('MISSING COVERAGE:'))
+const selfMissing = r => r.findings.some(f => Object.values(f).some(v => typeof v === 'string' && /^MISSING COVERAGE[:：]/.test(v)))
 const missing = lenses.filter((_, i) => !ok(results[i]) || selfMissing(results[i]))
 const findings = results.filter(ok).flatMap(r => r.findings)
 
