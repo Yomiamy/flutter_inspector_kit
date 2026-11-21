@@ -12,14 +12,21 @@
 # 掛載於 .claude/settings.json 的 PostToolUse 與 PostToolUseFailure（matcher: Bash）；
 # 失敗的 Bash 只觸發 PostToolUseFailure，兩者缺一就漏記。條目由 tests/test_project_settings_hooks.sh 鎖定。
 
+umask 077 # log 含指令與輸出尾段，與 state 檔同為 0600
 input=$(cat) || exit 0
+
+# 輸出 >30KB 時 tool_response.stdout 只留前段、全文落在 persistedOutputPath；尾段改從該檔取
+persisted=$(jq -r '.tool_response.persistedOutputPath // empty | strings' <<<"$input" 2>/dev/null)
+full=""
+[ -n "$persisted" ] && [ -r "$persisted" ] && full=$(tail -c 8192 "$persisted" 2>/dev/null)
 
 # 截斷以字元（codepoint）計，jq 字串切片保證不切斷多位元組字元。
 # 失敗事件的 exit code 只信 error 首行 `Exit code N`；解析不到（或荒謬的 0）記 null，絕不記 0。
-line=$(jq -c '
+line=$(jq -c --arg full "$full" '
   select((.agent_id // "") != "" and (.cwd | type) == "string" and (.tool_input.command | type) == "string")
   | (.hook_event_name != "PostToolUse") as $failed
   | (if $failed then (.error // "" | tostring)
+     elif $full != "" then $full
      else [.tool_response | objects | (.stdout, .stderr) | strings | select(. != "")] | join("\n")
      end) as $out
   | {ts: (now | todate),

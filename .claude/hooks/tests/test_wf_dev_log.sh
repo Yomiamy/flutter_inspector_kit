@@ -108,6 +108,9 @@ last_is --arg b "$BIG" --arg c "$CMD" '.output_tail == $b[-2000:] and (.output_t
   and .command == $c[:1000] and (.command | length) == 1000'
 run "$(payload PostToolUse "$WT" | jq -c --arg b "$BIG" '.tool_response.stdout = $b | .tool_response.stderr = "尾巴"')"; quiet
 last_is '(.output_tail | length) == 2000 and (.output_tail | endswith("\n尾巴"))'
+printf '%s\n' "$BIG" "00:19 +1005: All tests passed!" >"$TMP/persisted.txt"
+run "$(payload PostToolUse "$WT" | jq -c --arg p "$TMP/persisted.txt" '.tool_response.stdout = "00:05 +134: head only" | .tool_response.persistedOutputPath = $p')"; quiet
+last_is '.output_tail | endswith("All tests passed!") and (contains("head only") | not)'
 iconv -f UTF-8 -t UTF-8 "$LOG" >/dev/null || fail "log 不是合法 UTF-8"
 echo "PASS"
 
