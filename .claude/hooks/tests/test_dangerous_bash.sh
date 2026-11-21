@@ -115,6 +115,19 @@ pass 'git push'
 pass 'git push -f origin feat/x 2>&1'
 echo "PASS"
 
+echo "=== 引號內的 > 不吞後面的分隔符；失敗的 cd 不改判斷目錄；--all 視同含 main ==="
+CWD="$ON_MAIN"
+decide deny "echo '>'; git push -f origin main"
+decide deny "echo '>' && git push -f origin main"
+decide deny 'cd /definitely-missing; git push -f origin'
+CWD="$ON_FEAT"
+decide deny 'git push --force --all origin'
+decide deny 'git push --all -f origin'
+pass 'git push --all origin'
+pass "echo '>'; git push -f origin feat/x"
+pass "cd $ON_MAIN && git push -f origin feat/x"
+echo "PASS"
+
 echo "=== fail-open：壞 payload / 無法解析的指令放行且無輸出 ==="
 for p in 'not json' '' '{"tool_input": "x"}'; do
   set +e; OUT="$(printf '%s' "$p" | "$HOOK" 2>&1)"; CODE=$?; set -e
