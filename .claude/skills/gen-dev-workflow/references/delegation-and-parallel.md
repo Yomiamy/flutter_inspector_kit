@@ -72,6 +72,25 @@ Verifier 報告**第一行必須頂格輸出狀態前綴**，一眼即知通過�
 
 > **`FAIL: INFRA` 自動重試規範**：當 Verifier 回報 `FAIL: INFRA` 時，主調度進程不更換 model、不修改代碼，自動於同 tier 重新執行 1 次驗收任務以消除環境偶發抖動。若第二次仍回報 `FAIL: INFRA`，代表環境存在確定性外部障礙，必須暫停流程並向開發者展示受阻訊息，待人工介入排除後再行繼續。
 
+#### 缺席視角契約（MISSING COVERAGE）
+
+界線在**誰回報**：`FAIL: INFRA` 是 verifier 自己交回報告、說「環境擋住了」；`MISSING COVERAGE` 是該通道**根本沒有交回可用結果**。下表為唯一定義處，`verifier.md`、`reviewer.md`、`publisher.md`、`mcp-delegation-discipline.md`、`workflow-parallel.md` 只引用、不重述：
+
+| 情境 | 判定 | 自動重試 | 計入通過 |
+|:---|:---|:---:|:---:|
+| lens 回傳合法 schema，`findings` 為空 | 合法結果（查無問題） | — | 是 |
+| lens／verifier／`ask-gemini` **沒有可用回報**：逾時、空白、null、無法解析（含 verifier 報告首行不是三種狀態前綴），或 lens 自報 `MISSING COVERAGE: <lens>: <原因>` | **`MISSING COVERAGE`** | **否** | **否** |
+| verifier **有回報**，首行 `FAIL: INFRA`（環境受阻） | `FAIL: INFRA` | 同 tier 1 次 | 否 |
+| 某 lens 依特徵規則刻意未派發 | Guard Clause Record（主審兜底） | — | 依兜底結果 |
+
+路由（一律不自動重試、不自動退回 STAGE 2）：
+
+- **STAGE 3 審查 lens 缺席**：reviewer 把缺席 lens 與原因列在審查報告**頂部**，與 Guard Clause Record 分開；結論不得寫成「全部視角通過」。publisher 把同一段帶進 PR 草稿，使用者在 STAGE 4 暫停點（`strict`／`balanced`）決定補審或接受；`autonomous` 只保證寫進 PR 本文。
+- **STAGE 2 驗收 verifier 缺席**：該任務不得寫入 `completed_tasks`，立即停下向使用者回報，不論 `pause_level`（同重試耗盡時的「停止並回報」）——驗收是 STAGE 2 唯一的閘門，缺席等於沒有閘門。
+- **STAGE 2 implementer 的 `ask-gemini` 委派缺席**：implementer 在回報中標記 `MISSING COVERAGE: ask-gemini: <原因>`，不重派 MCP；先以 `git status`／`git log` 實查工作樹，再走既有 Fallback 自行完成。下游仍有 verifier 驗收，所以這裡降級而不停下。
+- **STAGE 4 publisher 的 `ask-gemini` 草稿委派缺席**：標記後不重派，退回既有 Fallback 以 `gen-pr` 自產草稿；草稿照常經 STAGE 4 暫停點給使用者確認。
+- **與「基礎設施錯誤」的界線**：派發**回傳了明確錯誤**（`400` 參數／thinking 不支援、`429`、`5xx`、連線中斷）→ 走下方退回路徑的基礎設施錯誤分支；**沒有錯誤、也沒有可用結果** → `MISSING COVERAGE`。逾時不在基礎設施錯誤清單內。
+
 ### STAGE 2 派發煞車 (Dispatch Brake) 與不委派硬規則
 
 以下情況即使 MCP 或 Subagent 可用也**不委派**（短文直生與原地修改反而更省一次 context 來回與冷啟動延遲）：
@@ -121,6 +140,7 @@ Verifier 報告**第一行必須頂格輸出狀態前綴**，一眼即知通過�
 |---|---|
 | 全部並行單元成功（全數 `PASS`） | 唯有所有單元皆獲 Verifier 判定為 `PASS`，才寫入 `completed_tasks` 並收斂所有結果 → 統一在暫停點展示 → 問使用者確認 |
 | 部分回傳 `FAIL: CODE` 或 `FAIL: INFRA` | 凡非 `PASS` 者嚴禁計入 `completed_tasks`；`FAIL: CODE` 進入修復迴圈，`FAIL: INFRA` 依規範同 tier 重試 1 次（重試仍未定則暫停求助） |
+| 部分單元**沒有交回可用結果**（逾時、空白、null、無法解析） | 標記 `MISSING COVERAGE`：不計 `PASS`、不寫入 `completed_tasks`、**不自動重試、不自動退回**，交由使用者決定（路由見上方「缺席視角契約」）；與 `FAIL: INFRA` 的「同 tier 重試 1 次」不同 |
 | 部分失敗，且有其他單元**依賴失敗單元的產出** | 立即短路：停止依賴鏈下游，已完成的保留，回報使用者「X 失敗，已暫停依賴它的 Y、Z」 |
 | context 在並行中途超標 | 等當前所有並行單元跑完（不切在半途）→ 才執行 Token Gate 的切 session 閉環 |
 
@@ -132,6 +152,7 @@ Verifier 報告**第一行必須頂格輸出狀態前綴**，一眼即知通過�
 ```text
 失敗單元 → 分析原因
   ├─ 驗收環境異常 (FAIL: INFRA)  → 同 tier 自動重試 1 次；若仍未定則暫停向使用者求助
+  ├─ 沒有可用回報 (MISSING COVERAGE) → 不重試、不計失敗次數，依「缺席視角契約」路由
   ├─ 基礎設施錯誤  → **不計入失敗次數**（見下方「為什麼要分類」）
   │                   400 參數/thinking 不支援 → 先確認環境 thinking 設定，非原樣重派
   │                   429 / 5xx / 連線中斷 → 同 tier 重派 1 次，再依重派結果分流：
