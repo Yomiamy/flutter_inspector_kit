@@ -629,8 +629,8 @@ BASE="$(git merge-base HEAD origin/main)"
 
    | 情境 | 判定 |
    |---|---|
-   | 範圍內無對應指令，或對應紀錄只有 `background == true` 的啟動列 | `FAIL: CODE: 宣稱的 <指令> 無側錄紀錄` |
-   | 測試類指令最後一筆對應紀錄 `exit_code != 0`（含 `null`：失敗但取不到 exit code） | `FAIL: CODE: 宣稱通過的 <指令> 最後一次執行失敗` |
+   | 範圍內剔除 `background == true` 啟動列後，無對應指令的紀錄（背景啟動列尚無結果，不是證據；前台失敗後的背景重試不得蓋掉那筆失敗） | `FAIL: CODE: 宣稱的 <指令> 無側錄紀錄` |
+   | 測試類指令（剔除背景啟動列後）最後一筆對應紀錄 `exit_code != 0`（含 `null`：失敗但取不到 exit code） | `FAIL: CODE: 宣稱通過的 <指令> 最後一次執行失敗` |
    | `exit_code == 0` 但 `output_tail` 顯示失敗或數字對不上（如 `\| tail` 遮蔽 exit code、宣稱 981 passed 但尾段為 `+975 -6`） | `FAIL: CODE`，以 `output_tail` 為準 |
    | 分析類指令（`flutter analyze` 有任何 issue，含既有 7 info，即 exit 1） | 不看 exit code，以 `output_tail` 的 `N issues found` 核對宣稱；不符即 `FAIL: CODE` |
    | 中途失敗、最後一筆成功（TDD red → green） | 不是 FAIL；屬正常過程，可在報告中引述 |

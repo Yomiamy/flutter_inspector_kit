@@ -110,10 +110,10 @@
 |:---|:---|
 | log 中有對應指令，且最後一筆對應紀錄的實際結果與宣稱一致（測試類 `exit_code == 0` 且 `output_tail` 一致；分析類見下） | 宣稱成立，繼續既有兩階段驗收 |
 | log 中**無對應指令** | `FAIL: CODE: 宣稱的 <指令> 無側錄紀錄` |
-| 測試類指令最後一筆對應紀錄 `exit_code != 0`（含 `null`） | `FAIL: CODE: 宣稱通過的 <指令> 最後一次執行失敗` |
+| 測試類指令（剔除背景啟動列後）最後一筆對應紀錄 `exit_code != 0`（含 `null`） | `FAIL: CODE: 宣稱通過的 <指令> 最後一次執行失敗` |
 | `exit_code == 0` 但 `output_tail` 顯示失敗或數字對不上（如管線 `\| tail` 遮蔽 exit code、宣稱 981 passed 但尾段為 `+975 -6`） | `FAIL: CODE`，以 `output_tail` 為準 |
 | 分析類指令（`flutter analyze` 有任何 issue，含既有 7 info，即 exit 1——0b 實測） | 不看 exit code，以 `output_tail` 的 `N issues found` 核對宣稱；不符即 `FAIL: CODE` |
-| 對應紀錄只有 `background == true` 的啟動列 | 視同無對應紀錄 |
+| 對應紀錄只有 `background == true` 的啟動列 | 視同無對應紀錄；判定「最後一筆」前一律先剔除背景啟動列（前台失敗後的背景重試不得蓋掉那筆失敗） |
 | 中途失敗、最後一筆成功（TDD red → green） | **不是** FAIL；屬正常過程，可在報告中引述 |
 | 回報中標示為「委派端（gemini）回報」的宣稱 | 不以 log 判定（範圍外），報告註明「未側錄、不採信」；通過與否仍以 verifier 自己的執行結果為準 |
 
