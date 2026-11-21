@@ -44,9 +44,15 @@ def segments(cmd):
     lx = shlex.shlex(KeepNewline(src), posix=True, punctuation_chars=";&|()<>\n")
     lx.whitespace = " \t\r"
     lx.whitespace_split = True
-    seg = []
+    seg, skip = [], False
     for tok in lx:
-        if set(tok) <= SEP_CHARS:
+        if skip:
+            skip = False
+        elif set(tok) <= set("<>&") and set(tok) & set("<>"):  # 重導向：丟掉運算子、目標與前置 fd（2>&1 → 2、>&、1）
+            if seg and seg[-1].isdigit():
+                seg.pop()
+            skip = True
+        elif set(tok) <= SEP_CHARS:
             yield seg
             seg = []
         else:
