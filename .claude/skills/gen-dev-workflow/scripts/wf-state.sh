@@ -5,10 +5,12 @@
 #   2. sequence 模式的 stage 轉移合法性檢查（非法跳段直接 exit 1）
 #   3. 暫停點棘輪：stage-done / task-done 之後 awaiting_confirmation=true，
 #      未帶 --confirmed 的 advance 一律拒絕——跳過暫停點需要「明示旗標」這個蓄意動作
+#   4. STAGE 3：3→2 退回（所有模式）須附理由、達上限須 --confirmed；sequence 3→4 須有合法審查裁決
 set -euo pipefail
 
 STATE_DIR="${WF_STATE_DIR:-.claude/workflow-state}"
 SCHEMA_VERSION=1
+REWORK_CAP=2   # STAGE 3→2 自動退回上限；達上限後每次退回都須使用者確認（--confirmed）
 
 die() { echo "wf-state: $*" >&2; exit 1; }
 command -v jq >/dev/null || die "需要 jq"
@@ -23,14 +25,18 @@ usage() {
   wf-state.sh promote <pending-檔> --branch <branch> [--dest <state-dir>]
       pending → <branch-slug>.json（STAGE 1 建好 worktree 後，--dest 指向新 worktree 的 state dir）
   wf-state.sh get <檔>                    校驗後輸出 JSON
-  wf-state.sh set <檔> k=v [k=v ...]      更新欄位（不可改 stage/awaiting_confirmation）
+  wf-state.sh set <檔> k=v [k=v ...]      更新欄位（不可改 stage/awaiting_confirmation/rework_history）
+      review_verdict=PASS|CONCERNS|FAIL；review_concerns=<未結案項 markdown>（CONCERNS 必填）
   wf-state.sh stage-done <檔> <stage>     標記 stage 完成，進入等待使用者確認
       sequence 模式：<stage> 須等於目前 stage；quick/jump 不受限（自由標籤）
   wf-state.sh task-done <檔> <n>          任務完成（記入 completed_tasks，進入等待確認）
       sequence 模式：僅能在 STAGE 2 執行
   wf-state.sh confirm <檔>                使用者已確認（清除等待旗標，stage 不變）
-  wf-state.sh advance <檔> <next> --confirmed
+  wf-state.sh advance <檔> <next> [--confirmed] [--reason <s>]
       推進 stage。等待確認中且未帶 --confirmed → 拒絕；sequence 模式非法轉移 → 拒絕
+      3→2 退回（所有模式）：--reason 必填並記入 rework_history；已退回 ≥2 次須 --confirmed
+      sequence 3→4：review_verdict 須為 PASS（無未結案項）或 CONCERNS（有未結案項）
+      進入 stage 3 一律清空 review_verdict / review_concerns
 <檔> 可為路徑，或相對 $STATE_DIR 的檔名。
 
 批次佇列（多個獨立 workflow 依序執行，每項各自 worktree/branch/PR）：
@@ -57,6 +63,9 @@ validate() {
     (.completed_tasks | all(type == "number")) and
     (.total_tasks == null or (.total_tasks | type == "number")) and
     (.pause_level == null or .pause_level == "strict" or .pause_level == "balanced" or .pause_level == "autonomous") and
+    (.review_verdict == null or .review_verdict == "PASS" or .review_verdict == "CONCERNS" or .review_verdict == "FAIL") and
+    (.review_concerns == null or (.review_concerns | type == "string")) and
+    (.rework_history == null or (.rework_history | type == "array" and all(type == "object" and (.reason | type == "string") and (.at | type == "string")))) and
     (.awaiting_confirmation | type == "boolean")
   ' "$1" >/dev/null 2>&1 || die "state 檔校驗失敗：$1"
 }
@@ -172,12 +181,42 @@ apply_sets() { # $1=json, 之後 k=v...；回傳更新後 json
           *) die "不可設定無效的 pause_level 值：'${v}'（允許值：strict, balanced, autonomous）" ;;
         esac
         ;;
-      spec|plan|branch|issue|pr|total_tasks|interrupted_by) ;;
+      review_verdict)
+        case "$v" in
+          PASS|CONCERNS|FAIL) ;;
+          *) die "不可設定無效的 review_verdict 值：'${v}'（允許值：PASS, CONCERNS, FAIL）" ;;
+        esac
+        ;;
+      spec|plan|branch|issue|pr|total_tasks|interrupted_by|review_concerns) ;;
       *) die "不可透過 set 修改欄位：${k}（stage 用 advance、確認用 confirm）" ;;
     esac
     json="$(echo "$json" | jq --arg k "$k" --argjson v "$(jq_val "$v")" '.[$k] = $v')"
   done
   echo "$json"
+}
+
+# check_rework <檔> <reason> <confirmed>  3→2 退回前置檢查（所有模式）：理由必填；達上限視同暫停點
+check_rework() {
+  [ -n "${2//[[:space:]]/}" ] || die "STAGE 3→2 退回須附理由：advance <檔> 2 --reason \"<摘要>\""
+  local n
+  n="$(jq '.rework_history // [] | length' "$1")"
+  if [ "$n" -ge "$REWORK_CAP" ] && [ "$3" != "true" ]; then
+    die "已退回 ${n} 次（上限 ${REWORK_CAP}），本次退回視同暫停點。先向使用者展示以下歷史並取得決定：再修 → 帶 --confirmed 重跑；留案發布 → set review_verdict=CONCERNS review_concerns=\"<項目>\" 後 advance 4 --confirmed；放棄 → 依刪檔規則"$'\n'"$(jq -r '.rework_history[] | "  - \(.at)  \(.reason)"' "$1")"
+  fi
+}
+
+# check_verdict <檔>  sequence 3→4 裁決閘門：放行 ⇔ verdict ∈ {PASS, CONCERNS} 且 (verdict == CONCERNS) == (concerns 非空)
+check_verdict() {
+  local v c
+  v="$(jq -r '.review_verdict' "$1")"
+  c="$(jq -r '(.review_concerns // "") | test("\\S")' "$1")"
+  case "$v:$c" in
+    PASS:false|CONCERNS:true) ;;
+    FAIL:*) die "審查裁決為 FAIL，不可推進至 STAGE 4（--confirmed 不可覆寫）。修正請走 advance <檔> 2 --reason \"<摘要>\"；決定帶問題發布則改判 CONCERNS 並寫入 review_concerns" ;;
+    PASS:true) die "裁決 PASS 卻有未結案項，兩者矛盾：改判 CONCERNS，或 set <檔> review_concerns=null" ;;
+    CONCERNS:false) die "裁決 CONCERNS 須附未結案項：set <檔> review_concerns=\"<項目>\"" ;;
+    *) die "STAGE 3 尚未記錄審查裁決：先執行 set <檔> review_verdict=PASS|CONCERNS|FAIL" ;;
+  esac
 }
 
 cmd="${1:-}"; shift || usage
@@ -215,7 +254,8 @@ case "$cmd" in
       --argjson br "$( [ -n "$branch" ] && jq -n --arg b "$branch" '$b' || echo null )" \
       '{schema_version:$sv, workflow_id:$id, stage:$st, mode:$m, spec:null, plan:null,
         branch:$br, issue:null, pr:null, completed_tasks:[], total_tasks:null,
-        pause_level:$pl, interrupted_by:null, awaiting_confirmation:false}')"
+        pause_level:$pl, interrupted_by:null, review_verdict:null, review_concerns:null,
+        rework_history:[], awaiting_confirmation:false}')"
     [ ${#sets[@]} -gt 0 ] && json="$(apply_sets "$json" "${sets[@]}")"
     echo "$json" | atomic_write "$f"
     trap - EXIT
@@ -308,10 +348,16 @@ case "$cmd" in
       next="$2"
       shift 2
     else
-      die "advance 指令需要提供目標階段 (next)，用法：wf-state.sh advance <檔> <next> [--confirmed]"
+      die "advance 指令需要提供目標階段 (next)，用法：wf-state.sh advance <檔> <next> [--confirmed] [--reason <s>]"
     fi
-    confirmed=false
-    [ "${1:-}" = "--confirmed" ] && confirmed=true
+    confirmed=false; reason=""; has_reason=false
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --confirmed) confirmed=true; shift ;;
+        --reason) [ $# -ge 2 ] || die "--reason 需要值"; reason="$2"; has_reason=true; shift 2 ;;
+        *) die "advance：未知參數 $1" ;;
+      esac
+    done
     validate "$f"
     cur="$(jq -r '.stage' "$f")"; mode="$(jq -r '.mode' "$f")"
     awaiting="$(jq -r '.awaiting_confirmation' "$f")"
@@ -320,6 +366,17 @@ case "$cmd" in
     fi
     if [ "$mode" = "sequence" ] && ! legal_transition "$cur" "$next"; then
       die "非法 stage 轉移：$cur -> ${next}（合法路徑見 legal_transition()：主線 0a→0b→1→2→3→4、3→2、4→done；獨立入口 4→5、5→4、5→5、4→6、5→6、6→done、done→5、done→6；具名 stage reviewer→responder、responder→reviewer、reviewer→publisher）"
+    fi
+    rework=false
+    [ "$cur" = "3" ] && [ "$next" = "2" ] && rework=true   # 退回不分模式；3→4 閘門才限 sequence
+    if [ "$has_reason" = "true" ] && [ "$rework" != "true" ]; then
+      die "--reason 僅用於 STAGE 3→2 退回（本次：${cur} -> ${next}），理由不會被記錄"
+    fi
+    if [ "$rework" = "true" ]; then
+      check_rework "$f" "$reason" "$confirmed"
+    fi
+    if [ "$mode" = "sequence" ] && [ "$cur" = "3" ] && [ "$next" = "4" ]; then
+      check_verdict "$f"
     fi
     if [ "$next" = "3" ] && [ "$mode" = "sequence" ]; then
       total="$(jq -r '.total_tasks' "$f")"
@@ -332,8 +389,12 @@ case "$cmd" in
         fi
       fi
     fi
-    jq --arg s "$next" '.stage = $s | .awaiting_confirmation = false | .interrupted_by = null' \
-      "$f" | atomic_write "$f"
+    jq --arg s "$next" --arg r "$reason" --argjson rw "$rework" \
+       --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+      .stage = $s | .awaiting_confirmation = false | .interrupted_by = null
+      | if $s == "3" then .review_verdict = null | .review_concerns = null else . end
+      | if $rw then .rework_history = ((.rework_history // []) + [{reason: $r, at: $at}]) else . end
+    ' "$f" | atomic_write "$f"
     echo "→ stage $next"
     ;;
 

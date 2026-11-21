@@ -19,6 +19,7 @@ new_done_state() {
   "$WF_STATE" advance "$pending" 1 --confirmed >/dev/null
   state="$("$WF_STATE" promote "$pending" --branch "$branch" --dest "$TEMP_DIR")"
   for s in 2 3 4 done; do
+    if [ "$s" = "4" ]; then "$WF_STATE" set "$state" review_verdict=PASS; fi   # 3→4 裁決閘門
     "$WF_STATE" advance "$state" "$s" --confirmed >/dev/null
   done
   echo "$state"

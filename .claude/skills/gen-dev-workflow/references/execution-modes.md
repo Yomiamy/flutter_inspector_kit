@@ -24,9 +24,10 @@ quick <描述或 #issue>
   ▼
 ③ Task("reviewer", "快掃 <branch> diff，單 lens：correctness")
    - 保住「不讓實作模型自審」原則（reviewer frontmatter 綁定 `model: opus` 最強推論，確保獨立交叉審查強度）；發現問題 → 主對話修正後重掃
+   - reviewer 首行 `REVIEW: CONCERNS` → `wf-state.sh set <檔> review_verdict=CONCERNS review_concerns="<未結案項>"`（publisher 會帶進 PR）；之後重掃結論改變時以同法覆寫（`PASS` 時同次帶 `review_concerns=null`），避免舊未結案項殘留——quick 不經 `advance 3`，裁決不會自動清空
    - quick 模式無 verifier 兩階段驗收，這是唯一的品質關卡
   ▼
-④ 呼叫 gen-commit skill 執行 commit → Task("publisher", ...) 產 PR 草稿
+④ 呼叫 gen-commit skill 執行 commit → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>；工作目錄：<repo 絕對路徑>") 產 PR 草稿
   ▼
 ⏸ 唯一暫停點：展示 PR 草稿 → 使用者確認 → publisher 發布（含指派與 Project 狀態），流程結束
 ```
@@ -102,7 +103,7 @@ batch-next 回傳 DONE → 輸出總結（各項 status / PR 連結），刪除�
 - **批次檔永遠留在原 repo** 的 `.claude/workflow-state/`，不隨 worktree 移動——它是跨 workflow 的，不屬於任何單一 branch。
 - **`cd` 紀律**：每項跑完必須 `cd` 回原 repo 再收尾，否則下一項的 `batch-next` 會在錯誤的工作目錄找不到批次檔。
 - **建議搭配 `--pause-level balanced`**：批次的意義是減少打斷，每項若還停五次就失去意義。但**不建議 `autonomous`**——那會讓三個 PR 都不經過目就發出去。
-- **失敗處理**：某項失敗（STAGE 3 審查連續退回、tier 升級後仍失敗）→ `batch-fail --note "<原因>"`，游標照常前進到下一項。**一項失敗不中止整個批次**——各項獨立，沒有理由讓後面的陪葬。最終總結會列出失敗項讓使用者決定要不要重跑。
+- **失敗處理**：某項失敗（STAGE 3 退回達上限後使用者選擇放棄、tier 升級後仍失敗）→ `batch-fail --note "<原因>"`，游標照常前進到下一項。**一項失敗不中止整個批次**——各項獨立，沒有理由讓後面的陪葬。最終總結會列出失敗項讓使用者決定要不要重跑。
 - **中止**：使用者說「停止批次」→ `batch-abort`。只刪批次檔，**已建立的 branch / PR / worktree 一律保留**（沿用「branch 永不自動刪除」的既有紀律）。
 - **`batch-next` 回傳 DONE 後**才刪批次檔，並輸出總結表（項目 / status / PR 連結 / 失敗原因）。
 
