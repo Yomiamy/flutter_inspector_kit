@@ -201,7 +201,7 @@ check_rework() {
   local n
   n="$(jq '.rework_history // [] | length' "$1")"
   if [ "$n" -ge "$REWORK_CAP" ] && [ "$3" != "true" ]; then
-    die "已退回 ${n} 次（上限 ${REWORK_CAP}），本次退回視同暫停點。先向使用者展示以下歷史並取得決定：再修 → 帶 --confirmed 重跑；留案發布 → set review_verdict=CONCERNS review_concerns=\"<項目>\" 後 advance 4；放棄 → 依刪檔規則"$'\n'"$(jq -r '.rework_history[] | "  - \(.at)  \(.reason)"' "$1")"
+    die "已退回 ${n} 次（上限 ${REWORK_CAP}），本次退回視同暫停點。先向使用者展示以下歷史並取得決定：再修 → 帶 --confirmed 重跑；留案發布 → set review_verdict=CONCERNS review_concerns=\"<項目>\" 後 advance 4 --confirmed；放棄 → 依刪檔規則"$'\n'"$(jq -r '.rework_history[] | "  - \(.at)  \(.reason)"' "$1")"
   fi
 }
 

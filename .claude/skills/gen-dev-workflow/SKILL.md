@@ -137,6 +137,8 @@ description: |
     │    → stage-done 3                               │
     │  ⏸ 暫停：展示審查報告＋歷次退回理由，           │
     │     問「確認繼續嗎？」                          │
+    │     （stage-done 已標等待確認時，下列 advance   │
+    │     皆須加 --confirmed）                        │
     │  ┌─ PASS / CONCERNS → advance 4            ─┐   │
     │  └─ FAIL / 使用者要求修正                   │   │
     │      → advance 2 --reason "<摘要>" 退回修正 │   │
@@ -240,7 +242,7 @@ description: |
 | 遇到模糊需求 | 問最小必要問題（≤ 2 個），不要問多 | 使用者回答後自動繼續 |
 | PR 草稿完成後 | 展示草稿，問「確認發布嗎？」 | 使用者確認 |
 
-**不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 0b plan-verifier 初審打回（REVISE）自動重修（最多 2 次；第 2 次仍為 REVISE 則停止並等待使用者決策，不再自動處理）、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2（**僅前 2 次**；第 3 次起任何 `pause_level` 都停，見下方暫停粒度）、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見 [`references/delegation-and-parallel.md`](references/delegation-and-parallel.md)）。
+**不應該暫停的情況：** 分支建立、任務間自動切換、STAGE 0b plan-verifier 初審打回（REVISE）自動重修（最多 2 次；第 2 次仍為 REVISE 則停止並等待使用者決策，不再自動處理）、STAGE 2 內部失敗 retry、STAGE 3 審查失敗退回 STAGE 2（**前 2 次不額外加停**，仍照 `pause_level` 的 `stage-done 3` 規則；第 3 次起任何 `pause_level` 都停，見下方暫停粒度）、測試執行、並行單元間的協調。這些全部自動處理（失敗 retry 與退回路徑見 [`references/delegation-and-parallel.md`](references/delegation-and-parallel.md)）。
 
 **主動中斷（非暫停）：** context > 150k 時依 Token Budget Gate 主動保存並切 session，這**不是暫停點，是保護性中斷**——續接時不問「繼續還是開新流程」，直接接回原 stage（見 [`references/token-budget-gate.md`](references/token-budget-gate.md)）。
 

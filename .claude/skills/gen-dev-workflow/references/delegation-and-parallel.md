@@ -154,4 +154,4 @@ Verifier 報告**第一行必須頂格輸出狀態前綴**，一眼即知通過�
 >
 > 清單刻意維持極小，**只列實際觀測到或判斷無歧義的**：`400` 參數/thinking 不支援、`429` 限流、`5xx`、連線中斷。**不要**擴寫成一份投機的暫時性錯誤分類學——字串比對錯誤訊息終究會誤判，而誤判的代價（多一次同 tier 重試）必須小於它要解決的問題。
 
-**與 STAGE 3 退回的關係：** STAGE 2 內部失敗在 STAGE 2 內 retry；STAGE 3 審查不通過才退回 STAGE 2 整體重做。兩者是不同層級的迴圈，不可混用。STAGE 3 退回有次數上限：前 2 次自動，第 3 次起任何 `pause_level` 都停下由使用者決定（sequence 由腳本強制、jump 為軟約束，見 [`../SKILL.md`](../SKILL.md)「暫停粒度」）。
+**與 STAGE 3 退回的關係：** STAGE 2 內部失敗在 STAGE 2 內 retry；STAGE 3 審查不通過才退回 STAGE 2 整體重做。兩者是不同層級的迴圈，不可混用。STAGE 3 退回有次數上限：前 2 次不額外加停（仍照 `pause_level` 的 `stage-done 3` 規則，strict 下需 `--confirmed`），第 3 次起任何 `pause_level` 都停下由使用者決定（sequence 由腳本強制、jump 為軟約束，見 [`../SKILL.md`](../SKILL.md)「暫停粒度」）。

@@ -173,4 +173,13 @@ must_fail "$WF_STATE" advance "$J2" 2 --reason R3; has "--confirmed"
 expect "$J2" '.rework_history | length' 2
 echo "PASS"
 
+echo "=== strict：stage-done 3 後 advance 須 --confirmed ==="
+S="$(new_stage3 t/strict-confirm)"
+"$WF_STATE" set "$S" review_verdict=PASS
+"$WF_STATE" stage-done "$S" 3 >/dev/null
+must_fail "$WF_STATE" advance "$S" 4; has "--confirmed"
+"$WF_STATE" advance "$S" 4 --confirmed >/dev/null
+expect "$S" '.stage' 4
+echo "PASS"
+
 echo "ALL TESTS PASSED!"

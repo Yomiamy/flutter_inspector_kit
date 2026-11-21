@@ -98,6 +98,8 @@ jump / quick 不套用本閘門：jump 可 `init --stage 4` 或從任意 stage �
 
 ### 3.6 裁決語意與 agent 契約
 
+> 下表 `advance` 為簡寫：`stage-done 3` 依 `pause_level` 標了等待確認時（strict 恆是），須先取得使用者確認並加 `--confirmed`，否則被既有棘輪拒絕；`balanced`／`autonomous` 未暫停時不需要。
+
 | 裁決 | 判定依據（對齊 reviewer.md 既有分級） | 主對話動作 |
 |:---|:---|:---|
 | `PASS` | 無 Critical / Important，無需留案項 | `set review_verdict=PASS` → `stage-done 3` → `advance 4` |
