@@ -106,14 +106,14 @@
 3. 比對時排除與 canary 紀錄同 `agent_type`（記為 `ME`）的紀錄（不寫死 `verifier` 字串；同批其他 verifier 一併排除），只看 `ts >= SINCE` 的被稽核者紀錄。
 4. 逐條判定實作方「宣稱由自己執行」的測試／分析指令：
 
-下列「對應紀錄／最後一筆」皆先剔除 `background == true` 的啟動列（尚無結果，不是證據；前台失敗後的背景重試不得蓋掉那筆失敗）。
+下列「對應紀錄／最後一筆」皆先剔除 `background == true`、或指令去尾端空白後以單個 `&`（非 `&&`）結尾的 shell 背景啟動列（hook 對後者記 `background: false`、`exit_code: 0`、空尾段；尚無結果，不是證據；前台失敗後的背景重試不得蓋掉那筆失敗）。
 
 | 情境 | 判定 |
 |:---|:---|
 | log 中有對應指令，且最後一筆對應紀錄的實際結果與宣稱一致（測試類 `exit_code == 0` 且 `output_tail` 一致；分析類見下） | 宣稱成立，繼續既有兩階段驗收 |
 | log 中**無對應指令** | `FAIL: CODE: 宣稱的 <指令> 無側錄紀錄` |
 | 測試類指令最後一筆對應紀錄 `exit_code != 0`（含 `null`） | `FAIL: CODE: 宣稱通過的 <指令> 最後一次執行失敗` |
-| `exit_code == 0` 但 `output_tail` 顯示失敗或數字對不上（如管線 `\| tail` 遮蔽 exit code、宣稱 981 passed 但尾段為 `+975 -6`） | `FAIL: CODE`，以 `output_tail` 為準 |
+| `exit_code == 0` 但 `output_tail` 顯示失敗、數字對不上或無完成結果摘要（測試類尾段空白即無法佐證通過；如管線 `\| tail` 遮蔽 exit code、宣稱 981 passed 但尾段為 `+975 -6`） | `FAIL: CODE`，以 `output_tail` 為準 |
 | 分析類指令（`flutter analyze` 有任何 issue，含既有 7 info，即 exit 1——0b 實測） | 不看 exit code，以 `output_tail` 的 `N issues found` 核對宣稱；不符即 `FAIL: CODE` |
 | 中途失敗、最後一筆成功（TDD red → green） | **不是** FAIL；屬正常過程，可在報告中引述 |
 | 回報中標示為「委派端（gemini）回報」的宣稱 | 不以 log 判定（範圍外），報告註明「未側錄、不採信」；通過與否仍以 verifier 自己的執行結果為準 |
@@ -219,7 +219,7 @@ AC-1 – AC-9 由 `test_wf_dev_log.sh` 以 bash 斷言覆蓋（payload 為 fixtu
 11. **AC-11 settings 鎖定**：`test_project_settings_hooks.sh` 新增斷言——`.claude/settings.json` 的 `PostToolUse` `Bash` matcher 下，本 hook 恰註冊一次、形狀為 `{"type":"command","command":…}`（無 `onFailure`）；`PostToolUseFailure` 的 `Bash` 條目同樣鎖定；腳本存在、可執行、index mode `100755`。
 12. **AC-12 不破壞既有 hooks**：`cbm-reindex-on-pr.sh`、`cbm-reindex-on-sync.sh`、`settings.local.json` 無改動；`test_project_settings_hooks.sh`、`test_delegate_cwd_logic.py`、`test_wf_state_total_tasks.sh`、`test_wf_state_done_reentry.sh`、`test_wf_state_rework_verdict.sh`（若存在：#255 merge 後才有）、`test_retro_skill.sh` 全數 exit 0。
 13. **AC-13 Verifier 契約文件**：`verifier.md` 與 `.agents/agents/verifier.yaml` 載明 §3.5 全部規則（canary → `FAIL: INFRA`、無對應紀錄 / 最後一筆非 0 / 尾段不符 → `FAIL: CODE`、red→green 不判 FAIL、委派端宣稱不以 log 判定、背景列不作證據、排除 verifier 自身紀錄、僅適用 STAGE 2 任務驗收模式）。人工檢視。
-14. **AC-14 Verifier 情境實測（人工、一次性）**：於從 worktree 根目錄啟動的新 session 執行（hook 與 agent 定義從 session 啟動處載入）。以**真實 `DEV_LOG` + 假回報**（宣稱跑過一個 log 中不存在的指令）派發 verifier，首行為 `FAIL: CODE: …`；`DEV_LOG` 給「存在的非 git 目錄 + 固定後綴」的缺失路徑（如 `/tmp/.claude/workflow-state/dev-log.jsonl`，`WORKTREE` = `/tmp`：canary 的 `cd` 成功、echo 照常執行，但 `/tmp` 非 linked worktree、hook 不寫入，canary 必然找不到；不存在的目錄會讓 `cd` 先失敗，探針沒跑到 echo，證明不了任何事；**不可**用 worktree 內尚未建立的標準路徑——canary 的 echo 會觸發 hook 先建出該檔，canary 查得到而不會 `FAIL: INFRA`），首行為 `FAIL: INFRA: …`。同時觀察 subagent `Bash` 的 `cwd` 語意：subagent 的 Bash 未寫入 worktree log、或紀錄的 `cwd` 不在 worktree 內 → **不 merge，退回 0b** 改走 H3 備案。註：此 session 的 `$CLAUDE_PROJECT_DIR` 與 subagent 起始 cwd 都是 worktree，與正式佈局（session 從主 checkout 啟動、主對話再 `cd` 進 worktree）不同；正式佈局下 canary 自帶 `cd`、驗不到 subagent 起始 cwd（merge 前主 checkout 尚無此 hook，也無從預先驗證）；起始 cwd 不在 worktree 時症狀為不帶 `cd` 的指令無紀錄（或被位置限定剔除）→ `FAIL: CODE: 無側錄紀錄`，首次正式使用若出現此 FAIL 先人工確認 subagent 起始 cwd。另跑一個輸出 >30KB 的探針（如 `seq 1 10000`），確認 payload 帶 `tool_response.persistedOutputPath` 且 `output_tail` 為輸出結尾；若無此欄位，`output_tail` 缺結尾摘要行時應視為截斷而非「數字對不上」，退回 0b 修 verifier 規則。結果記入 PR 描述。
+14. **AC-14 Verifier 情境實測（人工、一次性）**：於從 worktree 根目錄啟動的新 session 執行（hook 與 agent 定義從 session 啟動處載入）。以**真實 `DEV_LOG` + 假回報**（宣稱跑過一個 log 中不存在的指令）派發 verifier，首行為 `FAIL: CODE: …`；`DEV_LOG` 給「存在的非 git 目錄 + 固定後綴」的缺失路徑（如 `/tmp/.claude/workflow-state/dev-log.jsonl`，`WORKTREE` = `/tmp`：canary 的 `cd` 成功、echo 照常執行，但 `/tmp` 非 linked worktree、hook 不寫入，canary 必然找不到；不存在的目錄會讓 `cd` 先失敗，探針沒跑到 echo，證明不了任何事；**不可**用 worktree 內尚未建立的標準路徑——canary 的 echo 會觸發 hook 先建出該檔，canary 查得到而不會 `FAIL: INFRA`），首行為 `FAIL: INFRA: …`。同時觀察 subagent `Bash` 的 `cwd` 語意：subagent 的 Bash 未寫入 worktree log、或紀錄的 `cwd` 不在 worktree 內 → **不 merge，退回 0b** 改走 H3 備案。註：此 session 的 `$CLAUDE_PROJECT_DIR` 與 subagent 起始 cwd 都是 worktree，與正式佈局（session 從主 checkout 啟動、主對話再 `cd` 進 worktree）不同；正式佈局下 canary 自帶 `cd`、驗不到 subagent 起始 cwd（延後至首次正式使用驗證，fail-closed：已觀察到 subagent 起始 cwd 跟著「派發當下主對話的 cwd」，故派發時主對話必須已在 worktree 內，否則無紀錄 → verifier 卡住驗收，不會放行）；起始 cwd 不在 worktree 時症狀為不帶 `cd` 的指令無紀錄（或被位置限定剔除）→ `FAIL: CODE: 無側錄紀錄`（canary 紀錄也落在別處時則為 `FAIL: INFRA`，皆 fail-closed），首次正式使用若出現此 FAIL 先人工確認 subagent 起始 cwd。另跑一個輸出 >30KB 的探針（如 `seq 1 10000`），確認該列 `output_tail` 以 `10000` 結尾（log 不存 payload，以此間接確認 `persistedOutputPath` 路徑有效）；若缺結尾，`output_tail` 缺結尾摘要行時應視為截斷而非「數字對不上」，退回 0b 修 verifier 規則。結果記入 PR 描述。
 15. **AC-15 派發與回報文件閉環**：§8 所列其餘文件已更新，人工檢視。
 16. **AC-16 Dart 零觸及**：`git diff --name-only main...HEAD` 不含 `lib/`、`test/` 路徑。
 
