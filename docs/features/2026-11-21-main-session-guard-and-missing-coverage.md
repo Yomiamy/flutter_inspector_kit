@@ -196,6 +196,15 @@ STAGE 3 派發 correctness / security / 過度工程 三個 lens
 
 - 凍結只攔 `Edit`/`Write` 的目標路徑。主對話用 Bash 寫檔（`sed -i`、`>`、`tee`、`cp`、`mv`）**完全不受凍結**。
 - Bash 分級是**字串層比對**：經變數間接（例如 `$X` 在執行期展開成 `/`）、腳本檔內的指令、以及混淆寫法都偵測不到。
+- cwd 漂回主 repo（`cd <R>`）時視為未綁定，此時寫主 repo 不受凍結。
+- 目標屬於未綁定的 linked worktree（含 isolation subagent 的 worktree、沒有 state 檔的手動 worktree）時放行。
+- macOS 檔案系統不分大小寫：以不同大小寫拼寫主 repo 路徑可繞過凍結判定。
+- `onFailure: block` 下 python3／shebang／執行權限失效，會擋所有 session（含主 checkout）的 `Edit`/`Write`。
+- Bash：heredoc 內文不比對；shlex 無法解析的尾段放行（已切出段照判）；`-o <值>` 這類帶值選項可能讓 refspec 判讀錯位；shlex 把詞中 `#` 當註解起點（`echo foo#bar; rm -rf ~`、URL 含 `#`），同一行其後內容不比對；偶數個反斜線結尾的行會被誤當行接續（`echo a\\⏎rm -rf ~`）。
+- 以保留字或前綴開頭的段（`{ … }`、`then`、`do`、`!`、`time`、`env`、`command`、`xargs`、`sudo -u root`）、雙引號內的 `"$(…)"`、`git --git-dir <dir>`（空格分隔）、`git checkout ./`、子 shell 內 `cd` 延續到外層，皆可能漏判（fail-open）。
+- hook `ask` 在 `bypassPermissions` 下不保證跳出確認，`dontAsk`／`-p` 下會變成拒絕；不可逆項目因此一律放在 deny 層。
+
+> 本節及下列項目已依實作計畫 §6 於 STAGE 2 同步修訂（2026-11-21）：D-1／§4.1 收窄為「目標所屬 checkout 是主 checkout 或另一個已綁定 worktree」（使用者 0b 確認）；hook 檔名為 `.claude/hooks/wf-guard-worktree-freeze.py`、`.claude/hooks/guard-dangerous-bash.py`；AC-19 的 `Edit|Write` 條目 `onFailure: "block"`、`Bash` 條目 `onFailure: "continue"`；§5.1 落點補 `publisher.md`、`workflow-parallel.md`、`.agents/agents/publisher.yaml`（使用者 0b 確認）；AC-8／AC-12／AC-13 的補充例見計畫 §6；AC-29 PR 編號於 STAGE 6 補上。
 
 ---
 
