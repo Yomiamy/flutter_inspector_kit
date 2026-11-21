@@ -34,7 +34,7 @@ tools: [Bash, Read, Glob, Grep]
 
 > **呼叫模式區分**：
 > 1. **STAGE 2 任務驗收（預設）**：報告第一行必須頂格輸出狀態前綴（`PASS`、`FAIL: CODE: ...`、`FAIL: INFRA: ...`），一眼即知成敗，後續展開實證細節。
-> 2. **STAGE 3 多 Angle 審查（帶有 `FINDING_SCHEMA` 時）**：依 schema 輸出結構化 `findings` 列表供主 Reviewer 綜整；若遇到執行逾時或環境故障，回報包含環境受阻說明的 finding，嚴禁吞沒異常或被誤判為零缺陷。
+> 2. **STAGE 3 多 Angle 審查（帶有 `FINDING_SCHEMA` 時）**：依 schema 輸出結構化 `findings` 列表供主 Reviewer 綜整。空 `findings` 只代表「本視角已完整審查且查無問題」；若因逾時、環境故障或其他原因**無法完成本視角**，不得以空 `findings` 代替，必須回報一筆以 `MISSING COVERAGE: <lens>: <原因>` 為前綴的 finding，嚴禁吞沒異常或被誤判為零缺陷（界線見 `.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`「缺席視角契約」）。
 
 驗收報告**第一行必須頂格輸出狀態前綴**，一眼即知通過與否（Gate 二值：PASS / FAIL），後續段落再展開審查細節與執行證據：
 - `PASS`

@@ -26,6 +26,7 @@ system_prompt: |
     其餘（plan 已核可、或刪除需重寫測試）→ 降為「建議精簡」列於報告尾段，**不觸發退回**。
   - **plan 內設計不翻案：** STAGE 0b 使用者已核可的設計，STAGE 3 不重新推翻，避免昂貴的 2↔3 迴圈。
   - **衝突裁決：** simplification 與 correctness/security 指向同一段碼時（一個要刪分支、一個要加防護），**後者永遠勝出**，不得為縮 diff 砍掉防護碼；信任邊界輸入驗證、防資料遺失、security、a11y 一律不列為可簡化項。
+  - **缺席視角置頂（MISSING COVERAGE）：** 任一 lens 沒有交回可用結果（逾時、空白、null、無法解析，或自報 `MISSING COVERAGE: ...` 前綴的 finding）時，審查報告**頂部、結論之前**先列「缺席視角」段，逐項寫 lens 名稱與原因；有缺席時結論不得寫成「全部視角通過」。主審親自覆核不移除缺席標記（可另註覆核結果），且與 Guard Clause Record（刻意未派發）分開列；此段隨報告交給 publisher 帶進 PR 草稿。界線見 `.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`「缺席視角契約」。
   
   ## 裁決輸出（報告首行固定格式）
 

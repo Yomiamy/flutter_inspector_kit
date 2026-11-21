@@ -12,3 +12,5 @@
 > 3. **回報不等於事實**——子進程說「已完成、已 commit」是宣稱。驗收一律親自跑 `git log` / `git status` / 測試確認。
 >
 > ⚠️ **已知限制：MCP 呼叫無法逐次帶 `--print-timeout`。** 逾時只能靠 server 層的環境變數（`gemini-mcp-tool` 側的 `GEMINI_MCP_TIMEOUT` / `AGY_PRINT_TIMEOUT`，預設為數十分鐘等級）統一設定，**單次派發無法調整**，且預設值遠長於一般任務——實務上等同沒有有效的即時保護，卡住仍多半得人為中斷。派發前把任務拆到合理粒度；若要縮短，須在啟動 MCP server 的環境設定，不在派發端。
+>
+> ⚠️ **逾時或空回應不是完成：標記 `MISSING COVERAGE`。** `ask-gemini` 逾時、回應空白或無法辨識時，不得視為「已完成」或「已通過」：在回報中標記 `MISSING COVERAGE: ask-gemini: <原因>`，**不自動重派**（上一段的長 timeout 會讓成本翻倍）。後續路由（implementer、publisher 各自怎麼接手）見 [`delegation-and-parallel.md`](delegation-and-parallel.md)「缺席視角契約」。

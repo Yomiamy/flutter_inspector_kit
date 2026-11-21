@@ -86,7 +86,7 @@ if (!isNearTokenBudgetLimit) {
 }
 
 // 每個 lens 對齊 verifier 綁定（model: opus；effort 依 frontmatter 設定覆蓋 session）
-const findings = (await parallel([
+const results = await parallel([
   // 1. 核心基線：correctness 必開
   () => agent('以 correctness 視角審查 <branch> 的 diff，盡力挑出真實問題',
     {label: 'review:correctness', agentType: 'verifier', schema: FINDING_SCHEMA}),
@@ -99,9 +99,14 @@ const findings = (await parallel([
   // 3. 核心基線：過度工程（Ponytail）必開。verifier 子進程看不到 ponytail hook，判準必須明文內嵌。
   () => agent(`以「過度工程/可簡化」視角審查 <branch> 的 diff 對照已確認的 plan：挑出計畫沒要求卻新增的抽象（單一實作的 interface、單一產品的 factory、永不變的 config、留給未來的 scaffolding、可用既有 helper/stdlib 取代的自製輪子）。每條 finding 必附刪除方案（刪哪些行、刪後 diff 是否更小、既有測試是否仍過）。絕不把信任邊界輸入驗證、防資料遺失、security、a11y 列為可簡化項。`,
     {label: 'review:過度工程', agentType: 'verifier', schema: FINDING_SCHEMA}),
-])).filter(Boolean).flatMap(r => r.findings)
+])
+// null 不可濾掉：逾時/空白/null/無法解析的 lens 必須留下 MISSING COVERAGE 標記（契約見 delegation-and-parallel.md「缺席視角契約」）
+const lenses = ['correctness', ...activeSpecialLenses, '過度工程'] // 與上方陣列順序一致
+const ok = r => Array.isArray(r?.findings)
+const missing = lenses.filter((_, i) => !ok(results[i]))
+const findings = results.filter(ok).flatMap(r => r.findings)
 
-// 回到主對話：reviewer 親自收斂 findings、去重、判定真偽 → 寫審查報告 → 暫停展示（不委派）
+// 回到主對話：reviewer 親自收斂 findings、去重、判定真偽；missing 非空 → 報告頂部列缺席視角 → 寫審查報告 → 暫停展示（不委派）
 ```
 
 > 不變式：審查報告由 reviewer（最強推論）親自產出，**不委派**。多 angle 只是提高召回率的輸入，不取代 reviewer 的最終判斷。退回 STAGE 2 的條件與層級不變。
