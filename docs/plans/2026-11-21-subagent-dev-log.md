@@ -424,6 +424,7 @@ bash .claude/hooks/tests/test_wf_dev_log.sh
 # 掛載於 .claude/settings.json 的 PostToolUse 與 PostToolUseFailure（matcher: Bash）；
 # 失敗的 Bash 只觸發 PostToolUseFailure，兩者缺一就漏記。條目由 tests/test_project_settings_hooks.sh 鎖定。
 
+umask 077 # log 含指令與輸出尾段，與 state 檔同為 0600
 input=$(cat) || exit 0
 
 # 截斷以字元（codepoint）計，jq 字串切片保證不切斷多位元組字元。
@@ -769,7 +770,7 @@ hook 與新 verifier 只在「session 從載有新設定的目錄啟動」時生
    - `cat` 那列的 `command` 是否為 `rtk read …`（**H6 實測**，結果寫回規格 §9）；
    - `cwd-probe` 那列是否出現、`cwd` 為何（**H3 subagent cwd 重設語意實測**）。
 3. 派發 verifier，附一份假回報「（自行執行）`flutter test test/nonexistent_test.dart` 通過」+ 真實 `DEV_LOG` + 剛記下的 `SINCE` → 首行應為 `FAIL: CODE: 宣稱的 … 無側錄紀錄`。
-4. 同上，但 `DEV_LOG` 給不存在的路徑 → 首行應為 `FAIL: INFRA: dev log 側錄失效`。
+4. 同上，但 `DEV_LOG` 給 worktree 外、hook 永遠不會寫入的不存在路徑（如 `/nonexistent/dev-log.jsonl`；不可用 worktree 內尚未建立的標準路徑，canary 的 echo 會觸發 hook 先建出該檔）→ 首行應為 `FAIL: INFRA: dev log 側錄失效`。
 
 **失敗處置**：第 2 步的 `cat`／`false` 兩列沒有寫進 worktree log，或紀錄的 `cwd` 不在 worktree 內（**cwd 行為不符**）→ **不 merge，退回 0b**，改走規格 H3 備案（解析指令開頭 `cd <絕對路徑> &&`，或由 workflow state 反推 worktree）。第 3、4 步首行不符 → 屬 T2 文字缺陷，退回 T2 修正後重測。
 
