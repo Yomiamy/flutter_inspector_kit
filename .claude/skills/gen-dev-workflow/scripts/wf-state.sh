@@ -190,7 +190,12 @@ apply_sets() { # $1=json, 之後 k=v...；回傳更新後 json
       spec|plan|branch|issue|pr|total_tasks|interrupted_by|review_concerns) ;;
       *) die "不可透過 set 修改欄位：${k}（stage 用 advance、確認用 confirm）" ;;
     esac
-    json="$(echo "$json" | jq --arg k "$k" --argjson v "$(jq_val "$v")" '.[$k] = $v')"
+    # review_concerns 是 markdown 字串：純數字（如 42）也要存成字串；null 仍代表清空
+    if [ "$k" = review_concerns ] && [ "$v" != null ]; then
+      json="$(echo "$json" | jq --arg k "$k" --arg v "$v" '.[$k] = $v')"
+    else
+      json="$(echo "$json" | jq --arg k "$k" --argjson v "$(jq_val "$v")" '.[$k] = $v')"
+    fi
   done
   echo "$json"
 }

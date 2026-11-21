@@ -184,4 +184,13 @@ must_fail "$WF_STATE" advance "$S" 4; has "--confirmed"
 expect "$S" '.stage' 4
 echo "PASS"
 
+echo "=== review_concerns 純數字存成字串；null 仍可清空 ==="
+N="$(new_stage3 t/numeric-concerns)"
+"$WF_STATE" set "$N" review_verdict=CONCERNS review_concerns=42
+expect "$N" '.review_concerns | type' string
+expect "$N" '.review_concerns' 42
+"$WF_STATE" set "$N" review_concerns=null
+expect "$N" '.review_concerns' null
+echo "PASS"
+
 echo "ALL TESTS PASSED!"

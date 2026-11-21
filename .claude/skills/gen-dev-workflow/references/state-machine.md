@@ -141,7 +141,7 @@ worktree 建立後改帶 branch slug，不再需要 workflow-id：
 - `review_verdict`：本輪審查裁決 `PASS` / `CONCERNS` / `FAIL`，主對話依 reviewer 報告首行 `REVIEW: <V>` 寫入。退回期間（stage 2）保留可見，重新 `advance 3` 才清空。
 - `review_concerns`：未結案項 markdown（一行一項）。`CONCERNS` 必填、`PASS` 必空；保留至 STAGE 4 供 publisher 寫進 PR 描述。
 - `rework_history`：`[{reason, at}]`，僅 `advance <檔> 2 --reason` 追加。續接 session 與 `/retro` 由此追溯退回次數與理由。
-- 已知限制：`review_concerns` 若為純數字（如 `42`），`set` 會把它解析成 number 而校驗失敗（失敗而非靜默），未結案項請寫成文字。
+- `set review_concerns=<值>` 一律存成字串（純數字如 `42` 亦然），僅字面 `null` 代表清空。
 
 **jump 模式**（直接指定特定 stage 執行）：
 ```json

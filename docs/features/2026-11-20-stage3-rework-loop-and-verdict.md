@@ -221,4 +221,4 @@ jump / quick 不套用本閘門：jump 可 `init --stage 4` 或從任意 stage �
 1. **同輪改判是否需確認**：裁決由主對話寫入，閘門只防「忘了」，不防「改判 FAIL→CONCERNS 繞過」（與 `task-done` / `total_tasks` 相同的信任模型）。本規格不擋；若要擋，需讓 `set` 在 `FAIL` → 非 `FAIL` 時要求 `--confirmed`，這會替 `set` 引入它目前沒有的旗標。建議：不做，靠 §3.6 的覆寫路徑把改判留成書面 concerns。
 2. **reviewer「建議精簡」是否自動構成 `CONCERNS`**：reviewer.md 現行的非阻擋 simplification 只列在報告尾段。建議不自動升級（否則幾乎每次都是 `CONCERNS`，稀釋語意），由 reviewer 判斷是否值得進 PR。
 3. **reviewer 首行格式字面**：建議 `REVIEW: PASS|CONCERNS|FAIL`，0b 可改，但須與 Verifier 前綴可區分。
-4. **`review_concerns` 純數字值**：`jq_val` 會把純數字轉成 number，被 `validate` 以型別錯誤擋下（會失敗，不會靜默）。實務上不會有純數字的未結案項，本規格不處理。
+4. **`review_concerns` 純數字值**：`apply_sets` 對 `review_concerns` 一律以 `--arg` 存成字串（`null` 字面仍為清空），純數字不再被 `validate` 擋下。
