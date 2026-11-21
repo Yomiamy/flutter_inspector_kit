@@ -25,6 +25,9 @@
 # 已知盲區（規格 §5.3）：
 # - 只攔 Edit/Write 的 tool_input.file_path。Bash 寫檔（sed -i、>、tee、cp、mv）完全不受凍結。
 # - cwd 漂回主 repo（cd <R>）時視為未綁定，此時寫主 repo 不會被擋。
+# - macOS 檔案系統不分大小寫：以不同大小寫拼寫主 repo 路徑可繞過凍結判定。
+# - EnterWorktree 時 settings 隨 session 移到 W，$CLAUDE_PROJECT_DIR 仍是 R；若 W 的 settings 比 R 新
+#   （R 尚無本腳本），onFailure: block 會擋該 session 所有 Edit/Write，以 Bash `git -C <R> pull` 自救。
 #
 # 掛載於 .claude/settings.json（matcher: Edit|Write）；條目由 tests/test_project_settings_hooks.sh 鎖定。
 import json
