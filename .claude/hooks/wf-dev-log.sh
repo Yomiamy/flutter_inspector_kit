@@ -18,7 +18,7 @@ input=$(cat) || exit 0
 # 輸出 >30KB 時 tool_response.stdout 只留前段、全文落在 persistedOutputPath；尾段改從該檔取
 persisted=$(jq -r '.tool_response.persistedOutputPath // empty | strings' <<<"$input" 2>/dev/null)
 full=""
-[ -n "$persisted" ] && [ -r "$persisted" ] && full=$(tail -c 8192 "$persisted" 2>/dev/null)
+[ -f "$persisted" ] && [ -r "$persisted" ] && full=$(tail -c 8192 "$persisted" 2>/dev/null)
 
 # 截斷以字元（codepoint）計，jq 字串切片保證不切斷多位元組字元。
 # 失敗事件的 exit code 只信 error 首行 `Exit code N`；解析不到（或荒謬的 0）記 null，絕不記 0。
