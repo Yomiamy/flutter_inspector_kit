@@ -21,6 +21,26 @@
             "onFailure": "block"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wf-guard-worktree-freeze.py",
+            "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-dangerous-bash.py",
+            "onFailure": "continue"
+          }
+        ]
       }
     ],
     "PostToolUse": [
