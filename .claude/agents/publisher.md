@@ -37,9 +37,11 @@ tools: [Bash, Read, Write]
 - **校對：** 審閱草稿，確保技術名詞準確且符合「Linus 品味」。
 - **審查留案（僅在建立新 PR 時：STAGE 4，或 quick 模式步驟④）：** 產草稿前自行讀 state，不依賴派發 prompt 轉述：
   ```bash
-  wt="<worktree 絕對路徑>"   # 同派發 prompt 的工作目錄；不依賴 shell 當前目錄
-  [ -d "$wt" ] || { echo "wt-not-found"; exit 1; }
-  f="$wt/.claude/workflow-state/$(git -C "$wt" branch --show-current | tr '/' '-').json"
+  wt="<worktree 絕對路徑>"; wt="${wt%/}"; br="<要發布的 branch>"   # 皆取自派發 prompt；不依賴 shell 當前目錄
+  [ "$(git -C "$wt" rev-parse --show-toplevel 2>/dev/null)" = "$wt" ] \
+    && [ "$(git -C "$wt" branch --show-current)" = "$br" ] \
+    || { echo "wt-mismatch"; exit 1; }
+  f="$wt/.claude/workflow-state/$(printf %s "$br" | tr '/' '-').json"
   if [ -f "$f" ]; then
     "$wt"/.claude/skills/gen-dev-workflow/scripts/wf-state.sh get "$f" | jq -r '.review_verdict, .review_concerns'
   else
@@ -48,8 +50,9 @@ tools: [Bash, Read, Write]
   ```
   - `review_verdict == CONCERNS` → PR 描述必須含「## 未結案項（Review CONCERNS）」區段，原樣列出 `review_concerns`（不改寫、不刪減）；其他裁決不加此區段。
   - `review_verdict == CONCERNS` 但 `review_concerns` 為空白／null → 停下回報主對話（quick 模式不經 `advance` 閘門，留案項可能漏寫），不照常發布。
+  - `review_verdict == FAIL` → 停下回報主對話，應走改判 CONCERNS 的覆寫路徑，不得發布（jump／quick 不經 3→4 閘門）。
   - 輸出 `no-state`（無 state 檔）→ 視為無裁決，照常發布。
-  - 輸出 `wt-not-found`（目標 worktree 路徑解析失敗）→ 停下回報主對話，**不可**當成 `no-state` 放行。
+  - 輸出 `wt-mismatch`（`wt` 不是 worktree 根目錄，或其當前 branch 與要發布的 branch 不符）→ 停下回報主對話，**不可**當成 `no-state` 放行。
   - state 檔存在但 `get` 失敗（stderr 出現 `state 檔校驗失敗`）→ 停下回報主對話，不猜。
   - **STAGE 5 更新 PR 描述時不讀裁決、不依 state 增刪未結案區段**：STAGE 5 不寫裁決，state 中的值停在 STAGE 3，已非最新。
 - **發布：** 確認後一律先 `git push -u origin <branch>`（已同步時為 no-op，不能只用 `git ls-remote` 判斷：遠端分支存在不代表本地新 commit 已推送；被拒如 non-fast-forward 就停下回報，不 force），再執行 `gh pr create --assignee @me`，建立後再跑一次 `gh pr edit <N> --add-assignee @me`（`gen-pr` skill 的建立指令不帶 `--assignee`，照它執行時靠這步補上；重複指派無副作用），再依 `.claude/skills/gen-dev-workflow/SKILL.md` 的「Issue／PR 指派與 Project 狀態」把 PR 的 Status 切到 `In Progress`。Project 未設定成功時在輸出中註明原因。

@@ -177,6 +177,8 @@ echo "=== strict：stage-done 3 後 advance 須 --confirmed ==="
 S="$(new_stage3 t/strict-confirm)"
 "$WF_STATE" set "$S" review_verdict=PASS
 "$WF_STATE" stage-done "$S" 3 >/dev/null
+must_fail "$WF_STATE" advance "$S" 2 --reason R1; has "--confirmed"
+expect "$S" '.rework_history | length' 0
 must_fail "$WF_STATE" advance "$S" 4; has "--confirmed"
 "$WF_STATE" advance "$S" 4 --confirmed >/dev/null
 expect "$S" '.stage' 4
