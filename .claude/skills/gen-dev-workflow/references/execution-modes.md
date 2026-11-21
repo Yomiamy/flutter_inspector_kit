@@ -27,7 +27,7 @@ quick <描述或 #issue>
    - reviewer 首行 `REVIEW: CONCERNS` → `wf-state.sh set <檔> review_verdict=CONCERNS review_concerns="<未結案項>"`（publisher 會帶進 PR）；之後重掃結論改變時以同法覆寫（`PASS` 時同次帶 `review_concerns=null`），避免舊未結案項殘留——quick 不經 `advance 3`，裁決不會自動清空
    - quick 模式無 verifier 兩階段驗收，這是唯一的品質關卡
   ▼
-④ 呼叫 gen-commit skill 執行 commit → Task("publisher", ...) 產 PR 草稿
+④ 呼叫 gen-commit skill 執行 commit → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>；工作目錄：<repo 絕對路徑>") 產 PR 草稿
   ▼
 ⏸ 唯一暫停點：展示 PR 草稿 → 使用者確認 → publisher 發布（含指派與 Project 狀態），流程結束
 ```
