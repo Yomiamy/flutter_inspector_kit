@@ -58,6 +58,13 @@ planner 在實作計畫中**應為每個任務標註複雜度等級**，若為�
 
 > 落地方式：`Task("verifier", ...)` 或 Workflow 的 `agent('驗收任務...', {agentType: 'verifier', ...})` 執行（見 `references/workflow-parallel.md` 適用點 2 的 verify 階段）。這是 STAGE 2 唯一會脫離「主對話 model」的環節。
 
+> **派發 verifier 必附 dev log 三件**（僅 Claude Code runtime：側錄 hook 只掛在 `.claude/settings.json`，`.agents/` 不鏡像；微任務原地驗收不適用）：
+> 1. implementer 的**完整回報**（原文照貼，不摘要）。
+> 2. `DEV_LOG=<worktree 絕對路徑>/.claude/workflow-state/dev-log.jsonl`。
+> 3. `SINCE=<UTC>`：主對話**每次**派發 implementer 前以 `date -u +%Y-%m-%dT%H:%M:%SZ` 記下（`FAIL: CODE` 重派時重記），verifier 只看此後的紀錄。
+>
+> subagent 在 linked worktree 內的 `Bash` 由 `.claude/hooks/wf-dev-log.sh`（`PostToolUse` + `PostToolUseFailure`）自動側錄；verifier 先以 canary 確認側錄在運作，再逐條核對 implementer「（自行執行）」的宣稱（規則見 `.claude/agents/verifier.md`「Dev log 對照」）。同批並行任務共用同一份 log：他任務在同一 worktree 跑過的相同指令也會被採計——同一棵樹的結果，屬可接受的已知行為。
+
 > **微任務驗收例外（派發煞車配套）**：命中派發煞車之微任務（單檔 ≤ 20 行且無公共 API 變更），由主進程在原地執行相關測試（如 `flutter test`），**不派發獨立 verifier subagent**，避免 5 行改動卻付出獨立 Opus 驗收的來回延遲；非微任務之一般實作任務仍嚴格維持上述 verifier 獨立驗收契約。
 
 #### 階層式驗收契約與狀態解析 (PASS / FAIL: CODE / FAIL: INFRA)
@@ -67,8 +74,8 @@ Verifier 報告**第一行必須頂格輸出狀態前綴**，一眼即知通過�
 | 狀態輸出 | 等同 HTTP | 狀態意義 (Meaning) | 觸發標準 (Trigger) | 主進程後續處理 (Downstream Action) |
 |---|---|---|---|---|
 | **`PASS`** | `200 OK` | **驗收確認通過** | 規格逐項滿足、無多餘抽象/相依、測試全數通過（基準 ≥606 tests 全綠）且靜態分析無新增警告/錯誤（吻合 7-info 基線）。 | 記錄任務完成，推進至下一個任務。 |
-| **`FAIL: CODE: <簡述>`** | `4xx Client Error` | **實作缺陷（代碼問題）** | 規格偏離、過度工程、測試失敗或靜態分析新增警告/錯誤；附帶具體反駁證據與重現步驟。 | 打回 Implementer，依反駁證據修復後重新提請驗收。 |
-| **`FAIL: INFRA: <簡述>`** | `5xx Server Error` | **環境故障（非代碼問題）** | 客觀環境異常、指令執行逾時、前置外部依賴未就緒等非程式代碼缺陷所致之阻礙。 | **同 tier 自動重試 1 次**；若重試後依然為 `FAIL: INFRA`，**立即暫停流程向人類開發者求助**，嚴禁擅自猜測通過或盲目打回實作端改代碼。 |
+| **`FAIL: CODE: <簡述>`** | `4xx Client Error` | **實作缺陷（代碼問題）** | 規格偏離、過度工程、測試失敗、靜態分析新增警告/錯誤，或 implementer 宣稱自行執行的指令與 dev log 側錄不符；附帶具體反駁證據與重現步驟。 | 打回 Implementer，依反駁證據修復後重新提請驗收。 |
+| **`FAIL: INFRA: <簡述>`** | `5xx Server Error` | **環境故障（非代碼問題）** | 客觀環境異常、指令執行逾時、前置外部依賴未就緒、dev log 側錄失效（附了 `DEV_LOG` 但 canary 查無紀錄）等非程式代碼缺陷所致之阻礙。 | **同 tier 自動重試 1 次**；若重試後依然為 `FAIL: INFRA`，**立即暫停流程向人類開發者求助**，嚴禁擅自猜測通過或盲目打回實作端改代碼。 |
 
 > **`FAIL: INFRA` 自動重試規範**：當 Verifier 回報 `FAIL: INFRA` 時，主調度進程不更換 model、不修改代碼，自動於同 tier 重新執行 1 次驗收任務以消除環境偶發抖動。若第二次仍回報 `FAIL: INFRA`，代表環境存在確定性外部障礙，必須暫停流程並向開發者展示受阻訊息，待人工介入排除後再行繼續。
 
