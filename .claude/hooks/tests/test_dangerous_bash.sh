@@ -45,7 +45,7 @@ check_all() {
   for c in 'rm -rf /' 'rm -rf ~' 'rm -rf $HOME' 'rm -rf "$HOME"' 'rm -rf ${HOME}/' 'rm -fr ~/' \
            'rm -Rf /*' 'rm -r -f ~/*' 'sudo rm -rf /' '/bin/rm -rf --recursive -- ~' \
            'ls && rm -rf ~' 'cd /tmp; rm -rf $HOME' "$(printf 'cd /tmp\nrm -rf ~')" 'rtk proxy rm -rf ~' \
-           "rm -rf ~; echo 'unbalanced"; do
+           "rm -rf ~; echo 'unbalanced" "$(printf 'rm -rf \\\n  ~')"; do
     decide deny "$c"
   done
   for c in 'rm -rf ./build' 'rm -rf "$TMPDIR/wf-x"' 'rm -rf ~/scratch/x' 'rm -f ~' 'rm -r /' \
@@ -58,7 +58,9 @@ check_all() {
   for c in 'git push --force origin main' 'git push -f origin main' 'git push origin main --force' \
            'git push --force-with-lease origin main' 'git push origin +main' 'git push -f origin HEAD:main' \
            'git push -fu origin refs/heads/main' "git -C $ON_MAIN push -f" "cd $ON_MAIN && git push --force origin HEAD" \
-           'rtk git push -f origin main' 'rtk proxy git push --force origin main'; do
+           'rtk git push -f origin main' 'rtk proxy git push --force origin main' \
+           "$(printf 'git fetch origin  # update\ngit push --force origin main')" \
+           "$(printf 'git push --force \\\n  origin main')"; do
     decide deny "$c"
   done
   for c in 'git push origin main' 'git push --force origin feature/x' 'git push -u origin main' 'git push origin :main' \
@@ -71,6 +73,7 @@ check_all() {
   decide ask 'git reset --hard'
   decide ask 'git reset --hard origin/main'
   decide ask 'rtk git reset --hard'
+  decide ask "$(printf 'git stash  # save\ngit reset --hard origin/main')"
   pass 'git reset --soft HEAD~1'
   echo "PASS"
 

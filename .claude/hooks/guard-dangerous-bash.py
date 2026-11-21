@@ -14,8 +14,10 @@
 #
 # 已知盲區（規格 §5.3）：字串層比對。執行期變數展開（$X 展開成 /）、腳本檔與 bash -c 內的指令、
 # 反引號、混淆寫法（$IFS、base64）都偵測不到；引號不平衡等 shlex 無法解析的部分放行（之前已切出的子指令照判）。
+# shlex 把詞中的 # 當註解起點（如 echo foo#bar; rm -rf ~、URL 含 #），同一行其後的內容不比對。
 #
 # 掛載於 .claude/settings.json（matcher: Bash）；條目由 tests/test_project_settings_hooks.sh 鎖定。
+import io
 import json
 import os
 import re
@@ -28,8 +30,18 @@ HEREDOC_BODY = re.compile(r"(<<-?[ \t]*(['\"]?)(\w+)\2[^\n]*)\n.*?\n[ \t]*\3[ \t
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
+class KeepNewline(io.StringIO):
+    # shlex 跳過 # 註解時用 readline() 吃整行，連結尾 \n 一起吃掉；把 \n 退回，下一行才不會併進上一段
+    def readline(self, *args):
+        line = super().readline(*args)
+        if line.endswith("\n"):
+            self.seek(self.tell() - 1)
+        return line
+
+
 def segments(cmd):
-    lx = shlex.shlex(HEREDOC_BODY.sub(r"\1", cmd), posix=True, punctuation_chars=";&|()<>\n")
+    src = HEREDOC_BODY.sub(r"\1", cmd).replace("\\\n", "")  # 行接續（\ + 換行）依 bash 語意併回同一行
+    lx = shlex.shlex(KeepNewline(src), posix=True, punctuation_chars=";&|()<>\n")
     lx.whitespace = " \t\r"
     lx.whitespace_split = True
     seg = []
