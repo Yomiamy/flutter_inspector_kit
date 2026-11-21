@@ -108,7 +108,11 @@ echo "=== AC-13 補充：在 main 上省略 refspec 的 force push → deny ==="
 CWD="$ON_MAIN"
 decide deny 'git push -f'
 decide deny 'git push --force origin'
+decide deny 'git push -f 2>&1'
+decide deny 'git push -f >/dev/null 2>&1'
+decide deny 'git push --force origin 2>&1 | tail -3'
 pass 'git push'
+pass 'git push -f origin feat/x 2>&1'
 echo "PASS"
 
 echo "=== fail-open：壞 payload / 無法解析的指令放行且無輸出 ==="
