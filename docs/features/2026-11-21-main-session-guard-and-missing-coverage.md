@@ -200,6 +200,7 @@ STAGE 3 派發 correctness / security / 過度工程 三個 lens
 - 目標屬於未綁定的 linked worktree（含 isolation subagent 的 worktree、沒有 state 檔的手動 worktree）時放行。
 - macOS 檔案系統不分大小寫：以不同大小寫拼寫主 repo 路徑可繞過凍結判定。
 - `onFailure: block` 下 python3／shebang／執行權限失效，會擋所有 session（含主 checkout）的 `Edit`/`Write`。
+- `EnterWorktree` 時 settings 隨 session 移到 W，`$CLAUDE_PROJECT_DIR` 仍是 R：若 W 的 settings 比 R 新（R 尚無此腳本），`onFailure: block` 會擋該 session 所有 `Edit`/`Write`；以 Bash `git -C <R> pull` 自救。
 - Bash：heredoc 內文不比對；shlex 無法解析的尾段放行（已切出段照判）；`-o <值>` 這類帶值選項可能讓 refspec 判讀錯位；shlex 把詞中 `#` 當註解起點（`echo foo#bar; rm -rf ~`、URL 含 `#`），同一行其後內容不比對；偶數個反斜線結尾的行會被誤當行接續（`echo a\\⏎rm -rf ~`）。
 - 以保留字或前綴開頭的段（`{ … }`、`then`、`do`、`!`、`time`、`env`、`command`、`xargs`、`sudo -u root`）、雙引號內的 `"$(…)"`、`git --git-dir <dir>`（空格分隔）、`git checkout ./`、子 shell 內 `cd` 延續到外層，皆可能漏判（fail-open）。
 - hook `ask` 在 `bypassPermissions` 下不保證跳出確認，`dontAsk`／`-p` 下會變成拒絕；不可逆項目因此一律放在 deny 層。

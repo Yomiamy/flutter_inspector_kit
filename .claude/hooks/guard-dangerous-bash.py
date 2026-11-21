@@ -15,6 +15,14 @@
 # 已知盲區（規格 §5.3）：字串層比對。執行期變數展開（$X 展開成 /）、腳本檔與 bash -c 內的指令、
 # 反引號、混淆寫法（$IFS、base64）都偵測不到；引號不平衡等 shlex 無法解析的部分放行（之前已切出的子指令照判）。
 # shlex 把詞中的 # 當註解起點（如 echo foo#bar; rm -rf ~、URL 含 #），同一行其後的內容不比對。
+# `-o <值>` 這類帶值選項會讓 push 的 refspec 判讀錯位。
+# 偶數個反斜線結尾的行會被誤當行接續（echo a\\⏎rm -rf ~），下一行併進上一段。
+# 以保留字或前綴開頭的段漏判：{ … }、then、do、!、time、env、command、xargs、sudo -u root。
+# 雙引號內的 "$(…)" 不比對。
+# git --git-dir <dir>（空格分隔）：值被當成子指令，整段漏判。
+# git checkout ./ 不算 git checkout .，不 ask。
+# 子 shell 內的 cd 會延續到外層，後續 branch 判斷可能指向錯的目錄。
+# hook ask 在 bypassPermissions 下不保證跳出確認，dontAsk／-p 下會變成拒絕；不可逆項目因此一律放在 deny 層。
 #
 # 掛載於 .claude/settings.json（matcher: Bash）；條目由 tests/test_project_settings_hooks.sh 鎖定。
 import io
