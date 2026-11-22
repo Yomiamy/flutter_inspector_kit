@@ -41,7 +41,7 @@ tools: [Bash, Read, Write]
   [ "$(git -C "$wt" rev-parse --show-toplevel 2>/dev/null)" = "$wt" ] \
     && [ "$(git -C "$wt" branch --show-current)" = "$br" ] \
     || { echo "wt-mismatch"; exit 1; }
-  main="$(dirname "$(git -C "$wt" rev-parse --path-format=absolute --git-common-dir)")"   # init 若在 repo 根執行，state 在這裡
+  main="$(git -C "$wt" worktree list --porcelain | awk 'NR==1{sub(/^worktree /,""); print; exit}')"   # 第一筆恆為主工作區（不從 git-common-dir 推導，--separate-git-dir 下會錯）；init 若在 repo 根執行，state 在這裡
   name="$(printf %s "$br" | tr '/' '-').json"; f=""
   for d in "$wt" "$main"; do [ -f "$d/.claude/workflow-state/$name" ] && { f="$d/.claude/workflow-state/$name"; break; }; done
   if [ -n "$f" ]; then
