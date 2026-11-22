@@ -1,6 +1,7 @@
 # wf-state.sh: Execution Harness 與 Guardrail 機制解析
 
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-11-23**：同步 PR #256（Issue #255）——STAGE 3 退回上限與三值裁決。§2.1 新增 `review_verdict`／`review_concerns`／`rework_history` 三欄校驗；§2.3 補上 `3→2` 退回的理由必填與次數上限；§2.4 白名單新增 `review_concerns`、帶值域的 `review_verdict`，`rework_history` 列為不可 `set`；新增 §2.7 STAGE 3 裁決閘門；§4 `advance` 列同步。檔名日期前綴由 `2026-11-09` 更新至 `2026-11-23`。
 > * **2026-11-09**：同步 PR #246——`legal_transition()` 補上 `done→5` 與 `done→6`（連同先前 Gap 2.6 新增的 6 條獨立入口轉移，更新 §2.3 轉移表為完整 18 條），讓已走到 `done` 的 `sequence` 流程仍可重入 STAGE 5（回覆 PR review）與 STAGE 6（清理 worktree），並新增 `.claude/hooks/tests/test_wf_state_done_reentry.sh` 測試。檔名日期前綴由 `2026-08-21` 更新至 `2026-11-09`。
 > * **2026-08-21**：§「同構的第二個弱點：委派的工作目錄約束」結案（issue #134 / PR #135 已合併）。該節指出的 hook 層對策已落地為 `.claude/hooks/wf-guard-delegate-cwd.sh`（`pre` 阻擋派發者失誤、`post` 偵測子進程失誤，只告警不阻斷）。`wf-state.sh` 本身未修改——檔案位置本就不在其管轄範圍，這正是該節的原始結論。檔名日期前綴由 `2026-08-08` 更新至 `2026-08-21`。
 > * **2026-08-10**：委派傳輸層由 `agy -p` headless 改為 `gemini-mcp-tool`（MCP）。**本文件描述的 `wf-state.sh` 機制完全未受影響**（狀態機與委派後端正交），僅在文末「結構性邊界」節補上新的同類弱點：MCP 無法指定 cwd，工作目錄約束只能寫在 prompt 裡——與 Gap 2.6 同構的「約束不在強制層」問題。
@@ -73,6 +74,8 @@ Guardrail 的設計哲學充滿了對 LLM 的「極度不信任」。它的任�
 *   `completed_tasks` 必須是陣列，且**所有元素都是數字**
 *   `total_tasks` 必須是 `null` 或數字
 *   `pause_level` 必須是 `null` 或三個合法值之一
+*   `review_verdict` 必須是 `null` 或 `PASS` / `CONCERNS` / `FAIL`；`review_concerns` 必須是 `null` 或字串
+*   `rework_history` 必須是 `null` 或陣列，每筆為含字串 `reason` 與 `at` 的物件
 *   `awaiting_confirmation` 必須是布林值
 
 任何異常都會中斷寫入，確保**爛資料連磁碟的邊都摸不到**。`get` 指令同樣先校驗再輸出——腐壞的檔案會立即失敗，而不是被靜默續接。
@@ -94,7 +97,7 @@ Guardrail 的設計哲學充滿了對 LLM 的「極度不信任」。它的任�
 | 分類 | 合法轉移 |
 |:---|:---|
 | 主鏈 | `0a→0b`、`0b→1`、`1→2`、`2→3`、`3→4`、`4→done` |
-| 審查退回 | `3→2` |
+| 審查退回 | `3→2`（須 `--reason`；次數上限見 §2.7） |
 | 獨立入口銜接（STAGE 5/6） | `4→5`、`5→4`、`5→5`、`4→6`、`5→6`、`6→done`、`done→5`、`done→6` |
 | STAGE 5 循環 | `reviewer→responder`、`responder→reviewer`、`reviewer→publisher` |
 
@@ -107,10 +110,10 @@ Guardrail 的設計哲學充滿了對 LLM 的「極度不信任」。它的任�
 ### 2.4 寫入權限白名單 (`apply_sets`)
 腳本明確限制了 `set` 指令可以修改的欄位：
 
-*   **一般白名單**：`spec` / `plan` / `branch` / `issue` / `pr` / `total_tasks` / `interrupted_by`
-*   **帶值域校驗**：`pause_level` 允許修改，但值必須是 `strict` / `balanced` / `autonomous`，否則 `die`
+*   **一般白名單**：`spec` / `plan` / `branch` / `issue` / `pr` / `total_tasks` / `interrupted_by` / `review_concerns`（非 `null` 一律存成字串，純數字也不轉型）
+*   **帶值域校驗**：`pause_level` 允許修改，但值必須是 `strict` / `balanced` / `autonomous`，否則 `die`；`review_verdict` 值必須是 `PASS` / `CONCERNS` / `FAIL`
 
-如果 LLM 試圖用 `set` 去走後門竄改 `stage` 或 `awaiting_confirmation`，腳本會拒絕操作並明示替代管道（`stage 用 advance、確認用 confirm`），強制其必須走具備嚴格審查的正規路徑。
+如果 LLM 試圖用 `set` 去走後門竄改 `stage`、`awaiting_confirmation` 或 `rework_history`（只能由 `advance 2 --reason` 追加），腳本會拒絕操作並明示替代管道（`stage 用 advance、確認用 confirm`），強制其必須走具備嚴格審查的正規路徑。
 
 `apply_sets` 另有一道格式前檢：參數不含 `=` 一律 `die`。這擋掉的是 `set <檔> spec` 這類漏打值的呼叫——若不擋，`${kv#*=}` 會把 key 本身當成 value 寫進 JSON，產生語意錯誤但格式合法的髒資料。
 
@@ -134,6 +137,16 @@ completed_tasks 的長度 < total_tasks  →  拒絕推進
 
 *   來源 mode 必須是 `quick`，其他一律 `die`——不存在 sequence 降級回 quick 的路徑，避免用降級來繞過轉移表。
 *   同樣受棘輪管轄：`awaiting_confirmation=true` 且未帶 `--confirmed` 時拒絕執行。
+
+### 2.7 STAGE 3 退回上限與裁決閘門
+讓 `3→2` 退回成為留紀錄的具名邊，並讓 `3→4` 必須有審查裁決：
+
+*   **退回須附理由（所有模式）**：`advance <檔> 2` 從 stage 3 出發時 `--reason` 必填（空白視為未填），理由連同 UTC 時間追加進 `rework_history`。`--reason` 用在其他轉移會直接 `die`，避免理由被靜默丟棄。
+*   **退回上限 `REWORK_CAP=2`**：`rework_history` 已有 2 筆時，未帶 `--confirmed` 的退回一律拒絕，錯誤訊息列出歷次 `at` + `reason`，並給出三條出路（再修／改判 `CONCERNS` 留案發布／放棄）。此檢查不看 `pause_level`，`balanced`／`autonomous` 也會停。
+*   **裁決閘門（僅 `sequence` 的 `3→4`）**：放行條件是 `review_verdict` 為 `PASS` 且無未結案項，或為 `CONCERNS` 且 `review_concerns` 非空。`FAIL` 不能靠 `--confirmed` 推進；`PASS` 卻有未結案項、`CONCERNS` 卻沒附項目、或尚未記錄裁決，都會 `die`。
+*   **進入 stage 3 一律清空** `review_verdict` / `review_concerns`，舊裁決不會沿用到下一輪審查。
+
+> jump 模式不套用轉移表也不套裁決閘門，但退回理由與次數上限照樣生效——上限在 jump 下仍可被繞過（不經 stage 3 直接 `advance 2`），屬軟約束。
 
 ---
 
@@ -180,7 +193,7 @@ completed_tasks 的長度 < total_tasks  →  拒絕推進
 | `stage-done` | 標記 stage 完成、進入暫停點 | sequence 下參數須等於目前 stage |
 | `task-done` | 任務完成（記入 `completed_tasks`） | sequence 下僅能在 STAGE 2；`unique` 去重 |
 | `confirm` | 清除等待旗標（stage 不變） | — |
-| `advance` | 推進 stage | 棘輪 + 轉移表 + 任務完整性（`next=3`） |
+| `advance` | 推進 stage | 棘輪 + 轉移表 + 任務完整性（`next=3`）+ `3→2` 理由與上限 + `3→4` 裁決閘門 |
 | `upgrade` | quick → sequence（單向） | 來源須為 quick；棘輪 |
 | `prune` | 清理 7 天以上的孤兒 pending 檔 | 只刪 `.pending-*.json`，`-mtime +7` |
 | `batch-init` | 建批次佇列 | 至少一個項目；`pause_level` 值域；佔位檔 trap |

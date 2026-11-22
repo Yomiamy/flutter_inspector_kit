@@ -136,7 +136,7 @@
 
 ## 0. 完成度總覽（Bug 1.x / Gap 2.1–2.5 核對於 2026-07-21 · Gap 2.6 增補於 2026-08-07）
 
-> 狀態依 [`docs/architecture/2026-11-09-gen-dev-workflow-analysis.md`](../architecture/2026-11-09-gen-dev-workflow-analysis.md) 核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。（原引用 `docs/features/2026-07-18-...`，該檔已隨文件搬遷／改名不存在。）
+> 狀態依 [`docs/architecture/2026-11-23-gen-dev-workflow-analysis.md`](../architecture/2026-11-23-gen-dev-workflow-analysis.md) 核對標注。✅ 已修 ｜ 🟡 部分 ｜ ⬜ 待修。（原引用 `docs/features/2026-07-18-...`，該檔已隨文件搬遷／改名不存在。）
 >
 > **🔍 實查校正 (2026-08-06)**：本註記原寫「`wf-state.sh` 不在本 repo，無法直接讀原始碼，
 > 故以該份 analysis 為權威來源」——**此前提已不成立**。該腳本就在本 repo 的
@@ -163,7 +163,7 @@
 >
 > **⚠️ 2026-08-07 補記（問題已於 2026-08-14 修復，本段保留為設計啟示）**：上述「已徹底解決」的結論**僅在腳本被呼叫的前提下成立**。Gap 2.6 揭露了守衛架構的結構性盲點——獨立入口（STAGE 5/6）可全程不碰 `wf-state.sh`，使所有內部校驗無從觸發。這不是既有修復的回歸，而是先前分析未涵蓋的層級：**對策必須落在入口攔截（hook），繼續往腳本內部堆校驗無效**。
 >
-> **📌 2026-08-14 結案**：該判斷成立，已依此落地 hook 攔截層（`.claude/hooks/wf-guard-stage-check.sh`），Gap 2.6 已修復。**但此結論的適用範圍不限於 Gap 2.6**——「守衛需要被呼叫才生效」是結構性盲點，同型弱點仍存在於**委派的工作目錄約束**（MCP 無法指定 cwd，只能靠 prompt 寫絕對路徑），詳見 [`docs/architecture/2026-11-09-wf-state-harness-guardrail.md`](../architecture/2026-11-09-wf-state-harness-guardrail.md) §「同構的第二個弱點」。
+> **📌 2026-08-14 結案**：該判斷成立，已依此落地 hook 攔截層（`.claude/hooks/wf-guard-stage-check.sh`），Gap 2.6 已修復。**但此結論的適用範圍不限於 Gap 2.6**——「守衛需要被呼叫才生效」是結構性盲點，同型弱點仍存在於**委派的工作目錄約束**（MCP 無法指定 cwd，只能靠 prompt 寫絕對路徑），詳見 [`docs/architecture/2026-11-23-wf-state-harness-guardrail.md`](../architecture/2026-11-23-wf-state-harness-guardrail.md) §「同構的第二個弱點」。
 >
 > **📌 2026-08-21 追加結案（issue #134 / PR #135 已合併）**：該同型弱點亦已落地 hook 層對策 `.claude/hooks/wf-guard-delegate-cwd.sh`——`pre` 端（PreToolUse）檢查派發 prompt 是否含目標 worktree 絕對路徑，缺失即 `exit 2` 阻擋；`post` 端（PostToolUse）以 `git status` before/after 差集偵測越界寫入與越界 commit，**只告警不阻斷**並寫入稽核紀錄。與 Gap 2.6 的差別在於：Gap 2.6 可事前阻斷，本項因 MCP 介面無 cwd 參數而**預防在物理上不可得**，確定性偵測即為天花板。
 
@@ -1578,9 +1578,9 @@ Orchestrator 維護一份持續更新的 `progress.md`，記錄：已完成的 M
 | 項目 | 來源 | effort | 價值 | 一句話 |
 |:---|:---|:---:|:---:|:---|
 | **`confirmed_by: human\|auto`** | R11(c) | 極低 | 中 | state 檔目前分不出「人確認」與「autonomous 自動放行」 |
-| **迴圈偵測**（`issues_hash` 或修復次數上限 3） | R12(a) | 低 | **高** | `3→2→3` 打轉目前只能靠人察覺，純機械可判 |
-| **三值裁決 `PASS/CONCERNS/FAIL`** | R8 | 低 | 中 | 二值制下「可過但留案」只能假裝 PASS 或卡死 |
-| **退回邊帶 `--reason` 寫入 state** | R8 | 低 | 中 | 退回應是具名的一等公民，且要求產出「更新後的 plan」 |
+| **迴圈偵測**（`issues_hash` 或修復次數上限 3） — ✅ 已完成（2026-11-22，Issue #255 / PR #256） | R12(a) | 低 | **高** | `3→2→3` 打轉目前只能靠人察覺，純機械可判。實作為次數上限：`rework_history` 滿 2 筆後第 3 次退回強制問人（不分 `pause_level`），未做 `issues_hash` |
+| **三值裁決 `PASS/CONCERNS/FAIL`** — ✅ 已完成（2026-11-22，Issue #255 / PR #256） | R8 | 低 | 中 | 二值制下「可過但留案」只能假裝 PASS 或卡死。實作為 reviewer 首行 `REVIEW: <V>` 寫入 `review_verdict`，sequence 的 `3→4` 由腳本閘門強制 |
+| **退回邊帶 `--reason` 寫入 state** — 🟡 部分（2026-11-22，Issue #255 / PR #256） | R8 | 低 | 中 | 退回應是具名的一等公民，且要求產出「更新後的 plan」。`--reason` 已必填並記入 `rework_history`；「產出更新後的 plan」未強制 |
 | **Falsifiable claims（封閉集合）** | R11(a) | 中 | **高** | 子 agent 只能說可機械驗證的話，取代散文回報 |
 | **委派 dev log（append-only）** | R9 | 中 | **高** | 稽核系統側錄的軌跡，而非 agent 自述 |
 | **worktree port 配置** | R12(b) | 低 | 中 | 只隔離了 state 檔，`flutter run` 仍會撞 port |
@@ -1735,7 +1735,7 @@ sys.exit(1)   # 第 126 行：同上
 >
 > ⚠️ **兩處作者歸屬需更正**（見下方各項標註）——這正是逐項查證的價值，搜尋階段的歸屬有兩筆是錯的。
 
-#### R8. 🔴 退回路徑該是「一等公民」，三值裁決優於二值（BMAD-METHOD）
+#### R8. 🔴 退回路徑該是「一等公民」，三值裁決優於二值（BMAD-METHOD） — ✅ 已完成（2026-11-22，Issue #255 / PR #256；「退回須產出更新後的 plan」未強制）
 
 **來源**：<https://docs.bmad-method.org/reference/workflow-map/>（BMad Code, LLC）
 
