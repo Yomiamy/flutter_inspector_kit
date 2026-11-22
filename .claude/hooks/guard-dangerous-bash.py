@@ -102,8 +102,22 @@ def rm_hit(args):
     return recursive and force and any(critical(t) for t in targets)
 
 
+PUSH_VALUE_OPTS = ("-o", "--push-option", "--repo", "--receive-pack", "--exec")  # 值在下一個 token 的選項
+
+
 def push_main_hit(args, d):
-    pos = [a for a in args if not a.startswith("-")]
+    pos, opts, skip = [], [], False
+    for a in args:
+        if skip:
+            skip = False  # 選項的值不是 refspec；--repo 的值就是 remote，要補進 pos 佔位
+            if opts[-1] == "--repo":
+                pos.append(a)
+        elif a.startswith("-"):
+            opts.append(a)
+            skip = a in PUSH_VALUE_OPTS
+        else:
+            pos.append(a)
+    args = opts
     refspecs = pos[1:]
     force = any(a.startswith("--force") or short_has(a, "f") for a in args) \
         or any(r.startswith("+") for r in refspecs)

@@ -124,7 +124,12 @@ CWD="$ON_FEAT"
 decide deny 'git push --force --all origin'
 decide deny 'git push --all -f origin'
 decide deny 'git push --branches -f origin'
+decide deny 'git push --branches -f -o ci.skip origin'  # -o 的值不是 refspec
+decide deny 'git push --all --push-option ci.skip -f origin'
+decide deny 'git push --repo origin --all -f'
 pass 'git push --all origin'
+pass 'git push -o ci.skip origin feat/x'
+pass 'git push -f -o ci.skip origin feat/x'
 CWD="$TMP"; decide deny 'cd on-main && git push -f origin'  # 相對路徑 cd
 CWD="$ON_FEAT"
 pass "echo '>'; git push -f origin feat/x"
