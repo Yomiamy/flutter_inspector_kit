@@ -1,6 +1,7 @@
 # gen-dev-workflow 全階段分析報告
 
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-11-23**：同步 PR #256（Issue #255）——STAGE 3 改為三值裁決 `PASS`／`CONCERNS`／`FAIL`（reviewer 報告首行 `REVIEW: <V>`，寫入 state 的 `review_verdict`，`CONCERNS` 須附 `review_concerns`），`3→2` 退回須附 `--reason` 並記入 `rework_history`，第 3 次起退回不論 `pause_level` 都停下問人。更新「STAGE 3：審查」一節與優點表「退回機制」列。檔名日期前綴由 `2026-11-09` 更新至 `2026-11-23`。
 > * **2026-11-09**：同步 PR #246——(1) `wf-state.sh` 轉移表新增 `done→5`、`done→6`，讓 STAGE 4 收尾標為 `done` 的 `sequence` 流程可重入 STAGE 5／6；(2) 全模式（sequence／jump／quick／batch）統一由 `brancher` 建立 Issue、`publisher` 建立 PR，建立當下自動指派 `--assignee @me`（並補跑 `edit --add-assignee @me`）與設定 GitHub Project Status 為 `In Progress`（先以 `gh auth status --active --hostname github.com --json hosts` 檢查 `project` scope，缺 scope、檢查失敗或未加入 Project 皆不阻擋流程、不另開暫停詢問）；(3) `publisher` 建立 PR 前一律先執行 `git push -u origin <branch>`（不單靠 `git ls-remote` 判斷），`git push` 權責明確歸屬當下負責該 stage 的 agent（STAGE 4 為 `publisher`、STAGE 5 為 `responder`）。檔名日期前綴由 `2026-08-12` 更新至 `2026-11-09`。
 > * **2026-09-19**：同步 PR #167（Issue #166）——新增 STAGE 0·grill 需求盤問關卡與 `gen-grill` skill。(1) 「各階段詳細分析」新增 STAGE 0·grill 一節；(2) 缺點表「錯誤傳播」列標註部分緩解；(3) 總覽的 stage 敘述補上本關卡。注意此關卡**不動狀態機、不是暫停點、不產生文件**，故 state machine 轉移表與 7 個暫停點的既有敘述維持不變。
 > * **2026-09-04**：補上三處文件從未涵蓋的既有機制，並更新兩項因此失效的判斷。(1) 新增「Hook 強制層」章節——四個已註冊 hook（`wf-guard-stage-check`、`wf-guard-delegate-cwd` pre/post、`cbm-reindex-on-pr`）此前在本文件 0 次提及，其中兩個直接強制本 workflow 自身的規則；(2) 新增 batch 批次模式（此前僅 quick 模式有專節）；(3) 新增「Claude Workflow 編排」可選加速層。連帶修正：「委派後端依賴」缺點中「工作目錄靠 prompt 約束，屬文件層自律而非程式強制」一句已被 `wf-guard-delegate-cwd` 推翻，改為「pre 端已程式強制」；「最危險的假設」補上 hook 層作為第二道非自律防線。新增流程總覽圖連結。
@@ -165,13 +166,14 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 | **Model** | 最強推論（reviewer frontmatter：`model: opus`；派發時帶入 `effort: xhigh`）——根因判斷 |
 | **委派** | **不委派**（審查不可外包） |
 | **並行** | 無 |
-| **產出** | 審查報告 |
-| **暫停點** | ⏸ 展示報告 → 通過則進 STAGE 4，不通過則退回 STAGE 2 |
+| **產出** | 審查報告（首行 `REVIEW: PASS\|CONCERNS\|FAIL`） |
+| **暫停點** | ⏸ 展示報告（含歷次退回理由）→ `PASS`／`CONCERNS` 進 STAGE 4，`FAIL` 退回 STAGE 2 |
 
 **執行工作：**
 1. reviewer agent 親自審查所有變更
-2. 產出審查報告
-3. 不通過 → 退回 STAGE 2 修正 → 再回 STAGE 3（迴圈）
+2. 產出審查報告，主對話依首行裁決 `set review_verdict=<V>`（`CONCERNS` 同時寫入 `review_concerns`）
+3. `FAIL` → `advance 2 --reason "<摘要>"` 退回 STAGE 2 修正 → 再回 STAGE 3（迴圈，進 3 時清空裁決）
+4. 已退回 2 次後，第 3 次起任何 `pause_level` 都停下問人：再修／改判 `CONCERNS` 留案發布／放棄
 
 **設計考量：** 審查用最強推論是為了避免「自己審自己」（實作走標準或更便宜等級，reviewer 刻意用不同源的最強推論交叉驗證）。
 
@@ -446,7 +448,7 @@ STAGE 1 之後的 state 檔存在**各自 worktree 內部**，不再是主 repo 
 | **並行效率** | 條件式並行 + 三規則契約 | 不盲目並行，有明確的衝突偵測和失敗處理策略 |
 | **人在迴路** | 關鍵暫停點 | 規格、計畫、分支、每個任務、審查、PR 都有確認點，不會脫韁 |
 | **靈活入口** | Quick Commands + jump mode + quick 模式 | 可以從任意 stage 切入，不強迫跑完整流程；小修正有專屬單暫停點快速通道 |
-| **退回機制** | STAGE 3 → STAGE 2 迴圈 | 審查不通過不是死路，有明確的退回路徑 |
+| **退回機制** | STAGE 3 → STAGE 2 有界迴圈 + 三值裁決 | 審查不通過不是死路，有明確的退回路徑；每次退回留理由，第 3 次起強制問人，`CONCERNS` 讓「可過但留案」不必假裝 PASS |
 | **失敗處理** | 分級 retry + 人工兜底 | 重試有上限（2 次），超過就停下來問人，不無限迴圈 |
 
 ### ❌ 缺點
