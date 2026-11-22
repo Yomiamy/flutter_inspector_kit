@@ -120,7 +120,8 @@ def push_main_hit(args, d):
             pos.append(a)
     args = opts
     refspecs = pos[1:]
-    force = any(a.startswith("--force") or short_has(a, "f") for a in args) \
+    # 短旗標串中 -o 吃掉其後整串當值（-oflag 的 f 是值），只有 o 之前的 f 算 force
+    force = any(a.startswith("--force") or short_has(a.split("o", 1)[0], "f") for a in args) \
         or any(r.startswith("+") for r in refspecs)
     if not force:
         return False

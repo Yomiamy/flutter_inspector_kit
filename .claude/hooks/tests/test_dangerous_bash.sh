@@ -134,6 +134,14 @@ CWD="$ON_MAIN"
 decide deny 'git push --repo nonexist -f origin'  # --repo 的值不佔 remote 位置，origin 才是 repository
 decide deny 'git push -fo ci.skip origin'
 decide deny 'git push --recurse-submodules check -f origin'
+decide deny 'git push -vfo ci.skip origin'
+decide deny 'git push -4fo ci.skip origin'
+decide deny 'git push -fuo ci.skip origin'
+decide deny 'git push -fofoo origin'  # f 在 o 之前才算旗標，其後是 -o 的附著值
+pass 'git push -oflag origin main'  # -o 附著值含 f，不是 force
+pass 'git push -ofo origin main'
+pass 'git push -o -f origin main'
+pass 'git push -uo ci.skip origin'
 CWD="$ON_FEAT"
 pass 'git push --all origin'
 pass 'git push -o ci.skip origin feat/x'
