@@ -31,7 +31,7 @@
     → 依報告首行裁決：wf-state.sh set <檔> review_verdict=PASS|CONCERNS|FAIL（CONCERNS 同次帶 review_concerns="…"）
     → [若 FAIL] wf-state.sh advance <檔> 2 --reason "<摘要>" 退回 STAGE 2（等待確認中須加 --confirmed）；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>")；第 3 次起退回須使用者確認（見 SKILL.md 暫停粒度）
     # STAGE 4：發布
-    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>；工作目錄：<worktree 絕對路徑>；reviewer 報告若有「缺席視角」段，原文附上")
+    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>；工作目錄：<worktree 絕對路徑>；reviewer 報告若有「缺席視角」段，原文如下（無此段時省略）：<reviewer 報告的「缺席視角」段原文>")
     → 暫停確認 → 完成
 ```
 
@@ -50,7 +50,7 @@
     → Task("reviewer", "審查 <branch-name>")
     → 依報告首行裁決：wf-state.sh set <檔> review_verdict=PASS|CONCERNS|FAIL（CONCERNS 同次帶 review_concerns="…"）
     → [若 FAIL] wf-state.sh advance <檔> 2 --reason "<摘要>" 退回 STAGE 2（等待確認中須加 --confirmed）；微任務由主進程原地修改並跑測試，其餘任務才派發 Task("implementer", "修正以下問題：<reviewer 回報>")；第 3 次起退回須使用者確認（見 SKILL.md 暫停粒度）
-    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>；工作目錄：<worktree 絕對路徑>；reviewer 報告若有「缺席視角」段，原文附上")
+    → Task("publisher", "用 gen-pr skill 產 PR 描述，發布 <branch-name>；工作目錄：<worktree 絕對路徑>；reviewer 報告若有「缺席視角」段，原文如下（無此段時省略）：<reviewer 報告的「缺席視角」段原文>")
     → 暫停確認 → 完成
 ```
 

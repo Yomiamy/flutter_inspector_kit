@@ -45,10 +45,11 @@ check_all() {
   for c in 'rm -rf /' 'rm -rf ~' 'rm -rf $HOME' 'rm -rf "$HOME"' 'rm -rf ${HOME}/' 'rm -fr ~/' \
            'rm -Rf /*' 'rm -r -f ~/*' 'sudo rm -rf /' '/bin/rm -rf --recursive -- ~' \
            'ls && rm -rf ~' 'cd /tmp; rm -rf $HOME' "$(printf 'cd /tmp\nrm -rf ~')" 'rtk proxy rm -rf ~' \
-           "rm -rf ~; echo 'unbalanced" "$(printf 'rm -rf \\\n  ~')"; do
+           "rm -rf ~; echo 'unbalanced" "$(printf 'rm -rf \\\n  ~')" \
+           'rm -rf "" ~' "rm -rf '' /"; do
     decide deny "$c"
   done
-  for c in 'rm -rf ./build' 'rm -rf "$TMPDIR/wf-x"' 'rm -rf ~/scratch/x' 'rm -f ~' 'rm -r /' \
+  for c in 'rm -rf ./build' 'rm -rf ""' 'rm -rf "" ./build' 'rm -rf "$TMPDIR/wf-x"' 'rm -rf ~/scratch/x' 'rm -f ~' 'rm -r /' \
            'echo "rm -rf ~"' "$(printf 'git commit -F - <<EOF\nrm -rf ~ is denied\nEOF')"; do
     pass "$c"
   done

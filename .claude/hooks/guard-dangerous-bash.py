@@ -56,13 +56,14 @@ def segments(cmd):
     lx.whitespace_split = True
     seg, skip = [], False
     for tok in lx:
-        if skip and not set(tok) <= SEP_CHARS:  # 目標 token 才丟；遇到分隔符不吞（echo '>'; git push -f 的引號 > 被誤當重導向）
+        sep = bool(tok) and set(tok) <= SEP_CHARS  # 引號產生的空參數（""）是一般 token，不是分隔符
+        if skip and not sep:  # 目標 token 才丟；遇到分隔符不吞（echo '>'; git push -f 的引號 > 被誤當重導向）
             skip = False
         elif set(tok) <= set("<>&") and set(tok) & set("<>"):  # 重導向：丟掉運算子、目標與前置 fd（2>&1 → 2、>&、1）
             if seg and seg[-1].isdigit():
                 seg.pop()
             skip = True
-        elif set(tok) <= SEP_CHARS:
+        elif sep:
             yield seg
             seg, skip = [], False
         else:
@@ -96,6 +97,8 @@ def rm_hit(args):
     force = any(short_has(f, "f") or f == "--force" for f in flags)
 
     def critical(t):
+        if not t:  # 空參數（rm -rf ""）什麼都不刪
+            return False
         t = t[:-2] if t.endswith("/*") else t
         return (t.rstrip("/") or "/") in ("/", "~", "$HOME", "${HOME}")
 
