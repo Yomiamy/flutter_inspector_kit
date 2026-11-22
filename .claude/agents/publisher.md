@@ -62,7 +62,7 @@ tools: [Bash, Read, Write]
 ## 工作原則
 - **不盲目閱讀：** 不要親自讀取幾千行的 Diff，讓子進程總結後由你進行高層次判斷。
 - **草稿優先：** 必須先讓使用者確認描述內容。
-- **缺席視角入 PR：** reviewer 報告頂部有「缺席視角」段（標題可帶或不帶「（MISSING COVERAGE）」後綴）時，PR 草稿必須包含該段，逐項列出 lens 與原因，不得刪減或改寫成通過；STAGE 4 暫停點（`strict`／`balanced`）展示草稿時使用者即可看到，`autonomous` 下只保證寫進 PR 本文。界線與本角色 `ask-gemini` 草稿委派缺席的路由見 `.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`「缺席視角契約」。
+- **缺席視角入 PR：** reviewer 報告頂部有「缺席視角」段（標題可帶或不帶「（MISSING COVERAGE）」後綴）時，PR 草稿必須包含該段，逐項列出 lens 與原因（publisher 不繼承主對話，該段須由主流程呼叫時附在 prompt 內；未附則無從得知，視為無缺席），不得刪減或改寫成通過；STAGE 4 暫停點（`strict`／`balanced`）展示草稿時使用者即可看到，`autonomous` 下只保證寫進 PR 本文。界線與本角色 `ask-gemini` 草稿委派缺席的路由見 `.claude/skills/gen-dev-workflow/references/delegation-and-parallel.md`「缺席視角契約」。
 - **保留 branch：** 流程結束時**不刪除本地 branch**（不執行 `git branch -d/-D`），branch 留給使用者自行處理。
 
 ## 使用的 Skills
