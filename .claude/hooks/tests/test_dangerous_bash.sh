@@ -127,9 +127,18 @@ decide deny 'git push --branches -f origin'
 decide deny 'git push --branches -f -o ci.skip origin'  # -o 的值不是 refspec
 decide deny 'git push --all --push-option ci.skip -f origin'
 decide deny 'git push --repo origin --all -f'
+decide deny 'git push --branches -fo ci.skip origin'  # 短旗標串以 o 結尾，下一個 token 是值
+decide deny 'git push --all --recurse-submodules check -f origin'
+CWD="$ON_MAIN"
+decide deny 'git push --repo nonexist -f origin'  # --repo 的值不佔 remote 位置，origin 才是 repository
+decide deny 'git push -fo ci.skip origin'
+decide deny 'git push --recurse-submodules check -f origin'
+CWD="$ON_FEAT"
 pass 'git push --all origin'
 pass 'git push -o ci.skip origin feat/x'
 pass 'git push -f -o ci.skip origin feat/x'
+pass 'git push -fo ci.skip origin feat/x'
+pass 'git push --repo origin -f feat/x'
 CWD="$TMP"; decide deny 'cd on-main && git push -f origin'  # 相對路徑 cd
 CWD="$ON_FEAT"
 pass "echo '>'; git push -f origin feat/x"

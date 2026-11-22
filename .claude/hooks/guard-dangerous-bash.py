@@ -15,7 +15,7 @@
 # 已知盲區（規格 §5.3）：字串層比對。執行期變數展開（$X 展開成 /）、腳本檔與 bash -c 內的指令、
 # 反引號、混淆寫法（$IFS、base64）都偵測不到；引號不平衡等 shlex 無法解析的部分放行（之前已切出的子指令照判）。
 # shlex 把詞中的 # 當註解起點（如 echo foo#bar; rm -rf ~、URL 含 #），同一行其後的內容不比對。
-# `-o <值>` 這類帶值選項會讓 push 的 refspec 判讀錯位。
+# git push 帶值選項的長選項縮寫（唯一前綴，如 --push-opt ci.skip、--rep x）不認得，值會被當成 refspec；完整寫法與 -o 已處理。
 # 偶數個反斜線結尾的行會被誤當行接續（echo a\\⏎rm -rf ~），下一行併進上一段。
 # 以保留字或前綴開頭的段漏判：{ … }、then、do、!、time、env、command、xargs、sudo -u root。
 # 雙引號內的 "$(…)" 不比對。
@@ -102,19 +102,17 @@ def rm_hit(args):
     return recursive and force and any(critical(t) for t in targets)
 
 
-PUSH_VALUE_OPTS = ("-o", "--push-option", "--repo", "--receive-pack", "--exec")  # 值在下一個 token 的選項
+PUSH_VALUE_OPTS = ("--push-option", "--repo", "--receive-pack", "--exec", "--recurse-submodules")  # 值在下一個 token 的選項
 
 
 def push_main_hit(args, d):
     pos, opts, skip = [], [], False
     for a in args:
         if skip:
-            skip = False  # 選項的值不是 refspec；--repo 的值就是 remote，要補進 pos 佔位
-            if opts[-1] == "--repo":
-                pos.append(a)
+            skip = False  # 選項的值不是 refspec（git 的第一個位置參數永遠是 repository，--repo 的值不佔位）
         elif a.startswith("-"):
             opts.append(a)
-            skip = a in PUSH_VALUE_OPTS
+            skip = a in PUSH_VALUE_OPTS or (not a.startswith("--") and a.find("o") == len(a) - 1)  # 短旗標串以 o 結尾（-o、-fo）取下一個 token 當值
         else:
             pos.append(a)
     args = opts

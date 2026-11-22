@@ -201,7 +201,7 @@ STAGE 3 派發 correctness / security / 過度工程 三個 lens
 - macOS 檔案系統不分大小寫：以不同大小寫拼寫主 repo 路徑可繞過凍結判定。
 - `onFailure: block` 下 python3／shebang／執行權限失效，會擋所有 session（含主 checkout）的 `Edit`/`Write`。
 - `EnterWorktree` 時 settings 隨 session 移到 W，`$CLAUDE_PROJECT_DIR` 仍是 R：若 W 的 settings 比 R 新（R 尚無此腳本），`onFailure: block` 會擋該 session 所有 `Edit`/`Write`；以 Bash `git -C <R> pull` 自救。
-- Bash：heredoc 內文不比對；shlex 無法解析的尾段放行（已切出段照判）；`-o <值>` 這類帶值選項可能讓 refspec 判讀錯位；shlex 把詞中 `#` 當註解起點（`echo foo#bar; rm -rf ~`、URL 含 `#`），同一行其後內容不比對；偶數個反斜線結尾的行會被誤當行接續（`echo a\\⏎rm -rf ~`）。
+- Bash：heredoc 內文不比對；shlex 無法解析的尾段放行（已切出段照判）；`git push` 帶值長選項的唯一前綴縮寫（如 `--push-opt ci.skip`、`--rep x`）不認得，值可能被當成 refspec 而讓判讀錯位（完整寫法與 `-o` 已處理）；shlex 把詞中 `#` 當註解起點（`echo foo#bar; rm -rf ~`、URL 含 `#`），同一行其後內容不比對；偶數個反斜線結尾的行會被誤當行接續（`echo a\\⏎rm -rf ~`）。
 - 以保留字或前綴開頭的段（`{ … }`、`then`、`do`、`!`、`time`、`env`、`command`、`xargs`、`sudo -u root`）、雙引號內的 `"$(…)"`、`git --git-dir <dir>`（空格分隔）、`git checkout ./`、子 shell 內 `cd` 延續到外層，皆可能漏判（fail-open）。`git push --mirror`（不帶 `-f` 也會強制覆寫遠端 main）不比對。branch 只在執行前查一次：同一指令內先 `git switch`／`git checkout` 再省略 refspec 的 force push（`git switch main && git push -f`）判不到。
 - hook `ask` 在 `bypassPermissions` 下不保證跳出確認，`dontAsk`／`-p` 下會變成拒絕；不可逆項目因此一律放在 deny 層。
 
