@@ -773,8 +773,8 @@ hook 與新 verifier 只在「session 從載有新設定的目錄啟動」時生
    - `cwd-probe` 那列是否出現、`cwd` 為何（**H3 subagent cwd 重設語意實測**）。
 3. 派發 verifier，附一份假回報「（自行執行）`flutter test test/nonexistent_test.dart` 通過」+ 真實 `DEV_LOG` + 剛記下的 `SINCE` → 首行應為 `FAIL: CODE: 宣稱的 … 無側錄紀錄`。
 4. 同上，但 `DEV_LOG` 給「存在的非 git 目錄 + 固定後綴」的缺失路徑（如 `/tmp/.claude/workflow-state/dev-log.jsonl`；canary 的 `cd '/tmp'` 成功、echo 照常執行但 hook 不寫入；不存在的目錄會讓 `cd` 先失敗而沒跑到 echo；不可用 worktree 內尚未建立的標準路徑，echo 會觸發 hook 先建出該檔）→ 首行應為 `FAIL: INFRA: dev log 側錄失效`。
-   - 零成本觀察：INFRA 探針後，到**真實 worktree log** 查該 canary 字串。查得到 → payload `cwd` 為派發時的 base cwd；查不到 → 為 `cd` 後的 cwd。base cwd 語意下，正式佈局失敗（派發時主對話不在 worktree）的症狀會是 `FAIL: INFRA` 而非 `FAIL: CODE`（皆 fail-closed）。
-5. 大輸出探針：派一般 subagent 執行 `seq 1 10000`（輸出 >30KB），查 log 該列：`output_tail` 應以 `10000` 結尾（hook 由 payload 的 `tool_response.persistedOutputPath` 取結尾）。若尾段缺 `10000`（payload 無此欄位或路徑不可讀）→ 退回 0b：改 hook 取尾方式，或把 verifier 規則改為「尾段缺結尾摘要行視為截斷、非數字對不上」。
+   - 零成本觀察：INFRA 探針後，到**真實 worktree log** 查該 canary 字串，且只認 `command` 為 `cd '/tmp' && echo <canary>` 的列（查詢指令本身若由 subagent 執行也會被記進同一份 log，且含 canary 字串，不可算命中）。查得到 → payload `cwd` 為派發時的 base cwd；查不到 → 為 `cd` 後的 cwd。base cwd 語意下，正式佈局失敗（派發時主對話不在 worktree）的症狀會是 `FAIL: INFRA` 而非 `FAIL: CODE`（皆 fail-closed）。
+5. 大輸出探針：派一般 subagent 執行 `seq 1 10000`（輸出 >30KB），查 log 該列：`output_tail` 應以 `10000` 結尾（hook 由 payload 的 `tool_response.persistedOutputPath` 取結尾；輸出 >30KB 時 payload 的 `stdout` 只含前段，故尾段出現 `10000` 即直接證明該欄位存在且可讀，log 不存 payload，無需另行檢視欄位）。若尾段缺 `10000`（payload 無此欄位或路徑不可讀）→ 退回 0b：改 hook 取尾方式，或把 verifier 規則改為「尾段缺結尾摘要行視為截斷、非數字對不上」。
 
 **失敗處置**：第 2 步的 `cat`／`false` 兩列沒有寫進 worktree log，或紀錄的 `cwd` 不在 worktree 內（**cwd 行為不符**）→ **不 merge，退回 0b**，改走規格 H3 備案（解析指令開頭 `cd <絕對路徑> &&`，或由 workflow state 反推 worktree）。第 3、4 步首行不符 → 屬 T2 文字缺陷，退回 T2 修正後重測。
 
