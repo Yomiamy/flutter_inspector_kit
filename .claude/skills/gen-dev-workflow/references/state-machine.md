@@ -21,6 +21,12 @@ state 檔的**所有**建立、讀取、更新一律透過本 skill 的 `scripts
 - **schema 校驗 + 原子寫入**：先寫 tmp、`jq` 驗過才 `mv`——壞資料進不了磁碟，寫到一半中斷也不會留下半套 state。
 - **stage 轉移合法性**：sequence 模式接受 `0a→0b→1→2→3→4`、`3→2`（審查退回）、`4→done`，以及獨立入口銜接轉移 `4→5`、`5→4`、`5→5`、`4→6`、`5→6`、`6→done`，以及 `done→5`、`done→6`（STAGE 5／6 是 PR 發布後的獨立入口，流程已標 `done` 仍須可重入，否則 state 檔已存在、`init --mode jump` 亦被拒，無合法出路），其餘非法跳段直接 exit 1。quick/jump 模式不套用轉移表（quick 的階段本來就非正式、jump 是使用者明示跳段），但校驗與棘輪照常生效。
 - **暫停點棘輪**：`stage-done` / `task-done` 之後 `awaiting_confirmation=true`，未帶 `--confirmed` 的 `advance` 一律拒絕。`--confirmed` 只能在**使用者真的在對話中確認後**帶上——跳過暫停點從「無聲遺忘」變成必須蓄意加旗標、在 Bash 歷史留下痕跡的動作。
+- **STAGE 3 退回與裁決閘門**（退回規則不分模式；3→4 閘門僅 sequence）：
+  - `3→2` 退回（任何模式）須帶 `--reason "<摘要>"`（空白視同未帶），腳本把 `{reason, at}`（`at` 為 UTC ISO 8601）追加到 `rework_history`；`--reason` 用在其他轉移一律拒絕，避免誤以為理由已被記錄。
+  - `rework_history` 已有 2 筆時，再退回視同暫停點：未帶 `--confirmed` 即拒絕，**不看 `pause_level`**，拒絕訊息列出歷次理由。`rework_history` 不可 `set`、永不重置。
+  - **強制力範圍**：上限只在 sequence 由腳本完整強制。jump 下是**軟約束**——jump 的 `stage-done` 可直接改 stage 標籤、且無轉移表可走 `3→4→2`，都繞得過 `3→2` 這條邊；jump 的價值是理由留痕與正常路徑上的提醒，不是防繞過。
+  - sequence 的 `3→4` 須先 `set review_verdict`：放行 ⇔ `PASS` 且 `review_concerns` 為空，或 `CONCERNS` 且 `review_concerns` 非空；`null`、`FAIL`、矛盾組合一律拒絕，`--confirmed` 不可覆寫。jump 不強制（可 `init --stage 4` 直接進 4，閘門形同虛設），但主對話照常寫入裁決供 publisher 使用。
+  - 任何模式 `advance <檔> 3` 都清空 `review_verdict`／`review_concerns`（裁決只屬於本輪審查），`rework_history` 不動。
 
 | 時機 | 指令 |
 |------|------|
@@ -33,6 +39,8 @@ state 檔的**所有**建立、讀取、更新一律透過本 skill 的 `scripts
 | STAGE 2 單一任務完成 | `wf-state.sh task-done <檔> <n>` |
 | 使用者確認（stage 不變，如 STAGE 2 任務間） | `wf-state.sh confirm <檔>` |
 | 使用者確認並推進 stage | `wf-state.sh advance <檔> <next> --confirmed` |
+| STAGE 3 記錄審查裁決 | `wf-state.sh set <檔> review_verdict=PASS\|CONCERNS\|FAIL`；`CONCERNS` 同一次 `set` 帶 `review_concerns="<未結案項>"` |
+| STAGE 3 退回 STAGE 2 | `wf-state.sh advance <檔> 2 --reason "<摘要>"`（`stage-done 3` 標了等待確認時須加 `--confirmed`；已退回 2 次後不論 `pause_level` 都須使用者確認並加 `--confirmed`） |
 | 設定暫停粒度 | `wf-state.sh init --pause-level strict\|balanced\|autonomous`，或中途 `wf-state.sh set <檔> pause_level=<L>`（見主檔 [`../SKILL.md`](../SKILL.md) 的「暫停粒度」章節） |
 | 建立批次佇列 | `wf-state.sh batch-init <項目> ... [--pause-level <L>]` → 回傳批次檔路徑 |
 | 取批次下一項 | `wf-state.sh batch-next [<檔>]`（全跑完回傳 `DONE`；省略檔名自動定位唯一批次） |
@@ -118,6 +126,9 @@ worktree 建立後改帶 branch slug，不再需要 workflow-id：
   "completed_tasks": [1, 2],
   "total_tasks": 5,
   "interrupted_by": "context_budget",
+  "review_verdict": null,
+  "review_concerns": null,
+  "rework_history": [],
   "awaiting_confirmation": false
 }
 ```text
@@ -125,6 +136,12 @@ worktree 建立後改帶 branch slug，不再需要 workflow-id：
 `interrupted_by` 欄位（可選）：記錄上次為何中斷，續接時用來決定第一句話。
 - `"context_budget"` → 因 context 超標主動切 session（見 [`token-budget-gate.md`](token-budget-gate.md)）
 - `null` 或不存在 → 正常暫停（使用者主動離開）
+
+`review_verdict` / `review_concerns` / `rework_history`（STAGE 3 專用；舊檔缺席等同 `null` / `null` / `[]`）：
+- `review_verdict`：本輪審查裁決 `PASS` / `CONCERNS` / `FAIL`，主對話依 reviewer 報告首行 `REVIEW: <V>` 寫入。退回期間（stage 2）保留可見，重新 `advance 3` 才清空。
+- `review_concerns`：未結案項 markdown（一行一項）。`CONCERNS` 必填、`PASS` 必空；保留至 STAGE 4 供 publisher 寫進 PR 描述。
+- `rework_history`：`[{reason, at}]`，僅 `advance <檔> 2 --reason` 追加。續接 session 與 `/retro` 由此追溯退回次數與理由。
+- `set review_concerns=<值>` 一律存成字串（純數字如 `42` 亦然），僅字面 `null` 代表清空。
 
 **jump 模式**（直接指定特定 stage 執行）：
 ```json
