@@ -1,0 +1,22 @@
+{
+  "name": "flutter-inspector-kit-website",
+  "private": true,
+  "type": "module",
+  "description": "Bilingual static product site for flutter_inspector_kit",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "prepare:assets": "node scripts/prepare-assets.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "astro": "^7.4.13"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.4"
+  }
+}
