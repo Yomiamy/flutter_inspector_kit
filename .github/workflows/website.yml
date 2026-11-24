@@ -1,0 +1,72 @@
+name: Website CI & Hosting
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/website.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/website.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-and-verify:
+    name: Build & Verify Static Site
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Astro static site
+        run: npm run build
+
+      - name: Run static verification tests
+        run: npm test
+
+      - name: Deploy to Firebase Hosting (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$FIREBASE_SA_JSON" ]; then
+            {
+              echo "### Firebase Hosting Deploy Skipped"
+              echo ""
+              echo "Secret \`FIREBASE_SERVICE_ACCOUNT_JSON\` is not configured."
+              echo ""
+              echo "To enable automated deployment on \`main\`:"
+              echo "1. Create a Service Account JSON with **Firebase Hosting Admin** (\`roles/firebasehosting.admin\`) and **API Keys Viewer** (\`roles/serviceusage.apiKeysViewer\`) permissions for project \`flutterinspectorkit\`."
+              echo "2. Save it in GitHub **Settings → Secrets and variables → Actions** as \`FIREBASE_SERVICE_ACCOUNT_JSON\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          CRED_FILE="$(mktemp)"
+          chmod 600 "$CRED_FILE"
+          trap 'rm -f "$CRED_FILE"' EXIT
+          printf '%s' "$FIREBASE_SA_JSON" > "$CRED_FILE"
+          export GOOGLE_APPLICATION_CREDENTIALS="$CRED_FILE"
+          npx --yes firebase-tools@15.28.2 deploy --only hosting --project flutterinspectorkit --non-interactive
