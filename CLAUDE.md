@@ -54,7 +54,7 @@ make fix                                      # dart fix --apply
 ```
 
 - **既有分析雜訊基準**：目前 `flutter analyze lib/ test/` 存在 **7 個既有 info**（6 個 `deprecated_member_use` 關於 `withOpacity` / `groupValue`，以及 1 個 `share_text_web.dart:15` 的 js interop 型別檢查）。**唯有超出這 7 個的新增 warning/info 才是本次改動引入的問題**。
-- **無 CI 機制（本機嚴格驗證）**：Repo 未設置 `.github/` CI workflow，所有測試與靜態分析完全依賴開發者與 Agent 本機執行確認。
+- **Flutter 側無 CI（本機嚴格驗證）**：Flutter 套件本身沒有 CI，所有測試與靜態分析完全依賴開發者與 Agent 本機執行確認。唯一的 workflow `.github/workflows/website.yml` 只負責 `website/` 的建置、驗證與部署。
 - **Makefile 死指令警告**：僅 `analyze_lint`、`format`、`fix` 可用；其餘如 `build_runner`、`launcher_icon`、`intl`、`analyze_custom`、`get` 等 target 缺少外部相依，禁止調用。
 - **Demo 專案邊界**：`example/` 僅為手動示範沙盒（`cd example && flutter run`），其內部測試檔為預設樣板，不作為自動化測試驗證目標。
 
