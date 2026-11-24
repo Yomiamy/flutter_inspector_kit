@@ -9,3 +9,5 @@ build/
 coverage/
 scripts/
 doc/
+website/
+.github/
