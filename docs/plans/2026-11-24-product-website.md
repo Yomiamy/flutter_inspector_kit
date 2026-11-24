@@ -307,7 +307,7 @@ dist/
   "type": "module",
   "description": "Bilingual static product site for flutter_inspector_kit",
   "engines": {
-    "node": ">=22.18.0"
+    "node": ">=22.23.4"
   },
   "scripts": {
     "dev": "astro dev",
@@ -325,7 +325,7 @@ dist/
 }
 ```
 
-`engines.node >=22.18.0` 是 Node 原生 type stripping 不需 flag 就能用的最低版本。測試和素材腳本都直接 `import` `.ts`，需要這個功能。CI 用 Node 24，本機實測是 v26.13.1。
+`engines.node >=22.23.4` 是 astro 7.4.13 CLI 的硬性下限（`astro/bin/astro.mjs` 啟動時檢查，不符即 `process.exit(1)`），高於 Node 原生 type stripping 不需 flag 的最低版本 22.18.0。測試和素材腳本都直接 `import` `.ts`，兩個條件都需要。CI 用 Node 24，本機實測是 v26.13.1。
 
 #### 步驟 2.5：建立 `website/astro.config.mjs`
 
@@ -1526,7 +1526,7 @@ flutter analyze lib/ test/                                                      
 | # | 風險 | 處置 |
 |:-:|:---|:---|
 | R1 | WebP 超出 600 KB 總預算 | 已用 libwebp 實測：540×1200 q78 約 370 KB（餘裕 38%）。sharp 底層也是 libwebp，數字應該接近。超出時的降級順序寫在 T3 步驟 3.3；上限不能放寬 |
-| R2 | Node 版本過舊，無法直接 `import` `.ts` | `engines` 設為 `>=22.18.0`；CI 用 Node 24；`site.ts` 只用可抹除語法（§3.1） |
+| R2 | Node 版本過舊，無法直接 `import` `.ts` | `engines` 設為 `>=22.23.4`（astro CLI 下限，已涵蓋 type stripping 的 22.18.0）；CI 用 Node 24；`site.ts` 只用可抹除語法（§3.1） |
 | R3 | 換截圖後網站沒更新 | CI 的 `paths` 不監看 `doc/screenshots/`，也不跑 `prepare:assets`（和參考 repo 相同）。更新 `doc/screenshots/` 後要手動跑 `npm run prepare:assets` 並 commit `website/public/`。這是已知限制，本次不自動化（YAGNI） |
 | R4 | og-card 的字型在不同機器上渲染結果不同 | og-card 在本機產生一次後 commit，CI 不重新產生；T3 步驟 3.5 目視檢查 |
 | R5 | 第一支 workflow 進 repo | secret 還沒設定前，部署步驟會跳過並寫 step summary，CI 不會失敗；PR 只做 build 和驗證 |

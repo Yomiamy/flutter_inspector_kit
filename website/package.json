@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Bilingual static product site for flutter_inspector_kit",
   "engines": {
-    "node": ">=22.18.0"
+    "node": ">=22.23.4"
   },
   "scripts": {
     "dev": "astro dev",
