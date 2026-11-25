@@ -43,7 +43,8 @@ test('12 張截圖每張恰用一次、都有 alt，且已輸出到 public/', ()
 });
 
 test('外部連結一律 https', () => {
-  const urls = [...strings(SITE_META), ...strings(SITE_DATA)].filter((s) => /^\w+:\/\//.test(s));
+  // 任何 scheme:xxx 都納入檢查（含 javascript:、mailto:），不能只挑 xxx:// 的
+  const urls = [...strings(SITE_META), ...strings(SITE_DATA)].filter((s) => /^[a-z][a-z0-9+.-]*:\S/i.test(s));
   assert.ok(urls.length >= 6);
   for (const u of urls) assert.match(u, /^https:\/\//, u);
 });
