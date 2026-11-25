@@ -164,11 +164,11 @@ export const SITE_DATA: Record<Locale, SiteLocaleData> = {
       {
         id: 'state',
         title: 'Where the user went, what the app stored',
-        lead: 'Route changes and database operations sit on the same timeline as the requests around them, and your key-value stores have a tab of their own.',
+        lead: 'Route changes and database operations sit on the same timeline as the requests around them, and key-value stores get a tab of their own once you register a KeyValueBrowserSource adapter.',
         points: [
           'Switch between navigation history and the live route stack; each event keeps the params and args its route was opened with',
           'Record insert, update, delete and query operations; browse real SQLite or ObjectBox tables by registering your own DatabaseBrowserSource adapter',
-          'Browse, edit and clear key-value stores such as SharedPreferences — every write is confirmed',
+          'Browse, edit and clear key-value stores such as SharedPreferences by registering your own KeyValueBrowserSource adapter — every write is confirmed',
         ],
         shots: [
           { id: 'navigator', alt: 'Navigator tab with route events' },
@@ -299,11 +299,11 @@ export const SITE_DATA: Record<Locale, SiteLocaleData> = {
       {
         id: 'state',
         title: '使用者去了哪裡，App 存了什麼',
-        lead: '頁面切換與資料庫操作，和它們前後的請求排在同一條時間軸上；key-value 儲存則有自己的分頁。',
+        lead: '頁面切換與資料庫操作，和它們前後的請求排在同一條時間軸上；註冊 KeyValueBrowserSource adapter 後，key-value 儲存則有自己的分頁。',
         points: [
           '在導航事件歷史與即時 route stack 之間切換；每個事件都記錄開啟該 route 時帶的 Params 與 Args',
           '記錄 insert、update、delete、query 操作；註冊自己實作的 DatabaseBrowserSource adapter，即可瀏覽 SQLite 或 ObjectBox 的真實資料表',
-          '在裝置上瀏覽、編輯、清空 SharedPreferences 等 key-value 儲存，每次寫入都需要確認',
+          '註冊自己實作的 KeyValueBrowserSource adapter 後，即可在裝置上瀏覽、編輯、清空 SharedPreferences 等 key-value 儲存，每次寫入都需要確認',
         ],
         shots: [
           { id: 'navigator', alt: 'Navigator 分頁的 route 事件' },
