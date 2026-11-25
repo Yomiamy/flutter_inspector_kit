@@ -150,7 +150,7 @@ export const SITE_DATA: Record<Locale, SiteLocaleData> = {
         title: 'Watch a request evolve',
         lead: 'A request appears the moment it starts and completes in place when the response lands. When it fails, you see why — and you can send it again.',
         points: [
-          'Replay a captured call through the original Dio instance: same headers, base URL and interceptors',
+          'Replay a captured call through the original Dio instance (pass it to the interceptor as sourceDio): same headers, base URL and interceptors',
           'Requests over a configurable threshold are flagged 🐢 SLOW, even while still waiting',
           'A summary banner groups failures by status code or error type',
           'Transport failures are told apart from 4xx/5xx server errors',
@@ -167,7 +167,7 @@ export const SITE_DATA: Record<Locale, SiteLocaleData> = {
         lead: 'Route changes and database operations sit on the same timeline as the requests around them, and your key-value stores have a tab of their own.',
         points: [
           'Switch between navigation history and the live route stack; each event keeps the params and args its route was opened with',
-          'Record insert, update, delete and query operations; browse real SQLite or ObjectBox tables',
+          'Record insert, update, delete and query operations; browse real SQLite or ObjectBox tables by registering your own DatabaseBrowserSource adapter',
           'Browse, edit and clear key-value stores such as SharedPreferences — every write is confirmed',
         ],
         shots: [
@@ -285,7 +285,7 @@ export const SITE_DATA: Record<Locale, SiteLocaleData> = {
         title: '看著請求一步步演變',
         lead: '請求一發出就出現在列表上，回應抵達時原地更新為完成。失敗時會告訴你原因，還能直接重送。',
         points: [
-          '透過原本的 Dio 實例重送已擷取的請求，沿用相同的 headers、base URL 與 interceptors',
+          '將 Dio 以 sourceDio 傳給 interceptor 後，即可透過原本的 Dio 實例重送已擷取的請求，沿用相同的 headers、base URL 與 interceptors',
           '超過可設定門檻的請求會標上 🐢 SLOW，還在等待回應的請求也一樣',
           '摘要橫幅依 status code 或錯誤類型將失敗請求分組',
           '區分傳輸層失敗與 4xx/5xx 伺服器錯誤',
@@ -302,7 +302,7 @@ export const SITE_DATA: Record<Locale, SiteLocaleData> = {
         lead: '頁面切換與資料庫操作，和它們前後的請求排在同一條時間軸上；key-value 儲存則有自己的分頁。',
         points: [
           '在導航事件歷史與即時 route stack 之間切換；每個事件都記錄開啟該 route 時帶的 Params 與 Args',
-          '記錄 insert、update、delete、query 操作，並可直接瀏覽 SQLite 或 ObjectBox 的真實資料表',
+          '記錄 insert、update、delete、query 操作；註冊自己實作的 DatabaseBrowserSource adapter，即可瀏覽 SQLite 或 ObjectBox 的真實資料表',
           '在裝置上瀏覽、編輯、清空 SharedPreferences 等 key-value 儲存，每次寫入都需要確認',
         ],
         shots: [
