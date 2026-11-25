@@ -44,6 +44,8 @@ test('安裝指令在頁面上，且沒有寫死版本號', () => {
   for (const { locale, html } of pages) {
     assert.ok(html.includes(INSTALL.addCommand), `${locale} 缺安裝指令`);
     assert.doesNotMatch(html, /flutter_inspector_kit:\s*\^?\d/, `${locale} 出現寫死的版本約束`);
+    // 去掉內嵌 <style> 後全頁不得出現 x.y.z（擋住直接寫進 .astro 的版本號）
+    assert.doesNotMatch(html.replace(/<style[\s\S]*?<\/style>/g, ''), /\d+\.\d+\.\d+/, `${locale} 疑似寫死版本號`);
   }
 });
 

@@ -50,8 +50,8 @@ test('外部連結一律 https', () => {
 
 test('文案不含版本號與 Markdown 反引號', () => {
   for (const s of strings(SITE_DATA)) {
-    assert.doesNotMatch(s, /\b\d+\.\d+\.\d+\b/, `疑似寫死版本號：${s}`);
+    assert.doesNotMatch(s, /\d+\.\d+\.\d+/, `疑似寫死版本號：${s}`);
     assert.doesNotMatch(s, /`/, `Markdown 反引號外洩到文案：${s}`);
   }
-  assert.doesNotMatch(INSTALL.addCommand + INSTALL.initSnippet, /\b\d+\.\d+\.\d+\b/);
+  assert.doesNotMatch(INSTALL.addCommand + INSTALL.initSnippet, /\d+\.\d+\.\d+/);
 });
