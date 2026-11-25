@@ -1,0 +1,135 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { INSTALL, LOCALES, SHOT_SIZE, SITE_DATA, SITE_META, shotSrc, type Locale } from '../data/site';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const d = SITE_DATA[locale];
+---
+
+<BaseLayout locale={locale}>
+  <header class="bar">
+    <div class="wrap bar-inner">
+      <a class="brand" href={d.path}>
+        <img src={SITE_META.faviconPath} alt="" width="28" height="28" />
+        <span>flutter_inspector_kit</span>
+      </a>
+      <div class="bar-actions">
+        <a href={SITE_META.repoUrl} target="_blank" rel="noopener noreferrer">{d.ui.github}</a>
+        <nav class="lang-switch" aria-label={d.ui.langSwitch}>
+          {LOCALES.map((l) => (
+            <a href={SITE_DATA[l].path} lang={SITE_DATA[l].htmlLang} aria-current={l === locale ? 'page' : undefined}>
+              {SITE_DATA[l].langName}
+            </a>
+          ))}
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="wrap split">
+        <div>
+          <h1>{d.hero.title}</h1>
+          <p class="lead">{d.hero.lead}</p>
+          <pre class="cmd"><code>{INSTALL.addCommand}</code></pre>
+          <div class="cta">
+            <a class="btn primary" href={SITE_META.pubUrl} target="_blank" rel="noopener noreferrer">{d.ui.pub}</a>
+            <a class="btn" href={SITE_META.repoUrl} target="_blank" rel="noopener noreferrer">{d.ui.github}</a>
+          </div>
+        </div>
+        <div class="shots">
+          <img
+            class="shot"
+            src={shotSrc(d.hero.shot.id)}
+            alt={d.hero.shot.alt}
+            width={SHOT_SIZE.width}
+            height={SHOT_SIZE.height}
+            fetchpriority="high"
+          />
+        </div>
+      </div>
+    </section>
+
+    {d.sections.map((s, i) => (
+      <section class="feature" id={s.id}>
+        <div class="wrap split">
+          <div>
+            <p class="eyebrow">{String(i + 1).padStart(2, '0')}</p>
+            <h2>{s.title}</h2>
+            <p class="lead">{s.lead}</p>
+            <ul class="points">{s.points.map((p) => <li>{p}</li>)}</ul>
+          </div>
+          <div class="shots">
+            {s.shots.map((shot) => (
+              <img
+                class="shot"
+                src={shotSrc(shot.id)}
+                alt={shot.alt}
+                width={SHOT_SIZE.width}
+                height={SHOT_SIZE.height}
+                loading="lazy"
+                decoding="async"
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    ))}
+
+    <section class="pledges" id="pledges">
+      <div class="wrap">
+        <h2>{d.pledges.title}</h2>
+        <p class="lead">{d.pledges.lead}</p>
+        <div class="cards">
+          {d.pledges.items.map((p) => (
+            <article class="card">
+              <h3>{p.title}</h3>
+              <p>{p.detail}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="install" id="install">
+      <div class="wrap">
+        <h2>{d.install.title}</h2>
+        <p class="lead">{d.install.lead}</p>
+        <h3>{d.install.addStep}</h3>
+        <pre class="cmd"><code>{INSTALL.addCommand}</code></pre>
+        <p class="note">
+          {d.install.androidNote}{' '}
+          <a href={SITE_META.androidSetupUrl} target="_blank" rel="noopener noreferrer">{d.install.androidLink}</a>
+        </p>
+        <h3>{d.install.initStep}</h3>
+        <pre><code>{INSTALL.initSnippet}</code></pre>
+        <p class="note">{d.install.note}</p>
+        <a class="btn" href={d.readmeUrl} target="_blank" rel="noopener noreferrer">{d.ui.readme}</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-inner">
+      <span>{d.footer.tagline}</span>
+      <div class="foot-links">
+        <a href={SITE_META.licenseUrl} target="_blank" rel="noopener noreferrer">{d.ui.license}</a>
+        <a href={SITE_META.repoUrl} target="_blank" rel="noopener noreferrer">{d.ui.github}</a>
+        <a href={SITE_META.pubUrl} target="_blank" rel="noopener noreferrer">{d.ui.pub}</a>
+        <a href={SITE_META.issuesUrl} target="_blank" rel="noopener noreferrer">{d.ui.issues}</a>
+        <div class="lang-switch" role="group" aria-label={d.ui.langSwitch}>
+          {LOCALES.map((l) => (
+            <a href={SITE_DATA[l].path} lang={SITE_DATA[l].htmlLang} aria-current={l === locale ? 'page' : undefined}>
+              {SITE_DATA[l].langName}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

@@ -1,0 +1,42 @@
+---
+import '../styles/global.css';
+import { LOCALES, SITE_DATA, SITE_META, type Locale } from '../data/site';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const d = SITE_DATA[locale];
+const abs = (p: string) => `${SITE_META.baseUrl}${p}`;
+---
+
+<!doctype html>
+<html lang={d.htmlLang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{d.seo.title}</title>
+    <meta name="description" content={d.seo.description} />
+    <link rel="icon" type="image/png" href={SITE_META.faviconPath} />
+    <link rel="canonical" href={abs(d.path)} />
+    {LOCALES.map((l) => <link rel="alternate" hreflang={SITE_DATA[l].htmlLang} href={abs(SITE_DATA[l].path)} />)}
+    <link rel="alternate" hreflang="x-default" href={abs(SITE_DATA.en.path)} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="flutter_inspector_kit" />
+    <meta property="og:title" content={d.seo.title} />
+    <meta property="og:description" content={d.seo.description} />
+    <meta property="og:url" content={abs(d.path)} />
+    <meta property="og:locale" content={d.ogLocale} />
+    <meta property="og:image" content={abs(SITE_META.ogImagePath)} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={d.seo.ogImageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{d.ui.skipToContent}</a>
+    <slot />
+  </body>
+</html>
