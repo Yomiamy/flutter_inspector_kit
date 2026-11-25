@@ -28,7 +28,7 @@ export const SITE_META = {
   issuesUrl: 'https://github.com/Yomiamy/flutter_inspector_kit/issues',
   licenseUrl: 'https://github.com/Yomiamy/flutter_inspector_kit/blob/main/LICENSE',
   // Android setup（desugaring）只寫在英文 README 這一段的 <details> 裡，中英兩語都連這裡
-  // ponytail: 錨點跟著 README 標題走，標題改名後只會落到 README 頂端, 改名時同步更新這裡
+  // shortcut: 錨點跟著 README 標題走，標題改名後只會落到 README 頂端；改名時同步更新這裡
   androidSetupUrl: 'https://github.com/Yomiamy/flutter_inspector_kit/blob/main/README.md#live-notification-opt-in',
   ogImagePath: '/og-card.png',
   faviconPath: '/favicon.png',
