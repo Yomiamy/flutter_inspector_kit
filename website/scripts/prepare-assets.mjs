@@ -1,4 +1,5 @@
-import { mkdir, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -32,6 +33,9 @@ const OG_SVG = `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg
   <text x="68" y="392" font-family="${SANS}" font-size="20" fill="#4B5563">Logs · Network · Navigator · Database — one timeline</text>
   <text x="68" y="540" font-family="${MONO}" font-size="18" fill="#4B5563">${SITE_META.baseUrl}</text>
 </svg>`;
+
+// 來源 PNG 的 SHA-256：test/assets-fresh.test.mjs 用它確認 prepare:assets 在來源變動後重跑過
+const MANIFEST_PATH = path.join(WEBSITE_ROOT, 'assets-source.json');
 
 const shotPath = (id) => path.join(SRC_DIR, SCREENSHOTS[id]);
 
@@ -91,6 +95,15 @@ async function writeOgCard() {
   console.log(`og-card.png: ${info.width}x${info.height}, ${info.size} B`);
 }
 
+async function writeSourceManifest() {
+  const hashes = {};
+  for (const id of Object.keys(SCREENSHOTS).sort()) {
+    hashes[id] = createHash('sha256').update(await readFile(shotPath(id))).digest('hex');
+  }
+  await writeFile(MANIFEST_PATH, `${JSON.stringify(hashes, null, 2)}\n`);
+}
+
 await convertScreenshots(); // 必須最先執行：它會建立 public/
 await writeFavicon();
 await writeOgCard();
+await writeSourceManifest();

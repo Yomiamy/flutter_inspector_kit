@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +26,16 @@ const badPixelRatio = (a, b) => {
   }
   return bad / (a.length / 3);
 };
+
+// 像素比對抓不到小範圍修改（例如只換一個小圖示），所以另外記錄來源 PNG 的雜湊
+test('assets-source.json 的來源 PNG 雜湊與 doc/screenshots 一致', () => {
+  const manifest = JSON.parse(readFileSync(path.join(ROOT, 'assets-source.json'), 'utf8'));
+  assert.deepEqual(Object.keys(manifest).sort(), Object.keys(SCREENSHOTS).sort());
+  for (const id of Object.keys(SCREENSHOTS)) {
+    const actual = createHash('sha256').update(readFileSync(path.join(SRC_DIR, SCREENSHOTS[id]))).digest('hex');
+    assert.equal(manifest[id], actual, `${id} 來源 PNG 已變動：先跑 npm run prepare:assets 並 commit website/assets-source.json 與 website/public/`);
+  }
+});
 
 test('public/screenshots 沒有落後 doc/screenshots 來源 PNG', async () => {
   for (const id of Object.keys(SCREENSHOTS)) {

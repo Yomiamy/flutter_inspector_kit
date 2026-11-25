@@ -1529,7 +1529,7 @@ flutter analyze lib/ test/                                                      
 |:-:|:---|:---|
 | R1 | WebP 超出 600 KB 總預算 | 已用 libwebp 實測：540×1200 q78 約 370 KB（餘裕 38%）。sharp 底層也是 libwebp，數字應該接近。超出時的降級順序寫在 T3 步驟 3.3；上限不能放寬 |
 | R2 | Node 版本過舊，無法直接 `import` `.ts` | `engines` 設為 `^22.23.4 || >=24.0.0`（astro CLI 下限，已涵蓋 type stripping 的 22.18.0；排除 23.0–23.5）；CI 用 Node 24；`site.ts` 只用可抹除語法（§3.1） |
-| R3 | 換截圖後網站沒更新 | CI 的 `paths` 不監看 `doc/screenshots/`，也不跑 `prepare:assets`（和參考 repo 相同）。更新 `doc/screenshots/` 後要手動跑 `npm run prepare:assets` 並 commit `website/public/`。這是已知限制，本次不自動化（YAGNI） |
+| R3 | 換截圖後網站沒更新 | CI 的 `paths` 監看 `doc/screenshots/**`（PR #262 review 後新增，偏離參考 repo）。`test/assets-fresh.test.mjs` 做兩件事：比對 `website/assets-source.json`（`prepare:assets` 寫入的來源 PNG SHA-256）與目前 `doc/screenshots/`，以及來源 PNG 與已提交 WebP 的像素差異。只改截圖而沒重跑 `npm run prepare:assets` 並 commit `website/assets-source.json` 與 `website/public/` 時 CI 會失敗。CI 不重新產生 WebP（不同平台編碼輸出不保證逐位元相同）。`/screenshots/**` 快取降為 1 天，換圖後最多 1 天內生效 |
 | R4 | og-card 的字型在不同機器上渲染結果不同 | og-card 在本機產生一次後 commit，CI 不重新產生；T3 步驟 3.5 目視檢查 |
 | R5 | 第一支 workflow 進 repo | secret 還沒設定前，部署步驟會跳過並寫 step summary，CI 不會失敗；PR 只做 build 和驗證 |
 | R6 | 本機 Firebase CLI 的 active project 是別的專案 | `.firebaserc` 設 default，手動部署一律加 `--project flutterinspectorkit`（規格 §6） |
