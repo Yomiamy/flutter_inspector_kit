@@ -224,7 +224,7 @@ dist/
 
 #### 步驟 2.3：建立 `website/firebase.json`
 
-`public: dist`；`ignore` 排除設定檔、`src/**`、`scripts/**`、`test/**`；全站加三個安全 header；`/_astro/**` 快取 1 年 immutable，`/screenshots/**` 快取 30 天加 SWR 1 天，`/favicon.png` 與 `/og-card.png` 快取 7 天。和參考 repo 逐字相同，因為路徑完全一樣。
+`public: dist`；`ignore` 排除設定檔、`src/**`、`scripts/**`、`test/**`；全站加三個安全 header；`/_astro/**` 快取 1 年 immutable，`/screenshots/**` 快取 1 天加 SWR 1 天（網址不含雜湊，換圖後最多 1 天內重新取得），`/favicon.png` 與 `/og-card.png` 快取 7 天。除 `/screenshots/**` 的 `max-age` 外和參考 repo 相同，因為路徑完全一樣。
 
 ```json
 {
@@ -271,7 +271,7 @@ dist/
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "public, max-age=2592000, stale-while-revalidate=86400"
+            "value": "public, max-age=86400, stale-while-revalidate=86400"
           }
         ]
       },
@@ -357,7 +357,7 @@ cd website && npm install
 
 #### 步驟 2.8：建立 `.github/workflows/website.yml`
 
-和參考 repo 唯一的差異是 project id：`findrestaurant-c80ea` 換成 `flutterinspectorkit`，在 step summary 和 deploy 指令各出現 1 次。觸發條件、權限、concurrency、Node 24、`firebase-tools@15.28.2`、角色說明都逐字相同。**本計畫只有這一個 `yaml` 區塊**，驗收時直接從計畫抽出來比對。
+和參考 repo 的差異是 project id 與 `paths`（見下）：`findrestaurant-c80ea` 換成 `flutterinspectorkit`，在 step summary 和 deploy 指令各出現 1 次。權限、concurrency、Node 24、`firebase-tools@15.28.2`、角色說明都逐字相同；觸發條件多一條 `doc/screenshots/**`，讓來源 PNG 變動時也會跑 `assets-fresh` 測試（PR #262 review）。**本計畫只有這一個 `yaml` 區塊**，驗收時直接從計畫抽出來比對。
 
 ```yaml
 name: Website CI & Hosting
@@ -367,11 +367,13 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      - 'doc/screenshots/**'
       - '.github/workflows/website.yml'
   push:
     branches: [main]
     paths:
       - 'website/**'
+      - 'doc/screenshots/**'
       - '.github/workflows/website.yml'
 
 permissions:

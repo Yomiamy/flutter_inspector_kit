@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      - 'doc/screenshots/**'
       - '.github/workflows/website.yml'
   push:
     branches: [main]
     paths:
       - 'website/**'
+      - 'doc/screenshots/**'
       - '.github/workflows/website.yml'
 
 permissions:
