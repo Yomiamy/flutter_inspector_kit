@@ -1308,7 +1308,7 @@ const d = SITE_DATA[locale];
         <h3>{d.install.addStep}</h3>
         <pre class="cmd"><code>{INSTALL.addCommand}</code></pre>
         <p class="note">
-          {d.install.androidNote}
+          {d.install.androidNote}{' '}
           <a href={SITE_META.androidSetupUrl} target="_blank" rel="noopener noreferrer">{d.install.androidLink}</a>
         </p>
         <h3>{d.install.initStep}</h3>
