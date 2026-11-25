@@ -1,6 +1,7 @@
 # gen-dev-workflow 全階段分析報告
 
 > **📝 更新紀錄 (Changelog)**：
+> * **2026-11-25**：同步 PR #260（Issue #259）——「Hook 強制層」新增兩個主對話護欄：`wf-guard-worktree-freeze.py`（`PreToolUse` / `Edit|Write`，fail-closed）與 `guard-dangerous-bash.py`（`PreToolUse` / `Bash`，fail-open）；並更正掛載位置——guard hook 早已改註冊於進版控的 `.claude/settings.json`，僅 `cbm-reindex-on-pr.sh` 仍在本機 `settings.local.json`。STAGE 3 多 angle 審查補上 lens 缺席時的 `MISSING COVERAGE` 處理。檔名日期前綴由 `2026-11-23` 更新至 `2026-11-25`。
 > * **2026-11-23**：同步 PR #256（Issue #255）——STAGE 3 改為三值裁決 `PASS`／`CONCERNS`／`FAIL`（reviewer 報告首行 `REVIEW: <V>`，寫入 state 的 `review_verdict`，`CONCERNS` 須附 `review_concerns`），`3→2` 退回須附 `--reason` 並記入 `rework_history`，第 3 次起退回不論 `pause_level` 都停下問人。更新「STAGE 3：審查」一節與優點表「退回機制」列。檔名日期前綴由 `2026-11-09` 更新至 `2026-11-23`。
 > * **2026-11-09**：同步 PR #246——(1) `wf-state.sh` 轉移表新增 `done→5`、`done→6`，讓 STAGE 4 收尾標為 `done` 的 `sequence` 流程可重入 STAGE 5／6；(2) 全模式（sequence／jump／quick／batch）統一由 `brancher` 建立 Issue、`publisher` 建立 PR，建立當下自動指派 `--assignee @me`（並補跑 `edit --add-assignee @me`）與設定 GitHub Project Status 為 `In Progress`（先以 `gh auth status --active --hostname github.com --json hosts` 檢查 `project` scope，缺 scope、檢查失敗或未加入 Project 皆不阻擋流程、不另開暫停詢問）；(3) `publisher` 建立 PR 前一律先執行 `git push -u origin <branch>`（不單靠 `git ls-remote` 判斷），`git push` 權責明確歸屬當下負責該 stage 的 agent（STAGE 4 為 `publisher`、STAGE 5 為 `responder`）。檔名日期前綴由 `2026-08-12` 更新至 `2026-11-09`。
 > * **2026-09-19**：同步 PR #167（Issue #166）——新增 STAGE 0·grill 需求盤問關卡與 `gen-grill` skill。(1) 「各階段詳細分析」新增 STAGE 0·grill 一節；(2) 缺點表「錯誤傳播」列標註部分緩解；(3) 總覽的 stage 敘述補上本關卡。注意此關卡**不動狀態機、不是暫停點、不產生文件**，故 state machine 轉移表與 7 個暫停點的既有敘述維持不變。
@@ -291,7 +292,7 @@ Model 別名**綁在各 agent 檔 frontmatter**（`.claude/agents/*.md`，用 `o
 | **暫停點歸屬** | Workflow 只用於**單一段落內部**的 fan-out，暫停點永遠由主對話掌控、落在任何 Workflow 呼叫的外面。一個 Workflow 呼叫 = 一段不可中斷的並行 |
 | **不變的部分** | state 檔、model 策略、委派規則完全不變——Workflow 只換「並行執行的載體」，不換流程語意 |
 
-> STAGE 3 的多 angle 對抗式審查是這裡唯一會影響品質判斷的適用點：平行 verifier 只負責**找 bug 作為輸入**，reviewer 仍親自收斂判斷並產出報告——與「STAGE 3 審查報告不可委派」的硬規則不衝突。
+> STAGE 3 的多 angle 對抗式審查是這裡唯一會影響品質判斷的適用點：平行 verifier 只負責**找 bug 作為輸入**，reviewer 仍親自收斂判斷並產出報告——與「STAGE 3 審查報告不可委派」的硬規則不衝突。任一 lens 未交回可用結果（逾時、空白、無法解析或自報 `MISSING COVERAGE:`）時，reviewer 須在報告頂部列「缺席視角」段，publisher 再把該段帶進 PR 草稿，不得把缺席當成通過。
 
 ---
 
@@ -365,15 +366,17 @@ graph LR
 
 ## Hook 強制層（程式化防線，非 LLM 自律）
 
-除了 `wf-state.sh` 的狀態機棘輪之外，本流程還有第二道**不依賴 LLM 自律**的防線：註冊於 `.claude/settings.local.json` 的 hook。它們由 harness 在工具呼叫前後執行，LLM 無法繞過或「忘記呼叫」。
+除了 `wf-state.sh` 的狀態機棘輪之外，本流程還有第二道**不依賴 LLM 自律**的防線：註冊於 `.claude/settings.json` 的 hook。它們由 harness 在工具呼叫前後執行，LLM 無法繞過或「忘記呼叫」。
 
-> **掛載位置是本地設定（`settings.local.json`），不進版控**——換機器或重裝需重新掛載，這本身是個殘餘風險。
+> **掛載位置**：guard hook 註冊於專案層 `.claude/settings.json`（進版控，clone 即生效，`test_project_settings_hooks.sh` 鎖定註冊內容）；只有 `cbm-reindex-on-pr.sh` 仍掛在本機 `settings.local.json`，換機器需重新掛載。
 
 | Hook | 事件 / matcher | 行為 | 阻擋力 |
 |---|---|---|---|
 | `wf-guard-stage-check.sh` | `PreToolUse` / `Agent` | 偵測派發 `responder` agent 時，若 state 檔的 stage 不是 5 → 阻擋 | 🔴 **exit 2 阻擋** |
 | `wf-guard-delegate-cwd.sh pre` | `PreToolUse` / `mcp__gemini-cli__ask-gemini` | 檢查派發 prompt 是否含目標 worktree 絕對路徑，缺失／不符 → 阻擋；放行時順手存下主 repo 與其他 worktree 的 git status 快照 | 🔴 **exit 2 阻擋** |
 | `wf-guard-delegate-cwd.sh post` | `PostToolUse` / `mcp__gemini-cli__ask-gemini` | 讀 pre 端快照做 before/after 差集，偵測目標 worktree 以外的實際寫入與新增 commit | 🟡 **只告警**（動作已完成，回捲無意義） |
+| `wf-guard-worktree-freeze.py` | `PreToolUse` / `Edit\|Write` | 主對話位於已綁定 workflow 的 worktree 時，擋下寫入主 checkout 或其他已綁定 worktree 的 Edit/Write（詞法與 realpath 各判一次）；Bash 寫檔不在範圍 | 🔴 **exit 2 阻擋**（fail-closed，`onFailure: block`） |
+| `guard-dangerous-bash.py` | `PreToolUse` / `Bash` | 常駐：`rm -rf` 目標為 `/`、`~`、`$HOME` 與 force push 到 `main` → deny；`git reset --hard`、`git checkout .`／`git restore .`、`git clean -f` → ask | 🔴 **deny／ask**（fail-open，`onFailure: continue`，作為 freeze 壞掉時的自救通道） |
 | `cbm-reindex-on-pr.sh` | `PostToolUse` / `Bash` | 以 shlex tokenize 判斷是否為 `gh pr create` / `git push` / `git pull`，是則背景重建 codebase-memory 索引 | — （不阻擋） |
 
 **設計要點：**
