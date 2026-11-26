@@ -619,9 +619,9 @@ BASE="$(git merge-base HEAD origin/main)"
    ```
    第 2 次 Bash（`first` 只取最早一筆——查詢指令本身也含 canary 字串，重查時會多命中）：
    ```bash
-   jq -rn --arg n 'devlog-canary-<自訂>' 'first(inputs | select(.command | contains($n))) | .agent_type' '<DEV_LOG>'
+   jq -rn --arg n 'devlog-canary-<自訂>' 'first(inputs | select(.command | contains($n))) | .agent_type // empty' '<DEV_LOG>'
    ```
-   log 不存在、`jq` 解析失敗、或輸出為空 → 首行 `FAIL: INFRA: dev log 側錄失效`，停止對照（側錄沒在運作不是代碼問題，不得改判 `FAIL: CODE`）。
+   log 不存在、`jq` 解析失敗、或輸出為空（無命中，或命中列的 `agent_type` 為 `null`，`// empty` 已將後者轉為空）→ 首行 `FAIL: INFRA: dev log 側錄失效`，停止對照（側錄沒在運作不是代碼問題，不得改判 `FAIL: CODE`）。
 2. **比對範圍**：第 2 次 Bash 輸出的 `agent_type` 即 `<ME>`。第 3 次 Bash 以字面值代入，排除所有驗收方紀錄，只看本次派發之後的被稽核者紀錄（`jq` 解析失敗同樣判 `FAIL: INFRA: dev log 側錄失效`）：
    ```bash
    jq -c --arg s '<SINCE>' --arg me '<ME>' 'select(.ts >= $s and .agent_type != $me) | {ts, cwd, command, exit_code, background, output_tail}' '<DEV_LOG>'
