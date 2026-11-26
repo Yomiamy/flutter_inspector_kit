@@ -113,6 +113,7 @@ description: |
     │  → 委派實作任務，verifier 兩階段階層式驗收     │
     │     （首行 PASS / FAIL: CODE / FAIL: INFRA；  │
     │      見 references/delegation-and-parallel.md） │
+    │（派發附回報＋DEV_LOG＋SINCE，對照 dev log 側錄）│
     │  🪶 Ponytail：派發模板必附〈規則塊〉，驗收把  │
     │     計畫外抽象/依賴/防禦分支當品質不佳退回    │
     │     （規則塊全文見 .claude/agents/implementer.md）│

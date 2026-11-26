@@ -10,10 +10,12 @@ STAGE_CHECK_REL='.claude/hooks/wf-guard-stage-check.sh'
 DELEGATE_CWD_REL='.claude/hooks/wf-guard-delegate-cwd.sh'
 FREEZE_REL='.claude/hooks/wf-guard-worktree-freeze.py'
 BASH_GUARD_REL='.claude/hooks/guard-dangerous-bash.py'
+DEV_LOG_REL='.claude/hooks/wf-dev-log.sh'
 STAGE_CHECK='"$CLAUDE_PROJECT_DIR"/'"$STAGE_CHECK_REL"
 DELEGATE_CWD='"$CLAUDE_PROJECT_DIR"/'"$DELEGATE_CWD_REL"
 FREEZE='"$CLAUDE_PROJECT_DIR"/'"$FREEZE_REL"
 BASH_GUARD='"$CLAUDE_PROJECT_DIR"/'"$BASH_GUARD_REL"
+DEV_LOG='"$CLAUDE_PROJECT_DIR"/'"$DEV_LOG_REL"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -57,9 +59,12 @@ check_guard PostToolUse mcp__gemini-cli__ask-gemini "$DELEGATE_CWD post"
 # 凍結 fail-closed；Bash 護欄刻意 fail-open（它是凍結 hook 壞掉時的自救通道），onFailure 寫明 continue 並鎖住
 check_guard PreToolUse 'Edit|Write' "$FREEZE"
 check_guard PreToolUse Bash "$BASH_GUARD" continue
+# dev log 側錄：失敗的 Bash 只觸發 PostToolUseFailure，兩個事件都要掛（AC-11）
+check_guard PostToolUse Bash "$DEV_LOG"
+check_guard PostToolUseFailure Bash "$DEV_LOG"
 
 echo "=== Test 3 (AC-3): guard scripts exist, executable, index mode 100755 ==="
-for rel in "$STAGE_CHECK_REL" "$DELEGATE_CWD_REL" "$FREEZE_REL" "$BASH_GUARD_REL"; do
+for rel in "$STAGE_CHECK_REL" "$DELEGATE_CWD_REL" "$FREEZE_REL" "$BASH_GUARD_REL" "$DEV_LOG_REL"; do
   [ -f "$REPO_ROOT/$rel" ] || fail "$rel does not exist"
   [ -x "$REPO_ROOT/$rel" ] || fail "$rel is not executable"
   mode="$(git -C "$REPO_ROOT" ls-files -s -- "$rel" | cut -d' ' -f1)"

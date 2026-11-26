@@ -44,6 +44,8 @@ const results = await pipeline(
 > ⚠️ **「快/便宜」是委派後端的內部等級，不是 Claude model 名**——`task.model` 帶的必須是 `sonnet`/`opus` 這類真實別名。計畫標「機械性」時對應 `model: 'sonnet'`，不要把「快/便宜」四個字直接傳進 `opts.model`。
 >
 > 邊界：**批與批之間的暫停由主指揮控制**，不可把多批塞進同一個 Workflow 連續跑完（那會跳過暫停點）。並行任務改檔時用 `isolation: 'worktree'` 避免互踩工作區。
+>
+> **Dev log 對照未接線**：本適用點的 verify 步驟不附 `DEV_LOG` / `SINCE`——`isolation: 'worktree'` 下 implementer 的 `Bash` 側錄落在隔離 worktree，路徑未經實測。verifier 會在報告註明「dev log 對照：未啟用」。需要對照時改走主檔的 `Task(...)` 路徑（附件見 [`delegation-and-parallel.md`](delegation-and-parallel.md)「STAGE 2 驗收的 model」）。
 
 ## 適用點 3：STAGE 3 多 angle 對抗式審查
 
