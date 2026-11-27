@@ -25,8 +25,49 @@ const Set<String> _kSensitiveWords = {'pin', 'key'};
 
 final RegExp _kSensitiveCamelBoundary = RegExp(r'[a-z](Pin|PIN|Key|KEY)[A-Z]');
 
+/// Normalized-key suffixes naming status or expiry metadata, not a credential.
+const Set<String> _kMetadataSuffixes = {
+  '_type',
+  '_expires_in',
+  '_expires_at',
+  '_expired',
+  '_expiry',
+  '_mode',
+  '_method',
+  '_provider',
+  '_step',
+  '_status',
+  '_required',
+  '_enabled',
+};
+
+/// Captures the rest of a boolean-flag key such as `is_authenticated`.
+final RegExp _kBooleanPrefix = RegExp(r'^(?:is|has|can|should)_(.*)$');
+
+/// A boolean-flag rest ending in one of these is a multi-word credential name
+/// (e.g. `has_secret_token`), so it stays on the strict path.
+const Set<String> _kSecretNameSuffixes = {
+  '_token',
+  '_password',
+  '_secret',
+  '_key',
+  '_apikey',
+  '_credential',
+  '_pin',
+};
+
+final RegExp _kCamelHump = RegExp(r'([a-z0-9])([A-Z])');
+
 /// Returns true if [key] is recognized as containing sensitive data.
+///
+/// Status/expiry metadata (`token_type`, `authStatus`) and single-word boolean
+/// flags (`is_authenticated`, `hasPassword`) are let through first.
 bool isSensitiveRoutingKey(String key) {
+  final normalized = _normalizeKey(key);
+  if (_kMetadataSuffixes.any(normalized.endsWith)) return false;
+  final rest = _kBooleanPrefix.firstMatch(normalized)?[1];
+  if (rest != null && !_kSecretNameSuffixes.any(rest.endsWith)) return false;
+  // Raw key on purpose: normalizing erases the PIN boundary in `userPINCode`.
   final lower = key.toLowerCase();
   for (final pattern in _kSensitiveSubstrings) {
     if (lower.contains(pattern)) return true;
@@ -59,6 +100,12 @@ bool isSensitiveRoutingKey(String key) {
   }
   return false;
 }
+
+/// `tokenExpiresIn` / `token-expires-in` → `token_expires_in`.
+String _normalizeKey(String key) => key
+    .replaceAllMapped(_kCamelHump, (m) => '${m[1]}_${m[2]}')
+    .replaceAll('-', '_')
+    .toLowerCase();
 
 bool _isAsciiUpper(String ch) {
   final code = ch.codeUnitAt(0);
